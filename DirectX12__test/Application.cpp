@@ -1,5 +1,6 @@
 #include "Application.hpp"
 #include "Defines.hpp"
+#include "Polygon.hpp"
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -81,6 +82,9 @@ HRESULT Application::Init(HINSTANCE hInstance)
 	m_DirectX = MakeUnique<DirectXApp>(m_hWnd, WINDOW_WIDTH, WINDOW_HEIGHT);
 	m_Scene = MakeUnique<SampleScene>();
 
+	Polygon::Init(m_DirectX->GetDevice(), m_DirectX->GetCommandList(), m_DirectX->GetPipelineState(), m_DirectX->GetPipelineStateWireFrame());
+	Polygon::CreatePolygon();
+
 	UpdateWindow(m_hWnd);
 	ShowWindow(m_hWnd, SW_SHOW);
 	return S_OK;
@@ -97,11 +101,11 @@ void Application::Run()
 			DispatchMessage(&msg);
 		}
 
-		/* 更新 */
-		m_Scene->Update();
-
 		/* DirectX描画開始 */
 		m_DirectX->BeginRender();
+
+		/* 更新 */
+		m_Scene->Update();
 
 		/* 描画 */
 		m_Scene->Draw();

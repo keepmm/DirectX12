@@ -12,15 +12,27 @@ ComPtr<ID3D12Resource>		Polygon::m_IndexBuffer;
 D3D12_INDEX_BUFFER_VIEW		Polygon::m_IndexBufferView;
 ComPtr<ID3D12Resource>		Polygon::m_ConstantBuffer;
 ComPtr<ID3D12Device>		Polygon::m_Device;
+ComPtr<ID3D12GraphicsCommandList> Polygon::m_CommandList;
+ComPtr<ID3D12PipelineState> Polygon::m_PipelineState;
+ComPtr<ID3D12PipelineState> Polygon::m_PipelineStateWireFrame;
+
+struct alignas(256) Transform
+{
+	DirectX::XMFLOAT4X4 worldViewProj;
+};
 
 Polygon::~Polygon()
 {
 }
 
-void Polygon::Init(ComPtr<ID3D12Device> device)
+void Polygon::Init(ComPtr<ID3D12Device> device, ComPtr<ID3D12GraphicsCommandList> commandList,
+	ComPtr<ID3D12PipelineState> pipelineState, ComPtr<ID3D12PipelineState> pipelineStateWireFrame)
 {
 	/* 初期化 */
 	m_Device = device;
+	m_CommandList = commandList;
+	m_PipelineState = pipelineState;
+	m_PipelineStateWireFrame = pipelineStateWireFrame;
 	for (int i = 0; i < 3; ++i) {
 		DirectX::XMStoreFloat4x4(&m_wvp[i], DirectX::XMMatrixIdentity());
 	}
@@ -165,18 +177,45 @@ void Polygon::SetProjection(float4x4 proj)
 	m_wvp[2] = proj;
 }
 
-void Polygon::Draw(ID3D12GraphicsCommandList* cmdList)
+void Polygon::Draw()
 {
+	// 行列を定数バッファに送信
+	Transform transformData{};
+	const auto wvp = DirectX::XMMatrixTranspose(
+		DirectX::XMLoadFloat4x4(&m_wvp[0]) *
+		DirectX::XMLoadFloat4x4(&m_wvp[1]) *
+		DirectX::XMLoadFloat4x4(&m_wvp[2])
+	);
+	DirectX::XMStoreFloat4x4(&transformData.worldViewProj, wvp);
+
+	Transform* MappedData = nullptr;
+	m_ConstantBuffer->Map(0, nullptr, reinterpret_cast<void**>(&MappedData));
+	*MappedData = transformData;
+	m_ConstantBuffer->Unmap(0, nullptr);
+
+
 	/* コマンドリストが無効な場合は何もしない */
-	if (!cmdList) return;
+	if (!m_CommandList) return;
+
+	// GPUに定数バッファを送信
+	m_CommandList->SetGraphicsRootConstantBufferView(
+		0,
+		m_ConstantBuffer->GetGPUVirtualAddress()
+	);
 
 	/* 頂点 / インデックスが作成されていればバインドして描画する */
 	if (m_VertexBuffer) {
-		cmdList->IASetVertexBuffers(0, 1, &m_VertexBufferView);
+		m_CommandList->IASetVertexBuffers(0, 1, &m_VertexBufferView);
 	}
 	if (m_IndexBuffer) {
-		cmdList->IASetIndexBuffer(&m_IndexBufferView);
-		cmdList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-		cmdList->DrawIndexedInstanced(m_IndexBufferView.SizeInBytes / sizeof(UINT), 1, 0, 0, 0);
+		m_CommandList->IASetIndexBuffer(&m_IndexBufferView);
+		m_CommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+		m_CommandList->SetPipelineState(m_PipelineState.Get());
+		m_CommandList->DrawIndexedInstanced(36, 1, 0, 0, 0);
+
+		// ワイヤーフレームで描画
+		m_CommandList->SetPipelineState(m_PipelineStateWireFrame.Get());
+		m_CommandList->DrawIndexedInstanced(36, 1, 0, 0, 0);
 	}
 }

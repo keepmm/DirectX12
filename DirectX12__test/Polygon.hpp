@@ -14,13 +14,17 @@
 class Polygon
 {
 public:
-	static void Init(ComPtr<ID3D12Device> device);
+	static void Init(
+		ComPtr<ID3D12Device> device, 
+		ComPtr<ID3D12GraphicsCommandList> commandList,
+		ComPtr<ID3D12PipelineState> pipelineState,
+		ComPtr<ID3D12PipelineState> pipelineStateWireFrame);
 	static void CreatePolygon();
 
 	static void SetWorld(float4x4 world);
 	static void SetView(float4x4 view);
 	static void SetProjection(float4x4 proj);
-	static void Draw(ID3D12GraphicsCommandList* cmdList);
+	static void Draw();
 private:
 	Polygon(const Polygon&)				= delete;
 	Polygon& operator=(const Polygon&)  = delete;
@@ -29,11 +33,14 @@ private:
 
 	static float4x4 m_wvp[3];
 
-	static ComPtr<ID3D12Resource>		m_VertexBuffer;
-	static D3D12_VERTEX_BUFFER_VIEW		m_VertexBufferView;
-	static ComPtr<ID3D12Resource>		m_IndexBuffer;
-	static D3D12_INDEX_BUFFER_VIEW		m_IndexBufferView;
-	static ComPtr<ID3D12Resource>		m_ConstantBuffer;
-	static ComPtr<ID3D12Device>			m_Device;
+	static ComPtr<ID3D12Resource>				m_VertexBuffer;
+	static D3D12_VERTEX_BUFFER_VIEW				m_VertexBufferView;
+	static ComPtr<ID3D12Resource>				m_IndexBuffer;
+	static D3D12_INDEX_BUFFER_VIEW				m_IndexBufferView;
+	static ComPtr<ID3D12Resource>				m_ConstantBuffer;
+	static ComPtr<ID3D12Device>					m_Device;
+	static ComPtr<ID3D12GraphicsCommandList>	m_CommandList;
+	static ComPtr<ID3D12PipelineState>			m_PipelineState;
+	static ComPtr<ID3D12PipelineState>			m_PipelineStateWireFrame;
 };
 

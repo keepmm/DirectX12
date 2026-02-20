@@ -3,7 +3,7 @@
 Camera::Camera()
 {
 	m_FovY = DirectX::XMConvertToRadians(60.0f);
-	m_Position = { 0.0f, 0.0f, -5.0f };
+	m_Position = { 0.0f, 2.0f, -5.0f };
 	m_LookAt = { 0.0f, 0.0f, 0.0f };
 	m_Up = { 0.0f, 1.0f, 0.0f };
 }

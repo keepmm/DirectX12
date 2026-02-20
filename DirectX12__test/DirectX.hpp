@@ -40,6 +40,10 @@ public:
 	HRESULT EndRender();
 
 	ComPtr<ID3D12Device> GetDevice() const { return m_Device; }
+	ComPtr<ID3D12GraphicsCommandList> GetCommandList() const { return m_CommandList; }
+
+	ComPtr<ID3D12PipelineState> GetPipelineState() const { return m_pipelineState; }
+	ComPtr<ID3D12PipelineState> GetPipelineStateWireFrame() const { return m_pipelineStateWireFrame; }
 private:
 	HWND m_Window_hWnd;
 	int  m_Window_Width;
@@ -74,19 +78,11 @@ private:
 	*/
 	ComPtr<ID3D12PipelineState> m_pipelineState;
 
-	/* 
-	* このふたつは頂点データの管理
-	*/
-	ComPtr<ID3D12Resource> m_VertexBuffer;
-	D3D12_VERTEX_BUFFER_VIEW m_VertexBufferView;
-
 	/*
-	*	シェーダーに渡す行列やパラメーター
+	*	ワイヤーフレーム用のパイプライン
 	*/
-	ComPtr<ID3D12Resource> m_ConstantBuffer;
+	ComPtr<ID3D12PipelineState> m_pipelineStateWireFrame;
 
-	D3D12_INDEX_BUFFER_VIEW m_IndexBufferView;
-	ComPtr<ID3D12Resource> m_IndexBuffer;
 
 	ComPtr<ID3D12Resource> m_Depthbuffer;
 
@@ -98,7 +94,6 @@ private:
 
 	void CreateRootSignature();
 	void CreatePipelineStateObject();
-	void SetupRenderingBuffers();
 
 	void WaitForCommandQueue(ID3D12CommandQueue* pCommandQueue);
 };

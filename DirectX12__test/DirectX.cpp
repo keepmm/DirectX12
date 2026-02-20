@@ -189,7 +189,6 @@ DirectXApp::DirectXApp(HWND hWnd, int Window_Width, int Window_Height) :
 	// ============================
 	CreateRootSignature();
 	CreatePipelineStateObject();
-	SetupRenderingBuffers();
 
 	return;
 }
@@ -299,11 +298,16 @@ void DirectXApp::CreatePipelineStateObject()
 	if (FAILED(hr)) {
 		assert(false);
 	}
-}
 
-void DirectXApp::SetupRenderingBuffers()
-{
+	// ワイヤフレームPSO
+	auto wireDesc = psoDesc;
+	wireDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
+	wireDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;	// 深度バッファへの書き込みを無効化
 
+	hr = m_Device->CreateGraphicsPipelineState(&wireDesc, IID_PPV_ARGS(m_pipelineStateWireFrame.ReleaseAndGetAddressOf()));
+	if (FAILED(hr)) {
+		assert(false);
+	}
 }
 
 DirectXApp::~DirectXApp() {}
@@ -326,11 +330,6 @@ HRESULT DirectXApp::BeginRender()
 
 	m_CommandList->SetPipelineState(m_pipelineState.Get());
 	m_CommandList->SetGraphicsRootSignature(m_rootSignature.Get());
-
-	m_CommandList->SetGraphicsRootConstantBufferView(
-		0,
-		m_ConstantBuffer->GetGPUVirtualAddress()
-	);
 
 	D3D12_RECT scissorRect = { 0,0,(LONG)m_Window_Width,(LONG)m_Window_Height };
 	m_CommandList->RSSetScissorRects(1, &scissorRect);
@@ -364,23 +363,21 @@ HRESULT DirectXApp::BeginRender()
 
 	m_CommandList->RSSetViewports(1, &vp);
 
-	m_CommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-	m_CommandList->IASetVertexBuffers(0, 1, &m_VertexBufferView);
-	m_CommandList->IASetIndexBuffer(&m_IndexBufferView);
-	m_CommandList->DrawIndexedInstanced(36, 1, 0, 0, 0);
-
-	// Presentする前の準備
-	SetResourceBarrier(
-	m_CommandList.Get(),
-		m_RenderTargets[TargetIndex].Get(),
-		D3D12_RESOURCE_STATE_RENDER_TARGET,
-		D3D12_RESOURCE_STATE_PRESENT
-	);
 	return S_OK;
 }
 
 HRESULT DirectXApp::EndRender()
 {
+	int TargetIndex = m_SwapChain->GetCurrentBackBufferIndex();
+
+	// Presentする前の準備
+	SetResourceBarrier(
+		m_CommandList.Get(),
+		m_RenderTargets[TargetIndex].Get(),
+		D3D12_RESOURCE_STATE_RENDER_TARGET,
+		D3D12_RESOURCE_STATE_PRESENT
+	);
+
 	m_CommandList->Close();
 
 	// 積んだコマンドの実行
@@ -410,8 +407,12 @@ void DirectXApp::SetResourceBarrier(ID3D12GraphicsCommandList* CommandList, ID3D
 void DirectXApp::WaitForCommandQueue(ID3D12CommandQueue* pCommandQueue)
 {
 	static UINT64 frames = 0;
-	m_Fence->SetEventOnCompletion(frames, m_Fence_Event);
-	pCommandQueue->Signal(m_Fence.Get(), frames);
-	WaitForSingleObject(m_Fence_Event, INFINITE);
 	frames++;
+
+	pCommandQueue->Signal(m_Fence.Get(), frames);
+
+	if (m_Fence->GetCompletedValue() < frames) {
+		m_Fence->SetEventOnCompletion(frames, m_Fence_Event);
+		WaitForSingleObject(m_Fence_Event, INFINITE);
+	}
 }
