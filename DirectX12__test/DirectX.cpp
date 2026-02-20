@@ -252,7 +252,7 @@ void DirectXApp::CreatePipelineStateObject()
 	};
 
 	// VertexShader(頂点シェーダー)の読み込みとコンパイル
-	ComPtr<ID3DBlob> vsBlob, psBlob;
+	ComPtr<ID3DBlob> vsBlob, psBlob,WireBlob;
 	D3DCompileFromFile(L"VertexShader.hlsl",
 		nullptr,
 		nullptr,
@@ -273,6 +273,17 @@ void DirectXApp::CreatePipelineStateObject()
 		0,
 		&psBlob,
 		nullptr);
+
+	D3DCompileFromFile(L"PixelShader.hlsl",
+		nullptr,
+		nullptr,
+		"WireFramePS",
+		"ps_5_0",
+		0,
+		0,
+		&WireBlob,
+		nullptr);
+
 
 	/// パイプラインステートの情報定義
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
@@ -303,6 +314,7 @@ void DirectXApp::CreatePipelineStateObject()
 	auto wireDesc = psoDesc;
 	wireDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
 	wireDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;	// 深度バッファへの書き込みを無効化
+	wireDesc.PS = CD3DX12_SHADER_BYTECODE(WireBlob.Get());
 
 	hr = m_Device->CreateGraphicsPipelineState(&wireDesc, IID_PPV_ARGS(m_pipelineStateWireFrame.ReleaseAndGetAddressOf()));
 	if (FAILED(hr)) {
