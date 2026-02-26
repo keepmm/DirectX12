@@ -2,6 +2,7 @@
 #include "Defines.hpp"
 #include "Polygon.hpp"
 #include "Time.hpp"
+#include "Input.hpp"
 
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -88,6 +89,7 @@ HRESULT Application::Init(HINSTANCE hInstance)
 	Polygon::CreatePolygon();
 
 	TIME->Init();
+	INPUT->Init(m_hWnd);
 
 	UpdateWindow(m_hWnd);
 	ShowWindow(m_hWnd, SW_SHOW);
@@ -108,6 +110,9 @@ void Application::Run()
 		{
 			/* タイマー更新*/
 			TIME->Update();
+
+			/* 入力更新 */
+			INPUT->Update();
 
 			/* DirectX描画開始 */
 			m_DirectX->BeginRender();
