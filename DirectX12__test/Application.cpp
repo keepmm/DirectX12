@@ -1,6 +1,8 @@
 #include "Application.hpp"
 #include "Defines.hpp"
 #include "Polygon.hpp"
+#include "Time.hpp"
+
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -85,6 +87,8 @@ HRESULT Application::Init(HINSTANCE hInstance)
 	Polygon::Init(m_DirectX->GetDevice(), m_DirectX->GetCommandList(), m_DirectX->GetPipelineState(), m_DirectX->GetPipelineStateWireFrame());
 	Polygon::CreatePolygon();
 
+	TIME->Init();
+
 	UpdateWindow(m_hWnd);
 	ShowWindow(m_hWnd, SW_SHOW);
 	return S_OK;
@@ -100,18 +104,23 @@ void Application::Run()
 			TranslateMessage(&msg);
 			DispatchMessage(&msg);
 		}
+		else
+		{
+			/* タイマー更新*/
+			TIME->Update();
 
-		/* DirectX描画開始 */
-		m_DirectX->BeginRender();
+			/* DirectX描画開始 */
+			m_DirectX->BeginRender();
 
-		/* 更新 */
-		m_Scene->Update();
+			/* 更新 */
+			m_Scene->Update();
 
-		/* 描画 */
-		m_Scene->Draw();
+			/* 描画 */
+			m_Scene->Draw();
 
-		/* DirectX描画終了 */
-		m_DirectX->EndRender();
+			/* DirectX描画終了 */
+			m_DirectX->EndRender();
+		}
 	}
 }
 

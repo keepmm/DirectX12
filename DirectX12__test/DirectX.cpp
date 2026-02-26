@@ -1,3 +1,11 @@
+/*****************************************************************//**
+ * \file   DirectX.cpp
+ * \brief  DirectX12の初期化と描画開始・終了処理
+ * 
+ * 作成者 keep
+ * 作成日 2026/2/24
+ * 更新履歴 2026/2/24 keep 作成
+ * *********************************************************************/
 #include "DirectX.hpp"
 #include "Vertex.hpp"
 #include <algorithm>
@@ -201,7 +209,7 @@ void DirectXApp::CreateRootSignature()
 	// ここでは一つのルートパラメータを作成
 	// 頂点シェーダで使う定数バッファ(b0)をバインドする設定
 	CD3DX12_ROOT_PARAMETER rootParameters[1] = {};
-	rootParameters[0].InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
+	rootParameters[0].InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_ALL);
 	// ルートパラメータ... GPUシェーダーに渡すリソース(定数バッファ・テクスチャ・サンプラーなど)のこと
 	// D3D12_SHADER_VISIBILITY_VERTEX... 頂点シェーダーのみで使用
 
@@ -248,7 +256,8 @@ void DirectXApp::CreatePipelineStateObject()
 	D3D12_INPUT_ELEMENT_DESC InputLayout[] =
 	{
 		{"Position",0,DXGI_FORMAT_R32G32B32_FLOAT,0,0,D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,0},
-		{"COLOR",0,DXGI_FORMAT_R32G32B32A32_FLOAT,0,12,D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,0},
+		{"Normal",0,DXGI_FORMAT_R32G32B32_FLOAT,0,12,D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,0},
+		{"COLOR",0,DXGI_FORMAT_R32G32B32A32_FLOAT,0,24,D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,0},
 	};
 
 	// VertexShader(頂点シェーダー)の読み込みとコンパイル

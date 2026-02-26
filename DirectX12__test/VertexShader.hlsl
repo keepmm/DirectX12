@@ -4,6 +4,10 @@
 cbuffer Transform : register(b0)
 {
     float4x4 worldViewProj;
+    float4x4 world;
+    float4 lightDir;
+    float4 lightColor;
+    float4 ambientColor;
 }
 
 // VSInput ... 頂点シェーダーに渡される1頂点のデータ
@@ -14,6 +18,7 @@ cbuffer Transform : register(b0)
 struct VSInput
 {
     float3 pos : POSITION;
+    float3 normal : NORMAL;
     float4 col : COLOR;
 };
 
@@ -23,6 +28,7 @@ struct VSInput
 struct PSInput
 {
     float4 pos : SV_POSITION;
+    float3 normal : NORMAL;
     float4 col : COLOR;
 };
 
@@ -33,6 +39,7 @@ PSInput BasicVS(VSInput input)
 {
     PSInput output;
     output.pos = mul(float4(input.pos, 1.0f), worldViewProj);
+    output.normal = normalize(mul(float4(input.normal, 0.0f), world).xyz);
     output.col = input.col;
     return output;
 }

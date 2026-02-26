@@ -21,10 +21,10 @@ public:
 
 private:
 	float3 m_Position{};		// カメラの座標
-	float3 m_LookAt{};		// カメラの注視点
-	float3 m_Up{};			// カメラの上方向
-	float  m_FovY = 60.0f;	// カメラの垂直方向の視野角4
-	float m_Near = 0.1f;	// カメラの近距離クリップ面
-	float m_Far = 100.0f;	// カメラの遠距離クリップ面
+	float3 m_LookAt{};			// カメラの注視点
+	float3 m_Up{};				// カメラの上方向
+	float  m_FovY = 60.0f;		// カメラの垂直方向の視野角4
+	float m_Near = 0.1f;		// カメラの近距離クリップ面
+	float m_Far = 100.0f;		// カメラの遠距離クリップ面
 };
 

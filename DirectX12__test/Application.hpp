@@ -12,6 +12,7 @@
 #include "Defines.hpp"
 #include "DirectX.hpp"
 #include "SampleScene.hpp"
+#include <chrono>
 
 #define APPLICATION Application::GetInstance()
 

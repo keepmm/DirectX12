@@ -5,6 +5,10 @@
 constexpr float _Color = 0.6f;
 constexpr float4 PolygonColor = { _Color,_Color,_Color, 1.0f };
 
+float3 Polygon::m_LightDir = { 0.0f, 0.0f, -1.0f };
+float4 Polygon::m_LightColor = { 1.0f, 1.0f, 1.0f, 1.0f };
+float4 Polygon::m_AmbientColor = { 0.2f, 0.2f, 0.2f, 1.0f };
+
 float4x4					Polygon::m_wvp[3];
 ComPtr<ID3D12Resource>		Polygon::m_VertexBuffer;
 D3D12_VERTEX_BUFFER_VIEW	Polygon::m_VertexBufferView;
@@ -15,10 +19,16 @@ ComPtr<ID3D12Device>		Polygon::m_Device;
 ComPtr<ID3D12GraphicsCommandList> Polygon::m_CommandList;
 ComPtr<ID3D12PipelineState> Polygon::m_PipelineState;
 ComPtr<ID3D12PipelineState> Polygon::m_PipelineStateWireFrame;
+bool Polygon::m_IsDrawWireFrame = false;
+bool Polygon::m_isDrawPolygon = true;
 
 struct alignas(256) Transform
 {
-	DirectX::XMFLOAT4X4 worldViewProj;
+	float4x4 worldViewProj;
+	float4x4 world;
+	float4 lightDir;
+	float4 lightColor;
+	float4 ambientColor;
 };
 
 Polygon::~Polygon()
@@ -48,40 +58,40 @@ void Polygon::CreatePolygon()
 
 	Vertex vertices[] =
 	{
-		{ { -0.5f,  0.5f, -0.5f}, PolygonColor },
-		{ {  0.5f,  0.5f, -0.5f}, PolygonColor },
-		{ { -0.5f, -0.5f, -0.5f}, PolygonColor },
-		{ {  0.5f, -0.5f, -0.5f}, PolygonColor },
+		{ { -0.5f,  0.5f, -0.5f},{0.0f, 0.0f, -1.0f},PolygonColor },
+		{ {  0.5f,  0.5f, -0.5f},{0.0f, 0.0f, -1.0f},PolygonColor },
+		{ { -0.5f, -0.5f, -0.5f},{0.0f, 0.0f, -1.0f},PolygonColor },
+		{ {  0.5f, -0.5f, -0.5f},{0.0f, 0.0f, -1.0f},PolygonColor },
 
 		// +Z面 (Front)
-		{ { 0.5f,  0.5f,  0.5f},  PolygonColor },
-		{ {-0.5f,  0.5f,  0.5f},  PolygonColor },
-		{ { 0.5f, -0.5f,  0.5f},  PolygonColor },
-		{ {-0.5f, -0.5f,  0.5f},  PolygonColor },
+		{ { 0.5f,  0.5f,  0.5f},{0.0f,0.0f,1.0f}, PolygonColor },
+		{ {-0.5f,  0.5f,  0.5f},{0.0f,0.0f,1.0f}, PolygonColor },
+		{ { 0.5f, -0.5f,  0.5f},{0.0f,0.0f,1.0f}, PolygonColor },
+		{ {-0.5f, -0.5f,  0.5f},{0.0f,0.0f,1.0f}, PolygonColor },
 
 		// -X面 (Left)
-		{ {-0.5f,  0.5f,  0.5f},  PolygonColor },
-		{ {-0.5f,  0.5f, -0.5f},  PolygonColor },
-		{ {-0.5f, -0.5f,  0.5f},  PolygonColor },
-		{ {-0.5f, -0.5f, -0.5f},  PolygonColor },
+		{ {-0.5f,  0.5f,  0.5f}, {-1.0f,0.0f,0.0f}, PolygonColor },
+		{ {-0.5f,  0.5f, -0.5f}, {-1.0f,0.0f,0.0f}, PolygonColor },
+		{ {-0.5f, -0.5f,  0.5f}, {-1.0f,0.0f,0.0f}, PolygonColor },
+		{ {-0.5f, -0.5f, -0.5f}, {-1.0f,0.0f,0.0f}, PolygonColor },
 
 		// +X面 (Right)
-		{ { 0.5f,  0.5f, -0.5f},  PolygonColor },
-		{ { 0.5f,  0.5f,  0.5f},  PolygonColor },
-		{ { 0.5f, -0.5f, -0.5f},  PolygonColor },
-		{ { 0.5f, -0.5f,  0.5f},  PolygonColor },
+		{ { 0.5f,  0.5f, -0.5f}, {1.0f,0.0f,0.0f}, PolygonColor },
+		{ { 0.5f,  0.5f,  0.5f}, {1.0f,0.0f,0.0f}, PolygonColor },
+		{ { 0.5f, -0.5f, -0.5f}, {1.0f,0.0f,0.0f}, PolygonColor },
+		{ { 0.5f, -0.5f,  0.5f}, {1.0f,0.0f,0.0f}, PolygonColor },
 
 		// +Y面 (Top)
-		{ { -0.5f,  0.5f,  0.5f}, PolygonColor },
-		{ {  0.5f,  0.5f,  0.5f}, PolygonColor },
-		{ { -0.5f,  0.5f, -0.5f}, PolygonColor },
-		{ {  0.5f,  0.5f, -0.5f}, PolygonColor },
+		{ { -0.5f,  0.5f,  0.5f},{0.0f,1.0f,0.0f}, PolygonColor },
+		{ {  0.5f,  0.5f,  0.5f},{0.0f,1.0f,0.0f}, PolygonColor },
+		{ { -0.5f,  0.5f, -0.5f},{0.0f,1.0f,0.0f}, PolygonColor },
+		{ {  0.5f,  0.5f, -0.5f},{0.0f,1.0f,0.0f}, PolygonColor },
 
 		// -Y面 (Bottom)	
-		{ { 0.5f, -0.5f,  0.5f},  PolygonColor },
-		{ {-0.5f, -0.5f,  0.5f},  PolygonColor },
-		{ { 0.5f, -0.5f, -0.5f},  PolygonColor },
-		{ {-0.5f, -0.5f, -0.5f},  PolygonColor },
+		{ { 0.5f, -0.5f,  0.5f}, {0.0f,-1.0f,0.0f}, PolygonColor },
+		{ {-0.5f, -0.5f,  0.5f}, {0.0f,-1.0f,0.0f}, PolygonColor },
+		{ { 0.5f, -0.5f, -0.5f}, {0.0f,-1.0f,0.0f}, PolygonColor },
+		{ {-0.5f, -0.5f, -0.5f}, {0.0f,-1.0f,0.0f}, PolygonColor },
 	};
 
 	int index[] = {
@@ -177,16 +187,34 @@ void Polygon::SetProjection(float4x4 proj)
 	m_wvp[2] = proj;
 }
 
+void Polygon::DrawWireFrame(bool b)
+{
+	m_IsDrawWireFrame = b;
+}
+
+void Polygon::DrawPolygon(bool b)
+{
+	m_isDrawPolygon = b;
+}
+
 void Polygon::Draw()
 {
 	// 行列を定数バッファに送信
 	Transform transformData{};
-	const auto wvp = DirectX::XMMatrixTranspose(
-		DirectX::XMLoadFloat4x4(&m_wvp[0]) *
+	const auto world = DirectX::XMLoadFloat4x4(&m_wvp[0]);
+	const auto wvp =
+		world *
 		DirectX::XMLoadFloat4x4(&m_wvp[1]) *
-		DirectX::XMLoadFloat4x4(&m_wvp[2])
-	);
-	DirectX::XMStoreFloat4x4(&transformData.worldViewProj, wvp);
+		DirectX::XMLoadFloat4x4(&m_wvp[2]);
+
+	DirectX::XMStoreFloat4x4(&transformData.worldViewProj, DirectX::XMMatrixTranspose(wvp));
+	DirectX::XMStoreFloat4x4(&transformData.world, DirectX::XMMatrixTranspose(world));
+	const auto lightDir = DirectX::XMVector3Normalize(DirectX::XMLoadFloat3(&m_LightDir));
+	DirectX::XMStoreFloat4(&transformData.lightDir, lightDir);
+	const auto lightColor = DirectX::XMVector3Normalize(DirectX::XMLoadFloat4(&m_LightColor));
+	DirectX::XMStoreFloat4(&transformData.lightColor, lightColor);
+	const auto ambientColor = DirectX::XMVector3Normalize(DirectX::XMLoadFloat4(&m_AmbientColor));
+	DirectX::XMStoreFloat4(&transformData.ambientColor, ambientColor);
 
 	Transform* MappedData = nullptr;
 	m_ConstantBuffer->Map(0, nullptr, reinterpret_cast<void**>(&MappedData));
@@ -211,11 +239,15 @@ void Polygon::Draw()
 		m_CommandList->IASetIndexBuffer(&m_IndexBufferView);
 		m_CommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
-		m_CommandList->SetPipelineState(m_PipelineState.Get());
-		m_CommandList->DrawIndexedInstanced(36, 1, 0, 0, 0);
+		if (m_isDrawPolygon) {
+			m_CommandList->SetPipelineState(m_PipelineState.Get());
+			m_CommandList->DrawIndexedInstanced(36, 1, 0, 0, 0);
+		}
 
 		// ワイヤーフレームで描画
-		m_CommandList->SetPipelineState(m_PipelineStateWireFrame.Get());
-		m_CommandList->DrawIndexedInstanced(36, 1, 0, 0, 0);
+		if (m_IsDrawWireFrame) {
+			m_CommandList->SetPipelineState(m_PipelineStateWireFrame.Get());
+			m_CommandList->DrawIndexedInstanced(36, 1, 0, 0, 0);
+		}
 	}
 }

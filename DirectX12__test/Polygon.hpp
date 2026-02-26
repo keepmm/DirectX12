@@ -24,12 +24,34 @@ public:
 	static void SetWorld(float4x4 world);
 	static void SetView(float4x4 view);
 	static void SetProjection(float4x4 proj);
+
+	static void DrawWireFrame(bool b);
+	static void DrawPolygon(bool b);
+
+
+	/* ƒ‰ƒCƒg‚Ì•ûŒü‚Ìİ’è */
+	static void SetLightDir(float3 dir) { m_LightDir = dir; }
+
+	/* Œõ‚ÌF‚Ìİ’è */
+	static void SetLightColor(float4 color) { m_LightColor = color; }
+
+	/* ŠÂ‹«Œõ‚Ìİ’è */
+	static void SetAmbientColor(float4 color) { m_AmbientColor = color; }
+
+	/* •`‰æ */
 	static void Draw();
 private:
 	Polygon(const Polygon&)				= delete;
 	Polygon& operator=(const Polygon&)  = delete;
 	Polygon()							= delete;
 	~Polygon();
+
+	static bool m_IsDrawWireFrame;
+	static bool m_isDrawPolygon;
+
+	static float3 m_LightDir;
+	static float4 m_LightColor;
+	static float4 m_AmbientColor;
 
 	static float4x4 m_wvp[3];
 
