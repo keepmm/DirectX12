@@ -3,7 +3,6 @@
 #include <cmath>
 #include "Time.hpp"
 #include "Input.hpp"
-#include "Time.hpp"
 
 SampleScene::~SampleScene()
 {

@@ -130,6 +130,7 @@
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="DirectX.cpp" />
     <ClCompile Include="Input.cpp" />
+    <ClCompile Include="Logger.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Polygon.cpp" />
     <ClCompile Include="SampleScene.cpp" />
@@ -143,6 +144,7 @@
     <ClInclude Include="Defines.hpp" />
     <ClInclude Include="DirectX.hpp" />
     <ClInclude Include="Input.hpp" />
+    <ClInclude Include="Logger.hpp" />
     <ClInclude Include="Polygon.hpp" />
     <ClInclude Include="SampleScene.hpp" />
     <ClInclude Include="Scene.hpp" />
