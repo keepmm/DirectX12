@@ -137,3 +137,8 @@ Logger::~Logger()
 {
     ShutDown();
 }
+
+Logger::Logger()
+{
+
+}

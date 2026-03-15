@@ -3,6 +3,7 @@
 #include "Polygon.hpp"
 #include "Time.hpp"
 #include "Input.hpp"
+#include "Logger.hpp"
 
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
@@ -90,6 +91,7 @@ HRESULT Application::Init(HINSTANCE hInstance)
 
 	TIME->Init();
 	INPUT->Init(m_hWnd);
+	LOG->Init();
 
 	UpdateWindow(m_hWnd);
 	ShowWindow(m_hWnd, SW_SHOW);
@@ -131,6 +133,7 @@ void Application::Run()
 
 void Application::Terminate()
 {
+	LOG->ShutDown();
 	DestroyWindow(m_hWnd);
 }
 

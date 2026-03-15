@@ -103,6 +103,7 @@
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
+      <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -132,6 +133,8 @@
     <ClCompile Include="Input.cpp" />
     <ClCompile Include="Logger.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="Material.cpp" />
+    <ClCompile Include="Mesh.cpp" />
     <ClCompile Include="Polygon.cpp" />
     <ClCompile Include="SampleScene.cpp" />
     <ClCompile Include="Scene.cpp" />
@@ -141,15 +144,20 @@
   <ItemGroup>
     <ClInclude Include="Application.hpp" />
     <ClInclude Include="Camera.hpp" />
+    <ClInclude Include="Components.hpp" />
     <ClInclude Include="Defines.hpp" />
     <ClInclude Include="DirectX.hpp" />
     <ClInclude Include="Input.hpp" />
     <ClInclude Include="Logger.hpp" />
+    <ClInclude Include="Material.hpp" />
+    <ClInclude Include="Mesh.hpp" />
     <ClInclude Include="Polygon.hpp" />
     <ClInclude Include="SampleScene.hpp" />
     <ClInclude Include="Scene.hpp" />
+    <ClInclude Include="Systems.hpp" />
     <ClInclude Include="Time.hpp" />
     <ClInclude Include="Vertex.hpp" />
+    <ClInclude Include="World.hpp" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="PixelShader.hlsl">

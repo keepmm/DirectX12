@@ -1,6 +1,16 @@
+/*****************************************************************//**
+ * \file   Polygon.cpp
+ * \brief  ポリゴン描画クラス
+ * 
+ * 作成者 keeeep
+ * 作成日 2026/3/12
+ * 更新履歴	3/12 作成
+ * *********************************************************************/
 #include "Polygon.hpp"
 #include "d3dx12.h"
 #include "Vertex.hpp"
+#include "DirectXTex/TextureLoad.h"
+#include "DirectXTex/DirectXTex.h"
 
 constexpr float _Color = 0.6f;
 constexpr float4 PolygonColor = { _Color,_Color,_Color, 1.0f };
@@ -21,6 +31,8 @@ ComPtr<ID3D12PipelineState> Polygon::m_PipelineState;
 ComPtr<ID3D12PipelineState> Polygon::m_PipelineStateWireFrame;
 bool Polygon::m_IsDrawWireFrame = false;
 bool Polygon::m_isDrawPolygon = true;
+
+ComPtr<ID3D12DescriptorHeap> Polygon::m_SRV_Heap;
 
 struct alignas(256) Transform
 {

@@ -20,6 +20,7 @@ struct VSInput
     float3 pos : POSITION;
     float3 normal : NORMAL;
     float4 col : COLOR;
+    float2 uv : TEXCOORD;
 };
 
 // PSInput ... ピクセルシェーダーに渡すデータ
@@ -30,16 +31,18 @@ struct PSInput
     float4 pos : SV_POSITION;
     float3 normal : NORMAL;
     float4 col : COLOR;
+    float2 uv : TEXCOORD;
 };
 
 // BasicVS ... 頂点シェーダーのエントリーポイント
 // VSInput BasicVS(VSInput input) ... VSInput型のデータを受け取り、VSInput型のデータを返す関数
-// PSInput output; ... ピクセルシェーダーに渡すデータを格納する変数
+// PSInput output ... ピクセルシェーダーに渡すデータを格納する変数
 PSInput BasicVS(VSInput input)
 {
     PSInput output;
     output.pos = mul(float4(input.pos, 1.0f), worldViewProj);
     output.normal = normalize(mul(float4(input.normal, 0.0f), world).xyz);
     output.col = input.col;
+    output.uv = input.uv;
     return output;
 }

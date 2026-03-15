@@ -203,6 +203,8 @@ DirectXApp::DirectXApp(HWND hWnd, int Window_Width, int Window_Height) :
 
 void DirectXApp::CreateRootSignature()
 {
+#pragma region RoptSignature(テクスチャ適応前)
+
 	// ==================================
 	//		1. ルートパラメータを定義
 	// ==================================
@@ -224,6 +226,7 @@ void DirectXApp::CreateRootSignature()
 		nullptr,
 		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT
 	);
+#pragma endregion
 
 	// ==================================
 	//		3. ルートシグネチャをシリアライズ
@@ -258,6 +261,7 @@ void DirectXApp::CreatePipelineStateObject()
 		{"Position",0,DXGI_FORMAT_R32G32B32_FLOAT,0,0,D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,0},
 		{"Normal",0,DXGI_FORMAT_R32G32B32_FLOAT,0,12,D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,0},
 		{"COLOR",0,DXGI_FORMAT_R32G32B32A32_FLOAT,0,24,D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,0},
+		{"TEXCOORD",0,DXGI_FORMAT_R32G32_FLOAT,0,40,D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,0}, 
 	};
 
 	// VertexShader(頂点シェーダー)の読み込みとコンパイル

@@ -16,4 +16,5 @@ struct Vertex
 	float3 position;
 	float3 normal;
 	float4 col;
+	float2 uv;
 };

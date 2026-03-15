@@ -12,6 +12,7 @@ cbuffer Transform : register(b0)
     float4 pos : SV_POSITION;
     float3 normal : NORMAL;
     float4 col : COLOR;
+    float2 uv : TEXCOORD;
 };
 
 float4 BasicPS(PSInput input) : SV_TARGET

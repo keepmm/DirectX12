@@ -3,6 +3,7 @@
 #include <cmath>
 #include "Time.hpp"
 #include "Input.hpp"
+#include "Components.hpp"
 
 SampleScene::~SampleScene()
 {
@@ -12,19 +13,26 @@ SampleScene::SampleScene()
 {
 	m_Camera = MakeUnique<Camera>();
 	Polygon::DrawWireFrame(true);
+
+	m_CubeEntity = m_World.CreateEntity();
+
+	TransformComponent transform{};
+	DirectX::XMStoreFloat4x4(&transform.world, DirectX::XMMatrixIdentity());
+	m_World.AddComponent<TransformComponent>(m_CubeEntity, transform);
+
+	SpinComponent spin{};
+	spin.angle = 0.0f;
+	spin.speed = 1.0f;
+	m_World.AddComponent<SpinComponent>(m_CubeEntity, spin);
 }
 
 void SampleScene::Update()
 {
-	// カメラ更新
-
-	// ESCキーで終了 - メソッドチェーン形式!
-	if (INPUT->Key.Escape().Down())  // ← .Down() で押した瞬間を判定!
+	if (INPUT->Key.Escape().Down())
 	{
 		PostQuitMessage(0);
 	}
 
-	// Enterキーでワイヤーフレーム切り替え
 	if (INPUT->Key.Enter().Down())
 	{
 		static bool wireframe = true;
@@ -32,7 +40,6 @@ void SampleScene::Update()
 		Polygon::DrawWireFrame(wireframe);
 	}
 
-	// マウス左クリックでライトの色変更
 	if (INPUT->MouseInput.Left().Down())
 	{
 		static float4 color = { 1.0f, 0.0f, 0.0f, 1.0f };
@@ -40,20 +47,21 @@ void SampleScene::Update()
 	}
 
 	float deltaTime = TIME->GetDeltaTime();
+	m_SpinSystem.Update(m_World, deltaTime);
 
-	static float angle = 0.0f;
-	angle += 0.5f * deltaTime;
+	static float lightAngle = 0.0f;
+	lightAngle += 0.5f * deltaTime;
 
 	const float3 dir = {
-		std::cos(angle),
+		std::cos(lightAngle),
 		-0.5f,
-		std::sin(angle)
+		std::sin(lightAngle)
 	};
 
 	Polygon::SetLightDir(dir);
 
 	static float4 color = { 1.0f, 1.0f, 1.0f, 1.0f };
-	color.x = (std::cos(angle) + 1.0f) * 0.5f;
+	color.x = (std::cos(lightAngle) + 1.0f) * 0.5f;
 	Polygon::SetLightColor(color);
 
 	static float4 ambientColor = { 0.2f, 0.2f, 0.2f, 1.0f };
@@ -65,16 +73,9 @@ void SampleScene::Update()
 
 void SampleScene::Draw()
 {
-	matrix world = DirectX::XMMatrixIdentity();
-	static float angle = 0.0f;
-	matrix r = DirectX::XMMatrixRotationY(angle);
-	angle += 0.01f;
-	world = r;
+	auto& transform = m_World.GetComponent<TransformComponent>(m_CubeEntity);
 
-	float4x4 w;
-	DirectX::XMStoreFloat4x4(&w, world);
-
-	Polygon::SetWorld(w);
+	Polygon::SetWorld(transform.world);
 	Polygon::SetView(m_Camera->GetViewMatrix(false));
 	Polygon::SetProjection(m_Camera->GetProjectionMatrix(false));
 	Polygon::Draw();

@@ -28,7 +28,6 @@ public:
 	static void DrawWireFrame(bool b);
 	static void DrawPolygon(bool b);
 
-
 	/* ライトの方向の設定 */
 	static void SetLightDir(float3 dir) { m_LightDir = dir; }
 
@@ -37,6 +36,10 @@ public:
 
 	/* 環境光の設定 */
 	static void SetAmbientColor(float4 color) { m_AmbientColor = color; }
+
+	/// @brief 描画時に使用するテクスチャを外部から渡す
+	/// @param srvHeap シェーダーから参照可能なSRVヒープ
+	static void SetTexture(ComPtr<ID3D12DescriptorHeap> srvHeap) { m_SRV_Heap = srvHeap; }
 
 	/* 描画 */
 	static void Draw();
@@ -64,5 +67,10 @@ private:
 	static ComPtr<ID3D12GraphicsCommandList>	m_CommandList;
 	static ComPtr<ID3D12PipelineState>			m_PipelineState;
 	static ComPtr<ID3D12PipelineState>			m_PipelineStateWireFrame;
+
+	// =======================
+	//		テクスチャ関連
+	// =======================
+	static ComPtr<ID3D12DescriptorHeap> m_SRV_Heap;
 };
 
