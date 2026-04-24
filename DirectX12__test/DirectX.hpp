@@ -26,7 +26,8 @@
 class DirectXApp
 {
 public:
-	static constexpr int RTV_NUM = 2;
+	/// @brief バッファの数
+	static constexpr int RTV_NUM = 3;
 
 public:
 	// 初期化
@@ -53,7 +54,7 @@ private:
 
 	ComPtr<ID3D12Device> m_Device;
 	ComPtr<ID3D12CommandQueue> m_CommandQueue;
-	ComPtr<ID3D12CommandAllocator> m_CommandAllocator;
+	ComPtr<ID3D12CommandAllocator> m_CommandAllocator[RTV_NUM];
 	ComPtr<ID3D12GraphicsCommandList> m_CommandList;
 	ComPtr<IDXGISwapChain3> m_SwapChain;
 	ComPtr<ID3D12Fence> m_Fence;
@@ -62,6 +63,9 @@ private:
 	ComPtr<ID3D12DescriptorHeap> m_DSV_Heap;
 	ComPtr<ID3D12Resource> m_RenderTargets[RTV_NUM];
 	D3D12_CPU_DESCRIPTOR_HANDLE m_RTV_Handle[RTV_NUM];
+
+	UINT m_FrameIndex = 0;
+	UINT64 m_FenceValue[RTV_NUM] = {};
 
 	/* 
 	*		ルートシグネチャ
@@ -94,8 +98,6 @@ private:
 
 	void CreateRootSignature();
 	void CreatePipelineStateObject();
-
-	void WaitForCommandQueue(ID3D12CommandQueue* pCommandQueue);
 };
 
 // ルートシグネチャーとパイプラインステート参考資料

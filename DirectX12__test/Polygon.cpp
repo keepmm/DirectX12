@@ -249,7 +249,7 @@ void Polygon::Draw()
 	}
 	if (m_IndexBuffer) {
 		m_CommandList->IASetIndexBuffer(&m_IndexBufferView);
-		m_CommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+		m_CommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
 		if (m_isDrawPolygon) {
 			m_CommandList->SetPipelineState(m_PipelineState.Get());

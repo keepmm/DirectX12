@@ -5,6 +5,8 @@
  * 作成者 keep
  * 作成日 2026/2/24
  * 更新履歴 2026/2/24 keep 作成
+ *		   2026/4.24 keep ダブルbufferシステムから
+ *						  トリプルバッファシステムに変更
  * *********************************************************************/
 #include "DirectX.hpp"
 #include "Vertex.hpp"
@@ -59,12 +61,19 @@ DirectXApp::DirectXApp(HWND hWnd, int Window_Width, int Window_Height) :
 	// ================================
 	//		コマンドアロケータを生成
 	// ================================
-	hr = m_Device->CreateCommandAllocator(
-		D3D12_COMMAND_LIST_TYPE_DIRECT,
-		IID_PPV_ARGS(m_CommandAllocator.GetAddressOf())
-	);
-	if (FAILED(hr)) {
-		return;
+	// 4.24 更新
+	// コマンドアロケータは、コマンドリストが使用するメモリを管理するオブジェクト
+	// 3つのバッファを使用するため、3つのコマンドアロケータを生成する
+	for (int i = 0; i < RTV_NUM; ++i)
+	{
+		hr = m_Device->CreateCommandAllocator(
+			D3D12_COMMAND_LIST_TYPE_DIRECT,
+			IID_PPV_ARGS(m_CommandAllocator[i].GetAddressOf())
+		);
+		if (FAILED(hr))
+		{
+			return;
+		}
 	}
 
 	// =============================
@@ -116,13 +125,19 @@ DirectXApp::DirectXApp(HWND hWnd, int Window_Width, int Window_Height) :
 		return;
 	}
 
+	m_FrameIndex = m_SwapChain->GetCurrentBackBufferIndex();
+	for (int i = 0; i < RTV_NUM; ++i)
+	{
+		m_FenceValue[i] = 0;
+	}
+
 	// ==============================
 	//		コマンドリストの作成
 	// ==============================
 	hr = m_Device->CreateCommandList(
 		0,
 		D3D12_COMMAND_LIST_TYPE_DIRECT,
-		m_CommandAllocator.Get(),
+		m_CommandAllocator[m_FrameIndex].Get(),
 		nullptr,
 		IID_PPV_ARGS(m_CommandList.GetAddressOf())
 	);
@@ -335,20 +350,27 @@ void DirectXApp::CreatePipelineStateObject()
 	}
 }
 
-DirectXApp::~DirectXApp() {}
+DirectXApp::~DirectXApp() 
+{
+	if (m_Fence_Event != nullptr)
+	{
+		CloseHandle(m_Fence_Event);
+		m_Fence_Event = nullptr;
+	}
+}
 
 
 HRESULT DirectXApp::BeginRender()
 {
 	// 現在のバックバッファインデックスを取得
-	int TargetIndex = m_SwapChain->GetCurrentBackBufferIndex();
+	const UINT targetIndex = m_FrameIndex;
 
 	auto dsvhandle = m_DSV_Heap->GetCPUDescriptorHandleForHeapStart();
 
 	// リソースバリアの設定
 	SetResourceBarrier(
 		m_CommandList.Get(),
-		m_RenderTargets[TargetIndex].Get(),
+		m_RenderTargets[targetIndex].Get(),
 		D3D12_RESOURCE_STATE_PRESENT,
 		D3D12_RESOURCE_STATE_RENDER_TARGET
 	);
@@ -368,12 +390,12 @@ HRESULT DirectXApp::BeginRender()
 	vp.MaxDepth = 1.0f;
 
 	// レンダーターゲットのセット
-	m_CommandList->OMSetRenderTargets(1, &m_RTV_Handle[TargetIndex], FALSE, &dsvhandle);
+	m_CommandList->OMSetRenderTargets(1, &m_RTV_Handle[targetIndex], FALSE, &dsvhandle);
 
 	// レンダーターゲットのクリア処理
 	m_CommandList->RSSetViewports(1, &vp);
 	m_CommandList->ClearRenderTargetView(
-		m_RTV_Handle[TargetIndex],
+		m_RTV_Handle[targetIndex],
 		ClearColor,
 		0,
 		nullptr
@@ -393,12 +415,12 @@ HRESULT DirectXApp::BeginRender()
 
 HRESULT DirectXApp::EndRender()
 {
-	int TargetIndex = m_SwapChain->GetCurrentBackBufferIndex();
+	const UINT targetIndex = m_FrameIndex;
 
 	// Presentする前の準備
 	SetResourceBarrier(
 		m_CommandList.Get(),
-		m_RenderTargets[TargetIndex].Get(),
+		m_RenderTargets[targetIndex].Get(),
 		D3D12_RESOURCE_STATE_RENDER_TARGET,
 		D3D12_RESOURCE_STATE_PRESENT
 	);
@@ -410,10 +432,24 @@ HRESULT DirectXApp::EndRender()
 	m_CommandQueue->ExecuteCommandLists(1, &pCommandList);
 	m_SwapChain->Present(1, 0);
 
-	WaitForCommandQueue(m_CommandQueue.Get());
+	// フェンスの値を更新
+	const UINT64 signaledFenceValue = ++m_FenceValue[targetIndex];
+	m_CommandQueue->Signal(m_Fence.Get(), signaledFenceValue);
 
-	m_CommandAllocator->Reset();
-	m_CommandList->Reset(m_CommandAllocator.Get(), nullptr);
+	// フェンスの値が指定した値以上になるまで待機
+	m_FrameIndex = m_SwapChain->GetCurrentBackBufferIndex();
+
+	// 次フレームで使うアロケータが、まだGPU使用中なら待機する
+	const UINT64 fenceToWait = m_FenceValue[m_FrameIndex];
+	if (m_Fence->GetCompletedValue() < fenceToWait)
+	{
+		m_Fence->SetEventOnCompletion(fenceToWait, m_Fence_Event);
+		WaitForSingleObject(m_Fence_Event, INFINITE);
+	}
+
+	m_CommandAllocator[m_FrameIndex]->Reset();
+	m_CommandList->Reset(m_CommandAllocator[m_FrameIndex].Get(), nullptr);
+
 	return S_OK;
 }
 
@@ -427,17 +463,4 @@ void DirectXApp::SetResourceBarrier(ID3D12GraphicsCommandList* CommandList, ID3D
 	descBarrier.Transition.StateBefore = Before;
 	descBarrier.Transition.StateAfter = After;
 	CommandList->ResourceBarrier(1, &descBarrier);
-}
-
-void DirectXApp::WaitForCommandQueue(ID3D12CommandQueue* pCommandQueue)
-{
-	static UINT64 frames = 0;
-	frames++;
-
-	pCommandQueue->Signal(m_Fence.Get(), frames);
-
-	if (m_Fence->GetCompletedValue() < frames) {
-		m_Fence->SetEventOnCompletion(frames, m_Fence_Event);
-		WaitForSingleObject(m_Fence_Event, INFINITE);
-	}
 }
