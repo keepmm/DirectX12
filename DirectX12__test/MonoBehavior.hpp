@@ -23,7 +23,7 @@ public:
 	virtual void OnDraw(_In_ const RenderContext& context) {}
 
 protected:
-	Actor& GetActpr() const { return *m_Actor; }
+	Actor& GetActor() const { return *m_Actor; }
 private:
 	friend class Actor;
 	void AttachActor(Actor* actor) { m_Actor = actor; }

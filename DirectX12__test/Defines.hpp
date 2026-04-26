@@ -26,6 +26,8 @@ using float4x4 = DirectX::XMFLOAT4X4;
 #define FPS 60
 #define FRAME_TIME (1000 / FPS)
 
+#include "pch.h"
+
 #include <wrl/client.h>
 template<typename T>
 using ComPtr = Microsoft::WRL::ComPtr<T>;

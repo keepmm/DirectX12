@@ -84,7 +84,10 @@ HRESULT Application::Init(HINSTANCE hInstance)
 	WNDCLASSEX windowClass;
 	CreateGameWindow(m_hWnd, windowClass);
 	m_DirectX = MakeUnique<DirectXApp>(m_hWnd, WINDOW_WIDTH, WINDOW_HEIGHT);
-	m_Scene = MakeUnique<SampleScene>();
+	m_Scene = MakeUnique<SampleScene>(
+		m_DirectX->GetDevice(),
+		m_DirectX->GetPipelineState(),
+		m_DirectX->GetPipelineStateWireFrame());
 
 	Polygon::Init(m_DirectX->GetDevice(), m_DirectX->GetCommandList(), m_DirectX->GetPipelineState(), m_DirectX->GetPipelineStateWireFrame());
 	Polygon::CreatePolygon();
@@ -123,7 +126,9 @@ void Application::Run()
 			m_Scene->Update();
 
 			/* •`‰æ */
-			m_Scene->Draw();
+			RenderContext renderContext{};
+			renderContext.CommandList = m_DirectX->GetCommandList().Get();
+			m_Scene->Draw(renderContext);
 
 			/* DirectX•`‰æI—¹ */
 			m_DirectX->EndRender();

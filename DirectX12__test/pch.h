@@ -1,0 +1,25 @@
+#pragma once
+
+#include <windows.h>
+#include <wrl.h>
+#include <d3d12.h>
+#include <dxgi1_6.h>
+#include <DirectXMath.h>
+#include <DirectXColors.h>
+#include <DirectXCollision.h>
+#include <d3dcompiler.h>
+#include <memory>
+#include <vector>
+#include <string>
+#include <stdexcept>
+#include <array>
+#include <chrono>
+#include <unordered_map>
+#include <filesystem>
+#include <fstream>
+#include <sstream>
+#include <cassert>
+#include <ostream>
+#include <unordered_set>
+#include <type_traits>
+#include <utility>

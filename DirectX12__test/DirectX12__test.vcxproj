@@ -104,6 +104,10 @@
       <ConformanceMode>true</ConformanceMode>
       <RuntimeLibrary>MultiThreadedDebug</RuntimeLibrary>
       <LanguageStandard>stdcpp20</LanguageStandard>
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+      <PrecompiledHeaderFile>
+      </PrecompiledHeaderFile>
+      <ForcedIncludeFiles>pch.h</ForcedIncludeFiles>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -127,6 +131,7 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="Actor.cpp" />
     <ClCompile Include="Application.cpp" />
     <ClCompile Include="Camera.cpp" />
     <ClCompile Include="DirectX.cpp" />
@@ -135,14 +140,17 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Material.cpp" />
     <ClCompile Include="Mesh.cpp" />
+    <ClCompile Include="MeshRenderer.cpp" />
     <ClCompile Include="MonoBehavior.cpp" />
     <ClCompile Include="Polygon.cpp" />
     <ClCompile Include="SampleScene.cpp" />
     <ClCompile Include="Scene.cpp" />
+    <ClCompile Include="Shader.cpp" />
     <ClCompile Include="Time.cpp" />
     <ClCompile Include="Vertex.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Actor.hpp" />
     <ClInclude Include="Application.hpp" />
     <ClInclude Include="Camera.hpp" />
     <ClInclude Include="Components.hpp" />
@@ -152,11 +160,14 @@
     <ClInclude Include="Logger.hpp" />
     <ClInclude Include="Material.hpp" />
     <ClInclude Include="Mesh.hpp" />
+    <ClInclude Include="MeshRenderer.hpp" />
     <ClInclude Include="MonoBehavior.hpp" />
+    <ClInclude Include="pch.h" />
     <ClInclude Include="Polygon.hpp" />
     <ClInclude Include="RenderContext.hpp" />
     <ClInclude Include="SampleScene.hpp" />
     <ClInclude Include="Scene.hpp" />
+    <ClInclude Include="Shader.hpp" />
     <ClInclude Include="Systems.hpp" />
     <ClInclude Include="Time.hpp" />
     <ClInclude Include="Vertex.hpp" />

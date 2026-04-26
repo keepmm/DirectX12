@@ -12,6 +12,7 @@
 #include "Vertex.hpp"
 #include <algorithm>
 #include "d3dx12.h"
+#include "Shader.hpp"
 
 using ushort = unsigned short;
 
@@ -144,6 +145,12 @@ DirectXApp::DirectXApp(HWND hWnd, int Window_Width, int Window_Height) :
 	if (FAILED(hr)) {
 		return;
 	}
+
+	hr = m_CommandList->Close();
+	if (FAILED(hr)) {
+		return;
+	}
+
 	// ==============================================
 	//		ディスクリプタヒープ(Rendertarget用)の作成
 	// ==============================================
@@ -279,72 +286,55 @@ void DirectXApp::CreatePipelineStateObject()
 		{"TEXCOORD",0,DXGI_FORMAT_R32G32_FLOAT,0,40,D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,0}, 
 	};
 
-	// VertexShader(頂点シェーダー)の読み込みとコンパイル
-	ComPtr<ID3DBlob> vsBlob, psBlob,WireBlob;
-	D3DCompileFromFile(L"VertexShader.hlsl",
-		nullptr,
-		nullptr,
-		"BasicVS",
-		"vs_5_0",
-		0,
-		0,
-		&vsBlob,
-		nullptr);
+	// ---- シェーダー読み込み ----
+	Shader vs;
+	Shader ps;
+	Shader wirePs;
 
-	// PixelShaderの読み込みとコンパイル
-	D3DCompileFromFile(L"PixelShader.hlsl",
-		nullptr,
-		nullptr,
-		"BasicPS",
-		"ps_5_0",
-		0,
-		0,
-		&psBlob,
-		nullptr);
+	if (!vs.LoadFromFile(L"VertexShader.hlsl", "BasicVS", "vs_5_0")) {
+		assert(false);
+		return;
+	}
+	if (!ps.LoadFromFile(L"PixelShader.hlsl", "BasicPS", "ps_5_0")) {
+		assert(false);
+		return;
+	}
+	if (!wirePs.LoadFromFile(L"PixelShader.hlsl", "WireFramePS", "ps_5_0")) {
+		assert(false);
+		return;
+	}
 
-	D3DCompileFromFile(L"PixelShader.hlsl",
-		nullptr,
-		nullptr,
-		"WireFramePS",
-		"ps_5_0",
-		0,
-		0,
-		&WireBlob,
-		nullptr);
-
-
-	/// パイプラインステートの情報定義
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
 	psoDesc.InputLayout = { InputLayout, _countof(InputLayout) };
 	psoDesc.pRootSignature = m_rootSignature.Get();
-	psoDesc.VS = CD3DX12_SHADER_BYTECODE(vsBlob.Get());
-	psoDesc.PS = CD3DX12_SHADER_BYTECODE(psBlob.Get());
+	psoDesc.VS = vs.GetByteCode();
+	psoDesc.PS = ps.GetByteCode();
 	psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-	psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;	// カリングなし
+	psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 	psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
-	psoDesc.DepthStencilState.DepthEnable = TRUE;
-	psoDesc.DepthStencilState.StencilEnable = TRUE;
+	psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 	psoDesc.SampleMask = UINT_MAX;
 	psoDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	psoDesc.NumRenderTargets = 1;
 	psoDesc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
-
-	psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 	psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 	psoDesc.SampleDesc.Count = 1;
 
-	auto hr = m_Device->CreateGraphicsPipelineState(&psoDesc, IID_PPV_ARGS(m_pipelineState.ReleaseAndGetAddressOf()));
+	auto hr = m_Device->CreateGraphicsPipelineState(
+		&psoDesc,
+		IID_PPV_ARGS(m_pipelineState.ReleaseAndGetAddressOf()));
 	if (FAILED(hr)) {
 		assert(false);
 	}
 
-	// ワイヤフレームPSO
 	auto wireDesc = psoDesc;
 	wireDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
-	wireDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;	// 深度バッファへの書き込みを無効化
-	wireDesc.PS = CD3DX12_SHADER_BYTECODE(WireBlob.Get());
+	wireDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+	wireDesc.PS = wirePs.GetByteCode();
 
-	hr = m_Device->CreateGraphicsPipelineState(&wireDesc, IID_PPV_ARGS(m_pipelineStateWireFrame.ReleaseAndGetAddressOf()));
+	hr = m_Device->CreateGraphicsPipelineState(
+		&wireDesc,
+		IID_PPV_ARGS(m_pipelineStateWireFrame.ReleaseAndGetAddressOf()));
 	if (FAILED(hr)) {
 		assert(false);
 	}
@@ -352,6 +342,8 @@ void DirectXApp::CreatePipelineStateObject()
 
 DirectXApp::~DirectXApp() 
 {
+	WaitForGPUIdle();
+
 	if (m_Fence_Event != nullptr)
 	{
 		CloseHandle(m_Fence_Event);
@@ -365,6 +357,24 @@ HRESULT DirectXApp::BeginRender()
 	// 現在のバックバッファインデックスを取得
 	const UINT targetIndex = m_FrameIndex;
 
+	// バックバッファ用アロケータGPU完了待ち
+	const UINT64 fenceToWait = m_FenceValue[targetIndex];
+	if (m_Fence->GetCompletedValue() < fenceToWait)
+	{
+		m_Fence->SetEventOnCompletion(fenceToWait, m_Fence_Event);
+		WaitForSingleObject(m_Fence_Event, INFINITE);
+	}
+
+	HRESULT hr = m_CommandAllocator[targetIndex]->Reset();
+	if (FAILED(hr)) {
+		return hr;
+	}
+
+	hr = m_CommandList->Reset(m_CommandAllocator[targetIndex].Get(), nullptr);
+	if (FAILED(hr)) {
+		return hr;
+	}
+
 	auto dsvhandle = m_DSV_Heap->GetCPUDescriptorHandleForHeapStart();
 
 	// リソースバリアの設定
@@ -375,7 +385,6 @@ HRESULT DirectXApp::BeginRender()
 		D3D12_RESOURCE_STATE_RENDER_TARGET
 	);
 
-	m_CommandList->SetPipelineState(m_pipelineState.Get());
 	m_CommandList->SetGraphicsRootSignature(m_rootSignature.Get());
 
 	D3D12_RECT scissorRect = { 0,0,(LONG)m_Window_Width,(LONG)m_Window_Height };
@@ -425,32 +434,51 @@ HRESULT DirectXApp::EndRender()
 		D3D12_RESOURCE_STATE_PRESENT
 	);
 
-	m_CommandList->Close();
+	HRESULT hr = m_CommandList->Close();
+	if (FAILED(hr)) {
+		return hr;
+	}
 
 	// 積んだコマンドの実行
 	ID3D12CommandList* pCommandList = m_CommandList.Get();
 	m_CommandQueue->ExecuteCommandLists(1, &pCommandList);
-	m_SwapChain->Present(1, 0);
 
-	// フェンスの値を更新
-	const UINT64 signaledFenceValue = ++m_FenceValue[targetIndex];
-	m_CommandQueue->Signal(m_Fence.Get(), signaledFenceValue);
+	// このフレームの完了フェンス値を記録
+	const UINT64 singnalFenceValue = ++m_NextFenceValue;
+	hr = m_CommandQueue->Signal(m_Fence.Get(), singnalFenceValue);
+	if (FAILED(hr))
+	{
+		return hr;
+	} 
+	
+	m_FenceValue[targetIndex] = singnalFenceValue; 
 
-	// フェンスの値が指定した値以上になるまで待機
+	hr = m_SwapChain->Present(1, 0);
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+
 	m_FrameIndex = m_SwapChain->GetCurrentBackBufferIndex();
 
-	// 次フレームで使うアロケータが、まだGPU使用中なら待機する
-	const UINT64 fenceToWait = m_FenceValue[m_FrameIndex];
-	if (m_Fence->GetCompletedValue() < fenceToWait)
+	return S_OK;
+}
+
+void DirectXApp::WaitForGPUIdle()
+{
+	if (!m_CommandQueue || !m_Fence || !m_Fence_Event) return;
+
+	const UINT64 fenceToWait = ++m_NextFenceValue;
+	if(FAILED(m_CommandQueue->Signal(m_Fence.Get(), fenceToWait)))
+	{
+		return;
+	}
+
+	if(m_Fence->GetCompletedValue() < fenceToWait)
 	{
 		m_Fence->SetEventOnCompletion(fenceToWait, m_Fence_Event);
 		WaitForSingleObject(m_Fence_Event, INFINITE);
 	}
-
-	m_CommandAllocator[m_FrameIndex]->Reset();
-	m_CommandList->Reset(m_CommandAllocator[m_FrameIndex].Get(), nullptr);
-
-	return S_OK;
 }
 
 void DirectXApp::SetResourceBarrier(ID3D12GraphicsCommandList* CommandList, ID3D12Resource* Resource, D3D12_RESOURCE_STATES Before, D3D12_RESOURCE_STATES After)

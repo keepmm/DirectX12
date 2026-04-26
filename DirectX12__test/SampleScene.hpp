@@ -2,19 +2,24 @@
 
 #include "Scene.hpp"
 #include "Defines.hpp"
-#include "Camera.hpp"
 #include "World.hpp"
 #include "Systems.hpp"
+
+class Camera;
 
 class SampleScene :
 	public Scene
 {
 public:
-	SampleScene();
+	SampleScene(
+		_In_ const ComPtr<ID3D12Device>& device,
+		_In_ const ComPtr<ID3D12PipelineState>& solidPso,
+		_In_ const ComPtr<ID3D12PipelineState>& wirePso);
 	~SampleScene() final;
 
 	void Update() final;
-	void Draw() final;
+	void Draw(_In_ const RenderContext& renderContext) final;
+
 private:
 	std::unique_ptr<Camera> m_Camera;
 
@@ -22,4 +27,7 @@ private:
 	Entity m_CubeEntity = INVALID_ENTITY;
 
 	SpinSystem m_SpinSystem;
+	RenderSystem m_RenderSystem;
+
+	bool m_Wireframe = true;
 };

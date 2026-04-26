@@ -72,7 +72,10 @@ void Material::UpdateBuffer(
 	data.ambientColor = m_AmbientColor;
 
 	TransformBuffer* mapped = nullptr;
-	m_ConstantBuffer->Map(0, nullptr, reinterpret_cast<void**>(&mapped));
+	const HRESULT hr = m_ConstantBuffer->Map(0, nullptr, reinterpret_cast<void**>(&mapped));
+	if(FAILED(hr)) {
+		return;
+	}
 	*mapped = data;
 	m_ConstantBuffer->Unmap(0, nullptr);
 }

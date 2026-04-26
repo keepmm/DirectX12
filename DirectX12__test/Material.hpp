@@ -3,6 +3,7 @@
 #include "DirectX.hpp"
 #include "Defines.hpp"
 
+
 class Material
 {
 public:

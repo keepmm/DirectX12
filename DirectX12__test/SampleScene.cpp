@@ -1,18 +1,22 @@
 #include "SampleScene.hpp"
-#include "Polygon.hpp"
 #include <cmath>
 #include "Time.hpp"
 #include "Input.hpp"
 #include "Components.hpp"
+#include "Mesh.hpp"
+#include "Material.hpp"
+#include "Camera.hpp"
 
 SampleScene::~SampleScene()
 {
 }
 
-SampleScene::SampleScene()
+SampleScene::SampleScene(
+	const ComPtr<ID3D12Device>& device,
+	const ComPtr<ID3D12PipelineState>& solidPso,
+	const ComPtr<ID3D12PipelineState>& wirePso)
 {
 	m_Camera = MakeUnique<Camera>();
-	Polygon::DrawWireFrame(true);
 
 	m_CubeEntity = m_World.CreateEntity();
 
@@ -24,6 +28,14 @@ SampleScene::SampleScene()
 	spin.angle = 0.0f;
 	spin.speed = 1.0f;
 	m_World.AddComponent<SpinComponent>(m_CubeEntity, spin);
+
+	auto mesh = MakeShared<Mesh>();
+	mesh->CreateCube(device);
+	m_World.AddComponent<MeshComponent>(m_CubeEntity, MeshComponent{ mesh });
+
+	auto material = MakeShared<Material>();
+	material->Init(device, solidPso, wirePso);
+	m_World.AddComponent<MaterialComponent>(m_CubeEntity, MaterialComponent{ material });
 }
 
 void SampleScene::Update()
@@ -35,18 +47,10 @@ void SampleScene::Update()
 
 	if (INPUT->Key.Enter().Down())
 	{
-		static bool wireframe = true;
-		wireframe = !wireframe;
-		Polygon::DrawWireFrame(wireframe);
+		m_Wireframe = !m_Wireframe;
 	}
 
-	if (INPUT->MouseInput.Left().Down())
-	{
-		static float4 color = { 1.0f, 0.0f, 0.0f, 1.0f };
-		Polygon::SetLightColor(color);
-	}
-
-	float deltaTime = TIME->GetDeltaTime();
+	const float deltaTime = TIME->GetDeltaTime();
 	m_SpinSystem.Update(m_World, deltaTime);
 
 	static float lightAngle = 0.0f;
@@ -58,25 +62,35 @@ void SampleScene::Update()
 		std::sin(lightAngle)
 	};
 
-	Polygon::SetLightDir(dir);
+	float4 lightColor = { 1.0f, 1.0f, 1.0f, 1.0f };
+	lightColor.x = (std::cos(lightAngle) + 1.0f) * 0.5f;
 
-	static float4 color = { 1.0f, 1.0f, 1.0f, 1.0f };
-	color.x = (std::cos(lightAngle) + 1.0f) * 0.5f;
-	Polygon::SetLightColor(color);
-
-	static float4 ambientColor = { 0.2f, 0.2f, 0.2f, 1.0f };
 	static float ambientAngle = 0.0f;
 	ambientAngle += 0.01f * deltaTime;
+	float4 ambientColor = { 0.2f, 0.2f, 0.2f, 1.0f };
 	ambientColor.x = (std::cos(ambientAngle) + 1.0f) * 0.5f;
-	Polygon::SetAmbientColor(ambientColor);
+
+	m_World.Each<MaterialComponent>(
+		[&](Entity, MaterialComponent& materialComponent)
+		{
+			if (materialComponent.material == nullptr)
+			{
+				return;
+			}
+
+			materialComponent.material->SetLightDir(dir);
+			materialComponent.material->SetLightColor(lightColor);
+			materialComponent.material->SetAmbientColor(ambientColor);
+		}
+	);
 }
 
-void SampleScene::Draw()
+void SampleScene::Draw(const RenderContext& renderContext)
 {
-	auto& transform = m_World.GetComponent<TransformComponent>(m_CubeEntity);
+	RenderContext context = renderContext;
+	context.view = m_Camera->GetViewMatrix(false);
+	context.projection = m_Camera->GetProjectionMatrix(false);
+	context.wireframe = m_Wireframe;
 
-	Polygon::SetWorld(transform.world);
-	Polygon::SetView(m_Camera->GetViewMatrix(false));
-	Polygon::SetProjection(m_Camera->GetProjectionMatrix(false));
-	Polygon::Draw();
+	m_RenderSystem.Draw(m_World, context);
 }

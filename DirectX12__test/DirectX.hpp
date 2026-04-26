@@ -42,6 +42,7 @@ public:
 
 	ComPtr<ID3D12Device> GetDevice() const { return m_Device; }
 	ComPtr<ID3D12GraphicsCommandList> GetCommandList() const { return m_CommandList; }
+	ComPtr<ID3D12RootSignature> GetRootSignature() const { return m_rootSignature; }
 
 	ComPtr<ID3D12PipelineState> GetPipelineState() const { return m_pipelineState; }
 	ComPtr<ID3D12PipelineState> GetPipelineStateWireFrame() const { return m_pipelineStateWireFrame; }
@@ -51,6 +52,9 @@ private:
 	int  m_Window_Height;
 
 	HANDLE m_Fence_Event;
+
+	UINT64 m_NextFenceValue = 0;
+	void WaitForGPUIdle();
 
 	ComPtr<ID3D12Device> m_Device;
 	ComPtr<ID3D12CommandQueue> m_CommandQueue;
