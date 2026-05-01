@@ -15,6 +15,7 @@
 #include <d3dcompiler.h>
 #include <DirectXMath.h>
 #include <wrl/client.h>
+#include "RenderContext.hpp"
 
 #include "Defines.hpp"
 
@@ -28,6 +29,11 @@ class DirectXApp
 public:
 	/// @brief バッファの数
 	static constexpr int RTV_NUM = 3;
+
+	static constexpr size_t VERTEX_SHADER_COUNT = static_cast<size_t>(E_VERTEX_SHADER::COUNT);
+	static constexpr size_t PIXEL_SHADER_COUNT = static_cast<size_t>(E_PIXEL_SHADER::COUNT);
+
+	using PipelineStateTable = std::array<std::array<ComPtr<ID3D12PipelineState>, PIXEL_SHADER_COUNT>, VERTEX_SHADER_COUNT>;
 
 public:
 	// 初期化
@@ -44,8 +50,22 @@ public:
 	ComPtr<ID3D12GraphicsCommandList> GetCommandList() const { return m_CommandList; }
 	ComPtr<ID3D12RootSignature> GetRootSignature() const { return m_rootSignature; }
 
-	ComPtr<ID3D12PipelineState> GetPipelineState() const { return m_pipelineState; }
+	ComPtr<ID3D12PipelineState> GetPipelineState() const
+	{
+		return m_PipelineStates[static_cast<size_t>(E_VERTEX_SHADER::BASIC)][static_cast<size_t>(E_PIXEL_SHADER::BASIC)];
+	}
+
+	ComPtr<ID3D12PipelineState> GetPipelineState(E_VERTEX_SHADER vs, E_PIXEL_SHADER ps) const
+	{
+		return m_PipelineStates[static_cast<size_t>(vs)][static_cast<size_t>(ps)];
+	}
+
+	const PipelineStateTable& GetPipelineStates() const { return m_PipelineStates; }
 	ComPtr<ID3D12PipelineState> GetPipelineStateWireFrame() const { return m_pipelineStateWireFrame; }
+
+	ComPtr<ID3D12CommandQueue> GetCommandQueue() const { return m_CommandQueue; }
+
+	UINT GetFrameIndex() const { return m_FrameIndex; }
 private:
 	HWND m_Window_hWnd;
 	int  m_Window_Width;
@@ -84,7 +104,7 @@ private:
 	* シェーダー、ブレンド、ラスタライザ、深度ステンシルなどの設定をまとめたもの。
 	* 描画時には必ずこの状態をセットしてから描画コマンドを実行する必要がある
 	*/
-	ComPtr<ID3D12PipelineState> m_pipelineState;
+	PipelineStateTable m_PipelineStates{};
 
 	/*
 	*	ワイヤーフレーム用のパイプライン

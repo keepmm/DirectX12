@@ -25,4 +25,5 @@ struct MeshComponent
 struct MaterialComponent
 {
 	std::shared_ptr<Material> material;
+	ID3D12PipelineState* overridePso = nullptr;
 };

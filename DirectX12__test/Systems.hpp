@@ -25,12 +25,17 @@ public:
 class RenderSystem
 {
 public:
-	
+
 	void Draw(
 		_In_ World& world,
 		_In_ const RenderContext& renderContext)
 	{
-		// CommandListがnullptrの場合は描画できないので、何もしない
+		// CommandListがnullptrの場合は描画できないので、処理しない
+		if (renderContext.CommandList == nullptr)
+		{
+			return;
+		}
+
 		if (renderContext.CommandList == nullptr)
 		{
 			return;
@@ -44,21 +49,22 @@ public:
 				MaterialComponent& material
 				)
 			{
-				// メッシュやマテリアルが設定されていない場合は描画できないので、何もしない
 				if (mesh.mesh == nullptr || material.material == nullptr)
 				{
 					return;
 				}
 
-				// マテリアル適用
 				material.material->Apply(
 					renderContext.CommandList,
 					transform.world,
 					renderContext.view,
 					renderContext.projection,
-					renderContext.wireframe);
+					renderContext.wireframe,
+					renderContext.vertexShader,
+					renderContext.pixelShader,
+					material.overridePso,
+					renderContext.frameIndex);
 
-				// 描画
 				mesh.mesh->Draw(renderContext.CommandList);
 			}
 		);

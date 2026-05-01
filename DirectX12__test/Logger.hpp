@@ -13,6 +13,7 @@
 #include <sstream>
 #include <iomanip>
 #include <ctime>
+#include <deque>
 
 #define LOG Logger::GetInstance()
 
@@ -60,6 +61,8 @@ public:
 	void LogError(const std::string& message);
 	void LogDebug(const std::string& message);
 
+	const std::deque<std::string>& GetRecentLogs() const { return m_RecentLogs; }
+
 private:
 	Logger();
 	~Logger();
@@ -74,6 +77,9 @@ private:
 	bool m_ConsoleOutput;
 	bool m_FileOutput;
 	bool m_Init;
+
+	std::deque<std::string> m_RecentLogs;
+	size_t m_MaxRecentLogs = 200;
 };
 
 // É}ÉNÉç

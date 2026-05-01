@@ -9,10 +9,10 @@
 #pragma once
 
 #include "Defines.hpp"
+#include "RenderContext.hpp"
 
 class Mesh;
 class Material;
-class RenderContext;
 
 class MeshRenderer
 {

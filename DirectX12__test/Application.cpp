@@ -4,10 +4,17 @@
 #include "Time.hpp"
 #include "Input.hpp"
 #include "Logger.hpp"
-
+#include "imguiinit.hpp"
+#include "imgui-master/backends/imgui_impl_dx12.h"
+#include "imgui-master/backends/imgui_impl_win32.h"
 
 LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
+	if(IMGUI::ImGui_WndProHandler(hWnd, msg, wParam, lParam))
+	{
+		return true;
+	}
+
 	switch (msg)
 	{
 	case WM_DESTROY:
@@ -83,18 +90,29 @@ HRESULT Application::Init(HINSTANCE hInstance)
 
 	WNDCLASSEX windowClass;
 	CreateGameWindow(m_hWnd, windowClass);
+	LOG->Init();
 	m_DirectX = MakeUnique<DirectXApp>(m_hWnd, WINDOW_WIDTH, WINDOW_HEIGHT);
 	m_Scene = MakeUnique<SampleScene>(
 		m_DirectX->GetDevice(),
-		m_DirectX->GetPipelineState(),
+		m_DirectX->GetPipelineStates(),
 		m_DirectX->GetPipelineStateWireFrame());
 
-	Polygon::Init(m_DirectX->GetDevice(), m_DirectX->GetCommandList(), m_DirectX->GetPipelineState(), m_DirectX->GetPipelineStateWireFrame());
+	Polygon::Init(
+		m_DirectX->GetDevice(),
+		m_DirectX->GetCommandList(),
+		m_DirectX->GetPipelineState(E_VERTEX_SHADER::BASIC, E_PIXEL_SHADER::BASIC),
+		m_DirectX->GetPipelineStateWireFrame());
 	Polygon::CreatePolygon();
 
 	TIME->Init();
 	INPUT->Init(m_hWnd);
-	LOG->Init();
+	m_DebugWindow = MakeUnique<DebugWindow>();
+
+	if(!IMGUI::Start(m_hWnd, m_DirectX->GetDevice().Get(), m_DirectX->GetCommandQueue().Get(), DirectXApp::RTV_NUM, DXGI_FORMAT_R8G8B8A8_UNORM))
+	{
+		MessageBox(NULL, _T("IMGUIの初期化に失敗"), PROC_NAME, MB_OK);
+		return E_FAIL;
+	}
 
 	UpdateWindow(m_hWnd);
 	ShowWindow(m_hWnd, SW_SHOW);
@@ -122,13 +140,28 @@ void Application::Run()
 			/* DirectX描画開始 */
 			m_DirectX->BeginRender();
 
+			/* ImGui描画開始 */
+			IMGUI::BeginFrame();
+
 			/* 更新 */
 			m_Scene->Update();
 
 			/* 描画 */
 			RenderContext renderContext{};
 			renderContext.CommandList = m_DirectX->GetCommandList().Get();
+			renderContext.frameIndex = m_DirectX->GetFrameIndex();
+
+			const auto& settings = RenderSettings::Get();
+			renderContext.vertexShader = settings.vertexShader;
+			renderContext.pixelShader = settings.pixelShader;
+			renderContext.wireframe = settings.wireframe;
 			m_Scene->Draw(renderContext);
+
+			/* デバッグウィンドウ描画 */
+			m_DebugWindow->Draw();
+
+			/* ImGui描画終了 */
+			IMGUI::EndFrame(renderContext.CommandList);
 
 			/* DirectX描画終了 */
 			m_DirectX->EndRender();
@@ -138,6 +171,7 @@ void Application::Run()
 
 void Application::Terminate()
 {
+	IMGUI::Release();
 	LOG->ShutDown();
 	DestroyWindow(m_hWnd);
 }

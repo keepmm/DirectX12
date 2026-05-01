@@ -7,6 +7,8 @@
  * 更新履歴 2026/2/24 keep 作成
  *		   2026/4.24 keep ダブルbufferシステムから
  *						  トリプルバッファシステムに変更
+ *		　　2026/4/27 keep ルートシグネチャの作成処理を追加
+ *						   Shaderの作成をクラスに変更
  * *********************************************************************/
 #include "DirectX.hpp"
 #include "Vertex.hpp"
@@ -230,12 +232,30 @@ void DirectXApp::CreateRootSignature()
 	// ==================================
 	//		1. ルートパラメータを定義
 	// ==================================
+	
+	CD3DX12_DESCRIPTOR_RANGE srvRange = {};
+	srvRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
+	
 	// ここでは一つのルートパラメータを作成
 	// 頂点シェーダで使う定数バッファ(b0)をバインドする設定
-	CD3DX12_ROOT_PARAMETER rootParameters[1] = {};
+	CD3DX12_ROOT_PARAMETER rootParameters[2] = {};
+	// b0
 	rootParameters[0].InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_ALL);
+
+	// t0
+	rootParameters[1].InitAsDescriptorTable(1, &srvRange, D3D12_SHADER_VISIBILITY_PIXEL);
+
 	// ルートパラメータ... GPUシェーダーに渡すリソース(定数バッファ・テクスチャ・サンプラーなど)のこと
 	// D3D12_SHADER_VISIBILITY_VERTEX... 頂点シェーダーのみで使用
+
+	// サンプラー定義
+	CD3DX12_STATIC_SAMPLER_DESC staticSamplerDesc(
+		0,	// shaderRegister : s0
+		D3D12_FILTER_MIN_MAG_MIP_LINEAR,
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+		D3D12_TEXTURE_ADDRESS_MODE_WRAP
+		);
 
 	// ==================================
 	//		2. ルートシグネチャの説明を作成
@@ -244,8 +264,8 @@ void DirectXApp::CreateRootSignature()
 	rootSignatureDesc.Init(
 		_countof(rootParameters),
 		rootParameters,
-		0,
-		nullptr,
+		1,
+		&staticSamplerDesc,
 		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT
 	);
 #pragma endregion
@@ -289,6 +309,7 @@ void DirectXApp::CreatePipelineStateObject()
 	// ---- シェーダー読み込み ----
 	Shader vs;
 	Shader ps;
+	Shader toon;
 	Shader wirePs;
 
 	if (!vs.LoadFromFile(L"VertexShader.hlsl", "BasicVS", "vs_5_0")) {
@@ -299,6 +320,11 @@ void DirectXApp::CreatePipelineStateObject()
 		assert(false);
 		return;
 	}
+	if(!toon.LoadFromFile(L"ToonShader.hlsl", "ToonPS", "ps_5_0")) {
+		assert(false);
+		return;
+	}
+
 	if (!wirePs.LoadFromFile(L"PixelShader.hlsl", "WireFramePS", "ps_5_0")) {
 		assert(false);
 		return;
@@ -320,9 +346,22 @@ void DirectXApp::CreatePipelineStateObject()
 	psoDesc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 	psoDesc.SampleDesc.Count = 1;
 
+	const size_t vsIndex = static_cast<size_t>(E_VERTEX_SHADER::BASIC);
+	const size_t psIndex = static_cast<size_t>(E_PIXEL_SHADER::BASIC);
+	const size_t psToonIndex = static_cast<size_t>(E_PIXEL_SHADER::TOON);
+
 	auto hr = m_Device->CreateGraphicsPipelineState(
 		&psoDesc,
-		IID_PPV_ARGS(m_pipelineState.ReleaseAndGetAddressOf()));
+		IID_PPV_ARGS(m_PipelineStates[vsIndex][psIndex].ReleaseAndGetAddressOf()));
+	if (FAILED(hr)) {
+		assert(false);
+	}
+
+	auto toonDesc = psoDesc;
+	toonDesc.PS = toon.GetByteCode();
+	hr = m_Device->CreateGraphicsPipelineState(
+		&toonDesc,
+		IID_PPV_ARGS(m_PipelineStates[vsIndex][psToonIndex].ReleaseAndGetAddressOf()));
 	if (FAILED(hr)) {
 		assert(false);
 	}

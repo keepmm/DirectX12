@@ -6,6 +6,7 @@
 #include "Mesh.hpp"
 #include "Material.hpp"
 #include "Camera.hpp"
+#include "imguiinit.hpp"
 
 SampleScene::~SampleScene()
 {
@@ -13,7 +14,7 @@ SampleScene::~SampleScene()
 
 SampleScene::SampleScene(
 	const ComPtr<ID3D12Device>& device,
-	const ComPtr<ID3D12PipelineState>& solidPso,
+	const DirectXApp::PipelineStateTable pipelinestates,
 	const ComPtr<ID3D12PipelineState>& wirePso)
 {
 	m_Camera = MakeUnique<Camera>();
@@ -34,7 +35,8 @@ SampleScene::SampleScene(
 	m_World.AddComponent<MeshComponent>(m_CubeEntity, MeshComponent{ mesh });
 
 	auto material = MakeShared<Material>();
-	material->Init(device, solidPso, wirePso);
+	material->Init(device, pipelinestates, wirePso);
+	material->SetTextureFromFile(L"Assets/Mutant_diffuse.png");
 	m_World.AddComponent<MaterialComponent>(m_CubeEntity, MaterialComponent{ material });
 }
 
@@ -47,7 +49,13 @@ void SampleScene::Update()
 
 	if (INPUT->Key.Enter().Down())
 	{
-		m_Wireframe = !m_Wireframe;
+		auto& settings = RenderSettings::Get();
+		settings.wireframe = !settings.wireframe;
+	}
+
+	if (m_Camera != nullptr)
+	{
+		m_Camera->Update();
 	}
 
 	const float deltaTime = TIME->GetDeltaTime();
@@ -90,7 +98,38 @@ void SampleScene::Draw(const RenderContext& renderContext)
 	RenderContext context = renderContext;
 	context.view = m_Camera->GetViewMatrix(false);
 	context.projection = m_Camera->GetProjectionMatrix(false);
-	context.wireframe = m_Wireframe;
 
 	m_RenderSystem.Draw(m_World, context);
+
+#if _DEBUG
+	DebugWindow();
+	m_Camera->DebugWindow();
+#endif
+}
+
+void SampleScene::DebugWindow()
+{
+	if (ImGui::Begin(u8("デバッグ")))
+	{
+		ImGui::Text(u8("SampleSceneのデバッグウィンドウ"));
+
+		auto& settings = RenderSettings::Get();
+		ImGui::Checkbox(u8("ワイヤーフレーム"), &settings.wireframe);
+
+
+		const char* vsItems[] = { "BasicVS" };
+		int vsIndex = static_cast<int>(settings.vertexShader);
+		if (ImGui::Combo(u8("Vertex Shader"), &vsIndex, vsItems, static_cast<int>(sizeof(vsItems) / sizeof(vsItems[0]))))
+		{
+			settings.vertexShader = static_cast<E_VERTEX_SHADER>(vsIndex);
+		}
+
+		const char* psItems[] = { "BasicPS", "ToonPS" };
+		int psIndex = static_cast<int>(settings.pixelShader);
+		if (ImGui::Combo(u8("Pixel Shader"), &psIndex, psItems, static_cast<int>(sizeof(psItems) / sizeof(psItems[0]))))
+		{
+			settings.pixelShader = static_cast<E_PIXEL_SHADER>(psIndex);
+		}
+	}
+	ImGui::End();
 }

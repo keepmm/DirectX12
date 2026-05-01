@@ -33,7 +33,7 @@ public:
 	/// @brief タイムスケール(スローモーション/早送り)の取得
 	/// @brief 0.0f ~ 1.0f
 	/// @param scale 設定するスケール(0.0f ~ 1.0f)
-	void SetTimeScale(float scale);
+	void SetTimeScale(_In_ float scale);
 
 	/// @brief 現在のタイムスケールを取得する
 	/// @return 現在のタイムスケール(0.0f ~ 1.0f)
@@ -46,6 +46,10 @@ public:
 	/// @brief 現在のFPS
 	/// @return 現在のFPS
 	int GetFPS() const;
+
+	/// @brief FPSの設定
+	/// @param fps 設定するFPS値(int)
+	void SetFPS(_In_ int fps) { m_FPS = fps; }
 
 	/// @brief フレームカウントの取得
 	/// @return フレームカウント

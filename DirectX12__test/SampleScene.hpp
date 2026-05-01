@@ -13,13 +13,14 @@ class SampleScene :
 public:
 	SampleScene(
 		_In_ const ComPtr<ID3D12Device>& device,
-		_In_ const ComPtr<ID3D12PipelineState>& solidPso,
+		_In_ const DirectXApp::PipelineStateTable pipelinestates,
 		_In_ const ComPtr<ID3D12PipelineState>& wirePso);
 	~SampleScene() final;
 
 	void Update() final;
 	void Draw(_In_ const RenderContext& renderContext) final;
 
+	void DebugWindow();
 private:
 	std::unique_ptr<Camera> m_Camera;
 
@@ -28,6 +29,4 @@ private:
 
 	SpinSystem m_SpinSystem;
 	RenderSystem m_RenderSystem;
-
-	bool m_Wireframe = true;
 };

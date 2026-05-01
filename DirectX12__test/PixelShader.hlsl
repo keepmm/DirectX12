@@ -15,16 +15,22 @@ cbuffer Transform : register(b0)
     float2 uv : TEXCOORD;
 };
 
+Texture2D g_Texture : register(t0);
+SamplerState g_Sampler : register(s0);
+
 float4 BasicPS(PSInput input) : SV_TARGET
 {
+    float4 texcolor = g_Texture.Sample(g_Sampler, input.uv);
+    
     float3 n = normalize(input.normal);
     float3 l = normalize(-lightDir.xyz);
     float ndotl = saturate(dot(n, l));
 
-    float3 diffuse = lightColor.rgb * input.col.rgb * ndotl;
-    float3 ambient = input.col.rgb * ambientColor.rgb;
+    float3 baseColor = input.col.rgb * texcolor.rgb;
+    float3 diffuse = lightColor.rgb * baseColor * ndotl;
+    float3 ambient = baseColor * ambientColor.rgb;
 
-    return float4(diffuse + ambient, input.col.a);
+    return float4(diffuse + ambient, input.col.a * texcolor.a);
 }
 
 float4 WireFramePS(PSInput input) : SV_Target

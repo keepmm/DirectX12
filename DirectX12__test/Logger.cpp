@@ -16,6 +16,12 @@ void Logger::WriteLog(LogLevel level, const std::string& message)
 	std::string LevelStr = GetLogLevelString(level);
     std::string FullMessage = "[" + TimeStamp + "] [" + LevelStr + "] " + message;
 
+	m_RecentLogs.push_back(FullMessage);
+    if(m_RecentLogs.size() > m_MaxRecentLogs)
+    {
+        m_RecentLogs.pop_front();
+	}
+
     // コンソール出力
     if (m_ConsoleOutput)
     {
@@ -52,12 +58,34 @@ void Logger::WriteLog(LogLevel level, const std::string& message)
 
 std::string Logger::GetCurrentTime() const
 {
-    return std::string();
+	using namespace std::chrono;
+
+    // 現在時刻の取得
+	const auto now = system_clock::now();
+	// 時刻をtime_tに変換
+	const std::time_t time = system_clock::to_time_t(now);
+
+	// time_tをtm構造体に変換
+    std::tm tm = {};
+	localtime_s(&tm, &time);
+
+	// tm構造体をフォーマットして文字列に変換
+    std::ostringstream oss;
+    oss << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
+	return oss.str();
 }
 
 std::string Logger::GetLogLevelString(LogLevel level) const
 {
-    return std::string();
+	// ログレベルを文字列に変換
+    switch (level)
+    {
+	case LogLevel::Info: return "INFO";
+	case LogLevel::Warning: return "WARNING";
+	case LogLevel::Error: return "ERROR";
+	case LogLevel::Debug: return "DEBUG";
+	default: return "UNKNOWN";
+    }
 }
 
 void Logger::Init(const std::string& logFilePath)
@@ -111,6 +139,12 @@ void Logger::ShutDown()
 
 void Logger::LogHRESULT(HRESULT hr, const std::string& context)
 {
+    std::ostringstream oss;
+
+	// HRESULTの値を16進数で表示
+    oss << context << " (hr=0x" << std::hex << std::uppercase
+        << static_cast<unsigned long>(hr) << ")";
+    WriteLog(FAILED(hr) ? LogLevel::Error : LogLevel::Info, oss.str());
 }
 
 void Logger::LogInfo(const std::string& message)
@@ -139,6 +173,12 @@ Logger::~Logger()
 }
 
 Logger::Logger()
+    : m_LogFile(),
+    m_ConsoleOutput(true),
+    m_FileOutput(true),
+    m_Init(false),
+    m_RecentLogs(),
+	m_MaxRecentLogs(200)
 {
 
 }

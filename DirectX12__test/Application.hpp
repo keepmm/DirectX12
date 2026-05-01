@@ -12,6 +12,7 @@
 #include "Defines.hpp"
 #include "DirectX.hpp"
 #include "SampleScene.hpp"
+#include "DebugWindow.hpp"
 #include <chrono>
 
 #define APPLICATION Application::GetInstance()
@@ -31,6 +32,7 @@ private:
 
 	std::unique_ptr<DirectXApp> m_DirectX;
 	std::unique_ptr<SampleScene> m_Scene;
+	std::unique_ptr<DebugWindow> m_DebugWindow;
 
 	void CreateGameWindow(HWND& hWnd, WNDCLASSEX& windowClass);
 

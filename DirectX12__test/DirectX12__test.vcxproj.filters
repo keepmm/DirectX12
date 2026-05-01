@@ -16,9 +16,6 @@
     <Filter Include="ヘッダー ファイル\DirectX">
       <UniqueIdentifier>{82704397-f98d-4adc-a0da-92ce3f20920e}</UniqueIdentifier>
     </Filter>
-    <Filter Include="ヘッダー ファイル\Shader">
-      <UniqueIdentifier>{e47b4b4b-bbb7-4b1d-b1a9-407fcb6be6f9}</UniqueIdentifier>
-    </Filter>
     <Filter Include="ヘッダー ファイル\Scene">
       <UniqueIdentifier>{d87b3c4e-505d-4ae3-b6d2-560c382e703b}</UniqueIdentifier>
     </Filter>
@@ -30,6 +27,18 @@
     </Filter>
     <Filter Include="ヘッダー ファイル\ECS">
       <UniqueIdentifier>{28d2e379-b89b-4eea-b681-1ee67f36beeb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ソース ファイル\imgui">
+      <UniqueIdentifier>{56af1af4-4c83-4030-b120-d8ce0c86309b}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="リソース ファイル\Shader">
+      <UniqueIdentifier>{e47b4b4b-bbb7-4b1d-b1a9-407fcb6be6f9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="リソース ファイル\Shader\PixelShader">
+      <UniqueIdentifier>{5d3d336b-64ec-47a4-ae10-db7f409c9018}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="リソース ファイル\Shader\VertexShader">
+      <UniqueIdentifier>{38b63b28-92b1-4254-951c-7e3ce716bc03}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -82,6 +91,30 @@
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="MeshRenderer.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="imgui.cpp">
+      <Filter>ソース ファイル\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="imgui_draw.cpp">
+      <Filter>ソース ファイル\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="imgui_impl_win32.cpp">
+      <Filter>ソース ファイル\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="imgui_tables.cpp">
+      <Filter>ソース ファイル\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="imgui_widgets.cpp">
+      <Filter>ソース ファイル\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="imguiinit.cpp">
+      <Filter>ソース ファイル\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="DebugWindow.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="imgui_impl_dx12.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>
@@ -152,13 +185,45 @@
     <ClInclude Include="MeshRenderer.hpp">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="imconfig.h">
+      <Filter>ソース ファイル\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="imgui.h">
+      <Filter>ソース ファイル\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="imgui_internal.h">
+      <Filter>ソース ファイル\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="imguiinit.hpp">
+      <Filter>ソース ファイル\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="imstb_rectpack.h">
+      <Filter>ソース ファイル\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="imstb_textedit.h">
+      <Filter>ソース ファイル\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="imstb_truetype.h">
+      <Filter>ソース ファイル\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="DebugWindow.hpp">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="VertexShader.hlsl">
-      <Filter>ヘッダー ファイル\Shader</Filter>
-    </FxCompile>
     <FxCompile Include="PixelShader.hlsl">
-      <Filter>ヘッダー ファイル\Shader</Filter>
+      <Filter>リソース ファイル\Shader\PixelShader</Filter>
     </FxCompile>
+    <FxCompile Include="VertexShader.hlsl">
+      <Filter>リソース ファイル\Shader\VertexShader</Filter>
+    </FxCompile>
+    <FxCompile Include="ToonShader.hlsl">
+      <Filter>リソース ファイル\Shader\PixelShader</Filter>
+    </FxCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="imgui.ini">
+      <Filter>ソース ファイル\imgui</Filter>
+    </None>
   </ItemGroup>
 </Project>
