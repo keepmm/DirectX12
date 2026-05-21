@@ -14,6 +14,7 @@ public:
 		_In_ const ComPtr<ID3D12PipelineState>& wirePso);
 
 	bool SetTextureFromFile(_In_ const std::wstring& filePath);
+	bool SetTextureFromMemory(_In_ const std::uint8_t* data, size_t size);
 
 	void SetLightDir(_In_ const float3& dir) { m_LightDir = dir; }
 	void SetLightColor(_In_ const float4& color) { m_LightColor = color; }

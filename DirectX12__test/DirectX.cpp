@@ -61,6 +61,26 @@ DirectXApp::DirectXApp(HWND hWnd, int Window_Width, int Window_Height) :
 		return;
 	}
 
+	// DirectX12の機能レベル12_0以降の機能を使用するために、ID3D12Device2インターフェースを取得
+	hr = m_Device.As(&m_Device2);
+
+	// 12_0以降の機能がサポートされていない場合は、ID3D12Device2の取得に失敗するため、m_Device2はnullptrになる
+	// 12_0以降の機能がサポートされているかどうかを確認するために、m_Device2がnullptrでないかをチェック
+	if (FAILED(hr) || m_Device2 == nullptr)
+	{
+		m_Device2 = nullptr;
+	}
+
+	D3D12_FEATURE_DATA_D3D12_OPTIONS7 options7 = {};
+	if (SUCCEEDED(m_Device->CheckFeatureSupport(
+		D3D12_FEATURE_D3D12_OPTIONS7,
+		&options7,
+		sizeof(options7)
+	)))
+	{
+		m_MeshShaderSupported = options7.MeshShaderTier != D3D12_MESH_SHADER_TIER_NOT_SUPPORTED;
+	}
+
 	// ================================
 	//		コマンドアロケータを生成
 	// ================================
@@ -148,6 +168,8 @@ DirectXApp::DirectXApp(HWND hWnd, int Window_Width, int Window_Height) :
 		return;
 	}
 
+	m_CommandList.As(&m_CommandList6);
+
 	hr = m_CommandList->Close();
 	if (FAILED(hr)) {
 		return;
@@ -223,6 +245,18 @@ DirectXApp::DirectXApp(HWND hWnd, int Window_Width, int Window_Height) :
 	CreatePipelineStateObject();
 
 	return;
+}
+
+bool DirectXApp::ReloadShader()
+{
+	if (!m_ShaderLibrary.ReoadChanged())
+	{
+		return false;
+	}
+
+	m_PsoCache.Clear();
+	CreatePipelineStateObject();
+	return true;
 }
 
 void DirectXApp::CreateRootSignature()
@@ -306,35 +340,70 @@ void DirectXApp::CreatePipelineStateObject()
 		{"TEXCOORD",0,DXGI_FORMAT_R32G32_FLOAT,0,40,D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,0}, 
 	};
 
-	// ---- シェーダー読み込み ----
-	Shader vs;
-	Shader ps;
-	Shader toon;
-	Shader wirePs;
+	//// ---- シェーダー読み込み ----
+	//Shader vs;
+	//Shader ps;
+	//Shader toon;
+	//Shader wirePs;
+	//Shader lineVS;
+	//Shader linePS;
 
-	if (!vs.LoadFromFile(L"VertexShader.hlsl", "BasicVS", "vs_5_0")) {
-		assert(false);
-		return;
-	}
-	if (!ps.LoadFromFile(L"PixelShader.hlsl", "BasicPS", "ps_5_0")) {
-		assert(false);
-		return;
-	}
-	if(!toon.LoadFromFile(L"ToonShader.hlsl", "ToonPS", "ps_5_0")) {
+	//if (!vs.LoadFromFile(L"VertexShader.hlsl", "BasicVS", "vs_5_0")) {
+	//	assert(false);
+	//	return;
+	//}
+	//if (!ps.LoadFromFile(L"PixelShader.hlsl", "BasicPS", "ps_5_0")) {
+	//	assert(false);
+	//	return;
+	//}
+	//if(!toon.LoadFromFile(L"ToonShader.hlsl", "ToonPS", "ps_5_0")) {
+	//	assert(false);
+	//	return;
+	//}
+
+	//if (!wirePs.LoadFromFile(L"PixelShader.hlsl", "WireFramePS", "ps_5_0")) {
+	//	assert(false);
+	//	return;
+	//}
+
+	//if (!linePS.LoadFromFile(L"PS_LineShader.hlsl", "LinePS", "ps_5_0"))
+	//{
+	//	assert(false);
+	//	return;
+	//}
+
+	//if(!lineVS.LoadFromFile(L"PS_LineShader.hlsl", "LineVS", "vs_5_0"))
+	//{
+	//	assert(false);
+	//	return;
+	//}
+
+	const Shader* vs = m_ShaderLibrary.Load(L"VertexShader.hlsl", "BasicVS", "vs_5_0");
+	const Shader* ps = m_ShaderLibrary.Load(L"PixelShader.hlsl", "BasicPS", "ps_5_0");
+	const Shader* toon = m_ShaderLibrary.Load(L"ToonShader.hlsl", "ToonPS", "ps_5_0");
+	const Shader* wirePs = m_ShaderLibrary.Load(L"PixelShader.hlsl", "WireFramePS", "ps_5_0");
+	const Shader* lineVS = m_ShaderLibrary.Load(L"PS_LineShader.hlsl", "LineVS", "vs_5_0");
+	const Shader* linePS = m_ShaderLibrary.Load(L"PS_LineShader.hlsl", "LinePS", "ps_5_0");
+
+	if (vs == nullptr || ps == nullptr || toon == nullptr || 
+		wirePs == nullptr || lineVS == nullptr || linePS == nullptr)
+	{
 		assert(false);
 		return;
 	}
 
-	if (!wirePs.LoadFromFile(L"PixelShader.hlsl", "WireFramePS", "ps_5_0")) {
-		assert(false);
-		return;
-	}
+	// ライン用のレイアウト
+	D3D12_INPUT_ELEMENT_DESC linelayout[] =
+	{
+		{"Position",0,DXGI_FORMAT_R32G32B32_FLOAT,0,0,D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,0},
+		{"COLOR",0,DXGI_FORMAT_R32G32B32A32_FLOAT,0,12,D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,0}
+	};
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC psoDesc = {};
 	psoDesc.InputLayout = { InputLayout, _countof(InputLayout) };
 	psoDesc.pRootSignature = m_rootSignature.Get();
-	psoDesc.VS = vs.GetByteCode();
-	psoDesc.PS = ps.GetByteCode();
+	psoDesc.VS = vs->GetByteCode();
+	psoDesc.PS = ps->GetByteCode();
 	psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
 	psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 	psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
@@ -350,33 +419,54 @@ void DirectXApp::CreatePipelineStateObject()
 	const size_t psIndex = static_cast<size_t>(E_PIXEL_SHADER::BASIC);
 	const size_t psToonIndex = static_cast<size_t>(E_PIXEL_SHADER::TOON);
 
-	auto hr = m_Device->CreateGraphicsPipelineState(
-		&psoDesc,
-		IID_PPV_ARGS(m_PipelineStates[vsIndex][psIndex].ReleaseAndGetAddressOf()));
-	if (FAILED(hr)) {
+
+	m_PipelineStates[vsIndex][psIndex] = m_PsoCache.GetOrCreate("BasicVS_BasicPS",
+		m_Device.Get(),
+		psoDesc
+	);
+	if(m_PipelineStates[vsIndex][psIndex] == nullptr) {
 		assert(false);
 	}
 
 	auto toonDesc = psoDesc;
-	toonDesc.PS = toon.GetByteCode();
-	hr = m_Device->CreateGraphicsPipelineState(
-		&toonDesc,
-		IID_PPV_ARGS(m_PipelineStates[vsIndex][psToonIndex].ReleaseAndGetAddressOf()));
-	if (FAILED(hr)) {
+	toonDesc.PS = toon->GetByteCode();
+	m_PipelineStates[vsIndex][psToonIndex] = m_PsoCache.GetOrCreate("BasicVS_ToonPS",
+		m_Device.Get(),toonDesc
+	);
+	if(m_PipelineStates[vsIndex][psToonIndex] == nullptr) {
 		assert(false);
 	}
+
 
 	auto wireDesc = psoDesc;
 	wireDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
 	wireDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
-	wireDesc.PS = wirePs.GetByteCode();
+	wireDesc.PS = wirePs->GetByteCode();
 
-	hr = m_Device->CreateGraphicsPipelineState(
-		&wireDesc,
-		IID_PPV_ARGS(m_pipelineStateWireFrame.ReleaseAndGetAddressOf()));
-	if (FAILED(hr)) {
+	m_pipelineStateWireFrame = m_PsoCache.GetOrCreate("BasicVS_WireFramePS",
+		m_Device.Get(),
+		wireDesc
+	);
+	if(m_pipelineStateWireFrame == nullptr) {
 		assert(false);
 	}
+
+	auto lineDesc = psoDesc;
+	lineDesc.VS = lineVS->GetByteCode();
+	lineDesc.PS = linePS->GetByteCode();
+	lineDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_LINE;
+	lineDesc.InputLayout = { linelayout,_countof(linelayout) };
+	lineDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+	lineDesc.DepthStencilState.DepthEnable = FALSE;
+	m_LinePso = m_PsoCache.GetOrCreate("LineVS_LinePS",
+		m_Device.Get(),
+		lineDesc
+	);
+	if (m_LinePso == nullptr) {
+		assert(false);
+	}
+
+	CreateMeshShaderPipelineState();
 }
 
 DirectXApp::~DirectXApp() 
@@ -517,6 +607,79 @@ void DirectXApp::WaitForGPUIdle()
 	{
 		m_Fence->SetEventOnCompletion(fenceToWait, m_Fence_Event);
 		WaitForSingleObject(m_Fence_Event, INFINITE);
+	}
+}
+
+void DirectXApp::CreateMeshShaderPipelineState()
+{
+	m_MeshPso.Reset();
+
+	// メッシュシェーダーが対応していない場合処理しない
+	if(!m_MeshShaderSupported) {
+		return;
+	}
+
+	const Shader* mesh = m_ShaderLibrary.Load(L"MS_MeshShader.hlsl", "MeshMain", "ms_6_5");
+	const Shader* meshPS = m_ShaderLibrary.Load(L"MS_MeshShader.hlsl", "MeshPS", "ps_6_0");
+	if(mesh == nullptr || meshPS == nullptr) {
+		assert(false);
+		return;
+	}
+
+	struct MeshPipelineStateStream
+	{
+		D3D12_PIPELINE_STATE_SUBOBJECT_TYPE typeRootSingature = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_ROOT_SIGNATURE;
+		ID3D12RootSignature* rootSignature = nullptr;
+
+		D3D12_PIPELINE_STATE_SUBOBJECT_TYPE typeMS = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_MS;
+		D3D12_SHADER_BYTECODE ms = {};
+
+		D3D12_PIPELINE_STATE_SUBOBJECT_TYPE typePS = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_PS;
+		D3D12_SHADER_BYTECODE ps = {};
+
+		D3D12_PIPELINE_STATE_SUBOBJECT_TYPE typeBlend = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_BLEND;
+		D3D12_BLEND_DESC blendDesc = {};
+
+		D3D12_PIPELINE_STATE_SUBOBJECT_TYPE typeRasterizer = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_RASTERIZER;
+		D3D12_RASTERIZER_DESC rasterizerDesc = {};
+
+		D3D12_PIPELINE_STATE_SUBOBJECT_TYPE typeDepthStencil = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_DEPTH_STENCIL;
+		D3D12_DEPTH_STENCIL_DESC depthStencilDesc = {};
+
+		D3D12_PIPELINE_STATE_SUBOBJECT_TYPE typeRTVFormat = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_RENDER_TARGET_FORMATS;
+		D3D12_RT_FORMAT_ARRAY rtvFormats = {};
+
+		D3D12_PIPELINE_STATE_SUBOBJECT_TYPE typeSampleDesc = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_SAMPLE_DESC;
+		DXGI_SAMPLE_DESC sampleDesc = {1, 0};
+
+		D3D12_PIPELINE_STATE_SUBOBJECT_TYPE typeSampleMask = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_SAMPLE_MASK;
+		UINT sampleMask = UINT_MAX;
+
+		D3D12_PIPELINE_STATE_SUBOBJECT_TYPE typePrimitiveTopology = D3D12_PIPELINE_STATE_SUBOBJECT_TYPE_PRIMITIVE_TOPOLOGY;
+		D3D12_PRIMITIVE_TOPOLOGY_TYPE primitiveTopology = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+	};
+
+	MeshPipelineStateStream stream{};
+	stream.rootSignature = m_rootSignature.Get();
+	stream.ms = mesh->GetByteCode();
+	stream.ps = meshPS->GetByteCode();
+	stream.blendDesc = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+	stream.rasterizerDesc = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+	stream.depthStencilDesc = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+	stream.rtvFormats.NumRenderTargets = 1;
+	stream.rtvFormats.RTFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+
+	D3D12_PIPELINE_STATE_STREAM_DESC streamDesc = {};
+	streamDesc.SizeInBytes = sizeof(stream);
+	streamDesc.pPipelineStateSubobjectStream = &stream;
+
+
+	const HRESULT hr = m_Device2 ? m_Device2->CreatePipelineState(
+		&streamDesc,
+		IID_PPV_ARGS(m_MeshPso.ReleaseAndGetAddressOf())) : E_FAIL;
+	if (FAILED(hr))
+	{
+		m_MeshPso.Reset();
 	}
 }
 

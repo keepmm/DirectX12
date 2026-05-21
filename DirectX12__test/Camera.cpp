@@ -53,7 +53,7 @@ void Camera::Update()
 	if (INPUT->MouseInput.Right().IsPressed())
 	{
 		// マウスの移動量に応じてカメラの回転を更新
-		m_Yaw += static_cast<float>(INPUT->MouseInput.DeltaX()) * m_RotateSpeed;
+		m_Yaw -= static_cast<float>(INPUT->MouseInput.DeltaX()) * m_RotateSpeed;
 		m_Pitch -= static_cast<float>(INPUT->MouseInput.DeltaY()) * m_RotateSpeed;
 
 		// ピッチの制限

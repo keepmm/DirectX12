@@ -1,5 +1,8 @@
 #pragma once
 
+#define NOMINMAX
+
+// DirectX 12 
 #include <windows.h>
 #include <wrl.h>
 #include <d3d12.h>
@@ -8,6 +11,8 @@
 #include <DirectXColors.h>
 #include <DirectXCollision.h>
 #include <d3dcompiler.h>
+
+// C++•W€ƒ‰ƒCƒuƒ‰ƒŠ
 #include <memory>
 #include <vector>
 #include <string>
@@ -15,6 +20,8 @@
 #include <array>
 #include <chrono>
 #include <unordered_map>
+
+// FILE I/O
 #include <filesystem>
 #include <fstream>
 #include <sstream>
@@ -23,3 +30,11 @@
 #include <unordered_set>
 #include <type_traits>
 #include <utility>
+
+// ”ñ“¯Šúˆ—
+#include <thread>
+#include <queue>
+#include <mutex>
+#include <functional>
+#include <condition_variable>
+#include <future>

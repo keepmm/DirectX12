@@ -1,5 +1,6 @@
 #include "Logger.hpp"
 #include <iostream>
+#include "Engine/ThreadPool.hpp"
 
 Logger* Logger::GetInstance()
 {

@@ -14,27 +14,23 @@
 #include "SampleScene.hpp"
 #include "DebugWindow.hpp"
 #include <chrono>
+#include "Engine/Engine.hpp"
 
 #define APPLICATION Application::GetInstance()
 
-class Application
+class Application : public Engine
 {
 public:
 	static Application* GetInstance();
-	HRESULT Init(HINSTANCE hInstance);
-	void Run();
-	void Terminate();
-	SIZE GetWindowSize() const;
-	~Application();
-private:
-	HWND m_hWnd;
-	HINSTANCE m_hInstance;
 
-	std::unique_ptr<DirectXApp> m_DirectX;
-	std::unique_ptr<SampleScene> m_Scene;
+	~Application() = default;
+
+private:
 	std::unique_ptr<DebugWindow> m_DebugWindow;
 
-	void CreateGameWindow(HWND& hWnd, WNDCLASSEX& windowClass);
+	HRESULT OnInit() override;
+	void OnUpdate() override;
+	void OnShutDown() override;
 
 	Application();
 	Application(const Application&) = delete;

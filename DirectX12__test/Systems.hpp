@@ -36,9 +36,18 @@ public:
 			return;
 		}
 
-		if (renderContext.CommandList == nullptr)
+		if (renderContext.useMeshShader)
 		{
-			return;
+			if (!renderContext.meshShaderSupported ||
+				renderContext.CommandList6 == nullptr ||
+				renderContext.meshShaderPso == nullptr)
+			{
+				return;
+			}
+
+			renderContext.CommandList6->SetPipelineState(renderContext.meshShaderPso);
+			// Mesh Shader‚ðŽg—p‚·‚éê‡‚Ì•`‰æˆ—
+			renderContext.CommandList6->DispatchMesh(1, 1, 1);
 		}
 
 		world.Each<TransformComponent, MeshComponent, MaterialComponent>(

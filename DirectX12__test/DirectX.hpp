@@ -13,9 +13,10 @@
 #include <d3d12shader.h>
 #include <dxgi1_4.h>
 #include <d3dcompiler.h>
-#include <DirectXMath.h>
-#include <wrl/client.h>
+
 #include "RenderContext.hpp"
+#include "ShaderLibrary.hpp"
+#include "PipelineStateCache.hpp"
 
 #include "Defines.hpp"
 
@@ -46,8 +47,11 @@ public:
 	HRESULT BeginRender();
 	HRESULT EndRender();
 
+	bool ReloadShader();
+
 	ComPtr<ID3D12Device> GetDevice() const { return m_Device; }
 	ComPtr<ID3D12GraphicsCommandList> GetCommandList() const { return m_CommandList; }
+	ID3D12GraphicsCommandList6* GetCommandList6() const { return m_CommandList6.Get(); }
 	ComPtr<ID3D12RootSignature> GetRootSignature() const { return m_rootSignature; }
 
 	ComPtr<ID3D12PipelineState> GetPipelineState() const
@@ -62,6 +66,9 @@ public:
 
 	const PipelineStateTable& GetPipelineStates() const { return m_PipelineStates; }
 	ComPtr<ID3D12PipelineState> GetPipelineStateWireFrame() const { return m_pipelineStateWireFrame; }
+	ComPtr<ID3D12PipelineState> GetLinePso() const { return m_LinePso; }
+	ID3D12PipelineState* GetMeshPso() const { return m_MeshPso.Get(); }
+	bool IsMeshShaderSupported() const { return m_MeshShaderSupported; }
 
 	ComPtr<ID3D12CommandQueue> GetCommandQueue() const { return m_CommandQueue; }
 
@@ -77,6 +84,7 @@ private:
 	void WaitForGPUIdle();
 
 	ComPtr<ID3D12Device> m_Device;
+	ComPtr<ID3D12Device2> m_Device2;
 	ComPtr<ID3D12CommandQueue> m_CommandQueue;
 	ComPtr<ID3D12CommandAllocator> m_CommandAllocator[RTV_NUM];
 	ComPtr<ID3D12GraphicsCommandList> m_CommandList;
@@ -111,6 +119,19 @@ private:
 	*/
 	ComPtr<ID3D12PipelineState> m_pipelineStateWireFrame;
 
+	/**
+	 *	ボーン表示用のパイプライン.
+	 */
+	ComPtr<ID3D12PipelineState> m_LinePso;
+
+	ComPtr<ID3D12GraphicsCommandList6> m_CommandList6;
+	ComPtr<ID3D12PipelineState> m_MeshPso;
+	bool m_MeshShaderSupported = false;
+
+	void CreateMeshShaderPipelineState();
+
+	ShaderLibrary m_ShaderLibrary;
+	PipelineStateCache m_PsoCache;
 
 	ComPtr<ID3D12Resource> m_Depthbuffer;
 

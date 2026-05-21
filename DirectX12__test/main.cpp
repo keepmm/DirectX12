@@ -19,7 +19,7 @@ int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCm
 		return 0;
 	}
 
-	APPLICATION->Init(hInstance);
+	APPLICATION->Init(hInstance,720,480);
 
 	APPLICATION->Run();
 
