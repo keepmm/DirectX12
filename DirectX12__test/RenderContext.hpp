@@ -13,6 +13,7 @@ enum class E_PIXEL_SHADER
 {
 	BASIC,
 	TOON,
+	EMISSIVE,
 	COUNT
 };
 
@@ -30,6 +31,8 @@ struct RenderSettings
 	}
 };
 
+class RenderTexture;
+
 struct RenderContext
 {
 	ID3D12GraphicsCommandList* CommandList = nullptr;
@@ -38,10 +41,20 @@ struct RenderContext
 
 	float4x4 view{};
 	float4x4 projection{};
+
 	bool wireframe = false;
 	bool useMeshShader = false;
 	bool meshShaderSupported = false;
+
+	bool isSceneView = false;
+
 	E_VERTEX_SHADER vertexShader = E_VERTEX_SHADER::BASIC;
 	E_PIXEL_SHADER pixelShader = E_PIXEL_SHADER::BASIC;
 	UINT frameIndex = 0;
+
+	RenderTexture* viewportRenderTexture = nullptr;
+	D3D12_VIEWPORT* viewport = nullptr;
+	D3D12_RECT* scissorRect = nullptr;
+
+	D3D12_CPU_DESCRIPTOR_HANDLE depthStencilView = {};
 };

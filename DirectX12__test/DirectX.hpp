@@ -1,11 +1,3 @@
-/*****************************************************************//**
- * \file   DirectX.hpp
- * \brief  DirectX12のレンダラー
- *
- * 作成者 murao
- * 作成日 2026/2/11
- * 更新履歴 2/11 作成
- * *********************************************************************/
 #pragma once
 
 #include <Windows.h>
@@ -25,11 +17,91 @@
 #pragma comment(lib, "dxguid.lib")
 #pragma comment(lib, "d3dcompiler.lib")
 
+struct DescriptorAllocator
+{
+	ComPtr<ID3D12DescriptorHeap> heap;
+	UINT decSize = 0;	// デスクリプタヒープ内のサイズ
+	UINT capacity = 0;	// デスクリプタヒープの容量
+	std::vector<UINT> freeList;	// 空いているスロットのリスト
+	UINT next = 0;
+
+	void Init(
+		_In_ ID3D12Device* device,
+		_In_ D3D12_DESCRIPTOR_HEAP_TYPE type,
+		_In_ UINT count,
+		_In_ bool shaderVisible)
+	{
+		D3D12_DESCRIPTOR_HEAP_DESC desc{};
+		desc.Type			 = type;
+		desc.NumDescriptors = count;
+		desc.Flags			= shaderVisible 
+			? D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE
+			: D3D12_DESCRIPTOR_HEAP_FLAG_NONE;
+		device->CreateDescriptorHeap(&desc, IID_PPV_ARGS(heap.ReleaseAndGetAddressOf()));
+		decSize		= device->GetDescriptorHandleIncrementSize(type);
+		capacity	= count;
+		next		= 0;
+		freeList.clear();
+	}
+
+	/// @brief スロットの確保
+	/// @param outIndex 確保するIndex
+	/// @return 確保できた場合True 
+	bool Allocate(UINT& outIndex)
+	{
+		if (!freeList.empty())
+		{
+			outIndex = freeList.back();
+			freeList.pop_back();
+			return true;
+		}
+
+		// 次のスロットがキャパシティを超えた場合
+		// 確保失敗
+		if (next >= capacity)
+		{
+			return false;
+		}
+
+		// 線形確保
+		outIndex = next++;
+		return true;
+	}
+
+	void Free(UINT index)
+	{
+		if (index < capacity)
+		{
+			freeList.push_back(index);
+		}
+	}
+
+	D3D12_CPU_DESCRIPTOR_HANDLE Cpu(UINT i)const
+	{
+		auto h = heap->GetCPUDescriptorHandleForHeapStart();
+		h.ptr += static_cast<SIZE_T>(i) * decSize;
+		return h;
+	}
+
+	D3D12_GPU_DESCRIPTOR_HANDLE Gpu(UINT i)const
+	{
+		auto h = heap->GetGPUDescriptorHandleForHeapStart();
+		h.ptr += static_cast<SIZE_T>(i) * decSize;
+		return h;
+	}
+};
+
 class DirectXApp
 {
 public:
 	/// @brief バッファの数
 	static constexpr int RTV_NUM = 3;
+
+	/// @brief グローバル SRV ヒープのスロット数
+	static constexpr UINT SRV_HEAP_SIZE = 256;
+
+	/// @brief グローバル SRV ヒープを持つ唯一の DirectXApp インスタンスを返す
+	static DirectXApp* GetCurrent() noexcept { return s_Instance; }
 
 	static constexpr size_t VERTEX_SHADER_COUNT = static_cast<size_t>(E_VERTEX_SHADER::COUNT);
 	static constexpr size_t PIXEL_SHADER_COUNT = static_cast<size_t>(E_PIXEL_SHADER::COUNT);
@@ -37,52 +109,57 @@ public:
 	using PipelineStateTable = std::array<std::array<ComPtr<ID3D12PipelineState>, PIXEL_SHADER_COUNT>, VERTEX_SHADER_COUNT>;
 
 public:
-	// 初期化
-	DirectXApp(HWND hWnd, int Window_Width, int Window_Height);
 
+	DirectXApp(HWND hWnd, int Window_Width, int Window_Height);
 
 	~DirectXApp();
 
-	// レンダリング
 	HRESULT BeginRender();
 	HRESULT EndRender();
+	void Present();
 
 	bool ReloadShader();
 
-	ComPtr<ID3D12Device> GetDevice() const { return m_Device; }
-	ComPtr<ID3D12GraphicsCommandList> GetCommandList() const { return m_CommandList; }
-	ID3D12GraphicsCommandList6* GetCommandList6() const { return m_CommandList6.Get(); }
-	ComPtr<ID3D12RootSignature> GetRootSignature() const { return m_rootSignature; }
+	// ---------------------------------------------------//
+	//						Getter						  //
+	// ---------------------------------------------------//
+	inline ComPtr<ID3D12Device> GetDevice() const noexcept { return m_Device; }
+	inline ComPtr<ID3D12GraphicsCommandList> GetCommandList() const noexcept { return m_CommandList; }
+	inline ID3D12GraphicsCommandList6* GetCommandList6() const noexcept { return m_CommandList6.Get(); }
+	inline ComPtr<ID3D12RootSignature> GetRootSignature() const noexcept { return m_rootSignature; }
+	inline ComPtr<ID3D12PipelineState> GetPipelineStateWireFrame() const noexcept { return m_pipelineStateWireFrame; }
+	inline ComPtr<ID3D12PipelineState> GetLinePso() const noexcept { return m_LinePso; }
+	inline ID3D12PipelineState* GetMeshPso() const noexcept { return m_MeshPso.Get(); }
+	inline bool IsMeshShaderSupported() const noexcept { return m_MeshShaderSupported; }
+	inline ComPtr<ID3D12CommandQueue> GetCommandQueue() const noexcept { return m_CommandQueue; }
+	inline UINT GetFrameIndex() const noexcept { return m_FrameIndex; }
 
-	ComPtr<ID3D12PipelineState> GetPipelineState() const
+	/// @brief グローバル SRV ヒープを返す（SetDescriptorHeaps 用）
+	ID3D12DescriptorHeap* GetSrvHeap() const noexcept { return m_SrvAllocator.heap.Get(); }
+	inline const PipelineStateTable& GetPipelineStates() const noexcept { return m_PipelineStates; }
+	inline ComPtr<ID3D12PipelineState> GetPipelineState() const noexcept
 	{
 		return m_PipelineStates[static_cast<size_t>(E_VERTEX_SHADER::BASIC)][static_cast<size_t>(E_PIXEL_SHADER::BASIC)];
 	}
-
-	ComPtr<ID3D12PipelineState> GetPipelineState(E_VERTEX_SHADER vs, E_PIXEL_SHADER ps) const
+	inline ComPtr<ID3D12PipelineState> GetPipelineState(E_VERTEX_SHADER vs, E_PIXEL_SHADER ps) const noexcept
 	{
 		return m_PipelineStates[static_cast<size_t>(vs)][static_cast<size_t>(ps)];
 	}
 
-	const PipelineStateTable& GetPipelineStates() const { return m_PipelineStates; }
-	ComPtr<ID3D12PipelineState> GetPipelineStateWireFrame() const { return m_pipelineStateWireFrame; }
-	ComPtr<ID3D12PipelineState> GetLinePso() const { return m_LinePso; }
-	ID3D12PipelineState* GetMeshPso() const { return m_MeshPso.Get(); }
-	bool IsMeshShaderSupported() const { return m_MeshShaderSupported; }
-
-	ComPtr<ID3D12CommandQueue> GetCommandQueue() const { return m_CommandQueue; }
-
-	UINT GetFrameIndex() const { return m_FrameIndex; }
+	inline DescriptorAllocator& GetSrvAllocator() noexcept { return m_SrvAllocator; }
+	inline DescriptorAllocator& GetRtvAllocator() noexcept { return m_RtvAllocator; }
+	inline DescriptorAllocator& GetDsvAllocator() noexcept { return m_DsvAllocator; }
+	inline D3D12_CPU_DESCRIPTOR_HANDLE GetDsvHandle() const noexcept { return m_DSV_Handle; }
+	inline D3D12_CPU_DESCRIPTOR_HANDLE GetRtvHandle() const noexcept { return m_RTV_Handle[m_FrameIndex]; }
+	void WaitForGPUIdle();
 private:
+	static DirectXApp* s_Instance;
+
 	HWND m_Window_hWnd;
 	int  m_Window_Width;
 	int  m_Window_Height;
-
 	HANDLE m_Fence_Event;
-
 	UINT64 m_NextFenceValue = 0;
-	void WaitForGPUIdle();
-
 	ComPtr<ID3D12Device> m_Device;
 	ComPtr<ID3D12Device2> m_Device2;
 	ComPtr<ID3D12CommandQueue> m_CommandQueue;
@@ -91,37 +168,23 @@ private:
 	ComPtr<IDXGISwapChain3> m_SwapChain;
 	ComPtr<ID3D12Fence> m_Fence;
 	ComPtr<IDXGIFactory3> m_Factory;
-	ComPtr<ID3D12DescriptorHeap> m_RTV_Heap;
-	ComPtr<ID3D12DescriptorHeap> m_DSV_Heap;
+
+
+	DescriptorAllocator m_SrvAllocator;
+	DescriptorAllocator m_RtvAllocator;
+	DescriptorAllocator m_DsvAllocator;
+
+	D3D12_CPU_DESCRIPTOR_HANDLE m_DSV_Handle;
+
 	ComPtr<ID3D12Resource> m_RenderTargets[RTV_NUM];
 	D3D12_CPU_DESCRIPTOR_HANDLE m_RTV_Handle[RTV_NUM];
-
 	UINT m_FrameIndex = 0;
 	UINT64 m_FenceValue[RTV_NUM] = {};
 
-	/* 
-	*		ルートシグネチャ
-	* GPUに「シェーダーがどのリソースを使うか」を使える設定情報
-	* 具体的には、定数バッファやテクスチャなどのバインド場所を決める
-	* ルートシグネチャがないと、シェーダーにデータを渡せずに描画ができない
-	*/
+
 	ComPtr<ID3D12RootSignature> m_rootSignature;
-
-	/*		パイプラインステートオブジェクト
-	* パイプラインステートオブジェクト 通称PSO
-	* シェーダー、ブレンド、ラスタライザ、深度ステンシルなどの設定をまとめたもの。
-	* 描画時には必ずこの状態をセットしてから描画コマンドを実行する必要がある
-	*/
 	PipelineStateTable m_PipelineStates{};
-
-	/*
-	*	ワイヤーフレーム用のパイプライン
-	*/
 	ComPtr<ID3D12PipelineState> m_pipelineStateWireFrame;
-
-	/**
-	 *	ボーン表示用のパイプライン.
-	 */
 	ComPtr<ID3D12PipelineState> m_LinePso;
 
 	ComPtr<ID3D12GraphicsCommandList6> m_CommandList6;
@@ -144,6 +207,3 @@ private:
 	void CreateRootSignature();
 	void CreatePipelineStateObject();
 };
-
-// ルートシグネチャーとパイプラインステート参考資料
-// https://zenn.dev/airisshusoft/articles/10c24000c03ff4

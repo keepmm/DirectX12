@@ -6,15 +6,16 @@
  * 作成日 2026/4/25
  * 更新履歴 4.25 ベースプログラムに合わせて実装
  *		   4.27 dx12用に実装
+ *			6.4 ディスクリプタヒープをDirectXAppから割り当てるように実装
  * *********************************************************************/
 #include "imguiinit.hpp"
 #include "DirectX.hpp"
+#include <string_view>
 
-// imgui_impl_win32.h の #if 0 による非表示部分を、呼び出し側で前方宣言を追加する
 IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
+// static変数初期化
 bool IMGUI::s_Initialized = false;
-ComPtr<ID3D12DescriptorHeap> IMGUI::s_SrvHeap = nullptr;
 
 // Shift-JIS文字列をUTF-8に変換するヘルパー関数
 static std::string ShiftJIStoUTF8(const std::string& sjis)
@@ -36,6 +37,20 @@ static std::string ShiftJIStoUTF8(const std::string& sjis)
 	return utf8Str;
 }
 
+void ImGuiSrvAlloc(ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE* outCpuHandle, D3D12_GPU_DESCRIPTOR_HANDLE* outGpuHandle)
+{
+	auto& alloc = DirectXApp::GetCurrent()->GetSrvAllocator();
+	UINT idx = 0;
+	if (alloc.Allocate(idx))
+	{
+		*outCpuHandle = alloc.Cpu(idx);
+		*outGpuHandle = alloc.Gpu(idx);
+	}
+}
+void ImGuiSrvFree(ImGui_ImplDX12_InitInfo*, D3D12_CPU_DESCRIPTOR_HANDLE, D3D12_GPU_DESCRIPTOR_HANDLE)
+{
+}
+
 void IMGUI::BeginFrame()
 {
 #if DebugSwitch
@@ -55,7 +70,12 @@ void IMGUI::EndFrame(ID3D12GraphicsCommandList* commandList)
 
 	ImGui::Render();
 
-	ID3D12DescriptorHeap* heaps[] = { s_SrvHeap.Get() };
+	auto* app = DirectXApp::GetCurrent();
+	auto rtv = app->GetRtvHandle();
+	auto dsv = app->GetDsvHandle();
+	commandList->OMSetRenderTargets(1, &rtv, FALSE, &dsv);
+
+	ID3D12DescriptorHeap* heaps[] = { app->GetSrvHeap() };
 	commandList->SetDescriptorHeaps(1, heaps);
 
 	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), commandList);
@@ -125,17 +145,6 @@ bool IMGUI::Start(_In_ HWND hWnd,
 		io.Fonts->AddFontDefault();
 	}
 
-	D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
-	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-	heapDesc.NumDescriptors = 1;
-	heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-
-	HRESULT hr = device->CreateDescriptorHeap(&heapDesc,IID_PPV_ARGS(s_SrvHeap.ReleaseAndGetAddressOf()));
-	if (FAILED(hr) || s_SrvHeap == nullptr)
-	{
-		return false;
-	}
-
 	if (!ImGui_ImplWin32_Init(hWnd))
 	{
 		return false;
@@ -148,9 +157,9 @@ bool IMGUI::Start(_In_ HWND hWnd,
 	initInfo.NumFramesInFlight = framecount;
 	initInfo.RTVFormat = rtvformat;
 	initInfo.DSVFormat = DXGI_FORMAT_UNKNOWN;
-	initInfo.SrvDescriptorHeap = s_SrvHeap.Get();
-	initInfo.LegacySingleSrvCpuDescriptor = s_SrvHeap->GetCPUDescriptorHandleForHeapStart();
-	initInfo.LegacySingleSrvGpuDescriptor = s_SrvHeap->GetGPUDescriptorHandleForHeapStart();
+	initInfo.SrvDescriptorHeap = DirectXApp::GetCurrent()->GetSrvAllocator().heap.Get();
+	initInfo.SrvDescriptorAllocFn = ImGuiSrvAlloc;
+	initInfo.SrvDescriptorFreeFn = ImGuiSrvFree;
 
 	if(!ImGui_ImplDX12_Init(&initInfo))
 	{
@@ -172,7 +181,6 @@ void IMGUI::Release()
 	ImGui_ImplWin32_Shutdown();
 	ImGui::DestroyContext();
 
-	s_SrvHeap.Reset();
 	s_Initialized = false;
 }
 
@@ -183,7 +191,24 @@ LRESULT IMGUI::ImGui_WndProHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lP
 // ======================================================
 // Shift-JIS文字列をUTF-8に変換してImGuiに表示する関数
 // ======================================================
-std::string IMGUI::ToUTF8(const char* sjis)
+//std::string IMGUI::ToUTF8(const char* sjis)
+//{
+//	return ShiftJIStoUTF8(sjis);
+//}
+
+std::string IMGUI::ToUTF8(std::string text)
 {
-	return ShiftJIStoUTF8(sjis);
+	return ShiftJIStoUTF8(text);
+}
+
+ImVec2 IMGUI::GetMousePosInViewPort()
+{
+	ImVec2 pos = ImGui::GetMousePos();
+	ImGuiViewport* viewport = ImGui::GetMainViewport();
+	if (viewport != nullptr)
+	{
+		pos.x -= viewport->WorkPos.x;
+		pos.y -= viewport->WorkPos.y;
+	}
+	return pos;
 }

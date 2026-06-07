@@ -12,19 +12,17 @@
 #include "World.hpp"
 #include "PhysicsWorld.hpp"
 
-struct SceneData
-{
-	float3 pos{ 0.0f,0.0f,0.0f };
-	float3 size{ 1.0f,1.0f,1.0f };
-	float4 rot{ 0.0f,0.0f,0.0f,1.0f };
-	float mass{ 1.0f };
-	bool isStatic = false;
-	bool isKinematic = false;
-};
+class Scene;
 
 class SceneSerializer
 {
 public:
+	static bool Save(
+		_In_ Scene& scene,
+		_In_ const std::string& filePath);
+	static bool Load(
+		_In_ Scene& scene,
+		_In_ const std::string& filePath);
 private:
 };
 

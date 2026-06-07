@@ -1,3 +1,12 @@
+/*****************************************************************//**
+ * \file   World.hpp
+ * \brief  Scene内のEntityとComponentを管理するクラス
+ * 
+ * 作成者 keeeep
+ * 作成日 2026/2/16
+ * 更新履歴	2.16 作成
+ *			5.25 Entity削除処理を追加
+ * *********************************************************************/
 #pragma once
 
 #include <cstdint>
@@ -5,6 +14,8 @@
 #include <typeindex>
 #include <unordered_map>
 #include <utility>
+#include <vector>
+#include <algorithm>
 
 using Entity = std::uint32_t;
 constexpr Entity INVALID_ENTITY = 0;
@@ -14,7 +25,27 @@ class World
 public:
 	Entity CreateEntity()
 	{
-		return m_NextEntityId++;
+		Entity entity = m_NextEntityId++;
+		m_Entities.push_back(entity);
+		return entity;
+	}
+
+	void DestroyEntity(Entity entity)
+	{
+		// 引数で受け取ったEntityが存在するか確認
+		auto it = std::find(m_Entities.begin(), m_Entities.end(), entity);
+		// 存在しない場合はこれ以上処理しない
+		if (it == m_Entities.end())
+		{
+			return;
+		}
+
+		// 存在する場合はEntityを削除
+		m_Entities.erase(it);
+		for (auto& [_, storage] : m_Storages)
+		{
+			storage->Remove(entity);
+		}
 	}
 
 	template<typename T>
@@ -23,6 +54,13 @@ public:
 		auto& storage = GetOrCreateStorage<T>();
 		storage.Data[entity] = std::move(component);
 		return storage.Data[entity];
+	}
+
+	template<typename T>
+	void DeleteComponent(Entity entity)
+	{
+		auto& storage = GetOrCreateStorage<T>();
+		storage.Remove(entity);
 	}
 
 	template<typename T>
@@ -64,16 +102,39 @@ public:
 		}
 	}
 
+	const std::vector<Entity>& GetEntities() const
+	{
+		return m_Entities;
+	}
+
+	bool IsEntityAlive(Entity entity) const
+	{
+		return std::find(m_Entities.begin(), m_Entities.end(), entity) != m_Entities.end();
+	}
+
+	void Clear()
+	{
+		m_Entities.clear();
+		m_Storages.clear();
+		m_NextEntityId = 1;
+	}
+
 private:
 	struct IStorage
 	{
 		virtual ~IStorage() = default;
+		virtual void Remove(Entity entity) = 0;
 	};
 
 	template<typename T>
 	struct Storage final : IStorage
 	{
 		std::unordered_map<Entity, T> Data;
+
+		void Remove(Entity entity) override
+		{
+			Data.erase(entity);
+		}
 	};
 
 	template<typename T>
@@ -117,5 +178,6 @@ private:
 
 private:
 	Entity m_NextEntityId = 1;
+	std::vector<Entity> m_Entities;
 	std::unordered_map<std::type_index, std::unique_ptr<IStorage>> m_Storages;
 };

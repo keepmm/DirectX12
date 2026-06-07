@@ -1,5 +1,4 @@
 #include "SceneManager.hpp"
-#include "MenuScene.hpp"
 #include "Logger.hpp"
 
 SceneManager::SceneManager()
@@ -9,87 +8,275 @@ SceneManager::SceneManager()
 
 void SceneManager::RegisterScene(const std::string& name, std::unique_ptr<Scene> scene)
 {
+	// 非同期処理をロック
 	std::unique_lock<std::mutex> lock(m_SceneMutex);
 	if (m_Scenes.find(name) != m_Scenes.end())
 	{
 		LOG->LogWarning("Scene '" + name + "'は既に登録されています");
 		return;
 	}
-	m_Scenes[name] = std::move(scene);
+	// シーン名を設定して登録
+	scene->SetSceneName(name);
+	m_Scenes[name].scene = std::move(scene);
 	LOG->LogInfo("Scene '" + name + "'を登録しました");
-
-	// 最初のシーンを設定
-	if (m_CurrentScene == nullptr)
-	{
-		m_CurrentScene = m_Scenes[name].get();
-		LOG->LogInfo("Scene '" + name + "'を現在のシーンに設定しました");
-	}
 }
 
-void SceneManager::ChangeScene(const std::string& name)
+void SceneManager::LoadScene(const std::string& name)
 {
-	std::unique_lock<std::mutex> lock(m_SceneMutex);
+	// 非同期処理をロック
+	//std::unique_lock<std::mutex> lock(m_SceneMutex);
+
+	// シーンが登録されているか確認
 	if (m_Scenes.find(name) == m_Scenes.end())
 	{
 		LOG->LogError("Scene '" + name + "'は登録されていません");
 		return;
 	}
+
+	// 現在のシーンをアンロード
+	if (m_ActiveScene)
+	{
+		m_UnloadQueue.push(m_ActiveScene->GetSceneName());
+	}
+
+	// 新しいシーンのロード
+	m_LoadQueue.push(name);
 	m_NextSceneName = name;
 	m_SceneChangeRequested = true;
-	LOG->LogInfo("Scene '" + name + "'への変更がリクエストされました");
+
+	LOG->LogInfo("Scene '" + name + "'のロードが要求されました");
 }
 
-Scene* SceneManager::GetCurrentScene() const
+void SceneManager::LoadSceneAdditive(const std::string& name)
 {
+	// 非同期処理をロック
 	std::unique_lock<std::mutex> lock(m_SceneMutex);
-	return m_CurrentScene;
+
+	if(m_Scenes.find(name) == m_Scenes.end())
+	{
+		LOG->LogError("Scene '" + name + "'は登録されていません");
+		return;
+	}
+
+	m_LoadQueue.push(name);
+	LOG->LogInfo("Scene '" + name + "'の追加ロードが要求されました");
 }
 
-void SceneManager::Update()
+void SceneManager::UnloadScene(const std::string& name)
 {
-	// シーン遷移を処理
+	// 非同期処理をロック
+	std::unique_lock<std::mutex> lock(m_SceneMutex);
+	if(m_Scenes.find(name) == m_Scenes.end())
 	{
-		std::unique_lock<std::mutex> lock(m_SceneMutex);
-		if (m_SceneChangeRequested)
-		{
-			m_CurrentScene = m_Scenes[m_NextSceneName].get();
-			m_SceneChangeRequested = false;
-			LOG->LogInfo("Scene '" + m_NextSceneName + "'に変更されました");
-
-			// 新しいシーンのコールバックを設定
-			SetupSceneCallbacks();
-		}
+		LOG->LogError("Scene '" + name + "'は登録されていません");
+		return;
 	}
+	m_UnloadQueue.push(name);
+	LOG->LogInfo("Scene '" + name + "'のアンロードが要求されました");
+}
 
-	// 現在のシーンを更新
-	Scene* scene = m_CurrentScene;
-	if (scene)
+Scene* SceneManager::GetScene(const std::string& name) const
+{
+	// 非同期処理をロック
+	std::unique_lock<std::mutex> lock(m_SceneMutex);
+	auto it = m_Scenes.find(name);
+	if (it != m_Scenes.end())
 	{
-		scene->Update();
+		return it->second.scene.get();
 	}
+	return nullptr;
+}
+
+Scene* SceneManager::GetActiveScene() const
+{
+	// 非同期処理をロック
+	std::unique_lock<std::mutex> lock(m_SceneMutex);
+	return m_ActiveScene;
+}
+
+void SceneManager::Update(float deltatime)
+{
+	// 非同期処理をロック
+	std::unique_lock<std::mutex> lock(m_SceneMutex);
+
+	// シーンロード / アンロード処理
+	ProcessSceneQueue();
+
+	// ロード済みシーンの更新
+	UpdateLoadedScenes(deltatime);
 }
 
 void SceneManager::Draw(const RenderContext& renderContext)
 {
-	Scene* scene = GetCurrentScene();
-	if (scene)
+	if (m_ActiveScene && m_ActiveScene->IsActive())
 	{
-		scene->Draw(renderContext);
+		m_ActiveScene->Draw(renderContext);
 	}
 }
 
-void SceneManager::SetupSceneCallbacks()
+void SceneManager::ProcessSceneQueue()
 {
-	Scene* scene = m_CurrentScene;
-	if (!scene) return;
-
-	// MenuScene の場合、コールバックを設定
-	MenuScene* menuScene = dynamic_cast<MenuScene*>(scene);
-	if (menuScene)
+	// アンロード処理
+	while (!m_UnloadQueue.empty())
 	{
-		menuScene->SetSceneChangeCallback([this](const std::string& sceneName)
+		std::string sceneName = m_UnloadQueue.front();
+		m_UnloadQueue.pop();
+
+		Scene* scene = FindLoadedScene(sceneName);
+		if (scene)
+		{
+			scene->SetState(SceneState::Unloading);
+			scene->OnUnload();
+			scene->SetState(SceneState::Unloaded);
+
+			// ロード済みリストから削除
+			auto it = std::find(m_LoadedScenes.begin(), m_LoadedScenes.end(), scene);
+			if (it != m_LoadedScenes.end())
 			{
-				this->ChangeScene(sceneName);
-			});
+				m_LoadedScenes.erase(it);
+			}
+
+			if (m_ActiveScene == scene)
+			{
+				m_ActiveScene = nullptr;
+			}
+
+			LOG->LogInfo("Scene '" + sceneName + "'がアンロードされました");
+		}
+	}
+
+	// ロード処理
+	while (!m_LoadQueue.empty())
+	{
+		std::string sceneName = m_LoadQueue.front();
+		m_LoadQueue.pop();
+
+		auto it = m_Scenes.find(sceneName);
+		if (it != m_Scenes.end())
+		{
+
+			Scene* scene = it->second.scene.get();
+			if (scene->GetState() == SceneState::Unloaded)
+			{
+				scene->SetState(SceneState::Loading);
+				scene->OnLoad();
+				scene->SetState(SceneState::Active);
+				m_LoadedScenes.push_back(scene);
+				SetActiveScene(sceneName);
+				LOG->LogInfo("Scene '" + sceneName + "'がロードされました");
+			}
+
+			if (m_SceneChangeRequested && sceneName == m_NextSceneName)
+			{
+				SetActiveScene(sceneName);
+				m_SceneChangeRequested = false;
+			}
+			else if (!m_SceneChangeRequested)
+			{
+				// Additiveロードの場合はアクティブシーンを変更しない
+				if (std::find(m_LoadedScenes.begin(), m_LoadedScenes.end(), scene) == m_LoadedScenes.end())
+				{
+					m_LoadedScenes.push_back(scene);
+					scene->SetState(SceneState::Active);
+					scene->OnStart();
+					LOG->LogInfo("Scene '" + sceneName + "'が追加ロードされました");
+				}
+			}
+		}
+	}
+}
+
+void SceneManager::SetActiveScene(const std::string& name)
+{
+	Scene* scene = FindLoadedScene(name);
+	if (!scene)
+	{
+		auto it = m_Scenes.find(name);
+		if(it != m_Scenes.end())
+		{
+			scene = it->second.scene.get();
+		}
+	}
+
+	if (scene)
+	{
+		// 現在のアクティブシーンを一時停止
+		if (m_ActiveScene && m_ActiveScene != scene)
+		{
+			m_ActiveScene->SetState(SceneState::Paused);
+			m_ActiveScene->OnPause();
+			LOG->LogInfo("Scene '" + m_ActiveScene->GetSceneName() + "'が一時停止されました");
+		}
+
+		// 新しいシーンをアクティブにする
+		if(std::find(m_LoadedScenes.begin(),m_LoadedScenes.end(),scene) == m_LoadedScenes.end())
+		{
+			m_LoadedScenes.push_back(scene);
+		}
+
+		m_ActiveScene = scene;
+		m_ActiveScene->SetState(SceneState::Active);
+		m_ActiveScene->OnStart();
+		m_ActiveScene->EnsurePhysicsWorld();
+
+		LOG->LogInfo("Scene '" + name + "'がアクティブになりました");
+	}
+}
+
+void SceneManager::UpdateLoadedScenes(float deltatime)
+{
+	for (auto scene : m_LoadedScenes)
+	{
+		if(scene && scene->IsActive())
+		{
+			scene->Update(deltatime);
+		}
+	}
+}
+
+void SceneManager::DrawLoadedScenes(const RenderContext& renderContext)
+{
+	if (m_ActiveScene)
+	{
+		m_ActiveScene->Draw(renderContext);
+	}
+}
+
+Scene* SceneManager::FindLoadedScene(const std::string& name) const
+{
+	for(auto scene : m_LoadedScenes)
+	{
+		if(scene && scene->GetSceneName() == name)
+		{
+			return scene;
+		}
+	}
+	return nullptr;
+}
+
+void SceneManager::FixedUpdate(float fixedDeltatime)
+{
+	for (auto scene : m_LoadedScenes)
+	{
+		if(scene && scene->IsActive())
+		{
+			if (auto* physicsWorld = scene->GetPhysicsWorld())
+			{
+				physicsWorld->Update(fixedDeltatime);
+				physicsWorld->SyncTransforms(scene->GetWorld());
+			}
+			scene->FixedUpdate(fixedDeltatime);
+		}
+	}
+}
+
+void SceneManager::LateUpdate(float deltatime)
+{
+	for (auto scene : m_LoadedScenes)
+	{
+		if(scene && scene->IsActive())
+		{
+			scene->LateUpdate(deltatime);
+		}
 	}
 }

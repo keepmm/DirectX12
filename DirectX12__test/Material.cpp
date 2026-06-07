@@ -400,6 +400,7 @@ void Material::Apply(
 		m_ConstantBuffer[frameSlot]->GetGPUVirtualAddress() + offset;
 	commandList->SetGraphicsRootConstantBufferView(0, gpuAddress);
 
+	// PSO‚Ì‘I‘ğ
 	ID3D12PipelineState* selectedPso = overridePso;
 	if (selectedPso == nullptr)
 	{
@@ -431,14 +432,17 @@ void Material::BuildBufferData(
 {
 	TransformBuffer data{};
 
+	// s—ñ‚Ìì¬
 	const auto w = DirectX::XMLoadFloat4x4(&world);
 	const auto v = DirectX::XMLoadFloat4x4(&view);
 	const auto p = DirectX::XMLoadFloat4x4(&projection);
 	const auto wvp = w * v * p;
 
+	// s—ñ‚ğ“]’u‚µ‚ÄŠi”[
 	DirectX::XMStoreFloat4x4(&data.worldViewProj, DirectX::XMMatrixTranspose(wvp));
 	DirectX::XMStoreFloat4x4(&data.world, DirectX::XMMatrixTranspose(w));
 
+	// ƒ‰ƒCƒg‚Ì•ûŒü‚ğ³‹K‰»‚µ‚ÄŠi”[
 	const auto lightDir = DirectX::XMVector3Normalize(DirectX::XMLoadFloat3(&m_LightDir));
 	DirectX::XMStoreFloat4(&data.lightDir, lightDir);
 	data.lightColor = m_LightColor;

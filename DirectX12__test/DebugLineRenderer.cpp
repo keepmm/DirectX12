@@ -111,7 +111,7 @@ void DebugLineRenderer::Draw(const RenderContext& render)
 	// view行列とprojection行列を掛け合わせて定数バッファに保存
 	const auto v = DirectX::XMLoadFloat4x4(&render.view);
 	const auto p = DirectX::XMLoadFloat4x4(&render.projection);
-	const auto vp = v * p;
+	const auto vp = DirectX::XMMatrixTranspose(v * p);
 	DirectX::XMStoreFloat4x4(&constants.viewProj, vp);
 
 	// 定数バッファに行列データをコピー

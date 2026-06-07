@@ -1,9 +1,10 @@
 #include "Application.hpp"
-#include "SampleScene.hpp"
-#include "MenuScene.hpp"
-#include "DebugWindow.hpp"
+#include "RuntimeScene.hpp"
 #include "Polygon.hpp"
-#include "PhysicsScene.hpp"
+#include "Logger.hpp"
+#include "PrefabLibrary.hpp"
+#include "Components.hpp"
+#include "ModelLoader.hpp"
 
 Application::Application()
 {
@@ -17,28 +18,21 @@ Application* Application::GetInstance()
 
 HRESULT Application::OnInit()
 {
-	m_DebugWindow = MakeUnique<DebugWindow>();
+	// ---- 各ウィンドウの初期化 ---- //
+	m_EditorWindow = std::make_unique<EditorWindow>(*m_DirectX);
 
-	auto menuScene = MakeUnique<MenuScene>();
-	m_SceneManager.RegisterScene("MenuScene", std::move(menuScene));
 
-	auto physicsScene = MakeUnique<PhysicsScene>(
+	// RuntimeSceneの登録
+	auto runtimeScene = MakeUnique<RuntimeScene>("Assets/Scenes/SampleScene.json",
 		m_DirectX->GetDevice(),
-		m_DirectX->GetPipelineStates(),
-		m_DirectX->GetPipelineStateWireFrame());
-	m_SceneManager.RegisterScene("PhysicsScene", std::move(physicsScene));
-
-	// SampleSceneの登録
-	auto sampleScene = MakeUnique<SampleScene>(
-		m_DirectX->GetDevice(),
-		m_DirectX->GetPipelineStates(),
-		m_DirectX->GetPipelineStateWireFrame(),
 		m_DirectX->GetLinePso());
+	m_SceneManager.RegisterScene("RuntimeScene", std::move(runtimeScene));
 
-	m_SceneManager.RegisterScene("SampleScene", std::move(sampleScene));
+	// RuntimeSceneから開始
+	m_SceneManager.LoadScene("RuntimeScene");
 
-	// メニューシーンから開始
-	m_SceneManager.ChangeScene("MenuScene");
+	// プレハブの初期化
+	OnInitPrefabs();
 
 	// ポリゴン初期化
 	Polygon::Init(
@@ -53,12 +47,140 @@ HRESULT Application::OnInit()
 
 void Application::OnUpdate()
 {
-	if (m_DebugWindow)
+	if(m_EditorWindow)
 	{
-		m_DebugWindow->Draw();
+		m_EditorWindow->Draw(m_SceneManager);
 	}
 }
 
 void Application::OnShutDown()
 {
+}
+
+void Application::OnInitPrefabs()
+{
+	auto sharedBoxMesh = MakeShared<Mesh>();
+	sharedBoxMesh->CreateCube(m_DirectX->GetDevice());
+
+	auto sharedBoxMaterial = MakeShared<Material>();
+	sharedBoxMaterial->Init(
+		m_DirectX->GetDevice(),
+		m_DirectX->GetPipelineStates(),
+		m_DirectX->GetPipelineStateWireFrame());
+	sharedBoxMaterial->SetTextureFromFile(L"Assets/Mutant_diffuse.png");
+
+	PrefabLibrary::Get().RegisterPrefab("Box",
+		[sharedBoxMesh, sharedBoxMaterial](Scene& scene, World& world, Entity entity)
+		{
+			TransformComponent transform{};
+			transform.position = float3(0.0f, 0.0f, 0.0f);
+			transform.rotation = float4(0.0f, 0.0f, 0.0f, 1.0f);
+			transform.scale = float3(1.0f, 1.0f, 1.0f);
+			transform.RebuildWorld();
+
+			world.AddComponent<TransformComponent>(entity, transform);
+			world.AddComponent<MeshComponent>(entity, MeshComponent{ sharedBoxMesh });
+			world.AddComponent<MaterialComponent>(entity, MaterialComponent{ sharedBoxMaterial });
+
+			RigidBodyComponent rb{};
+			ColliderComponent collider{};
+			collider.shapeType = ColliderComponent::ShapeType::Box;
+			collider.size = float3(1.0f, 1.0f, 1.0f);
+
+			world.AddComponent<RigidBodyComponent>(entity, rb);
+			world.AddComponent<ColliderComponent>(entity, collider);
+
+			auto& physicsWorld = scene.EnsurePhysicsWorld();
+			physicsWorld.AddRigidbody(entity, rb, collider);
+			physicsWorld.SetActorPose(entity, transform.position, transform.rotation);
+		});
+
+	auto modelData = ModelLoader::LoadFromFile(m_DirectX->GetDevice(), "Assets/Player.fbx", 0.01f);
+	auto modelMesh = modelData.mesh;
+	if (modelMesh == nullptr)
+	{
+		modelMesh = sharedBoxMesh;
+	}
+
+	auto modelMaterial = MakeShared<Material>();
+	modelMaterial->Init(
+		m_DirectX->GetDevice(),
+		m_DirectX->GetPipelineStates(),
+		m_DirectX->GetPipelineStateWireFrame());
+
+	if (!modelData.diffusetextureData.empty())
+	{
+		modelMaterial->SetTextureFromMemory(modelData.diffusetextureData.data(), modelData.diffusetextureData.size());
+	}
+	else if (!modelData.diffuseTexturePath.empty())
+	{
+		modelMaterial->SetTextureFromFile(modelData.diffuseTexturePath);
+	}
+	else
+	{
+		modelMaterial->SetTextureFromFile(L"Assets/Mutant_diffuse.png");
+	}
+
+	PrefabLibrary::Get().RegisterPrefab("PlayerModel",
+		[modelMesh, modelMaterial](Scene&, World& world, Entity entity)
+		{
+			TransformComponent transform{};
+			transform.position = float3(0.0f, 0.0f, 0.0f);
+			transform.rotation = float4(0.0f, 0.0f, 0.0f, 1.0f);
+			transform.scale = float3(1.0f, 1.0f, 1.0f);
+			transform.RebuildWorld();
+
+			world.AddComponent<TransformComponent>(entity, transform);
+			world.AddComponent<MeshComponent>(entity, MeshComponent{ modelMesh });
+			world.AddComponent<MaterialComponent>(entity, MaterialComponent{ modelMaterial });
+		});
+
+	// RigidBodyを持たないBox
+	PrefabLibrary::Get().RegisterPrefab("StaticBox",
+		[sharedBoxMesh, sharedBoxMaterial](Scene& scene, World& world, Entity entity)
+		{
+			TransformComponent transform{};
+			transform.position = float3(0.0f, 0.0f, 0.0f);
+			transform.rotation = float4(0.0f, 0.0f, 0.0f, 1.0f);
+			transform.scale = float3(1.0f, 1.0f, 1.0f);
+			transform.RebuildWorld();
+			world.AddComponent<TransformComponent>(entity, transform);
+			world.AddComponent<MeshComponent>(entity, MeshComponent{ sharedBoxMesh });
+			world.AddComponent<MaterialComponent>(entity, MaterialComponent{ sharedBoxMaterial });
+		});
+}
+
+/*
+*	@brief 描画に必要な情報をRenderContextにセットする
+*/
+void Application::ConfigureContext(RenderContext& renderContext)
+{
+	// --------------------------------------//
+	// エディターウィンドウが存在しない場合
+	// 情報をセットせず戻る
+	// --------------------------------------//
+	if (!m_EditorWindow)
+	{
+		renderContext.viewportRenderTexture = nullptr;
+		renderContext.viewport = nullptr;
+		renderContext.scissorRect = nullptr;
+		return;
+	}
+
+	auto* renderTexture = m_EditorWindow->GetGameRenderTexture();
+	if (renderTexture == nullptr)
+	{
+		renderContext.viewportRenderTexture = nullptr;
+		renderContext.viewport = nullptr;
+		renderContext.scissorRect = nullptr;
+		return;
+	}
+
+	m_GameViewport = renderTexture->GetViewport();
+	m_GameScissorRect = renderTexture->GetScissorRect();
+
+	renderContext.viewportRenderTexture = renderTexture;
+	renderContext.viewport = &m_GameViewport;
+	renderContext.scissorRect = &m_GameScissorRect;
+	renderContext.depthStencilView = m_DirectX->GetDsvHandle();
 }

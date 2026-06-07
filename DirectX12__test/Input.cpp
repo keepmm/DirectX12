@@ -8,6 +8,7 @@
  * *********************************************************************/
 #include "Input.hpp"
 #include <cstring>
+#include "imguiinit.hpp"
 
 bool KeyState::IsPressed() const
 {
@@ -123,8 +124,17 @@ void Input::Update()
 	m_PrevMouseY = m_MouseY;
 
 	// 新しいマウス座標を取得
-	m_MouseX = pt.x;
-	m_MouseY = pt.y;
+	if (IMGUI::IsInitialized())
+	{
+		const ImVec2 imguiMousePos = IMGUI::GetMousePosInViewPort();
+		m_MouseX = static_cast<int>(imguiMousePos.x);
+		m_MouseY = static_cast<int>(imguiMousePos.y);
+	}
+	else
+	{
+		m_MouseX = pt.x;
+		m_MouseY = pt.y;
+	}
 
 	// マウスの移動量計算
 	m_MouseDeltaX = m_MouseX - m_PrevMouseX;

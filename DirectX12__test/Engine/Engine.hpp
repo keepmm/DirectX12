@@ -22,6 +22,7 @@ public:
 		_In_ int height);
 	void Run();
 	void Terminate();
+	virtual void ConfigureContext(RenderContext& renderContext) = 0;
 
 	// ---- サブクラスがオーバーライドする仮想関数 ---- //
 

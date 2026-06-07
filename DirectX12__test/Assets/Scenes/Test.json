@@ -1,0 +1,651 @@
+{
+  "entities": [
+    {
+      "collider": {
+        "density": 1.0,
+        "friction": 0.5,
+        "radius": 0.5,
+        "restitution": 0.5,
+        "shape": "Box",
+        "size": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "name": "Box",
+      "prefab": "Box",
+      "rigidbody": {
+        "isKinematic": false,
+        "isStatic": false,
+        "mass": 1.0
+      },
+      "transform": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    },
+    {
+      "collider": {
+        "density": 1.0,
+        "friction": 0.5,
+        "radius": 0.5,
+        "restitution": 0.5,
+        "shape": "Box",
+        "size": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "name": "Box",
+      "prefab": "Box",
+      "rigidbody": {
+        "isKinematic": false,
+        "isStatic": false,
+        "mass": 1.0
+      },
+      "transform": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    },
+    {
+      "collider": {
+        "density": 1.0,
+        "friction": 0.5,
+        "radius": 0.5,
+        "restitution": 0.5,
+        "shape": "Box",
+        "size": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "name": "Box",
+      "prefab": "Box",
+      "rigidbody": {
+        "isKinematic": false,
+        "isStatic": false,
+        "mass": 1.0
+      },
+      "transform": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    },
+    {
+      "collider": {
+        "density": 1.0,
+        "friction": 0.5,
+        "radius": 0.5,
+        "restitution": 0.5,
+        "shape": "Box",
+        "size": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "name": "Box",
+      "prefab": "Box",
+      "rigidbody": {
+        "isKinematic": false,
+        "isStatic": false,
+        "mass": 1.0
+      },
+      "transform": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    },
+    {
+      "collider": {
+        "density": 1.0,
+        "friction": 0.5,
+        "radius": 0.5,
+        "restitution": 0.5,
+        "shape": "Box",
+        "size": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "name": "Box",
+      "prefab": "Box",
+      "rigidbody": {
+        "isKinematic": false,
+        "isStatic": false,
+        "mass": 1.0
+      },
+      "transform": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    },
+    {
+      "collider": {
+        "density": 1.0,
+        "friction": 0.5,
+        "radius": 0.5,
+        "restitution": 0.5,
+        "shape": "Box",
+        "size": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "name": "Box",
+      "prefab": "Box",
+      "rigidbody": {
+        "isKinematic": false,
+        "isStatic": false,
+        "mass": 1.0
+      },
+      "transform": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    },
+    {
+      "collider": {
+        "density": 1.0,
+        "friction": 0.5,
+        "radius": 0.5,
+        "restitution": 0.5,
+        "shape": "Box",
+        "size": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "name": "Box",
+      "prefab": "Box",
+      "rigidbody": {
+        "isKinematic": false,
+        "isStatic": false,
+        "mass": 1.0
+      },
+      "transform": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    },
+    {
+      "collider": {
+        "density": 1.0,
+        "friction": 0.5,
+        "radius": 0.5,
+        "restitution": 0.5,
+        "shape": "Box",
+        "size": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "name": "Box",
+      "prefab": "Box",
+      "rigidbody": {
+        "isKinematic": false,
+        "isStatic": false,
+        "mass": 1.0
+      },
+      "transform": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    },
+    {
+      "collider": {
+        "density": 1.0,
+        "friction": 0.5,
+        "radius": 0.5,
+        "restitution": 0.5,
+        "shape": "Box",
+        "size": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "name": "Box",
+      "prefab": "Box",
+      "rigidbody": {
+        "isKinematic": false,
+        "isStatic": false,
+        "mass": 1.0
+      },
+      "transform": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    },
+    {
+      "collider": {
+        "density": 1.0,
+        "friction": 0.5,
+        "radius": 0.5,
+        "restitution": 0.5,
+        "shape": "Box",
+        "size": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "name": "Box",
+      "prefab": "Box",
+      "rigidbody": {
+        "isKinematic": false,
+        "isStatic": false,
+        "mass": 1.0
+      },
+      "transform": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    },
+    {
+      "collider": {
+        "density": 1.0,
+        "friction": 0.5,
+        "radius": 0.5,
+        "restitution": 0.5,
+        "shape": "Box",
+        "size": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "name": "Box",
+      "prefab": "Box",
+      "rigidbody": {
+        "isKinematic": false,
+        "isStatic": false,
+        "mass": 1.0
+      },
+      "transform": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    },
+    {
+      "collider": {
+        "density": 1.0,
+        "friction": 0.5,
+        "radius": 0.5,
+        "restitution": 0.5,
+        "shape": "Box",
+        "size": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "name": "Box",
+      "prefab": "Box",
+      "rigidbody": {
+        "isKinematic": false,
+        "isStatic": false,
+        "mass": 1.0
+      },
+      "transform": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    },
+    {
+      "collider": {
+        "density": 1.0,
+        "friction": 0.5,
+        "radius": 0.5,
+        "restitution": 0.5,
+        "shape": "Box",
+        "size": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "name": "Box",
+      "prefab": "Box",
+      "rigidbody": {
+        "isKinematic": false,
+        "isStatic": false,
+        "mass": 1.0
+      },
+      "transform": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    },
+    {
+      "collider": {
+        "density": 1.0,
+        "friction": 0.5,
+        "radius": 0.5,
+        "restitution": 0.5,
+        "shape": "Box",
+        "size": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "name": "Box",
+      "prefab": "Box",
+      "rigidbody": {
+        "isKinematic": false,
+        "isStatic": false,
+        "mass": 1.0
+      },
+      "transform": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    },
+    {
+      "collider": {
+        "density": 1.0,
+        "friction": 0.5,
+        "radius": 0.5,
+        "restitution": 0.5,
+        "shape": "Box",
+        "size": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "name": "Box",
+      "prefab": "Box",
+      "rigidbody": {
+        "isKinematic": false,
+        "isStatic": false,
+        "mass": 1.0
+      },
+      "transform": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    },
+    {
+      "collider": {
+        "density": 1.0,
+        "friction": 0.5,
+        "radius": 0.5,
+        "restitution": 0.5,
+        "shape": "Box",
+        "size": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      },
+      "name": "Box",
+      "prefab": "Box",
+      "rigidbody": {
+        "isKinematic": false,
+        "isStatic": false,
+        "mass": 1.0
+      },
+      "transform": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    },
+    {
+      "name": "PlayerModel",
+      "prefab": "PlayerModel",
+      "transform": {
+        "position": [
+          0.4000000059604645,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.4308225214481354,
+          0.0,
+          0.9024366736412048
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    }
+  ],
+  "sceneName": "RuntimeScene"
+}

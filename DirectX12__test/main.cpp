@@ -10,6 +10,7 @@
  *			5/02 ‰Šú‰»’Ç‰Á
  * *********************************************************************/
 #include "Application.hpp"
+#include "Defines.hpp"
 
 int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmdShow)
 {
@@ -19,7 +20,7 @@ int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCm
 		return 0;
 	}
 
-	APPLICATION->Init(hInstance,720,480);
+	APPLICATION->Init(hInstance,WINDOW_WIDTH,WINDOW_HEIGHT);
 
 	APPLICATION->Run();
 

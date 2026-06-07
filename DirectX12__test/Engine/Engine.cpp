@@ -64,6 +64,7 @@ void Engine::CreateGameWindow(int width, int height)
 HRESULT Engine::Init(HINSTANCE hInstance, int width, int height)
 {
 	m_hInstance = hInstance;
+	ImGui_ImplWin32_EnableDpiAwareness();
 	CreateGameWindow(width, height);
 
 	LOG->Init();
@@ -94,6 +95,8 @@ HRESULT Engine::Init(HINSTANCE hInstance, int width, int height)
 void Engine::Run()
 {
 	MSG msg = {};
+	constexpr float FIXED_TIMESTEP = 1.0f / 60.0f;
+	float accumulatedTime = 0.0f;
 	while (msg.message != WM_QUIT)
 	{
 		if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
@@ -106,12 +109,30 @@ void Engine::Run()
 			TIME->Update();
 			INPUT->Update();
 
+			float deltaTime = TIME->GetDeltaTime();
+
 			m_DirectX->ReloadShader();
-			m_DirectX->BeginRender();
+			if (FAILED(m_DirectX->BeginRender()))
+			{
+				// 失敗時は次フレームへ
+				return;
+			}
 			IMGUI::BeginFrame();
 
 			// エンジン更新
-			m_SceneManager.Update();
+			m_SceneManager.Update(deltaTime);
+
+
+			// 固定タイムステップ更新
+			accumulatedTime += deltaTime;
+			while (accumulatedTime >= FIXED_TIMESTEP)
+			{
+				m_SceneManager.FixedUpdate(FIXED_TIMESTEP);
+				accumulatedTime -= FIXED_TIMESTEP;
+			}
+
+			m_SceneManager.LateUpdate(deltaTime);
+
 			OnUpdate();
 
 			// 描画コンテキスト作成
@@ -129,10 +150,16 @@ void Engine::Run()
 			renderContext.CommandList6 = m_DirectX->GetCommandList6();
 
 			// シーン描画
+			ConfigureContext(renderContext);
 			m_SceneManager.Draw(renderContext);
+			m_DirectX->Present();
 
 			IMGUI::EndFrame(renderContext.CommandList);
-			m_DirectX->EndRender();
+			if(FAILED(m_DirectX->EndRender()))
+			{
+				// 失敗時は次フレームへ
+				return;
+			}	
 		}
 	}
 }

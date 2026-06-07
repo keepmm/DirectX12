@@ -15,7 +15,7 @@ namespace {
 
 PhysicsWorld::PhysicsWorld()
 {
-	Init();
+		
 }
 
 PhysicsWorld::~PhysicsWorld()
@@ -72,6 +72,16 @@ void PhysicsWorld::Update(float deltatime)
 
 void PhysicsWorld::AddRigidbody(Entity entity, const RigidBodyComponent& rigidBody, const ColliderComponent& collider)
 {
+	if (m_Physics == nullptr || m_Scene == nullptr)
+	{
+		return;
+	}
+
+	if(m_ActorMap.find(entity) != m_ActorMap.end())
+	{
+		return;
+	}
+
 	PxRigidActor* actor = CreatePhysicsActor(rigidBody, collider);
 	if (actor)
 	{
@@ -156,6 +166,12 @@ PxRigidActor* PhysicsWorld::CreatePhysicsActor(const RigidBodyComponent& rb, con
 		{
 			PxRigidBodyExt::updateMassAndInertia(*dynamic, 1000.0f);
 			dynamic->setMass(rb.mass);
+
+			if (!rb.useGravity)
+			{
+				dynamic->setActorFlag(PxActorFlag::eDISABLE_GRAVITY, true);
+			}
+
 			dynamic->attachShape(*shape);
 			actor = dynamic;
 		}

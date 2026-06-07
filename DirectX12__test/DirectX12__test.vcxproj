@@ -142,12 +142,10 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="Actor.cpp" />
     <ClCompile Include="Application.cpp" />
-    <ClCompile Include="Camera.cpp" />
     <ClCompile Include="DebugLineRenderer.cpp" />
-    <ClCompile Include="DebugWindow.cpp" />
     <ClCompile Include="DirectX.cpp" />
+    <ClCompile Include="EditorWindow.cpp" />
     <ClCompile Include="Engine/Engine.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -164,7 +162,6 @@
     <ClCompile Include="Logger.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Material.cpp" />
-    <ClCompile Include="MenuScene.cpp" />
     <ClCompile Include="Mesh.cpp" />
     <ClCompile Include="MeshRenderer.cpp" />
     <ClCompile Include="ModelLoader.cpp" />
@@ -173,7 +170,9 @@
     <ClCompile Include="PipelineStateCache.cpp" />
     <ClCompile Include="Player.cpp" />
     <ClCompile Include="Polygon.cpp" />
-    <ClCompile Include="PhysicsScene.cpp" />
+    <ClCompile Include="PrefabLibrary.cpp" />
+    <ClCompile Include="RenderTexture.cpp" />
+    <ClCompile Include="RuntimeScene.cpp" />
     <ClCompile Include="SampleScene.cpp" />
     <ClCompile Include="Scene.cpp" />
     <ClCompile Include="SceneManager.cpp" />
@@ -189,14 +188,12 @@
     <ClCompile Include="Vertex.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="Actor.hpp" />
     <ClInclude Include="Application.hpp" />
-    <ClInclude Include="Camera.hpp" />
     <ClInclude Include="Components.hpp" />
     <ClInclude Include="DebugLineRenderer.hpp" />
-    <ClInclude Include="DebugWindow.hpp" />
     <ClInclude Include="Defines.hpp" />
     <ClInclude Include="DirectX.hpp" />
+    <ClInclude Include="EditorWindow.hpp" />
     <ClInclude Include="Engine/Engine.hpp" />
     <ClInclude Include="imconfig.h" />
     <ClInclude Include="imgui.h" />
@@ -209,7 +206,6 @@
     <ClInclude Include="json.hpp" />
     <ClInclude Include="Logger.hpp" />
     <ClInclude Include="Material.hpp" />
-    <ClInclude Include="MenuScene.hpp" />
     <ClInclude Include="Mesh.hpp" />
     <ClInclude Include="MeshRenderer.hpp" />
     <ClInclude Include="ModelData.hpp" />
@@ -220,8 +216,10 @@
     <ClInclude Include="PipelineStateCache.hpp" />
     <ClInclude Include="Player.hpp" />
     <ClInclude Include="Polygon.hpp" />
-    <ClInclude Include="PhysicsScene.hpp" />
+    <ClInclude Include="PrefabLibrary.hpp" />
     <ClInclude Include="RenderContext.hpp" />
+    <ClInclude Include="RenderTexture.hpp" />
+    <ClInclude Include="RuntimeScene.hpp" />
     <ClInclude Include="SampleScene.hpp" />
     <ClInclude Include="Scene.hpp" />
     <ClInclude Include="SceneManager.hpp" />

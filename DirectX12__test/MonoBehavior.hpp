@@ -1,16 +1,7 @@
-/*****************************************************************//**
- * \file   MonoBehavior.hpp
- * \brief  
- * 
- * çÏê¨é“ 
- * çÏê¨ì˙ 2026/3/17
- * çXêVóöó
- * *********************************************************************/
 #pragma once
 
 #include "RenderContext.hpp"
-
-class Actor;
+#include "World.hpp"
 
 class MonoBehavior
 {
@@ -22,12 +13,30 @@ public:
 	virtual void OnLateUpdate(_In_ float deltatime) {}
 	virtual void OnDraw(_In_ const RenderContext& context) {}
 
-protected:
-	Actor& GetActor() const { return *m_Actor; }
-private:
-	friend class Actor;
-	void AttachActor(Actor* actor) { m_Actor = actor; }
+	template<typename T>
+	T& GetComponent()
+	{
+		return m_World->GetComponent<T>(m_Entity);
+	}
 
-	Actor* m_Actor = nullptr;
+	template<typename T>
+	bool HasComponent() const
+	{
+		return m_World->HasComponent<T>(m_Entity);
+	}
+
+	Entity GetEntity() const { return m_Entity; }
+	World& GetWorld() const { return *m_World; }
+
+private:
+	friend struct ScriptComponent;
+	void Attach(World* world, Entity entity)
+	{
+		m_World = world;
+		m_Entity = entity;
+	}
+
+	World* m_World = nullptr;
+	Entity m_Entity = INVALID_ENTITY;
 };
 
