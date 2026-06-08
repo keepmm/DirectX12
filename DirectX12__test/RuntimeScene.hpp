@@ -12,6 +12,9 @@
 #include "Systems.hpp"
 #include "DebugLineRenderer.hpp"
 
+class Mesh;
+class Material;
+
 class RuntimeScene :
     public Scene
 {
@@ -46,6 +49,8 @@ public:
 		m_DebugLines.clear();
 	}
 private:
+	void DrawGizmos(const RenderContext& renderContext);
+
 	void DrawGrid();
 
 	void DrawLight();
@@ -66,10 +71,15 @@ private:
 	RenderSystem m_RenderSystem;
 	LightSystem m_LightSystem;
 	FreeLookSystem m_FreeLookSystem;
-	CamerSystem m_CameraSystem;
+	CameraSystem m_CameraSystem;
 
 	DebugLineRenderer m_DebugLineRenderer;
 	std::vector<DebugLine> m_DebugLines;
+
+	Mesh m_IconQuad;
+	std::shared_ptr<Material> m_LightIcon;
+	std::shared_ptr<Material> m_CameraIcon;
+	bool n_IconReady;
 
 	bool m_Initialized = false;
 };

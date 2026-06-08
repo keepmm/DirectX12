@@ -9,7 +9,7 @@
 #include "imgui_internal.h"
 #include "Logger.hpp"
 #include <Psapi.h>
-#include <string>
+#include "IconLibrary.hpp"
 
 #pragma comment(lib, "psapi.lib")
 
@@ -31,6 +31,18 @@ EditorWindow::EditorWindow(DirectXApp& app)
 	else
 	{
 		m_GameTextureHandleValid = true;
+	}
+
+	// エディタ用のレンダーテクスチャ初期化
+	m_EditorRenderTexture = std::make_unique<RenderTexture>();
+	if (FAILED(m_EditorRenderTexture->Init(m_App, 1280, 720)))
+	{
+		m_EditorRenderTexture = nullptr;
+		m_EditorTextureHandleValid = false;
+	}
+	else
+	{
+		m_EditorTextureHandleValid = true;
 	}
 }
 
@@ -106,6 +118,7 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 
 		ImGui::DockBuilderDockWindow(u8("アウトライナー"), dockLeftID);
 		ImGui::DockBuilderDockWindow(u8("ゲーム画面"), dockMainID);
+		ImGui::DockBuilderDockWindow(u8("エディタ画面"), dockMainID);
 		ImGui::DockBuilderDockWindow(u8("プロパティパネル"), dockRightID);
 		ImGui::DockBuilderDockWindow(u8("詳細パネル"), dockBottomID);
 
@@ -157,11 +170,50 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 			ImGui::Image(static_cast<ImTextureID>(m_GameRenderTexture->GetSRV().ptr),
 				availableSize, ImVec2(0, 0), ImVec2(1, 1));
 
-			
+			if (ImGui::BeginDragDropTarget())
+			{
+				const ImGuiPayload* payload =
+					ImGui::AcceptDragDropPayload("ASSET_MODEL");
+				if(payload != nullptr && activeScene != nullptr)
+				{
+					// 運ばれてきたファイルパスを取り出す
+					std::string modelpath(static_cast<const char*>(payload->Data));
+
+					// とりあえず原点に
+					float3 fragPosition = float3(0.0f, 0.0f, 0.0f);
+
+					SpawnModelFromFile(activeScene->GetWorld(), modelpath, fragPosition);
+				}
+				ImGui::EndDragDropTarget();
+			}
 		}
 		else
 		{
 			LOG->LogError("レンダーテクスチャが未初期化です");
+			ImDrawList* drawList = ImGui::GetWindowDrawList();
+			ImU32 backgroundColor = ImGui::GetColorU32(ImGuiCol_WindowBg);
+			drawList->AddRectFilled(
+				m_ViewportPos,
+				ImVec2(m_ViewportPos.x + m_ViewportSize.x, m_ViewportPos.y + m_ViewportSize.y),
+				backgroundColor
+			);
+		}
+	}
+	ImGui::End();
+
+	// ---- エディタ画面パネル ---- //
+	if (ImGui::Begin(u8("エディタ画面")) && m_ShowViewport)
+	{
+		ImVec2 availableSize = ImGui::GetContentRegionAvail();
+		// レンダーテクスチャが有効な場合は、ImGuiに描画
+		if (m_EditorRenderTexture && m_EditorTextureHandleValid)
+		{
+			ImGui::Image(static_cast<ImTextureID>(m_EditorRenderTexture->GetSRV().ptr),
+				availableSize, ImVec2(0, 0), ImVec2(1, 1));
+		}
+		else
+		{
+			LOG->LogError("エディタ用レンダーテクスチャが未初期化です");
 			ImDrawList* drawList = ImGui::GetWindowDrawList();
 			ImU32 backgroundColor = ImGui::GetColorU32(ImGuiCol_WindowBg);
 			drawList->AddRectFilled(
@@ -302,7 +354,18 @@ void EditorWindow::DrawInspector(World& world,Scene* scene)
 		if (world.HasComponent<NameComponent>(m_SelectedEntity))
 		{
 			auto& nameComp = world.GetComponent<NameComponent>(m_SelectedEntity);
-			ImGui::InputText(u8("##NameInput"), nameComp.name.data(), nameComp.name.size() + 1);
+			if (ImGui::InputText(u8("##NameInput"), nameComp.name.data(), nameComp.name.size() + 1))
+			{
+				// 入力された名前が空でないことを確認
+				if (!nameComp.name.empty())
+				{
+					nameComp.name = std::string(nameComp.name.data());
+				}
+				else
+				{
+					nameComp.name = "Entity " + std::to_string(m_SelectedEntity);
+				}
+			}
 			ImGui::Separator();
 			if (ImGui::SmallButton(u8("Remove##NameComponent")))
 			{
@@ -829,8 +892,13 @@ void EditorWindow::DrawAssetPanel()
 		return;
 	}
 
+	// -------------------------//
+	// アセットライブラリの表示	//
+	// アイコン表示・横向き 	//
+	// -------------------------//
 	ImGui::Text(u8("アセットライブラリ"));
 	ImGui::Separator();
+
 
 	if (ImGui::BeginChild("AssetList", ImVec2(0.0f, 0.0f), true))
 	{
@@ -1094,5 +1162,42 @@ void EditorWindow::DrawColliderDebug(const ColliderComponent& collider, const Tr
 			m_DebugLines.push_back({ p1, p2, debugColor });
 		}
 	}
+}
+
+#include "ModelLoader.hpp"
+#include "Systems.hpp"
+
+#define APP m_App.GetCurrent()
+
+void EditorWindow::SpawnModelFromFile(World& world, const std::string& modelpath, const float3& pos)
+{
+	// 1) fbx を読み込む（Application.cpp と同じ
+	auto modelData = ModelLoader::LoadFromFile(
+		m_App.GetCurrent()->GetDevice(), modelpath, 0.01f);
+	if (modelData.mesh == nullptr) return;
+
+	// 2) マテリアル作成
+	auto material = MakeShared<Material>();
+	material->Init(APP->GetDevice(),APP->GetPipelineStates(),APP->GetPipelineStateWireFrame());
+	if (!modelData.diffuseTexturePath.empty())
+		material->SetTextureFromFile(modelData.diffuseTexturePath);
+
+	// 3) エンティティを作ってコンポーネントを付ける
+	Entity e = world.CreateEntity();
+	TransformComponent tr{};
+	std::string name = "Model_" + std::to_string(e);
+	tr.position = pos;
+	tr.rotation = float4(0, 0, 0, 1);
+	tr.scale = float3(1, 1, 1);
+	tr.RebuildWorld();
+
+	world.AddComponent<TransformComponent>(e, tr);
+	world.AddComponent<MeshComponent>(e, MeshComponent{ modelData.mesh });
+	world.AddComponent<MaterialComponent>(e, MaterialComponent{ material });
+	world.AddComponent<NameComponent>(e, NameComponent{ name });
+
+	NameSytem::SetName(world, e,name);
+
+	m_SelectedEntity = e; // 置いたものを選択状態に
 }
 

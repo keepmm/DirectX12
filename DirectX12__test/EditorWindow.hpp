@@ -17,6 +17,7 @@
 #include "imguiinit.hpp"
 #include "RenderTexture.hpp"
 #include "Components.hpp"
+#include "IconLibrary.hpp"
 
 class EditorWindow
 {
@@ -27,7 +28,9 @@ public:
 	/// @param sceneManager 描画に必要なシーンマネージャーの参照 
 	void Draw(_In_ SceneManager& sceneManager);
 
-	RenderTexture* GetGameRenderTexture() const { return m_GameRenderTexture.get(); }
+	inline RenderTexture* GetGameRenderTexture() const { return m_GameRenderTexture.get(); }
+
+	inline RenderTexture* GetEditorRenderTexture() const { return m_EditorRenderTexture.get(); }
 
 	ImVec2 GetViewportSize() const { return m_ViewportSize; }
 private:
@@ -86,9 +89,15 @@ private:
 	ImVec2 m_ViewportSize{ 0.0f, 0.0f };
 	ImVec2 m_ViewportPos{ 0.0f, 0.0f };
 
+	// ゲーム画面用のレンダーテクスチャ
 	std::unique_ptr<RenderTexture> m_GameRenderTexture;
 	D3D12_GPU_DESCRIPTOR_HANDLE m_GameRenderTextureHandle{};
 	bool m_GameTextureHandleValid = false;
+
+	// エディタ用のレンダーテクスチャ
+	std::unique_ptr<RenderTexture> m_EditorRenderTexture;
+	D3D12_CPU_DESCRIPTOR_HANDLE m_EditorRenderTextureHandle{};
+	bool m_EditorTextureHandleValid = false;
 
 	bool m_ShowColliderDebug = false;
 
@@ -109,4 +118,10 @@ private:
 	std::vector<DebugLine> m_DebugLines;
 
 	bool m_ResizeGameRenderTexture = false;
+
+	void SpawnModelFromFile(World& world,
+		_In_ const std::string& modelpath,
+		_In_ const float3& pos);
+
+	//std::unique_ptr<IconLibrary> m_IconLib;
 };

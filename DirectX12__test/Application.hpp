@@ -29,11 +29,20 @@ private:
 	std::unique_ptr<EditorWindow> m_EditorWindow;
 	D3D12_VIEWPORT m_GameViewport{};
 	D3D12_RECT m_GameScissorRect{};
+	D3D12_VIEWPORT m_EditorViewport{};
+	D3D12_RECT m_EditorScissorRect{};
 	HRESULT OnInit() override;
 	void OnUpdate() override;
 	void OnShutDown() override;
 	void OnInitPrefabs();
 	void ConfigureContext(RenderContext& renderContext) override;
+	void ConfigureContext(
+		_In_ RenderContext& renderContext,
+		_In_ RenderTexture& renderTexture,
+		_In_ D3D12_VIEWPORT& viewport,
+		_In_ D3D12_RECT& scissorRect,
+		bool isSceneView
+		);
 
 	Application();
 	Application(const Application&) = delete;

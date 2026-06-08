@@ -153,6 +153,9 @@
     <ClCompile Include="RuntimeScene.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="IconLibrary.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DirectX.hpp">
@@ -284,6 +287,9 @@
     <ClInclude Include="RuntimeScene.hpp">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="IconLibrary.hpp">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="PixelShader.hlsl">
@@ -357,6 +363,19 @@
     <None Include="Assets\**\*.*" />
     <None Include="Assets\**\*.*" />
     <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
     <None Include="Assets\**\*.*">
       <Filter>リソース ファイル</Filter>
     </None>

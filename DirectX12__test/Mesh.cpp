@@ -158,3 +158,22 @@ void Mesh::DrawSubMesh(ID3D12GraphicsCommandList* commandList, UINT subMeshIndex
 	commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	commandList->DrawIndexedInstanced(sm.indexCount, 1, sm.indexStart, 0, 0);
 }
+
+void Mesh::CreateQuad(const ComPtr<ID3D12Device>& device)
+{
+	const std::array<Vertex,4> vertices =
+	{
+		Vertex{ { -0.5f,  0.5f, 0.0f },{ 0.0f, 0.0f, -1.0f }, Color,{ 0.0f, 0.0f } },
+		Vertex{ {  0.5f,  0.5f, 0.0f },{ 0.0f, 0.0f, -1.0f }, Color,{ 1.0f, 0.0f } },
+		Vertex{ { -0.5f, -0.5f, 0.0f },{ 0.0f, 0.0f, -1.0f }, Color,{ 0.0f, 1.0f } },
+		Vertex{ {  0.5f, -0.5f, 0.0f },{ 0.0f, 0.0f, -1.0f }, Color,{ 1.0f, 1.0f } }
+	};
+	const std::array<std::uint32_t, 6> indices =
+	{
+		0,1,2,
+		1,3,2
+	};
+	std::vector<Vertex> vb(vertices.begin(), vertices.end());
+	std::vector<std::uint32_t> ib(indices.begin(), indices.end());
+	Init(device, vb, ib);
+}

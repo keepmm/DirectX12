@@ -129,6 +129,7 @@ public:
 	inline ComPtr<ID3D12RootSignature> GetRootSignature() const noexcept { return m_rootSignature; }
 	inline ComPtr<ID3D12PipelineState> GetPipelineStateWireFrame() const noexcept { return m_pipelineStateWireFrame; }
 	inline ComPtr<ID3D12PipelineState> GetLinePso() const noexcept { return m_LinePso; }
+	inline ComPtr<ID3D12PipelineState> GetIconPso() const noexcept { return m_IconPso; }
 	inline ID3D12PipelineState* GetMeshPso() const noexcept { return m_MeshPso.Get(); }
 	inline bool IsMeshShaderSupported() const noexcept { return m_MeshShaderSupported; }
 	inline ComPtr<ID3D12CommandQueue> GetCommandQueue() const noexcept { return m_CommandQueue; }
@@ -186,6 +187,7 @@ private:
 	PipelineStateTable m_PipelineStates{};
 	ComPtr<ID3D12PipelineState> m_pipelineStateWireFrame;
 	ComPtr<ID3D12PipelineState> m_LinePso;
+	ComPtr<ID3D12PipelineState> m_IconPso;
 
 	ComPtr<ID3D12GraphicsCommandList6> m_CommandList6;
 	ComPtr<ID3D12PipelineState> m_MeshPso;

@@ -2,6 +2,8 @@
 #include "SceneSerializer.hpp"
 #include "Logger.hpp"
 #include "RenderTexture.hpp"
+#include "Mesh.hpp"
+#include "Material.hpp"
 
 RuntimeScene::RuntimeScene(std::string sceneFilePath, const ComPtr<ID3D12Device>& device, const ComPtr<ID3D12PipelineState>& linePso)
 	: m_SceneFilePath(std::move(sceneFilePath)),
@@ -37,8 +39,53 @@ void RuntimeScene::OnLoad()
 	auto tr = m_World.AddComponent(camera, TransformComponent{});
 	m_World.AddComponent(camera, NameComponent{ "MainCamera" });
 	auto maincamera = m_World.AddComponent(camera, CameraComponent{});
-	tr.position = { 0.0f, 5.0f, -5.0f };
-	maincamera.isMainCamera = true;
+	tr.position = { 0.0f, 5.0f, 0.0f };
+	maincamera.cameraType = CameraComponent::CameraType::Main;
+	m_World.AddComponent(camera, FreeLookComponent{});
+
+	// ライトの作成
+	auto light = m_World.CreateEntity();
+	m_World.AddComponent(light, TransformComponent{});
+	m_World.AddComponent(light, NameComponent{ "MainLight" });
+	auto& lightComp = m_World.AddComponent(light, LightComponent{});
+	lightComp.type = LightComponent::LightType::Directional;
+	lightComp.color = { 1.0f, 1.0f, 1.0f, 1.0f };
+	lightComp.ambientColor = { 0.2f, 0.2f, 0.2f, 1.0f };
+	lightComp.intensity = 1.0f;
+	lightComp.direction = { -0.5f, -1.0f, -0.5f };
+
+	// -------------------------- //
+	//  エディター用カメラの作成  //
+	// -------------------------- //
+	auto editcam = m_World.CreateEntity();
+	auto t = m_World.AddComponent(editcam, TransformComponent{});
+	m_World.AddComponent(editcam, NameComponent{ "EditorCamera" });
+	auto& editCameraComp = m_World.AddComponent(editcam, CameraComponent{});
+	editCameraComp.cameraType = CameraComponent::CameraType::Secondary;
+	auto& freeLook = m_World.AddComponent(editcam, FreeLookComponent{});
+	t.position = { 0.0f, 5.0f, -10.0f };
+	freeLook.Enabled = true;
+
+	tr.RebuildWorld();
+	t.RebuildWorld();
+
+	// -----------------------------//
+	//  アイコン用マテリアルの作成  //
+	// -----------------------------//
+	if (auto* dx = DirectXApp::GetCurrent())
+	{
+		m_IconQuad.CreateQuad(dx->GetDevice());
+
+		m_CameraIcon = std::make_shared<Material>();
+		m_CameraIcon->Init(dx->GetDevice(), dx->GetPipelineStates(), dx->GetPipelineStateWireFrame());
+		m_CameraIcon->SetTextureFromFile(L"Assets/CameraIcon.png");
+
+		m_LightIcon = std::make_shared<Material>();
+		m_LightIcon->Init(dx->GetDevice(), dx->GetPipelineStates(), dx->GetPipelineStateWireFrame());
+		m_LightIcon->SetTextureFromFile(L"Assets/LightIcon.png");
+
+		n_IconReady = true;
+	}
 
 	m_Initialized = true;
 	LOG->LogInfo("RuntimeScene : Loaded");
@@ -56,7 +103,7 @@ void RuntimeScene::Update(float deltatime)
 	m_SpinSystem.Update(m_World, deltatime);
 	m_LightSystem.Apply(m_World);
 	m_FreeLookSystem.Update(m_World, deltatime);
-	m_CameraSystem.Update(m_World, deltatime);
+	m_CameraSystem.Update(m_World, 16.0f / 9.0f);
 }
 
 void RuntimeScene::FixedUpdate(float fixedDeltatime)
@@ -75,11 +122,16 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 	const CameraComponent* main = nullptr;
 	m_World.Each<CameraComponent>([&](Entity, CameraComponent& camera)
 		{
-			if (camera.isMainCamera)
+			if (camera.cameraType == CameraComponent::CameraType::Main)
 			{
 				main = &camera;
 			}
 		});
+	
+	// -----------------------------//
+	//   メインカメラがある場合		//
+	//   メインカメラの行列で描画	//
+	// -----------------------------//
 	if (main)
 	{
 		// 行列の更新	
@@ -88,10 +140,17 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 	}
 	else
 	{
-		DirectX::XMMATRIX identity = DirectX::XMMatrixIdentity();
-		DirectX::XMStoreFloat4x4(&context.view, identity);
-		DirectX::XMStoreFloat4x4(&context.projection, identity);
+		// メインカメラがない場合はEditorCameraを探す
+		m_World.Each<CameraComponent, TransformComponent>([&](Entity, CameraComponent& camera, TransformComponent& transform)
+			{
+				if (camera.cameraType == CameraComponent::CameraType::Secondary)
+				{
+					context.view = camera.view;
+					context.projection = camera.proj;
+				}
+			});
 	}
+
 	// ビューポート用レンダーテクスチャへの描画設定
 	if (renderContext.viewportRenderTexture != nullptr &&
 		renderContext.viewportRenderTexture->IsValid())
@@ -105,7 +164,9 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 		// RTV を設定
 		auto rtvHandle = renderTexture->GetRTV();
 		auto dsvHandle = renderContext.depthStencilView;
+
 		commandList->OMSetRenderTargets(1, &rtvHandle, FALSE,&dsvHandle);
+		commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
 		// ビューポートとシザー矩形を設定
 		if (renderContext.viewport)
@@ -119,10 +180,17 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 
 		// クリア
 		renderTexture->Clear(commandList, { 0.2f, 0.2f, 0.2f, 1.0f });
-		// デバッグラインの描画
+
+
+		// ---------------------//
+		// デバッグラインの描画 //
+		// ---------------------//
 		m_DebugLineRenderer.Begin();
-		DrawGrid();
-		DrawLight();
+		if (context.isSceneView) {
+			DrawGrid();
+			DrawLight();
+			DrawGizmos(context);
+		}
 
 		// デバッグラインを追加
 		for (const auto& line : m_DebugLines)
@@ -146,8 +214,11 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 	{
 		// デバッグラインの描画
 		m_DebugLineRenderer.Begin();
-		DrawGrid();
-		DrawLight();
+		if (context.isSceneView) {
+			DrawGrid();
+			DrawLight();
+			DrawGizmos(context);
+		}
 
 		// デバッグラインを追加
 		for (const auto& line : m_DebugLines)
@@ -162,6 +233,52 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 		// 通常描画（メインレンダーターゲット）
 		m_RenderSystem.Draw(m_World, context);
 	}
+}
+
+void RuntimeScene::DrawGizmos(const RenderContext& renderContext)
+{
+	if (!n_IconReady || renderContext.CommandList == nullptr) return;
+
+	// view行列からカメラのワールド軸を復元（ビルボード用）
+	const float4x4& v = renderContext.view;
+	const float3 right = { v._11, v._21, v._31 };
+	const float3 up = { v._12, v._22, v._32 };
+	const float3 fwd = { v._13, v._23, v._33 };
+
+	const float iconSize = 1.0f;
+
+	auto billboard = [&](const float3& pos) -> float4x4
+		{
+			float4x4 w{};
+			w._11 = right.x * iconSize; w._12 = right.y * iconSize; w._13 = right.z * iconSize; w._14 = 0.0f;
+			w._21 = up.x * iconSize; w._22 = up.y * iconSize; w._23 = up.z * iconSize; w._24 = 0.0f;
+			w._31 = fwd.x;            w._32 = fwd.y;            w._33 = fwd.z;            w._34 = 0.0f;
+			w._41 = pos.x;            w._42 = pos.y;            w._43 = pos.z;            w._44 = 1.0f;
+			return w;
+		};
+
+	auto* iconPso = DirectXApp::GetCurrent()->GetIconPso().Get();
+
+	// カメラアイコン（FreeLookを持つEditorカメラは除外）
+	m_World.Each<TransformComponent, CameraComponent>(
+		[&](Entity e, TransformComponent& tr, CameraComponent&)
+		{
+			if (m_World.HasComponent<FreeLookComponent>(e)) return;
+			const float4x4 world = billboard(tr.position);
+			m_CameraIcon->Apply(renderContext.CommandList, world, renderContext.view, renderContext.projection,
+				false, E_VERTEX_SHADER::BASIC, E_PIXEL_SHADER::BASIC, iconPso, renderContext.frameIndex);
+			m_IconQuad.Draw(renderContext.CommandList);
+		});
+
+	// ライトアイコン
+	m_World.Each<TransformComponent, LightComponent>(
+		[&](Entity, TransformComponent& tr, LightComponent&)
+		{
+			const float4x4 world = billboard(tr.position);
+			m_LightIcon->Apply(renderContext.CommandList, world, renderContext.view, renderContext.projection,
+				false, E_VERTEX_SHADER::BASIC, E_PIXEL_SHADER::BASIC, iconPso, renderContext.frameIndex);
+			m_IconQuad.Draw(renderContext.CommandList);
+		});
 }
 
 void RuntimeScene::DrawGrid()

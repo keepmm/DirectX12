@@ -97,17 +97,23 @@ struct ColliderComponent
 
 struct CameraComponent
 {
+	/// @brief •`‰æƒ^ƒCƒv
 	enum class Projection
 	{
 		Perspective,
 		Orthographic
 	} projection = Projection::Perspective;
+
+	enum class CameraType
+	{
+		Main,
+		Secondary
+	} cameraType = CameraType::Main;
 	float orhoSize = 10.0f;
 	float fovY = 60.0f;
 	float nearZ = 0.1f;
 	float farZ = 100.0f;
-	bool isMainCamera = false;
-	bool isActive = false;
+	bool isActive = true;
 
 	float4x4 view{};
 	float4x4 proj{};

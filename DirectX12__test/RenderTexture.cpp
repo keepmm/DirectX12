@@ -201,9 +201,9 @@ void RenderTexture::Transition(ID3D12GraphicsCommandList* cmd, D3D12_RESOURCE_ST
 	b.Transition.StateAfter = after;
 	cmd->ResourceBarrier(1, &b);
 
-	LOG->LogInfo("Trans res=" + std::to_string((uintptr_t)m_Resource.Get()) +
-		" cur=" + std::to_string(m_CurrentState) + " ->" + std::to_string(after) +
-		(m_CurrentState == after ? " SKIP" : " EMIT"));
+	//LOG->LogInfo("Trans res=" + std::to_string((uintptr_t)m_Resource.Get()) +
+	//	" cur=" + std::to_string(m_CurrentState) + " ->" + std::to_string(after) +
+	//	(m_CurrentState == after ? " SKIP" : " EMIT"));
 
 	m_CurrentState = after;	// ’ÇÕXV
 }

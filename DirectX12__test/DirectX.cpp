@@ -328,6 +328,7 @@ void DirectXApp::CreatePipelineStateObject()
 	const Shader* wirePs = m_ShaderLibrary.Load(L"PixelShader.hlsl", "WireFramePS", "ps_5_0");
 	const Shader* lineVS = m_ShaderLibrary.Load(L"PS_LineShader.hlsl", "LineVS", "vs_5_0");
 	const Shader* linePS = m_ShaderLibrary.Load(L"PS_LineShader.hlsl", "LinePS", "ps_5_0");
+	const Shader* iconPS = m_ShaderLibrary.Load(L"PixelShader.hlsl", "unlitPS", "ps_5_0");
 
 	if (vs == nullptr || ps == nullptr || toon == nullptr || 
 		wirePs == nullptr || lineVS == nullptr || linePS == nullptr)
@@ -348,7 +349,7 @@ void DirectXApp::CreatePipelineStateObject()
 	psoDesc.VS = vs->GetByteCode();
 	psoDesc.PS = ps->GetByteCode();
 	psoDesc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
-	psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+	psoDesc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
 	psoDesc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
 	psoDesc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
 	psoDesc.SampleMask = UINT_MAX;
@@ -386,6 +387,7 @@ void DirectXApp::CreatePipelineStateObject()
 	wireDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
 	wireDesc.PS = wirePs->GetByteCode();
 
+
 	m_pipelineStateWireFrame = m_PsoCache.GetOrCreate("BasicVS_WireFramePS",
 		m_Device.Get(),
 		wireDesc
@@ -408,6 +410,25 @@ void DirectXApp::CreatePipelineStateObject()
 	if (m_LinePso == nullptr) {
 		assert(false);
 	}
+
+	auto iconDesc = psoDesc;                 // BASICベース
+	iconDesc.PS = iconPS->GetByteCode();
+
+	// アルファブレンド有効
+	auto& rt = iconDesc.BlendState.RenderTarget[0];
+	rt.BlendEnable = TRUE;
+	rt.SrcBlend = D3D12_BLEND_SRC_ALPHA;
+	rt.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+	rt.BlendOp = D3D12_BLEND_OP_ADD;
+	rt.SrcBlendAlpha = D3D12_BLEND_ONE;
+	rt.DestBlendAlpha = D3D12_BLEND_INV_SRC_ALPHA;
+	rt.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+	rt.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+
+	iconDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+
+	m_IconPso = m_PsoCache.GetOrCreate("IconPSO", m_Device.Get(), iconDesc);
+	if (m_IconPso == nullptr) { assert(false); }
 
 	CreateMeshShaderPipelineState();
 }

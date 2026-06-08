@@ -1,5 +1,6 @@
 #include "PrefabLibrary.hpp"
 #include "Components.hpp"
+#include "Systems.hpp"
 
 std::string ToHex(std::size_t value)
 {
@@ -52,6 +53,9 @@ Entity PrefabLibrary::Instantiate(const std::string& name, Scene& scene,World& w
 	{
 		world.AddComponent<NameComponent>(entity, NameComponent{ name });
 	}
+
+	// –¼‘O‚©‚Ô‚è‚ğ‘Îô
+	NameSytem::SetName(world, entity, name);
 
 	world.AddComponent<PrefabComponent>(entity, PrefabComponent{ name });
 	return entity;

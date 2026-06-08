@@ -30,6 +30,8 @@ public:
 	/// @brief サブメッシュの数を取得
 	/// @return サブメッシュの数
 	UINT GetSubMeshCount() const { return static_cast<UINT>(m_SubMeshes.size()); }
+
+	void CreateQuad(_In_ const ComPtr<ID3D12Device>& device);
 private:
 	ComPtr<ID3D12Resource> m_VertexBuffer;
 	D3D12_VERTEX_BUFFER_VIEW m_VertexBufferView{};

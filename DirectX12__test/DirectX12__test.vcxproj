@@ -151,6 +151,7 @@
       <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
       </ForcedIncludeFiles>
     </ClCompile>
+    <ClCompile Include="IconLibrary.cpp" />
     <ClCompile Include="imgui.cpp" />
     <ClCompile Include="imguiinit.cpp" />
     <ClCompile Include="imgui_draw.cpp" />
@@ -195,6 +196,7 @@
     <ClInclude Include="DirectX.hpp" />
     <ClInclude Include="EditorWindow.hpp" />
     <ClInclude Include="Engine/Engine.hpp" />
+    <ClInclude Include="IconLibrary.hpp" />
     <ClInclude Include="imconfig.h" />
     <ClInclude Include="imgui.h" />
     <ClInclude Include="imguiinit.hpp" />

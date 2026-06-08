@@ -238,15 +238,15 @@ public:
 			[&](Entity entity, TransformComponent& tr, FreeLookComponent& fl)
 			{
 				// FreeLookが有効でない場合処理しない
-				if (fl.Enabled) return;
+				if (!fl.Enabled) return;
 
 				//--------------- //
 				// 右クリックで回転  //
 				//--------------- //
 				if (INPUT->MouseInput.Right().IsPressed())
 				{
-					fl.yaw -= (float)INPUT->MouseInput.DeltaX() * fl.rotateSpeed;
-					fl.pitch -= (float)INPUT->MouseInput.DeltaY() * fl.rotateSpeed;
+					fl.yaw += (float)INPUT->MouseInput.DeltaX() * fl.rotateSpeed;
+					fl.pitch += (float)INPUT->MouseInput.DeltaY() * fl.rotateSpeed;
 					fl.pitch = std::clamp(fl.pitch, -DirectX::XM_PIDIV2 + 0.01f, DirectX::XM_PIDIV2 - 0.01f);
 				}
 
@@ -267,9 +267,9 @@ public:
 				if (!DirectX::XMVector3Equal(move, DirectX::XMVectorZero()))
 				{
 					move = DirectX::XMVector3Normalize(move);
-					move * fl.moveSpeed * deltatime;
+					move = DirectX::XMVectorScale(move, fl.moveSpeed * deltatime);
 					vector pos = XMLoadFloat3(&tr.position);
-					DirectX::XMVectorAdd(pos, DirectX::XMVector3Rotate(move, q));
+					pos = DirectX::XMVectorAdd(pos, DirectX::XMVector3Rotate(move, q));
 					DirectX::XMStoreFloat3(&tr.position, pos);
 				}
 				tr.RebuildWorld();
@@ -277,7 +277,7 @@ public:
 	}
 };
 
-class CamerSystem
+class CameraSystem
 {
 public:
 	void Update(World& world, float aspect)
@@ -300,5 +300,59 @@ public:
 				: DirectX::XMMatrixOrthographicLH(camera.orhoSize * aspect, camera.orhoSize, camera.nearZ, camera.farZ);
 			DirectX::XMStoreFloat4x4(&camera.proj, p);
 			});
+	}
+};
+
+class NameSytem
+{
+public:
+	static std::string GetName(World& world, Entity entity)
+	{
+		world.Each<NameComponent>([&](Entity e, NameComponent& name)
+			{
+				if (e == entity)
+				{
+					return name.name;
+				}
+			});
+		return std::to_string(entity);
+	}
+
+	static void SetName(World& world, Entity entity, const std::string& name)
+	{
+		// -------------------------//
+		// 同じ名前が存在してる場合	//
+		// 名前 + _番号にする		//
+		// -------------------------//
+		std::string newName = GenerateName(world, entity, name, 1);
+		if (world.HasComponent<NameComponent>(entity))
+			world.GetComponent<NameComponent>(entity).name = newName;   // 書き戻す
+		else
+			world.AddComponent<NameComponent>(entity, NameComponent{ newName });
+	}
+
+	/// @brief 名前を捜索する
+	static std::string GenerateName(World& world, Entity entity,const std::string& name,int num)
+	{
+		std::string result = name;
+		bool conflict = true;
+		while (conflict)
+		{
+			conflict = false;
+			world.Each<NameComponent>([&](Entity e, NameComponent& nameComp)
+				{
+					// 自分自身は除外
+					if(e != entity && nameComp.name == result)
+					{
+						conflict = true;
+					}
+				});
+			if (conflict)
+			{
+				result = name + "_" + std::to_string(num++);
+			}
+		}
+
+		return result;
 	}
 };

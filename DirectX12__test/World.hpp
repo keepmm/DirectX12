@@ -88,6 +88,7 @@ public:
 	}
 
 	template<typename TFirst, typename... TRest, typename Func>
+	/// @brief 指定したコンポーネントを持つ全てのEntityに対して関数を実行する
 	void Each(Func&& func)
 	{
 		auto* firstStorage = TryGetStorage<TFirst>();

@@ -37,3 +37,10 @@ float4 WireFramePS(PSInput input) : SV_Target
 {
     return float4(0.0f, 0.0f, 0.0f, 1.0f); // ワイヤーフレームは常に黒
 }
+
+float4 unlitPS(PSInput input) : SV_Target
+{
+    float4 texcolor = g_Texture.Sample(g_Sampler, input.uv);
+    // ライティング無視・アルファそのまま
+    return float4(texcolor.rgb, texcolor.a * input.col.a);
+}

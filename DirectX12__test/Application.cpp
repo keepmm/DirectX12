@@ -167,8 +167,26 @@ void Application::ConfigureContext(RenderContext& renderContext)
 		return;
 	}
 
-	auto* renderTexture = m_EditorWindow->GetGameRenderTexture();
-	if (renderTexture == nullptr)
+	// ===== パス1: Scene View（先に描画）=====
+	auto* editorTex = m_EditorWindow->GetEditorRenderTexture();
+	if (editorTex && editorTex->IsValid())
+	{
+		RenderContext sceneCtx = renderContext;
+		m_EditorViewport = editorTex->GetViewport();
+		m_EditorScissorRect = editorTex->GetScissorRect();
+
+		sceneCtx.viewportRenderTexture = editorTex;
+		sceneCtx.viewport = &m_EditorViewport;
+		sceneCtx.scissorRect = &m_EditorScissorRect;
+		sceneCtx.isSceneView = true;
+		sceneCtx.depthStencilView = m_DirectX->GetDsvHandle();
+
+		m_SceneManager.Draw(sceneCtx);
+	}
+
+	// ===== パス2: Game View（呼び出し元で描画される）=====
+	auto* gameTex = m_EditorWindow->GetGameRenderTexture();
+	if (!gameTex)
 	{
 		renderContext.viewportRenderTexture = nullptr;
 		renderContext.viewport = nullptr;
@@ -176,11 +194,35 @@ void Application::ConfigureContext(RenderContext& renderContext)
 		return;
 	}
 
-	m_GameViewport = renderTexture->GetViewport();
-	m_GameScissorRect = renderTexture->GetScissorRect();
+	m_GameViewport = gameTex->GetViewport();
+		m_GameScissorRect = gameTex->GetScissorRect();
 
-	renderContext.viewportRenderTexture = renderTexture;
-	renderContext.viewport = &m_GameViewport;
+	renderContext.viewportRenderTexture = gameTex;
+		renderContext.viewport = &m_GameViewport;
 	renderContext.scissorRect = &m_GameScissorRect;
+	renderContext.isSceneView = false;
 	renderContext.depthStencilView = m_DirectX->GetDsvHandle();
+}
+
+void Application::ConfigureContext(RenderContext& renderContext, RenderTexture& renderTexture, D3D12_VIEWPORT& viewport, D3D12_RECT& scissorRect, bool isSceneView)
+{
+	// --------------------------------------//
+// エディターウィンドウが存在しない場合
+// 情報をセットせず戻る
+// --------------------------------------//
+	if (!m_EditorWindow)
+	{
+		renderContext.viewportRenderTexture = nullptr;
+		renderContext.viewport = nullptr;
+		renderContext.scissorRect = nullptr;
+		return;
+	}
+
+	viewport = renderTexture.GetViewport();
+	scissorRect = renderTexture.GetScissorRect();
+
+	renderContext.viewportRenderTexture = &renderTexture;
+	renderContext.viewport = &viewport;
+	renderContext.scissorRect = &scissorRect;
+	renderContext.isSceneView = isSceneView;
 }
