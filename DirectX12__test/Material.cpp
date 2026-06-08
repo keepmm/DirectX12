@@ -203,144 +203,21 @@ bool Material::SetTextureFromFile(const std::wstring& filePath)
 
 bool Material::SetTextureFromMemory(const std::uint8_t* data, size_t size)
 {
-	// デバイスがnullptrの場合は処理しない
-	if (m_Device == nullptr)
-	{
-		LOG->LogError("SetTextureFromMemory: device is null");
-		return false;
-	}
+	if (m_Device == nullptr) { LOG->LogError("SetTextureFromMemory: device is null"); return false; }
+	if (data == nullptr || size == 0) { LOG->LogError("SetTextureFromMemory: invalid data"); return false; }
 
-	// データがnullptrまたはサイズが0の場合は処理しない
-	if (data == nullptr || size == 0)
-	{
-		LOG->LogError("SetTextureFromMemory: invalid data");
-		return false;
-	}
-
+	// WICで読み込む（メモリから）
 	DirectX::TexMetadata metadata{};
 	DirectX::ScratchImage image{};
-	const HRESULT hr = DirectX::LoadFromWICMemory(
-		data,size,DirectX::WIC_FLAGS_NONE,&metadata,image);
-
-	if (FAILED(hr))
+	if (FAILED(DirectX::LoadFromWICMemory(data, size, DirectX::WIC_FLAGS_NONE, &metadata, image)))
 	{
-		LOG->LogHRESULT(hr, "LoadFromWICMemory failed");
+		LOG->LogError("SetTextureFromMemory: LoadFromWICMemory failed");
 		return false;
 	}
-
 	const DirectX::Image* srcImage = image.GetImage(0, 0, 0);
-	if (srcImage == nullptr)
-	{
-		LOG->LogError("SetTextureFromMemory: image.GetImage returned null");
-		return false;
-	}
+	if (srcImage == nullptr) return false;
 
-	if (m_TextureSrvHeap == nullptr)
-	{
-		D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
-		heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-		heapDesc.NumDescriptors = 1;
-		heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-
-		if (FAILED(m_Device->CreateDescriptorHeap(
-			&heapDesc,
-			IID_PPV_ARGS(m_TextureSrvHeap.GetAddressOf()))))
-		{
-			LOG->LogError("SetTextureFromFile: CreateDescriptorHeap failed");
-			return false;
-		}
-	}
-
-	// テクスチャのサイズとフォーマットを定義
-	const CD3DX12_RESOURCE_DESC texDesc = CD3DX12_RESOURCE_DESC::Tex2D(
-		metadata.format,
-		static_cast<UINT64>(metadata.width),
-		static_cast<UINT>(metadata.height),
-		static_cast<UINT16>(metadata.arraySize),
-		static_cast<UINT16>(metadata.mipLevels)
-	);
-
-	// テクスチャリソースを作成
-	CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_DEFAULT);
-	if (FAILED(m_Device->CreateCommittedResource(
-		&heapProps,
-		D3D12_HEAP_FLAG_NONE,
-		&texDesc,
-		D3D12_RESOURCE_STATE_COPY_DEST,
-		nullptr,
-		IID_PPV_ARGS(m_Texture.GetAddressOf()))))
-	{
-		LOG->LogError("SetTextureFromFile: CreateCommittedResource failed");
-		return false;
-	}
-
-	// フットプリントを取得してアップロード用のバッファを作成
-	D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint = {};
-	UINT numRows = 0;
-	UINT64 rowSizeInBytes = 0;
-	UINT64 uploadSize = 0;
-	m_Device->GetCopyableFootprints(
-		&texDesc,
-		0,
-		1,
-		0,
-		&footprint,
-		&numRows,
-		&rowSizeInBytes,
-		&uploadSize);
-
-	m_TextureFootprint = footprint;
-
-	CD3DX12_HEAP_PROPERTIES uploadHeap(D3D12_HEAP_TYPE_UPLOAD);
-	CD3DX12_RESOURCE_DESC uploadDesc = CD3DX12_RESOURCE_DESC::Buffer(uploadSize);
-	if (FAILED(m_Device->CreateCommittedResource(
-		&uploadHeap,
-		D3D12_HEAP_FLAG_NONE,
-		&uploadDesc,
-		D3D12_RESOURCE_STATE_GENERIC_READ,
-		nullptr,
-		IID_PPV_ARGS(m_TextureUpload.GetAddressOf()))))
-	{
-		LOG->LogError("SetTextureFromFile: Create upload buffer failed");
-		return false;
-	}
-
-	// マップしてテクスチャデータをコピー
-	void* mapped = nullptr;
-	CD3DX12_RANGE readRange(0, 0); // 読み取りはしないので範囲は0
-	if (FAILED(m_TextureUpload->Map(0, &readRange, &mapped))) {
-		LOG->LogError("SetTextureFromFile: upload buffer map failed");
-		return false;
-	}
-
-	auto* dst = reinterpret_cast<std::uint8_t*>(mapped);
-	const size_t copyBytes = (srcImage->rowPitch < static_cast<size_t>(rowSizeInBytes))
-		? srcImage->rowPitch
-		: static_cast<size_t>(rowSizeInBytes);
-	for (UINT y = 0; y < metadata.height; ++y)
-	{
-		std::memcpy(
-			dst + static_cast<size_t>(y) * m_TextureFootprint.Footprint.RowPitch,
-			srcImage->pixels + static_cast<size_t>(y) * srcImage->rowPitch,
-			copyBytes);
-	}
-	m_TextureUpload->Unmap(0, nullptr);
-
-	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-	srvDesc.Format = metadata.format;
-	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
-	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-	srvDesc.Texture2D.MipLevels = static_cast<UINT>(metadata.mipLevels);
-
-	m_Device->CreateShaderResourceView(
-		m_Texture.Get(),
-		&srvDesc,
-		m_TextureSrvHeap->GetCPUDescriptorHandleForHeapStart());
-
-	m_TextureUploadPending = true;
-
-	LOG->LogInfo("SetTextureFromFile: texture loaded");
-	return true;
+	return UploadTextureData(srcImage, metadata);
 }
 
 void Material::Apply(
@@ -575,4 +452,100 @@ void Material::UpdateTextureIfNeeded(ID3D12GraphicsCommandList* commandList)
 	commandList->ResourceBarrier(1, &barrier);
 
 	m_TextureUploadPending = false;
+}
+
+bool Material::UploadTextureData(const DirectX::Image* srcImage, const DirectX::TexMetadata& metadata)
+{
+	// ----------------------- //
+	// SRVヒープがなければ作成 //
+	// ----------------------- //
+	if (m_TextureSrvHeap == nullptr)
+	{
+		D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
+		heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+		heapDesc.NumDescriptors = 1;
+		heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+		if(FAILED(m_Device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(m_TextureSrvHeap.GetAddressOf()))))
+		{
+			LOG->LogError("UploadTextureData: CreateDescriptorHeap failed");
+			return false;
+		}
+	}
+
+	// ----------------------- //
+	//   テクスチャ本体の作成  //
+	// ----------------------- //
+	const CD3DX12_RESOURCE_DESC texDesc = CD3DX12_RESOURCE_DESC::Tex2D(
+		metadata.format,
+		static_cast<UINT64>(metadata.width),
+		static_cast<UINT>(metadata.height),
+		static_cast<UINT16>(metadata.arraySize),
+		static_cast<UINT16>(metadata.mipLevels));
+
+	CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_DEFAULT);
+	if (FAILED(m_Device->CreateCommittedResource(
+		&heapProps, D3D12_HEAP_FLAG_NONE, &texDesc,
+		D3D12_RESOURCE_STATE_COPY_DEST, nullptr,
+		IID_PPV_ARGS(m_Texture.GetAddressOf()))))
+	{
+		LOG->LogError("UploadTexture: CreateCommittedResource failed");
+		return false;
+	}
+
+	// ----------------------------- //
+	//   アップロードバッファの作成  //
+	// ----------------------------- //
+	UINT numRows = 0;
+	UINT64 rowSizeInBytes = 0, uploadSize = 0;
+	m_Device->GetCopyableFootprints(
+		&texDesc, 0, 1, 0, &m_TextureFootprint, &numRows, &rowSizeInBytes, &uploadSize);
+
+	CD3DX12_HEAP_PROPERTIES uploadHeap(D3D12_HEAP_TYPE_UPLOAD);
+	CD3DX12_RESOURCE_DESC uploadDesc = CD3DX12_RESOURCE_DESC::Buffer(uploadSize);
+	if (FAILED(m_Device->CreateCommittedResource(
+		&uploadHeap, D3D12_HEAP_FLAG_NONE, &uploadDesc,
+		D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
+		IID_PPV_ARGS(m_TextureUpload.GetAddressOf()))))
+	{
+		LOG->LogError("UploadTexture: Create upload buffer failed");
+		return false;
+	}
+
+	// ---------------- //
+	// ピクセルをコピー //
+	// ---------------- //
+	void* mapped = nullptr;
+	CD3DX12_RANGE readRange(0, 0);
+	if (FAILED(m_TextureUpload->Map(0, &readRange, &mapped)))
+	{
+		LOG->LogError("UploadTexture: upload buffer map failed");
+		return false;
+	}
+	auto* dst = reinterpret_cast<std::uint8_t*>(mapped);
+	const size_t copyBytes = (srcImage->rowPitch < static_cast<size_t>(rowSizeInBytes))
+		? srcImage->rowPitch : static_cast<size_t>(rowSizeInBytes);
+	for (UINT y = 0; y < metadata.height; ++y)
+	{
+		std::memcpy(
+			dst + static_cast<size_t>(y) * m_TextureFootprint.Footprint.RowPitch,
+			srcImage->pixels + static_cast<size_t>(y) * srcImage->rowPitch,
+			copyBytes);
+	}
+	m_TextureUpload->Unmap(0, nullptr);
+
+	// --------- //
+	// SRVの作成 //
+	// --------- //
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.Format = metadata.format;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MipLevels = static_cast<UINT>(metadata.mipLevels);
+	m_Device->CreateShaderResourceView(
+		m_Texture.Get(), &srvDesc,
+		m_TextureSrvHeap->GetCPUDescriptorHandleForHeapStart());
+
+	m_TextureUploadPending = true;
+	LOG->LogInfo("UploadTexture: texture loaded");
+	return true;
 }

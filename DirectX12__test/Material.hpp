@@ -4,6 +4,7 @@
 #include "Defines.hpp"
 #include <cstdint>
 #include "RenderContext.hpp"
+#include "DirectXTex/DirectXTex.h"
 
 class Material
 {
@@ -74,4 +75,9 @@ private:
 	float3 m_LightDir{ 0.0f,0.0f,-1.0f };
 	float4 m_LightColor{ 1.0f,1.0f,1.0f,1.0f };
 	float4 m_AmbientColor{ 0.2f,0.2f,0.2f,1.0f };
+
+	bool UploadTextureData(
+		_In_ const DirectX::Image* srcImage,
+		_In_ const DirectX::TexMetadata& metadata
+	);
 };
