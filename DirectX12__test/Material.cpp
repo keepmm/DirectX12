@@ -4,20 +4,15 @@
 #pragma comment(lib, "DirectXTex.lib")
 #include "Logger.hpp"
 
-void Material::Init(
-	const ComPtr<ID3D12Device>& device, 
-	const DirectXApp::PipelineStateTable& pipelinestates, 
-	const ComPtr<ID3D12PipelineState>& wirePso)
+void Material::Init()
 {
 	// 引数のどれかが空の場合初期化しない
-	if(device == nullptr) return;
+	if(APP->GetDevice() == nullptr) return;
 
-	m_Device = device;
+	CreateCheckerTexture(APP->GetDevice());
 
-	CreateCheckerTexture(device);
-
-	m_PipelineStates = pipelinestates;
-	m_WirePso = wirePso;
+	m_PipelineStates = APP->GetPipelineStates();
+	m_WirePso = APP->GetPipelineStateWireFrame();
 
 	CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_UPLOAD);
 	const UINT bufferSize = CB_SIZE * MAX_ENTITY_PER_FRAME;
@@ -25,7 +20,7 @@ void Material::Init(
 
 	for (UINT i = 0; i < FRAME_COUNT; ++i)
 	{
-		HRESULT hr = device->CreateCommittedResource(
+		HRESULT hr = APP->GetDevice()->CreateCommittedResource(
 			&heapProps,
 			D3D12_HEAP_FLAG_NONE,
 			&bufferDesc,
@@ -56,7 +51,7 @@ void Material::Init(
 bool Material::SetTextureFromFile(const std::wstring& filePath)
 {
 	// デバイスがnullptrの場合は処理しない
-	if (m_Device == nullptr) {
+	if (APP->GetDevice() == nullptr) {
 		LOG->LogError("SetTextureFromFile: device is null");
 		return false;
 	}
@@ -100,7 +95,7 @@ bool Material::SetTextureFromFile(const std::wstring& filePath)
 		heapDesc.NumDescriptors = 1;
 		heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 
-		if (FAILED(m_Device->CreateDescriptorHeap(
+		if (FAILED(APP->GetDevice()->CreateDescriptorHeap(
 			&heapDesc,
 			IID_PPV_ARGS(m_TextureSrvHeap.GetAddressOf()))))
 		{
@@ -120,7 +115,7 @@ bool Material::SetTextureFromFile(const std::wstring& filePath)
 
 	// テクスチャリソースを作成
 	CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_DEFAULT);
-	if (FAILED(m_Device->CreateCommittedResource(
+	if (FAILED(APP->GetDevice()->CreateCommittedResource(
 		&heapProps,
 		D3D12_HEAP_FLAG_NONE,
 		&texDesc,
@@ -137,7 +132,7 @@ bool Material::SetTextureFromFile(const std::wstring& filePath)
 	UINT numRows = 0;
 	UINT64 rowSizeInBytes = 0;
 	UINT64 uploadSize = 0;
-	m_Device->GetCopyableFootprints(
+	APP->GetDevice()->GetCopyableFootprints(
 		&texDesc,
 		0,
 		1,
@@ -151,7 +146,7 @@ bool Material::SetTextureFromFile(const std::wstring& filePath)
 
 	CD3DX12_HEAP_PROPERTIES uploadHeap(D3D12_HEAP_TYPE_UPLOAD);
 	CD3DX12_RESOURCE_DESC uploadDesc = CD3DX12_RESOURCE_DESC::Buffer(uploadSize);
-	if (FAILED(m_Device->CreateCommittedResource(
+	if (FAILED(APP->GetDevice()->CreateCommittedResource(
 		&uploadHeap,
 		D3D12_HEAP_FLAG_NONE,
 		&uploadDesc,
@@ -190,7 +185,7 @@ bool Material::SetTextureFromFile(const std::wstring& filePath)
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MipLevels = static_cast<UINT>(metadata.mipLevels);
 
-	m_Device->CreateShaderResourceView(
+	APP->GetDevice()->CreateShaderResourceView(
 		m_Texture.Get(),
 		&srvDesc,
 		m_TextureSrvHeap->GetCPUDescriptorHandleForHeapStart());
@@ -203,7 +198,7 @@ bool Material::SetTextureFromFile(const std::wstring& filePath)
 
 bool Material::SetTextureFromMemory(const std::uint8_t* data, size_t size)
 {
-	if (m_Device == nullptr) { LOG->LogError("SetTextureFromMemory: device is null"); return false; }
+	if (APP->GetDevice() == nullptr) { LOG->LogError("SetTextureFromMemory: device is null"); return false; }
 	if (data == nullptr || size == 0) { LOG->LogError("SetTextureFromMemory: invalid data"); return false; }
 
 	// WICで読み込む（メモリから）
@@ -275,7 +270,7 @@ void Material::Apply(
 
 	const D3D12_GPU_VIRTUAL_ADDRESS gpuAddress =
 		m_ConstantBuffer[frameSlot]->GetGPUVirtualAddress() + offset;
-	commandList->SetGraphicsRootConstantBufferView(0, gpuAddress);
+	commandList->SetGraphicsRootConstantBufferView(0, gpuAddress);	
 
 	// PSOの選択
 	ID3D12PipelineState* selectedPso = overridePso;
@@ -465,7 +460,7 @@ bool Material::UploadTextureData(const DirectX::Image* srcImage, const DirectX::
 		heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 		heapDesc.NumDescriptors = 1;
 		heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-		if(FAILED(m_Device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(m_TextureSrvHeap.GetAddressOf()))))
+		if(FAILED(APP->GetDevice()->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(m_TextureSrvHeap.GetAddressOf()))))
 		{
 			LOG->LogError("UploadTextureData: CreateDescriptorHeap failed");
 			return false;
@@ -483,7 +478,7 @@ bool Material::UploadTextureData(const DirectX::Image* srcImage, const DirectX::
 		static_cast<UINT16>(metadata.mipLevels));
 
 	CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_DEFAULT);
-	if (FAILED(m_Device->CreateCommittedResource(
+	if (FAILED(APP->GetDevice()->CreateCommittedResource(
 		&heapProps, D3D12_HEAP_FLAG_NONE, &texDesc,
 		D3D12_RESOURCE_STATE_COPY_DEST, nullptr,
 		IID_PPV_ARGS(m_Texture.GetAddressOf()))))
@@ -497,12 +492,12 @@ bool Material::UploadTextureData(const DirectX::Image* srcImage, const DirectX::
 	// ----------------------------- //
 	UINT numRows = 0;
 	UINT64 rowSizeInBytes = 0, uploadSize = 0;
-	m_Device->GetCopyableFootprints(
+	APP->GetDevice()->GetCopyableFootprints(
 		&texDesc, 0, 1, 0, &m_TextureFootprint, &numRows, &rowSizeInBytes, &uploadSize);
 
 	CD3DX12_HEAP_PROPERTIES uploadHeap(D3D12_HEAP_TYPE_UPLOAD);
 	CD3DX12_RESOURCE_DESC uploadDesc = CD3DX12_RESOURCE_DESC::Buffer(uploadSize);
-	if (FAILED(m_Device->CreateCommittedResource(
+	if (FAILED(APP->GetDevice()->CreateCommittedResource(
 		&uploadHeap, D3D12_HEAP_FLAG_NONE, &uploadDesc,
 		D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
 		IID_PPV_ARGS(m_TextureUpload.GetAddressOf()))))
@@ -541,7 +536,7 @@ bool Material::UploadTextureData(const DirectX::Image* srcImage, const DirectX::
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MipLevels = static_cast<UINT>(metadata.mipLevels);
-	m_Device->CreateShaderResourceView(
+	APP->GetDevice()->CreateShaderResourceView(
 		m_Texture.Get(), &srvDesc,
 		m_TextureSrvHeap->GetCPUDescriptorHandleForHeapStart());
 

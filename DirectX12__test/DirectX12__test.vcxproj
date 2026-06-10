@@ -169,7 +169,6 @@
     <ClCompile Include="MonoBehavior.cpp" />
     <ClCompile Include="PhysicsWorld.cpp" />
     <ClCompile Include="PipelineStateCache.cpp" />
-    <ClCompile Include="Player.cpp" />
     <ClCompile Include="Polygon.cpp" />
     <ClCompile Include="PrefabLibrary.cpp" />
     <ClCompile Include="RenderTexture.cpp" />
@@ -216,7 +215,6 @@
     <ClInclude Include="pch.h" />
     <ClInclude Include="PhysicsWorld.hpp" />
     <ClInclude Include="PipelineStateCache.hpp" />
-    <ClInclude Include="Player.hpp" />
     <ClInclude Include="Polygon.hpp" />
     <ClInclude Include="PrefabLibrary.hpp" />
     <ClInclude Include="RenderContext.hpp" />

@@ -91,6 +91,8 @@ struct DescriptorAllocator
 	}
 };
 
+#define APP DirectXApp::GetCurrent()
+
 class DirectXApp
 {
 public:

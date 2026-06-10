@@ -146,9 +146,6 @@ struct LightComponent
 	bool castShadows = false;
 
 	bool isShow = false;
-
-	bool usePixelShader = false;
-	E_PIXEL_SHADER pixelShader = E_PIXEL_SHADER::BASIC;
 };
 
 

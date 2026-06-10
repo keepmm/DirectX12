@@ -135,9 +135,6 @@
     <ClCompile Include="PhysicsWorld.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="Player.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
     <ClCompile Include="SceneSerializer.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -260,9 +257,6 @@
     <ClInclude Include="PhysicsWorld.hpp">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="Player.hpp">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
     <ClInclude Include="json.hpp">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
@@ -370,6 +364,25 @@
     <None Include="Assets\**\*.*" />
     <None Include="Assets\**\*.*" />
     <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
     <None Include="Assets\**\*.*">
       <Filter>リソース ファイル</Filter>
     </None>

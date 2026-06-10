@@ -780,7 +780,6 @@ void EditorWindow::DrawInspector(World& world,Scene* scene)
 			ImGui::Checkbox(u8("シャドウ投影##Light"), &lightComp.castShadows);
 
 			ImGui::Separator();
-			ImGui::Checkbox(u8("デフォルト以外のPixelShaderを使う##Light"), &lightComp.usePixelShader);
 
 			// ------------//
 			//	ライト可視化 //
@@ -791,12 +790,6 @@ void EditorWindow::DrawInspector(World& world,Scene* scene)
 				
 			}
 
-			const char* shaderItems[] = { "BASIC", "TOON" };
-			int psIndex = static_cast<int>(lightComp.pixelShader);
-			if (ImGui::Combo(u8("LightPixelShader##Light"), &psIndex, shaderItems, IM_ARRAYSIZE(shaderItems)))
-			{
-				lightComp.pixelShader = static_cast<E_PIXEL_SHADER>(psIndex);
-			}
 			ImGui::Separator();
 			if (ImGui::SmallButton(u8("Remove##LightComponent")))
 			{
@@ -1167,22 +1160,20 @@ void EditorWindow::DrawColliderDebug(const ColliderComponent& collider, const Tr
 #include "ModelLoader.hpp"
 #include "Systems.hpp"
 
-#define APP m_App.GetCurrent()
-
 void EditorWindow::SpawnModelFromFile(World& world, const std::string& modelpath, const float3& pos)
 {
-	// 1) fbx を読み込む（Application.cpp と同じ
+	// 1. fbx を読み込む（Application.cpp と同じ
 	auto modelData = ModelLoader::LoadFromFile(
 		m_App.GetCurrent()->GetDevice(), modelpath, 0.01f);
 	if (modelData.mesh == nullptr) return;
 
-	// 2) マテリアル作成
+	// 2. マテリアル作成
 	auto material = MakeShared<Material>();
-	material->Init(APP->GetDevice(),APP->GetPipelineStates(),APP->GetPipelineStateWireFrame());
+	material->Init();
 	if (!modelData.diffuseTexturePath.empty())
 		material->SetTextureFromFile(modelData.diffuseTexturePath);
 
-	// 3) エンティティを作ってコンポーネントを付ける
+	// 3. エンティティを作ってコンポーネントを付ける
 	Entity e = world.CreateEntity();
 	TransformComponent tr{};
 	std::string name = "Model_" + std::to_string(e);

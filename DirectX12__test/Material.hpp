@@ -9,10 +9,7 @@
 class Material
 {
 public:
-	void Init(
-		_In_ const ComPtr<ID3D12Device>& device,
-		_In_ const DirectXApp::PipelineStateTable& pipelinestates,
-		_In_ const ComPtr<ID3D12PipelineState>& wirePso);
+	void Init();
 
 	bool SetTextureFromFile(_In_ const std::wstring& filePath);
 	bool SetTextureFromMemory(_In_ const std::uint8_t* data, size_t size);
@@ -66,7 +63,6 @@ private:
 	ComPtr<ID3D12Resource> m_TextureUpload;
 	bool m_TextureUploadPending = false;
 
-	ComPtr<ID3D12Device> m_Device;
 	D3D12_PLACED_SUBRESOURCE_FOOTPRINT m_TextureFootprint = {};
 
 	UINT m_EntityCountPerFrame[FRAME_COUNT] = {};

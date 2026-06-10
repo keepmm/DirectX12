@@ -63,10 +63,7 @@ void Application::OnInitPrefabs()
 	sharedBoxMesh->CreateCube(m_DirectX->GetDevice());
 
 	auto sharedBoxMaterial = MakeShared<Material>();
-	sharedBoxMaterial->Init(
-		m_DirectX->GetDevice(),
-		m_DirectX->GetPipelineStates(),
-		m_DirectX->GetPipelineStateWireFrame());
+	sharedBoxMaterial->Init();
 	sharedBoxMaterial->SetTextureFromFile(L"Assets/Mutant_diffuse.png");
 
 	PrefabLibrary::Get().RegisterPrefab("Box",
@@ -103,10 +100,7 @@ void Application::OnInitPrefabs()
 	}
 
 	auto modelMaterial = MakeShared<Material>();
-	modelMaterial->Init(
-		m_DirectX->GetDevice(),
-		m_DirectX->GetPipelineStates(),
-		m_DirectX->GetPipelineStateWireFrame());
+	modelMaterial->Init();
 
 	if (!modelData.diffusetextureData.empty())
 	{

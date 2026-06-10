@@ -26,7 +26,7 @@ void RuntimeScene::OnLoad()
 
 	if (!m_SceneFilePath.empty())
 	{
-		if(!SceneSerializer::Load(*this, m_SceneFilePath))
+		if (!SceneSerializer::Load(*this, m_SceneFilePath))
 		{
 			LOG->LogWarning("RuntimeScene : シーン読み込みに失敗しました : " + m_SceneFilePath);
 		}
@@ -72,20 +72,17 @@ void RuntimeScene::OnLoad()
 	// -----------------------------//
 	//  アイコン用マテリアルの作成  //
 	// -----------------------------//
-	if (auto* dx = DirectXApp::GetCurrent())
-	{
-		m_IconQuad.CreateQuad(dx->GetDevice());
+	m_IconQuad.CreateQuad(APP->GetDevice());
 
-		m_CameraIcon = std::make_shared<Material>();
-		m_CameraIcon->Init(dx->GetDevice(), dx->GetPipelineStates(), dx->GetPipelineStateWireFrame());
-		m_CameraIcon->SetTextureFromFile(L"Assets/CameraIcon.png");
+	m_CameraIcon = std::make_shared<Material>();
+	m_CameraIcon->Init();
+	m_CameraIcon->SetTextureFromFile(L"Assets/CameraIcon.png");
 
-		m_LightIcon = std::make_shared<Material>();
-		m_LightIcon->Init(dx->GetDevice(), dx->GetPipelineStates(), dx->GetPipelineStateWireFrame());
-		m_LightIcon->SetTextureFromFile(L"Assets/LightIcon.png");
+	m_LightIcon = std::make_shared<Material>();
+	m_LightIcon->Init();
+	m_LightIcon->SetTextureFromFile(L"Assets/LightIcon.png");
 
-		n_IconReady = true;
-	}
+	n_IconReady = true;
 
 	m_Initialized = true;
 	LOG->LogInfo("RuntimeScene : Loaded");

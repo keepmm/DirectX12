@@ -7,7 +7,7 @@ cbuffer Transform : register(b0)
     float4 ambientColor;
 }
 
-    struct PSInput
+struct PSInput
 {
     float4 pos : SV_POSITION;
     float3 normal : NORMAL;

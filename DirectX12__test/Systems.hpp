@@ -106,11 +106,6 @@ public:
 			return;
 		}
 
-		if (activeLight->usePixelShader)
-		{
-			RenderSettings::Get().pixelShader = activeLight->pixelShader;
-		}
-
 		float3 direction = activeLight->direction;
 		const DirectX::XMVECTOR dirVec = DirectX::XMVector3Normalize(
 			DirectX::XMVectorSet(direction.x, direction.y, direction.z, 0.0f)
