@@ -2,13 +2,13 @@
 
 #include "Defines.hpp"
 #include "RenderContext.hpp"
-#include "MonoBehavior.hpp"
 #include <memory>
 #include <vector>
 
 class Mesh;
 class Material;
 class Camera;
+class MonoBehavior;
 
 namespace PhysX
 {
@@ -58,6 +58,7 @@ struct SpinComponent
 struct MeshComponent
 {
 	std::shared_ptr<Mesh> mesh;
+	std::string FilePath;
 };
 
 struct MaterialComponent
@@ -66,6 +67,8 @@ struct MaterialComponent
 	ID3D12PipelineState* overridePso = nullptr;
 	bool usePixelShader = false;
 	E_PIXEL_SHADER pixelshader = E_PIXEL_SHADER::BASIC;
+
+	std::string FilePath;
 };
 
 struct RigidBodyComponent

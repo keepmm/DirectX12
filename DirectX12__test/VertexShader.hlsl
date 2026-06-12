@@ -1,13 +1,17 @@
 // cbuffer ... Constant buffer(定数バッファ)
 // GPU側で舞フレーム変わる可能性のあるデータ(行列・色)を
 // シェーダーに渡すための仕組み
-cbuffer Transform : register(b0)
+cbuffer Frame : register(b0)
 {
-    float4x4 worldViewProj;
-    float4x4 world;
+    float4x4 viewProj;
     float4 lightDir;
     float4 lightColor;
     float4 ambientColor;
+}
+
+cbuffer Object : register(b1)
+{
+    float4x4 world;
 }
 
 // VSInput ... 頂点シェーダーに渡される1頂点のデータ
@@ -30,6 +34,7 @@ struct PSInput
 {
     float4 pos : SV_POSITION;
     float3 normal : NORMAL;
+    float3 worldPos : TEXCOORD1;
     float4 col : COLOR;
     float2 uv : TEXCOORD;
 };
@@ -40,8 +45,10 @@ struct PSInput
 PSInput BasicVS(VSInput input)
 {
     PSInput output;
-    output.pos = mul(float4(input.pos, 1.0f), worldViewProj);
+    float4 wp = mul(float4(input.pos, 1.0f), world);
+    output.pos = mul(wp, viewProj);
     output.normal = normalize(mul(float4(input.normal, 0.0f), world).xyz);
+    output.worldPos = wp.xyz;
     output.col = input.col;
     output.uv = input.uv;
     return output;

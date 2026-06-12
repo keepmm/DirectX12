@@ -267,12 +267,16 @@ void DirectXApp::CreateRootSignature()
 	srvRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
 	
 
-	CD3DX12_ROOT_PARAMETER rootParameters[2] = {};
-	// b0
+	// 配列の数がそのまま定数バッファやSRVの数になる
+	CD3DX12_ROOT_PARAMETER rootParameters[5] = {};
+	// b0 ~ b3 にCBVを割り当てる
 	rootParameters[0].InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_ALL);
+	rootParameters[1].InitAsConstantBufferView(1, 0, D3D12_SHADER_VISIBILITY_ALL);
+	rootParameters[2].InitAsConstantBufferView(2, 0, D3D12_SHADER_VISIBILITY_ALL);
+	rootParameters[3].InitAsConstantBufferView(3, 0, D3D12_SHADER_VISIBILITY_ALL);
 
-	// t0
-	rootParameters[1].InitAsDescriptorTable(1, &srvRange, D3D12_SHADER_VISIBILITY_PIXEL);
+
+	rootParameters[4].InitAsDescriptorTable(1, &srvRange, D3D12_SHADER_VISIBILITY_PIXEL);
 
 
 	CD3DX12_STATIC_SAMPLER_DESC staticSamplerDesc(
@@ -431,6 +435,7 @@ void DirectXApp::CreatePipelineStateObject()
 	if (m_IconPso == nullptr) { assert(false); }
 
 	CreateMeshShaderPipelineState();
+	m_CBAllocator.Init();
 }
 
 DirectXApp::~DirectXApp()
@@ -482,6 +487,8 @@ HRESULT DirectXApp::BeginRender()
 		ID3D12DescriptorHeap* heaps[] = { m_SrvAllocator.heap.Get() };
 		m_CommandList->SetDescriptorHeaps(_countof(heaps), heaps);
 	}
+
+	m_CBAllocator.Reset(m_FrameIndex);	// 定数バッファアロケータをリセット
 
 	m_CommandList->SetGraphicsRootSignature(m_rootSignature.Get());
 

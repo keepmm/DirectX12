@@ -10,6 +10,7 @@
 #include "Logger.hpp"
 #include <Psapi.h>
 #include "IconLibrary.hpp"
+#include "ModelLoader.hpp"
 
 #pragma comment(lib, "psapi.lib")
 
@@ -317,8 +318,11 @@ void EditorWindow::DrawEntityList(World& world)
 	{
 		if (ImGui::MenuItem(u8("エンティティを追加")))
 		{
+			static int entityCount = 1;
+			auto name = "Entity " + std::to_string(entityCount++);
+
 			Entity newEntity = world.CreateEntity();
-			world.AddComponent<NameComponent>(newEntity, NameComponent{ "New Entity" });
+			world.AddComponent<NameComponent>(newEntity, NameComponent{ name });
 		}
 
 		if (ImGui::MenuItem(u8("エンティティを削除")) && m_SelectedEntity != INVALID_ENTITY)
@@ -398,7 +402,7 @@ void EditorWindow::DrawInspector(World& world,Scene* scene)
 				transform.MarkDirty();
 
 				// コライダーの当たり判定も更新
-				if(world.HasComponent<ColliderComponent>(m_SelectedEntity))
+				if (world.HasComponent<ColliderComponent>(m_SelectedEntity))
 				{
 					auto& collider = world.GetComponent<ColliderComponent>(m_SelectedEntity);
 
@@ -406,13 +410,13 @@ void EditorWindow::DrawInspector(World& world,Scene* scene)
 					{
 						collider.size = transform.scale;
 					}
-					else if(collider.shapeType == ColliderComponent::ShapeType::Sphere)
+					else if (collider.shapeType == ColliderComponent::ShapeType::Sphere)
 					{
 						collider.radius = std::max(transform.scale.x, std::max(transform.scale.y, transform.scale.z)) * 0.5f;
 					}
 
 					// PhysicsWorldに反映
-					if(scene && world.HasComponent<RigidBodyComponent>(m_SelectedEntity))
+					if (scene && world.HasComponent<RigidBodyComponent>(m_SelectedEntity))
 					{
 						auto* physicsWorld = scene->GetPhysicsWorld();
 						if (physicsWorld)
@@ -447,6 +451,68 @@ void EditorWindow::DrawInspector(World& world,Scene* scene)
 			ImGui::Text(u8("メッシュコンポーネント"));
 
 			ImGui::Separator();
+
+			// ファイルパスの設定
+			char filepathBuffer[256];
+			// 元のパスをコピー
+			snprintf(filepathBuffer, sizeof(filepathBuffer), "%s", meshComp.FilePath.c_str());
+
+			if (ImGui::InputText(u8("ファイルパス##MeshFilePath"), filepathBuffer, sizeof(filepathBuffer)))
+			{
+				meshComp.FilePath = filepathBuffer;
+			}
+			
+			// -------------------------------------
+			// アセットパネルからドロップを受け付け
+			// -------------------------------------
+			if (ImGui::BeginDragDropSource())
+			{
+				const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ASSET_MODEL");
+				if (payload != nullptr)
+				{
+					meshComp.FilePath = std::string(static_cast<const char*>(payload->Data));
+				}
+				ImGui::EndDragDropSource();
+			}
+
+			ImGui::Separator();
+
+			static float scale;
+			
+			ImGui::InputFloat(u8("スケール倍率##MeshScale"), &scale);
+
+			if(scale <= 0.0f)
+			{
+				scale = 0.01f;
+			}
+
+			if (ImGui::Button(u8("読み込み##MeshReload")))
+			{
+				auto result = ModelLoader::LoadFromFile(
+					APP->GetDevice(),
+					meshComp.FilePath,
+					scale);
+
+				if (!meshComp.mesh)
+				{
+					// メッシュが未生成なら作る
+					meshComp.mesh = std::make_shared<Mesh>();
+					meshComp.mesh->CreateCube(APP->GetDevice());
+
+					LOG->LogInfo(("メッシュを生成しました"));
+				}
+
+				if (result.mesh)
+				{
+					meshComp.mesh = result.mesh;
+				}
+				else
+				{
+					LOG->LogError(u8("メッシュの読み込みに失敗しました"));
+				}
+			}
+
+			ImGui::Separator();
 			if (ImGui::SmallButton(u8("Remove##MeshComponent")))
 			{
 				world.DeleteComponent<MeshComponent>(m_SelectedEntity);
@@ -458,6 +524,23 @@ void EditorWindow::DrawInspector(World& world,Scene* scene)
 			{
 				MeshComponent mesh{};
 				world.AddComponent<MeshComponent>(m_SelectedEntity, mesh);
+
+				// TransformとMaterialもないならついでに作る
+				if (!world.HasComponent<TransformComponent>(m_SelectedEntity))
+				{
+					TransformComponent tr{};
+					tr.RebuildWorld();
+					world.AddComponent<TransformComponent>(m_SelectedEntity, tr);
+				}
+
+				if (!world.HasComponent<MaterialComponent>(m_SelectedEntity))
+				{
+					MaterialComponent material{};
+					material.material = std::make_shared<Material>();
+					material.material->Init();
+					world.AddComponent<MaterialComponent>(m_SelectedEntity, material);
+					LOG->LogInfo(("マテリアルを生成しました"));
+				}
 			}
 		}
 	}
@@ -467,9 +550,50 @@ void EditorWindow::DrawInspector(World& world,Scene* scene)
 	{
 		if (world.HasComponent<MaterialComponent>(m_SelectedEntity))
 		{
-
-
 			auto& materialComp = world.GetComponent<MaterialComponent>(m_SelectedEntity);
+
+			// ファイルパスの設定
+			char filepathBuffer[256];
+			// 元のパスをコピー
+			snprintf(filepathBuffer, sizeof(filepathBuffer), "%s", materialComp.FilePath.c_str());
+			if (ImGui::InputText(u8("ファイルパス##MaterialFilePath"), filepathBuffer, sizeof(filepathBuffer)))
+			{
+				materialComp.FilePath = filepathBuffer;
+			}
+
+			// アセットパネルからドロップを受け付け
+			if (ImGui::BeginDragDropSource())
+			{
+				const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ASSET_MODEL");
+				if (payload != nullptr)
+				{
+					materialComp.FilePath = std::string(static_cast<const char*>(payload->Data));
+				}
+				ImGui::EndDragDropSource();
+			}
+
+			// 適用
+			if (ImGui::Button(u8("適用##MaterialApply")))
+			{
+				// マテリアルが未生成なら作る
+				if (!materialComp.material)
+				{
+					materialComp.material = std::make_shared<Material>();
+					materialComp.material->Init();
+				}
+
+				std::wstring wpath = std::filesystem::path(materialComp.FilePath).wstring();
+				if(!materialComp.material->SetTextureFromFile(wpath))
+				{
+					LOG->LogError("テクスチャの読み込みに失敗しました");
+				}
+				else
+				{
+					LOG->LogInfo(("テクスチャを適用しました"));
+				}
+			}
+
+
 			ImGui::Checkbox(u8("デフォルト以外のPixelShaderを使う##Mat"), &materialComp.usePixelShader);
 
 			const char* shaderItems[] = { "BASIC", "TOON" };
@@ -775,7 +899,7 @@ void EditorWindow::DrawInspector(World& world,Scene* scene)
 			ImGui::DragFloat(u8("強度##Light"), &lightComp.intensity, 0.1f, 0.0f, 100.0f);
 			ImGui::DragFloat3(u8("方向##Light"), &lightComp.direction.x, 0.1f, -1.0f, 1.0f);
 			ImGui::DragFloat(u8("範囲##Light"), &lightComp.range, 0.1f, 0.0f, 100.0f);
-			ImGui::DragFloat(u8("スポットアングル##Light"), &lightComp.spotAngle, 0.1f, 0.0f, 180.0f);
+			ImGui::DragFloat(u8("スポットアングル##Light"), &lightComp.spotAngle, 0.1f, 0.0f, 100.0f);
 			ImGui::Checkbox(u8("有効##Light"), &lightComp.isActive);
 			ImGui::Checkbox(u8("シャドウ投影##Light"), &lightComp.castShadows);
 
@@ -885,26 +1009,188 @@ void EditorWindow::DrawAssetPanel()
 		return;
 	}
 
+	// 開いていたフォルダが消されていたらルートに戻す
+	if (!fs::exists(m_CurrentAssetDir))
+	{
+		m_CurrentAssetDir = assetRoot.string();
+	}
+
 	// -------------------------//
-	// アセットライブラリの表示	//
-	// アイコン表示・横向き 	//
+	//		 ツールバー			//
 	// -------------------------//
-	ImGui::Text(u8("アセットライブラリ"));
+
+	// 「↑」ボタン: 親フォルダへ（ルートでは無効化）
+	const bool atRoot = fs::equivalent(m_CurrentAssetDir, assetRoot);
+	ImGui::BeginDisabled(atRoot);
+	if (ImGui::Button(u8("↑##AssetUp")))
+	{
+		m_CurrentAssetDir = fs::path(m_CurrentAssetDir).parent_path().string();
+	}
+	ImGui::EndDisabled();
+
+	// 現在のパスを表示
+	ImGui::SameLine();
+	ImGui::Text("%s", m_CurrentAssetDir.c_str());
+
+	// セルサイズのスライダー
+	ImGui::SameLine();
+	ImGui::SetNextItemWidth(120.0f);
+	ImGui::SliderFloat(u8("サイズ##AssetCell"), &m_AssetCellSize, 48.0f, 128.0f, "%.0f");
+
 	ImGui::Separator();
 
+	const float cellSize = m_AssetCellSize;
+	const ImVec2 tileSize(cellSize, cellSize);
 
 	if (ImGui::BeginChild("AssetList", ImVec2(0.0f, 0.0f), true))
 	{
-		for (const auto& entry : fs::directory_iterator(assetRoot))
-		{
-			const std::string name = entry.path().filename().string();
-			const std::string fullPath = entry.path().string();
+		const float windowRight =
+			ImGui::GetWindowPos().x + ImGui::GetWindowContentRegionMax().x;
+		const ImGuiStyle& style = ImGui::GetStyle();
 
-			const bool selected = (m_SelectedAsset == fullPath);
-			if (ImGui::Selectable(name.c_str(), selected))
+		// ---------------------------------------//
+		// フォルダ→ファイルの順に並べたいので分ける //
+		// ---------------------------------------//
+		std::vector<fs::directory_entry> folders;
+		std::vector<fs::directory_entry> files;
+		for (const auto& entry : fs::directory_iterator(m_CurrentAssetDir))
+		{
+			if (entry.is_directory())
 			{
-				m_SelectedAsset = fullPath;
+				folders.push_back(entry);
 			}
+			else
+			{
+				files.push_back(entry);
+			}
+		}
+
+		std::string pendingDir;	// イテレーション中にm_CurrentAssetDirを書き換えないため
+
+		// タイル1個を描く共通処理
+		auto drawTile = [&](const fs::directory_entry& entry, bool isFolder)
+			{
+				const std::string name = entry.path().filename().string();
+				const std::string fullPath = entry.path().string();
+				const std::string ext = entry.path().extension().string();
+
+				// -------------------------------------//
+				// アイコンとフォールバック色を決める	//
+				// -------------------------------------//
+				std::wstring iconPath;
+				const char* label = "FILE";
+				ImVec4 color = ImVec4(0.4f, 0.4f, 0.4f, 1.0f);
+
+				if (isFolder)
+				{
+					iconPath = L"Assets/Icons/Folder.png";
+					label = "DIR";
+					color = ImVec4(0.8f, 0.7f, 0.3f, 1.0f);
+				}
+				else if (ext == ".fbx" || ext == ".obj")
+				{
+					iconPath = L"Assets/Icons/Model.png";
+					label = "3D";
+					color = ImVec4(0.8f, 0.5f, 0.2f, 1.0f);
+				}
+				else if (ext == ".png" || ext == ".jpg" || ext == ".bmp")
+				{
+					iconPath = entry.path().wstring();	// 画像は自分自身をサムネイルに
+					label = "IMG";
+					color = ImVec4(0.3f, 0.7f, 0.3f, 1.0f);
+				}
+				else if (ext == ".json")
+				{
+					iconPath = L"Assets/Icons/Json.png";
+					label = "JSON";
+					color = ImVec4(0.3f, 0.5f, 0.8f, 1.0f);
+				}
+				else
+				{
+					iconPath = L"Assets/Icons/File.png";
+				}
+
+				const bool selected = (m_SelectedAsset == fullPath);
+				if (selected)
+				{
+					color.x = std::min(color.x + 0.2f, 1.0f);
+					color.y = std::min(color.y + 0.2f, 1.0f);
+					color.z = std::min(color.z + 0.2f, 1.0f);
+				}
+
+				ImGui::PushID(fullPath.c_str());
+				ImGui::BeginGroup();
+
+				// ---- タイル本体 ---- //
+				bool clicked = false;
+				ImTextureID icon = IconLibrary::Get()->GetOrLoad(iconPath);
+				if (icon != 0)
+				{
+					clicked = ImGui::ImageButton("##tile", icon, tileSize);
+				}
+				else
+				{
+					ImGui::PushStyleColor(ImGuiCol_Button, color);
+					clicked = ImGui::Button(label, tileSize);
+					ImGui::PopStyleColor();
+				}
+
+				if (clicked)
+				{
+					m_SelectedAsset = fullPath;
+				}
+
+				// フォルダはダブルクリックで中に入る
+				if (isFolder &&
+					ImGui::IsItemHovered() &&
+					ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
+				{
+					pendingDir = fullPath;
+				}
+
+				// ---- ドラッグ元（ファイルのみ）---- //
+				if (!isFolder && ImGui::BeginDragDropSource())
+				{
+					ImGui::SetDragDropPayload("ASSET_MODEL",
+						fullPath.c_str(), fullPath.size() + 1);
+					ImGui::Text("%s", name.c_str());
+					ImGui::EndDragDropSource();
+				}
+
+				// ホバーでフルパス表示
+				if (ImGui::IsItemHovered())
+				{
+					ImGui::BeginTooltip();
+					ImGui::Text("%s", fullPath.c_str());
+					ImGui::EndTooltip();
+				}
+
+				// ---- 名前（タイル幅で折り返し）---- //
+				ImGui::PushTextWrapPos(ImGui::GetCursorPos().x + cellSize);
+				ImGui::TextUnformatted(name.c_str());
+				ImGui::PopTextWrapPos();
+
+				ImGui::EndGroup();
+
+				// ---- 折り返し ---- //
+				const float lastTileRight = ImGui::GetItemRectMax().x;
+				const float nextTileRight = lastTileRight + style.ItemSpacing.x + cellSize;
+				if (nextTileRight < windowRight)
+				{
+					ImGui::SameLine();
+				}
+
+				ImGui::PopID();
+			};
+
+		// フォルダ → ファイルの順で描画
+		for (const auto& f : folders) { drawTile(f, true); }
+		for (const auto& f : files) { drawTile(f, false); }
+
+		// ループ後にフォルダ移動を反映
+		if (!pendingDir.empty())
+		{
+			m_CurrentAssetDir = pendingDir;
 		}
 	}
 	ImGui::EndChild();

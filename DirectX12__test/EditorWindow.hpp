@@ -67,6 +67,9 @@ private:
 	Entity m_SelectedEntity = INVALID_ENTITY;
 	std::string m_SelectedPrefab;
 	std::string m_SelectedAsset;
+	std::string m_CurrentAssetDir = "Assets";
+	float m_AssetCellSize = 72.0f;
+
 	std::array<char, 64> m_EntityFilyer{};
 	std::array<char, 64> m_SceneRegisterName{};
 	std::array<char, 268> m_SceneRegisterPath{};
@@ -122,6 +125,4 @@ private:
 	void SpawnModelFromFile(World& world,
 		_In_ const std::string& modelpath,
 		_In_ const float3& pos);
-
-	//std::unique_ptr<IconLibrary> m_IconLib;
 };

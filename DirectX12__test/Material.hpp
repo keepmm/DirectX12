@@ -6,6 +6,8 @@
 #include "RenderContext.hpp"
 #include "DirectXTex/DirectXTex.h"
 
+class ConstantBufferAllocator;
+
 class Material
 {
 public:
@@ -13,10 +15,6 @@ public:
 
 	bool SetTextureFromFile(_In_ const std::wstring& filePath);
 	bool SetTextureFromMemory(_In_ const std::uint8_t* data, size_t size);
-
-	void SetLightDir(_In_ const float3& dir) { m_LightDir = dir; }
-	void SetLightColor(_In_ const float4& color) { m_LightColor = color; }
-	void SetAmbientColor(_In_ const float4& color) { m_AmbientColor = color; }
 
 	void Apply(
 		_In_ ID3D12GraphicsCommandList* commandList,
@@ -27,27 +25,28 @@ public:
 		E_VERTEX_SHADER vsType = E_VERTEX_SHADER::BASIC,
 		E_PIXEL_SHADER psType = E_PIXEL_SHADER::BASIC,
 		_In_opt_ ID3D12PipelineState* overridePso = nullptr,
-		UINT frameIndex = 0);
+		UINT frameIndex = 0,
+		_In_ ConstantBufferAllocator* cbAlloc = nullptr);
 
 private:
-	struct alignas(256) TransformBuffer
+	struct alignas(256) FrameCB
 	{
-		float4x4 worldViewProj;
-		float4x4 world;
+		float4x4 viewProj;
 		float4 lightDir;
 		float4 lightColor;
 		float4 ambientColor;
 	};
 
-	static constexpr UINT FRAME_COUNT = DirectXApp::RTV_NUM;
-	static constexpr UINT MAX_ENTITY_PER_FRAME = 1024;
-	static constexpr UINT CB_SIZE = (sizeof(TransformBuffer) + 255u) & ~255u;
+	struct alignas(256) ObjectCB
+	{
+		float4x4 world;
+	};
 
-	void BuildBufferData(
-		_In_ const float4x4& world,
-		_In_ const float4x4& view,
-		_In_ const float4x4& projection,
-		_Out_ TransformBuffer* outData) const;
+	static constexpr UINT FRAME_COUNT = RTV_NUM;
+	static constexpr UINT MAX_ENTITY_PER_FRAME = 1024;
+
+	void BuildPerFrame(const float4x4& view, const float4x4& projection, _Out_ FrameCB* out) const;
+	void BuildPerObject(const float4x4& world, _Out_ ObjectCB* out) const;
 
 	void CreateCheckerTexture(_In_ const ComPtr<ID3D12Device>& device);
 	void UpdateTextureIfNeeded(_In_ ID3D12GraphicsCommandList* commandList);
@@ -67,10 +66,6 @@ private:
 
 	UINT m_EntityCountPerFrame[FRAME_COUNT] = {};
 	UINT m_LastFrameIndex = UINT_MAX;
-
-	float3 m_LightDir{ 0.0f,0.0f,-1.0f };
-	float4 m_LightColor{ 1.0f,1.0f,1.0f,1.0f };
-	float4 m_AmbientColor{ 0.2f,0.2f,0.2f,1.0f };
 
 	bool UploadTextureData(
 		_In_ const DirectX::Image* srcImage,

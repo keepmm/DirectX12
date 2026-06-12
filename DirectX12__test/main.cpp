@@ -20,6 +20,10 @@ int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCm
 		return 0;
 	}
 
+	// "-game" が付いていたらエディタ無しのゲームモード
+	bool gameMode = (lpCmdLine && _tcsstr(lpCmdLine, _T("-game")) != nullptr);
+	APPLICATION->SetGameMode(gameMode);
+
 	APPLICATION->Init(hInstance,WINDOW_WIDTH,WINDOW_HEIGHT);
 
 	APPLICATION->Run();

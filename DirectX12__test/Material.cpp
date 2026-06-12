@@ -3,6 +3,7 @@
 #include "DirectXTex/DirectXTex.h"
 #pragma comment(lib, "DirectXTex.lib")
 #include "Logger.hpp"
+#include "ConstantBufferAllocator.hpp"
 
 void Material::Init()
 {
@@ -13,39 +14,6 @@ void Material::Init()
 
 	m_PipelineStates = APP->GetPipelineStates();
 	m_WirePso = APP->GetPipelineStateWireFrame();
-
-	CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_UPLOAD);
-	const UINT bufferSize = CB_SIZE * MAX_ENTITY_PER_FRAME;
-	CD3DX12_RESOURCE_DESC bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(bufferSize);
-
-	for (UINT i = 0; i < FRAME_COUNT; ++i)
-	{
-		HRESULT hr = APP->GetDevice()->CreateCommittedResource(
-			&heapProps,
-			D3D12_HEAP_FLAG_NONE,
-			&bufferDesc,
-			D3D12_RESOURCE_STATE_GENERIC_READ,
-			nullptr,
-			IID_PPV_ARGS(&m_ConstantBuffer[i]));
-		if (FAILED(hr))
-		{
-			m_ConstantBuffer[i] = nullptr;
-			m_MappedData[i] = nullptr;
-			continue;
-		}
-
-		void* mapped = nullptr;
-		CD3DX12_RANGE readRange(0, 0); // 読み取りはしないので範囲は0
-		const HRESULT mapHr = m_ConstantBuffer[i]->Map(0, &readRange, &mapped);
-		if (FAILED(mapHr))
-		{
-			m_ConstantBuffer[i]->Release();
-			m_ConstantBuffer[i] = nullptr;
-			m_MappedData[i] = nullptr;
-		}
-
-		m_MappedData[i] = reinterpret_cast<std::uint8_t*>(mapped);
-	}
 }
 
 bool Material::SetTextureFromFile(const std::wstring& filePath)
@@ -216,15 +184,16 @@ bool Material::SetTextureFromMemory(const std::uint8_t* data, size_t size)
 }
 
 void Material::Apply(
-	ID3D12GraphicsCommandList* commandList, 
-	const float4x4& world, 
-	const float4x4& view, 
-	const float4x4& projection, 
+	ID3D12GraphicsCommandList* commandList,
+	const float4x4& world,
+	const float4x4& view,
+	const float4x4& projection,
 	bool wireframe,
 	E_VERTEX_SHADER vsType,
 	E_PIXEL_SHADER psType,
 	ID3D12PipelineState* overridePso,
-	UINT frameIndex)
+	UINT frameIndex,
+	ConstantBufferAllocator* cbAlloc)
 {
 
 	// コマンドリストが空の場合は適用しない
@@ -238,88 +207,92 @@ void Material::Apply(
 	{
 		ID3D12DescriptorHeap* heaps[] = { m_TextureSrvHeap.Get() };
 		commandList->SetDescriptorHeaps(_countof(heaps), heaps);
-		commandList->SetGraphicsRootDescriptorTable(1, m_TextureSrvHeap->GetGPUDescriptorHandleForHeapStart());
+		commandList->SetGraphicsRootDescriptorTable(4, m_TextureSrvHeap->GetGPUDescriptorHandleForHeapStart());
 	}
 
-	// パイプラインステートオブジェクトを設定
-	const UINT frameSlot = frameIndex % FRAME_COUNT;
-	if (m_ConstantBuffer[frameSlot] == nullptr)
+	// ------------------------------- //
+	// 定数バッファ(アロケータから確保 //
+	// ------------------------------- //
+	if (cbAlloc == nullptr)
 	{
 		return;
 	}
 
-	// フレームごとのエンティティ数を管理し、一定数を超えたらそれ以上追加しない
-	if (m_LastFrameIndex != frameIndex) {
-		m_EntityCountPerFrame[frameSlot] = 0;
-		m_LastFrameIndex = frameIndex;
-	}
+	// フレームごとの定数バッファを構築してアップロード
+	const UINT frameSlot = frameIndex % FRAME_COUNT;
 
-	// エンティティ数が一定数を超えたら追加しない
-	if(m_EntityCountPerFrame[frameSlot] >= MAX_ENTITY_PER_FRAME) {
+	// -------------------- //
+	//  定数バッファを構築  //
+	// -------------------- //
+
+	// b0
+	FrameCB fdata = {};
+	BuildPerFrame(view, projection, &fdata);
+	// 定数バッファアロケータからGPU仮想アドレスを取得
+	const D3D12_GPU_VIRTUAL_ADDRESS b0 = cbAlloc->Allocate(frameSlot, &fdata, sizeof(FrameCB));
+
+	// b1
+	ObjectCB odata = {};
+	BuildPerObject(world, &odata);
+	const D3D12_GPU_VIRTUAL_ADDRESS b1 = cbAlloc->Allocate(frameSlot, &odata, sizeof(ObjectCB));
+
+	if (b0 == 0 || b1 == 0)
+	{
+		// リングが溢れた等で確保できない場合は描画しない
 		return;
 	}
 
-	// 定数バッファにデータを書き込む
-	TransformBuffer data{};
-	BuildBufferData(world, view, projection, &data);
-
-	const UINT entityIndex = m_EntityCountPerFrame[frameSlot]++;
-	const UINT offset = entityIndex * CB_SIZE;
-
-	std::memcpy(m_MappedData[frameSlot] + offset, &data, sizeof(TransformBuffer));
-
-	const D3D12_GPU_VIRTUAL_ADDRESS gpuAddress =
-		m_ConstantBuffer[frameSlot]->GetGPUVirtualAddress() + offset;
-	commandList->SetGraphicsRootConstantBufferView(0, gpuAddress);	
+	// ルートパラメータに定数バッファのGPU仮想アドレスをセット
+	commandList->SetGraphicsRootConstantBufferView(0, b0);
+	commandList->SetGraphicsRootConstantBufferView(1, b1);
 
 	// PSOの選択
-	ID3D12PipelineState* selectedPso = overridePso;
-	if (selectedPso == nullptr)
+	ID3D12PipelineState* selectedPSO = overridePso;
+
+	if (selectedPSO == nullptr)
 	{
 		if (wireframe)
 		{
-			selectedPso = m_WirePso.Get();
+			selectedPSO = m_WirePso.Get();
 		}
 		else
 		{
 			const size_t vsIndex = static_cast<size_t>(vsType);
 			const size_t psIndex = static_cast<size_t>(psType);
-			selectedPso = m_PipelineStates[vsIndex][psIndex].Get();
+			selectedPSO = m_PipelineStates[vsIndex][psIndex].Get();
 		}
 	}
 
-	if (selectedPso == nullptr)
+	if(selectedPSO == nullptr) 
 	{
 		return;
 	}
 
-	commandList->SetPipelineState(selectedPso);
+	commandList->SetPipelineState(selectedPSO);
 }
 
-void Material::BuildBufferData(
-	const float4x4& world, 
-	const float4x4& view, 
-	const float4x4& projection,
-	_Out_ TransformBuffer* outData) const
+void Material::BuildPerFrame(const float4x4& view, const float4x4& projection, FrameCB* out) const
 {
-	TransformBuffer data{};
+	FrameCB data{};
+
+	const auto v = DirectX::XMLoadFloat4x4(&view);
+	const auto p = DirectX::XMLoadFloat4x4(&projection);
+	DirectX::XMStoreFloat4x4(&data.viewProj, DirectX::XMMatrixTranspose(v * p));
+
+	*out = data;
+}
+
+void Material::BuildPerObject(const float4x4& world, ObjectCB* out) const
+{
+	ObjectCB data{};
 
 	// 行列の作成
 	const auto w = DirectX::XMLoadFloat4x4(&world);
-	const auto v = DirectX::XMLoadFloat4x4(&view);
-	const auto p = DirectX::XMLoadFloat4x4(&projection);
-	const auto wvp = w * v * p;
 
-	// 行列を転置して格納
-	DirectX::XMStoreFloat4x4(&data.worldViewProj, DirectX::XMMatrixTranspose(wvp));
+	// 転置して格納
 	DirectX::XMStoreFloat4x4(&data.world, DirectX::XMMatrixTranspose(w));
 
-	// ライトの方向を正規化して格納
-	const auto lightDir = DirectX::XMVector3Normalize(DirectX::XMLoadFloat3(&m_LightDir));
-	DirectX::XMStoreFloat4(&data.lightDir, lightDir);
-	data.lightColor = m_LightColor;
-	data.ambientColor = m_AmbientColor;
-	*outData = data;
+	*out = data;
 }
 
 void Material::CreateCheckerTexture(const ComPtr<ID3D12Device>& device)

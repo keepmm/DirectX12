@@ -100,3 +100,6 @@ std::shared_ptr<T> MakeShared(Args&&... args)
 {
 	return std::make_shared<T>(std::forward<Args>(args)...);
 }
+
+/// @brief バッファの数
+static constexpr int RTV_NUM = 3;

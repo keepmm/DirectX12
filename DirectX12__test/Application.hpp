@@ -25,6 +25,8 @@ public:
 
 	~Application() = default;
 
+	void SetGameMode(bool gameMode) { m_GameMode = gameMode; }
+
 private:
 	std::unique_ptr<EditorWindow> m_EditorWindow;
 	D3D12_VIEWPORT m_GameViewport{};
@@ -43,6 +45,10 @@ private:
 		_In_ D3D12_RECT& scissorRect,
 		bool isSceneView
 		);
+
+
+	/// @brief exeèoóÕóp
+	bool m_GameMode = false;
 
 	Application();
 	Application(const Application&) = delete;

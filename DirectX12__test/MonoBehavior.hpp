@@ -2,10 +2,14 @@
 
 #include "RenderContext.hpp"
 #include "World.hpp"
+#include "Input.hpp"
+#include "Time.hpp"
+#include "Components.hpp"
 
 class MonoBehavior
 {
 public:
+	MonoBehavior() = default;
 	virtual ~MonoBehavior() = default;
 	virtual void OnStart() {}
 	virtual void OnUpdate(_In_ float deltatime) {}
@@ -27,6 +31,14 @@ public:
 
 	Entity GetEntity() const { return m_Entity; }
 	World& GetWorld() const { return *m_World; }
+
+	TransformComponent& transform() { return GetComponent<TransformComponent>(); }
+
+	template <typename T>
+	T& AddComponent(const T& component)
+	{
+		return m_World->AddComponent<T>(m_Entity, component);
+	}
 
 private:
 	friend struct ScriptComponent;

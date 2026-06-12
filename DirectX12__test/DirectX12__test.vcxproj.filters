@@ -153,6 +153,15 @@
     <ClCompile Include="IconLibrary.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
+    <ClCompile Include="RegisterScript.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="cr_main.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="ConstantBufferAllocator.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="DirectX.hpp">
@@ -284,6 +293,18 @@
     <ClInclude Include="IconLibrary.hpp">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="RegisterScript.hpp">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="cr.h">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="EngineAPI.hpp">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="ConstantBufferAllocator.hpp">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="PixelShader.hlsl">
@@ -386,6 +407,48 @@
     <None Include="Assets\**\*.*">
       <Filter>リソース ファイル</Filter>
     </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*" />
     <None Include="Assets\**\*.*">
       <Filter>リソース ファイル</Filter>
     </None>

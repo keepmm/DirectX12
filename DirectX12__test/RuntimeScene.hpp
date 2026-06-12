@@ -72,6 +72,9 @@ private:
 	LightSystem m_LightSystem;
 	FreeLookSystem m_FreeLookSystem;
 	CameraSystem m_CameraSystem;
+	ScriptSystem m_ScriptSystem;
+
+	bool m_ScriptSystemStarted = false;
 
 	DebugLineRenderer m_DebugLineRenderer;
 	std::vector<DebugLine> m_DebugLines;

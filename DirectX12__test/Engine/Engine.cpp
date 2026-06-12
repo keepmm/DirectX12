@@ -7,6 +7,12 @@
 #include "../imgui-master/backends/imgui_impl_dx12.h"
 #include "../imgui-master/backends/imgui_impl_win32.h"
 
+#define CR_HOST CR_UNSAFE
+#include "../cr.h"
+
+cr_plugin g_plugin;
+ScriptContext g_scriptContext;
+
 static LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
 	if (IMGUI::ImGui_WndProHandler(hWnd, msg, wParam, lParam))
@@ -73,7 +79,7 @@ HRESULT Engine::Init(HINSTANCE hInstance, int width, int height)
 	TIME->Init();
 	INPUT->Init(m_hWnd);
 
-	if (!IMGUI::Start(m_hWnd, m_DirectX->GetDevice().Get(), m_DirectX->GetCommandQueue().Get(), DirectXApp::RTV_NUM, DXGI_FORMAT_R8G8B8A8_UNORM))
+	if (!IMGUI::Start(m_hWnd, m_DirectX->GetDevice().Get(), m_DirectX->GetCommandQueue().Get(),RTV_NUM, DXGI_FORMAT_R8G8B8A8_UNORM))
 	{
 		MessageBox(NULL, _T("IMGUI‚Ì‰Šú‰»‚ÉŽ¸”s"), PROC_NAME, MB_OK);
 		return E_FAIL;
@@ -139,6 +145,7 @@ void Engine::Run()
 			RenderContext renderContext{};
 			renderContext.CommandList = m_DirectX->GetCommandList().Get();
 			renderContext.frameIndex = m_DirectX->GetFrameIndex();
+			renderContext.cbAllocator = &m_DirectX->GetConstantBufferAllocator();
 
 			const auto& settings = RenderSettings::Get();
 			renderContext.vertexShader = settings.vertexShader;

@@ -19,6 +19,7 @@ Application* Application::GetInstance()
 HRESULT Application::OnInit()
 {
 	// ---- 各ウィンドウの初期化 ---- //
+	if(!m_GameMode)
 	m_EditorWindow = std::make_unique<EditorWindow>(*m_DirectX);
 
 

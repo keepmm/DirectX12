@@ -6,6 +6,7 @@
 #include "Mesh.hpp"
 #include "Material.hpp"
 #include "Input.hpp"
+#include "MonoBehavior.hpp"
 
 class SpinSystem
 {
@@ -50,6 +51,18 @@ public:
 			renderContext.CommandList6->DispatchMesh(1, 1, 1);
 		}
 
+		if (renderContext.cbAllocator != nullptr)
+		{
+			const UINT frameSlot = renderContext.frameIndex % RTV_NUM;
+			const D3D12_GPU_VIRTUAL_ADDRESS b2 = renderContext.cbAllocator->Allocate(
+			frameSlot,&renderContext.lightCb,sizeof(LightCB));
+
+			if (b2 != 0)
+			{
+				renderContext.CommandList->SetGraphicsRootConstantBufferView(2, b2);
+			}
+		}
+
 		world.Each<TransformComponent, MeshComponent, MaterialComponent>(
 			[&renderContext](
 				Entity,
@@ -78,7 +91,8 @@ public:
 					renderContext.vertexShader,
 					psType,
 					material.overridePso,
-					renderContext.frameIndex);
+					renderContext.frameIndex,
+					renderContext.cbAllocator);
 
 				mesh.mesh->Draw(renderContext.CommandList);
 			}
@@ -91,44 +105,74 @@ class LightSystem
 public:
 	void Apply(World& world)
 	{
-		LightComponent* activeLight = nullptr;
+		// ライトがない場合のためにデフォルト
+		m_Data = {};
 
-		world.Each<LightComponent>([&](Entity, LightComponent& light)
+		UINT count = 0;
+
+		world.Each<LightComponent>([&](Entity entity, LightComponent& light)
 			{
-				if (light.isActive && activeLight == nullptr)
-				{
-					activeLight = &light;
-				}
-			});
-
-		if (activeLight == nullptr)
-		{
-			return;
-		}
-
-		float3 direction = activeLight->direction;
-		const DirectX::XMVECTOR dirVec = DirectX::XMVector3Normalize(
-			DirectX::XMVectorSet(direction.x, direction.y, direction.z, 0.0f)
-		);
-		DirectX::XMStoreFloat3(&direction, dirVec);
-
-		float4 color = activeLight->color;
-		color.x *= activeLight->intensity;
-		color.y *= activeLight->intensity;
-		color.z *= activeLight->intensity;
-
-		world.Each<MaterialComponent>([&](Entity, MaterialComponent& material)
-			{
-				if (material.material == nullptr)
+				// 非アクティブ、または上限に達したらスキップ
+				if (!light.isActive || count >= MAX_LIGHTS)
 				{
 					return;
 				}
-				material.material->SetLightDir(direction);
-				material.material->SetLightColor(color);
-				material.material->SetAmbientColor(activeLight->ambientColor);
-			}
-		);
+
+				LightData& dst = m_Data.lights[count];
+
+				// 色 × 強度
+				dst.color = light.color;
+				dst.color.x *= light.intensity;
+				dst.color.y *= light.intensity;
+				dst.color.z *= light.intensity;
+
+				// 位置と方向（Transformがあれば回転から導出）
+				if (world.HasComponent<TransformComponent>(entity))
+				{
+					const auto& tr = world.GetComponent<TransformComponent>(entity);
+					dst.posRange = float4(
+						tr.position.x, tr.position.y, tr.position.z,
+						light.range);
+
+					const auto rot = DirectX::XMQuaternionNormalize(DirectX::XMLoadFloat4(&tr.rotation));
+					const auto fwd = DirectX::XMVector3Rotate(
+						DirectX::XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f), rot);
+					DirectX::XMStoreFloat4(&dst.dir, DirectX::XMVector3Normalize(fwd));
+
+					// ギズモ表示用に書き戻す
+					DirectX::XMStoreFloat3(&light.direction, DirectX::XMVector3Normalize(fwd));
+				}
+				else
+				{
+					const auto dirVec = DirectX::XMVector3Normalize(DirectX::XMVectorSet(
+						light.direction.x, light.direction.y, light.direction.z, 0.0f));
+					DirectX::XMStoreFloat4(&dst.dir, dirVec);
+					dst.posRange.w = light.range;
+				}
+
+				// タイプとスポット角
+				dst.param.x = static_cast<float>(light.type);
+				dst.param.y = cosf(DirectX::XMConvertToRadians(light.spotAngle * 0.5f));
+
+				// 環境光は最初のライトのものを採用
+				if (count == 0)
+				{
+					m_Data.ambientColor = light.ambientColor;
+				}
+
+				++count;
+			});
+
+		m_Data.lightCount.x = static_cast<float>(count);
 	}
+
+	inline const LightCB& GetLightData() const
+	{
+		return m_Data;
+	}
+
+private:
+	LightCB m_Data;
 };
 
 class ScriptSystem

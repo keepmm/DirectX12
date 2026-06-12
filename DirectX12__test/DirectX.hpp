@@ -91,14 +91,13 @@ struct DescriptorAllocator
 	}
 };
 
+#include "ConstantBufferAllocator.hpp"
+
 #define APP DirectXApp::GetCurrent()
 
 class DirectXApp
 {
 public:
-	/// @brief バッファの数
-	static constexpr int RTV_NUM = 3;
-
 	/// @brief グローバル SRV ヒープのスロット数
 	static constexpr UINT SRV_HEAP_SIZE = 256;
 
@@ -136,6 +135,7 @@ public:
 	inline bool IsMeshShaderSupported() const noexcept { return m_MeshShaderSupported; }
 	inline ComPtr<ID3D12CommandQueue> GetCommandQueue() const noexcept { return m_CommandQueue; }
 	inline UINT GetFrameIndex() const noexcept { return m_FrameIndex; }
+	inline ConstantBufferAllocator& GetConstantBufferAllocator() noexcept { return m_CBAllocator; }
 
 	/// @brief グローバル SRV ヒープを返す（SetDescriptorHeaps 用）
 	ID3D12DescriptorHeap* GetSrvHeap() const noexcept { return m_SrvAllocator.heap.Get(); }
@@ -176,6 +176,8 @@ private:
 	DescriptorAllocator m_SrvAllocator;
 	DescriptorAllocator m_RtvAllocator;
 	DescriptorAllocator m_DsvAllocator;
+
+	ConstantBufferAllocator m_CBAllocator;
 
 	D3D12_CPU_DESCRIPTOR_HANDLE m_DSV_Handle;
 

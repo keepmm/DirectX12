@@ -97,6 +97,13 @@ void RuntimeScene::OnUnload()
 
 void RuntimeScene::Update(float deltatime)
 {
+	if (!m_ScriptSystemStarted)
+	{
+		m_ScriptSystem.Start(m_World);
+		m_ScriptSystemStarted = true;
+	}
+
+	m_ScriptSystem.Update(m_World, deltatime);
 	m_SpinSystem.Update(m_World, deltatime);
 	m_LightSystem.Apply(m_World);
 	m_FreeLookSystem.Update(m_World, deltatime);
@@ -105,17 +112,20 @@ void RuntimeScene::Update(float deltatime)
 
 void RuntimeScene::FixedUpdate(float fixedDeltatime)
 {
+	m_ScriptSystem.FixedUpdate(m_World, fixedDeltatime);
 	(void)fixedDeltatime;
 }
 
 void RuntimeScene::LateUpdate(float deltatime)
 {
+	m_ScriptSystem.LateUpdate(m_World, deltatime);
 	(void)deltatime;
 }
 
 void RuntimeScene::Draw(const RenderContext& renderContext)
 {
 	RenderContext context = renderContext;
+	context.lightCb = m_LightSystem.GetLightData();
 	const CameraComponent* main = nullptr;
 	m_World.Each<CameraComponent>([&](Entity, CameraComponent& camera)
 		{
@@ -263,7 +273,7 @@ void RuntimeScene::DrawGizmos(const RenderContext& renderContext)
 			if (m_World.HasComponent<FreeLookComponent>(e)) return;
 			const float4x4 world = billboard(tr.position);
 			m_CameraIcon->Apply(renderContext.CommandList, world, renderContext.view, renderContext.projection,
-				false, E_VERTEX_SHADER::BASIC, E_PIXEL_SHADER::BASIC, iconPso, renderContext.frameIndex);
+				false, E_VERTEX_SHADER::BASIC, E_PIXEL_SHADER::BASIC, iconPso, renderContext.frameIndex, renderContext.cbAllocator);
 			m_IconQuad.Draw(renderContext.CommandList);
 		});
 
@@ -273,7 +283,7 @@ void RuntimeScene::DrawGizmos(const RenderContext& renderContext)
 		{
 			const float4x4 world = billboard(tr.position);
 			m_LightIcon->Apply(renderContext.CommandList, world, renderContext.view, renderContext.projection,
-				false, E_VERTEX_SHADER::BASIC, E_PIXEL_SHADER::BASIC, iconPso, renderContext.frameIndex);
+				false, E_VERTEX_SHADER::BASIC, E_PIXEL_SHADER::BASIC, iconPso, renderContext.frameIndex, renderContext.cbAllocator);
 			m_IconQuad.Draw(renderContext.CommandList);
 		});
 }
@@ -414,7 +424,7 @@ void RuntimeScene::DrawLight()
 					float3 rim = center + r * (cosf(a) * rEnd) + u * (sinf(a) * rEnd);
 					if (i > 0)
 						m_DebugLines.push_back({ prev,rim,color });	// íÍñ 
-					if (1 % (seg / 4) == 0)
+					if (i % (seg / 4) == 0)
 						m_DebugLines.push_back({ apex,rim,color });	// í∏ì_Ç©ÇÁíÍñ Ç÷ÇÃê¸
 					prev = rim;
 				}
