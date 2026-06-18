@@ -32,42 +32,58 @@ void RuntimeScene::OnLoad()
 		}
 	}
 
-	// -------------------------------------//
-	//	メインカメラとメインライトの作成	//
-	// -------------------------------------//
-	auto camera = m_World.CreateEntity();
-	auto tr = m_World.AddComponent(camera, TransformComponent{});
-	m_World.AddComponent(camera, NameComponent{ "MainCamera" });
-	auto maincamera = m_World.AddComponent(camera, CameraComponent{});
-	tr.position = { 0.0f, 5.0f, 0.0f };
-	maincamera.cameraType = CameraComponent::CameraType::Main;
-	m_World.AddComponent(camera, FreeLookComponent{});
+	bool hasMain = false, hasEditor = false, hasLight = false;
+	m_World.Each<CameraComponent>([&](Entity, CameraComponent& c) {
+		if (c.cameraType == CameraComponent::CameraType::Main)      hasMain = true;
+		if (c.cameraType == CameraComponent::CameraType::Secondary) hasEditor = true;
+		});
+	m_World.Each<LightComponent>([&](Entity, LightComponent&) { hasLight = true; });
 
-	// ライトの作成
-	auto light = m_World.CreateEntity();
-	m_World.AddComponent(light, TransformComponent{});
-	m_World.AddComponent(light, NameComponent{ "MainLight" });
-	auto& lightComp = m_World.AddComponent(light, LightComponent{});
-	lightComp.type = LightComponent::LightType::Directional;
-	lightComp.color = { 1.0f, 1.0f, 1.0f, 1.0f };
-	lightComp.ambientColor = { 0.2f, 0.2f, 0.2f, 1.0f };
-	lightComp.intensity = 1.0f;
-	lightComp.direction = { -0.5f, -1.0f, -0.5f };
+	if(!hasMain)
+	{
+		// -------------------------------------//
+		//	メインカメラとメインライトの作成	//
+		// -------------------------------------//
+		auto camera = m_World.CreateEntity();
+		auto& tr = m_World.AddComponent(camera, TransformComponent{});
+		m_World.AddComponent(camera, NameComponent{ "MainCamera" });
+		auto& maincamera = m_World.AddComponent(camera, CameraComponent{});
+		tr.position = { 0.0f, 5.0f, 0.0f };
+		maincamera.cameraType = CameraComponent::CameraType::Main;
+		m_World.AddComponent(camera, FreeLookComponent{});
+		tr.RebuildWorld();
+	}
 
-	// -------------------------- //
-	//  エディター用カメラの作成  //
-	// -------------------------- //
-	auto editcam = m_World.CreateEntity();
-	auto t = m_World.AddComponent(editcam, TransformComponent{});
-	m_World.AddComponent(editcam, NameComponent{ "EditorCamera" });
-	auto& editCameraComp = m_World.AddComponent(editcam, CameraComponent{});
-	editCameraComp.cameraType = CameraComponent::CameraType::Secondary;
-	auto& freeLook = m_World.AddComponent(editcam, FreeLookComponent{});
-	t.position = { 0.0f, 5.0f, -10.0f };
-	freeLook.Enabled = true;
+	if(!hasLight)
+	{
+		// ライトの作成
+		auto light = m_World.CreateEntity();
+		m_World.AddComponent(light, TransformComponent{});
+		m_World.AddComponent(light, NameComponent{ "MainLight" });
+		auto& lightComp = m_World.AddComponent(light, LightComponent{});
+		lightComp.type = LightComponent::LightType::Directional;
+		lightComp.color = { 1.0f, 1.0f, 1.0f, 1.0f };
+		lightComp.ambientColor = { 0.2f, 0.2f, 0.2f, 1.0f };
+		lightComp.intensity = 1.0f;
+		lightComp.direction = { -0.5f, -1.0f, -0.5f };
+	}
 
-	tr.RebuildWorld();
-	t.RebuildWorld();
+	if(!hasEditor)
+	{
+		// -------------------------- //
+		//  エディター用カメラの作成  //
+		// -------------------------- //
+		auto editcam = m_World.CreateEntity();
+		auto& t = m_World.AddComponent(editcam, TransformComponent{});
+		m_World.AddComponent(editcam, NameComponent{ "EditorCamera" });
+		auto& editCameraComp = m_World.AddComponent(editcam, CameraComponent{});
+		editCameraComp.cameraType = CameraComponent::CameraType::Secondary;
+		auto& freeLook = m_World.AddComponent(editcam, FreeLookComponent{});
+		t.position = { 0.0f, 5.0f, -10.0f };
+		freeLook.Enabled = true;
+		t.RebuildWorld();
+	}
+
 
 	// -----------------------------//
 	//  アイコン用マテリアルの作成  //
@@ -432,4 +448,11 @@ void RuntimeScene::DrawLight()
 			}
 			}
 		});
+}
+
+void RuntimeScene::EditorUpdate(float dt)
+{
+	m_LightSystem.Apply(m_World);
+	m_FreeLookSystem.Update(m_World, dt);   // エディタカメラ操作
+	m_CameraSystem.Update(m_World, 16.0f / 9.0f);
 }

@@ -11,6 +11,7 @@ void Material::Init()
 	if(APP->GetDevice() == nullptr) return;
 
 	CreateCheckerTexture(APP->GetDevice());
+	CreateDefaultRampTexture();
 
 	m_PipelineStates = APP->GetPipelineStates();
 	m_WirePso = APP->GetPipelineStateWireFrame();
@@ -60,7 +61,7 @@ bool Material::SetTextureFromFile(const std::wstring& filePath)
 	{
 		D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
 		heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-		heapDesc.NumDescriptors = 1;
+		heapDesc.NumDescriptors = 2;
 		heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 
 		if (FAILED(APP->GetDevice()->CreateDescriptorHeap(
@@ -181,6 +182,48 @@ bool Material::SetTextureFromMemory(const std::uint8_t* data, size_t size)
 	if (srcImage == nullptr) return false;
 
 	return UploadTextureData(srcImage, metadata);
+}
+
+bool Material::SetToonRampTexture(const std::wstring& filepath)
+{
+	if (APP->GetDevice() == nullptr) return false;
+	if (m_TextureSrvHeap == nullptr) return false;
+
+	std::filesystem::path resolved = filepath;
+	if (resolved.is_relative())
+	{
+		wchar_t exepath[MAX_PATH] = {};
+		GetModuleFileNameW(nullptr, exepath, MAX_PATH);
+		resolved = std::filesystem::path(exepath).parent_path() / resolved;
+	}
+
+	if (!std::filesystem::exists(resolved))
+	{
+		LOG->LogError("SetToonRampTexture:ファイルが見つかりません");
+		return false;
+	}
+
+	DirectX::TexMetadata metadata{};
+	DirectX::ScratchImage image{};
+	const HRESULT hr = DirectX::LoadFromWICFile(
+		resolved.c_str(), DirectX::WIC_FLAGS_NONE, &metadata, image);
+	if(FAILED(hr))
+	{
+		LOG->LogError("SetToonRampTexture: LoadFromWICFileが失敗しました");
+		return false;
+	}
+	const DirectX::Image* srcImage = image.GetImage(0, 0, 0);
+	if (srcImage == nullptr) return false;
+
+	// スロット1(t1)ぬアアプロード
+	return UploadTextureTo(
+		srcImage,
+		metadata,
+		1,
+		m_RampTexture,
+		m_RampUpload,
+		m_RampFootprint,
+		m_RampUploadPending);
 }
 
 void Material::Apply(
@@ -305,7 +348,7 @@ void Material::CreateCheckerTexture(const ComPtr<ID3D12Device>& device)
 	// シェーダーからアクセスするためのSRVを作成するためのディスクリプタヒープを作成
 	D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
 	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-	heapDesc.NumDescriptors = 1;
+	heapDesc.NumDescriptors = 2;
 	heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 
 	// ディスクリプタヒープの作成に失敗した場合は処理しない
@@ -390,7 +433,9 @@ void Material::CreateCheckerTexture(const ComPtr<ID3D12Device>& device)
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MipLevels = 1;
 
-	device->CreateShaderResourceView(m_Texture.Get(), &srvDesc, m_TextureSrvHeap->GetCPUDescriptorHandleForHeapStart());
+	auto cpu = m_TextureSrvHeap->GetCPUDescriptorHandleForHeapStart();
+	cpu.ptr += device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	device->CreateShaderResourceView(m_Texture.Get(), &srvDesc, cpu);
 
 }
 
@@ -420,6 +465,30 @@ void Material::UpdateTextureIfNeeded(ID3D12GraphicsCommandList* commandList)
 	commandList->ResourceBarrier(1, &barrier);
 
 	m_TextureUploadPending = false;
+
+	// ランプテクスチャも同様にアップロード
+	if (m_RampUploadPending && m_RampTexture != nullptr && m_RampUpload != nullptr)
+	{
+		D3D12_TEXTURE_COPY_LOCATION dst = {};
+		dst.pResource = m_RampTexture.Get();
+		dst.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+		dst.SubresourceIndex = 0;
+
+		D3D12_TEXTURE_COPY_LOCATION src = {};
+		src.pResource = m_RampUpload.Get();
+		src.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+		src.PlacedFootprint = m_RampFootprint;
+
+		commandList->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
+
+		auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+			m_RampTexture.Get(),
+			D3D12_RESOURCE_STATE_COPY_DEST,
+			D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		commandList->ResourceBarrier(1, &barrier);
+
+		m_RampUploadPending = false;
+	}
 }
 
 bool Material::UploadTextureData(const DirectX::Image* srcImage, const DirectX::TexMetadata& metadata)
@@ -431,7 +500,7 @@ bool Material::UploadTextureData(const DirectX::Image* srcImage, const DirectX::
 	{
 		D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
 		heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-		heapDesc.NumDescriptors = 1;
+		heapDesc.NumDescriptors = 2;
 		heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 		if(FAILED(APP->GetDevice()->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(m_TextureSrvHeap.GetAddressOf()))))
 		{
@@ -516,4 +585,118 @@ bool Material::UploadTextureData(const DirectX::Image* srcImage, const DirectX::
 	m_TextureUploadPending = true;
 	LOG->LogInfo("UploadTexture: texture loaded");
 	return true;
+}
+
+bool Material::UploadTextureTo(const DirectX::Image* srcImage, const DirectX::TexMetadata& metadata, UINT srvSlot, ComPtr<ID3D12Resource>& outTexture, ComPtr<ID3D12Resource>& outUpload, D3D12_PLACED_SUBRESOURCE_FOOTPRINT& outFootPrint, bool& outPending)
+{
+	auto device = APP->GetDevice();
+
+	const CD3DX12_RESOURCE_DESC texDesc = CD3DX12_RESOURCE_DESC::Tex2D(
+		metadata.format,
+		static_cast<UINT64>(metadata.width),
+		static_cast<UINT>(metadata.height),
+		static_cast<UINT16>(metadata.arraySize),
+		static_cast<UINT16>(metadata.mipLevels));
+
+	CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_DEFAULT);
+	if (FAILED(device->CreateCommittedResource(
+		&heapProps,
+		D3D12_HEAP_FLAG_NONE,
+		&texDesc,
+		D3D12_RESOURCE_STATE_COPY_DEST,
+		nullptr,
+		IID_PPV_ARGS(outTexture.ReleaseAndGetAddressOf())
+	)))
+	{
+		return false;
+	}
+
+	// アップロードバッファ + ピクセルコピー
+	UINT numRows = 0;
+	UINT64 rowSizeInBytes = 0, uploadSize = 0;
+	device->GetCopyableFootprints(
+		&texDesc, 0, 1, 0, &outFootPrint, &numRows, &rowSizeInBytes, &uploadSize);
+
+	CD3DX12_HEAP_PROPERTIES uploadHeap(D3D12_HEAP_TYPE_UPLOAD);
+	CD3DX12_RESOURCE_DESC uploadDesc = CD3DX12_RESOURCE_DESC::Buffer(uploadSize);
+	if (FAILED(device->CreateCommittedResource(
+		&uploadHeap,
+		D3D12_HEAP_FLAG_NONE,
+		&uploadDesc,
+		D3D12_RESOURCE_STATE_GENERIC_READ,
+		nullptr,
+		IID_PPV_ARGS(outUpload.ReleaseAndGetAddressOf())
+	)))
+	{
+		return false;
+	}
+
+	// ピクセルをコピー
+	void* mapped = nullptr;
+	CD3DX12_RANGE readRange(0, 0);	// 読み取りはしないので範囲は0
+	if (FAILED(outUpload->Map(0, &readRange, &mapped)))
+	{
+		return false;
+	}
+
+	auto* dst = reinterpret_cast<std::uint8_t*>(mapped);
+	const size_t copyBytes = (srcImage->rowPitch < static_cast<size_t>(rowSizeInBytes))
+		? srcImage->rowPitch : static_cast<size_t>(rowSizeInBytes);
+	for(UINT y = 0; y < metadata.height; ++y)
+	{
+		std::memcpy(
+			dst + static_cast<size_t>(y) * outFootPrint.Footprint.RowPitch,
+			srcImage->pixels + static_cast<size_t>(y) * srcImage->rowPitch,
+			copyBytes);
+	}
+	outUpload->Unmap(0, nullptr);
+
+	// SRVを指定
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.Format = metadata.format;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MipLevels = static_cast<UINT>(metadata.mipLevels);
+
+	auto cpu = m_TextureSrvHeap->GetCPUDescriptorHandleForHeapStart();
+	cpu.ptr = cpu.ptr + srvSlot * device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	device->CreateShaderResourceView(outTexture.Get(), &srvDesc, cpu);
+
+	outPending = true;
+	return true;
+}
+
+// 既定の2段階ランプ(暗→明)を作って t1 に入れる
+void Material::CreateDefaultRampTexture()
+{
+	if (m_TextureSrvHeap == nullptr) return;	// CreateCheckerTextureでヒープ作成済みの前提
+
+	// 4x1ピクセル: 左半分=影色、右半分=明色
+	constexpr UINT rampW = 4;
+	static const std::uint8_t rampPixels[rampW * 4] = {
+		 60,  60,  70, 255,
+		 60,  60,  70, 255,
+		255, 255, 255, 255,
+		255, 255, 255, 255,
+	};
+
+	DirectX::Image img{};
+	img.width = rampW;
+	img.height = 1;
+	img.format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	img.rowPitch = rampW * 4;
+	img.slicePitch = img.rowPitch;
+	img.pixels = const_cast<std::uint8_t*>(rampPixels);
+
+	DirectX::TexMetadata meta{};
+	meta.width = rampW;
+	meta.height = 1;
+	meta.depth = 1;
+	meta.arraySize = 1;
+	meta.mipLevels = 1;
+	meta.format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	meta.dimension = DirectX::TEX_DIMENSION_TEXTURE2D;
+
+	UploadTextureTo(&img, meta, 1,
+		m_RampTexture, m_RampUpload, m_RampFootprint, m_RampUploadPending);
 }

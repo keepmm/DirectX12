@@ -5,6 +5,9 @@
 #include "json.hpp"
 #include <filesystem>
 #include <fstream>
+#include "DirectX.hpp"
+#include "Material.hpp"
+#include "ModelLoader.hpp"
 
 using json = nlohmann::json;
 
@@ -41,6 +44,27 @@ namespace
 
 bool SceneSerializer::Save(Scene& scene, const std::string& filePath)
 {
+	// ディレクトリ作成
+	std::ofstream out(filePath);
+	if (!out) return false;
+	out << SaveToString(scene);
+	return true;
+}
+
+bool SceneSerializer::Load(Scene& scene, const std::string& filePath)
+{
+	std::ifstream in(filePath);
+	if (!in)
+	{
+		return false;
+	}
+
+	std::string text((std::istreambuf_iterator<char>(in)), {});
+	return LoadFromString(scene, text);
+}
+
+std::string SceneSerializer::SaveToString(Scene& scene)
+{
 	json root;
 	root["sceneName"] = scene.GetSceneName();
 	root["entities"] = json::array();
@@ -48,17 +72,15 @@ bool SceneSerializer::Save(Scene& scene, const std::string& filePath)
 	World& world = scene.GetWorld();
 	for (Entity entity : world.GetEntities())
 	{
-		if (!world.HasComponent<PrefabComponent>(entity))
-		{
-			continue;
-		}
-
 		json entry;
-		const auto& prefabComp = world.GetComponent<PrefabComponent>(entity);
-		entry["prefab"] = prefabComp.name;
-		if (!prefabComp.guid.empty())
+		if (world.HasComponent<PrefabComponent>(entity))
 		{
-			entry["prefabGuid"] = prefabComp.guid;
+			const auto& prefabComp = world.GetComponent<PrefabComponent>(entity);
+			entry["prefab"] = prefabComp.name;
+			if (!prefabComp.guid.empty())
+			{
+				entry["prefabGuid"] = prefabComp.guid;
+			}
 		}
 
 		if (world.HasComponent<NameComponent>(entity))
@@ -93,35 +115,80 @@ bool SceneSerializer::Save(Scene& scene, const std::string& filePath)
 			entry["collider"]["density"] = col.density;
 		}
 
+		// mesh
+		if (world.HasComponent<MeshComponent>(entity))
+		{
+			const auto& meshComp = world.GetComponent<MeshComponent>(entity);
+			entry["mesh"]["filePath"] = meshComp.FilePath;
+			entry["mesh"]["scale"] = meshComp.scale;
+		}
+
+		// material
+		if (world.HasComponent<MaterialComponent>(entity))
+		{
+			const auto& matComp = world.GetComponent<MaterialComponent>(entity);
+			entry["material"]["filePath"] = matComp.FilePath;
+			entry["material"]["rampFilePath"] = matComp.RampFilePath;
+			entry["material"]["usePixelShader"] = matComp.usePixelShader;
+			entry["material"]["pixelShader"] = static_cast<int>(matComp.pixelshader);
+		}
+
+		// light
+		if (world.HasComponent<LightComponent>(entity))
+		{
+			const auto& lightComp = world.GetComponent<LightComponent>(entity);
+			entry["light"]["type"] = static_cast<int>(lightComp.type);
+			entry["light"]["color"] = { lightComp.color.x, lightComp.color.y, lightComp.color.z, lightComp.color.w };
+			entry["light"]["ambientColor"] = { lightComp.ambientColor.x, lightComp.ambientColor.y, lightComp.ambientColor.z, lightComp.ambientColor.w };
+			entry["light"]["intensity"] = lightComp.intensity;
+			entry["light"]["range"] = lightComp.range;
+			entry["light"]["direction"] = { lightComp.direction.x, lightComp.direction.y, lightComp.direction.z };
+			entry["light"]["spotAngle"] = lightComp.spotAngle;
+			entry["light"]["isActive"] = lightComp.isActive;
+			entry["light"]["castShadows"] = lightComp.castShadows;
+		}
+
+		// camera
+		if(world.HasComponent<CameraComponent>(entity))
+		{
+			const auto& camComp = world.GetComponent<CameraComponent>(entity);
+			entry["camera"]["projection"] = static_cast<int>(camComp.projection);
+			entry["camera"]["cameraType"] = static_cast<int>(camComp.cameraType);
+			entry["camera"]["orhoSize"] = camComp.orhoSize;
+			entry["camera"]["fovY"] = camComp.fovY;
+			entry["camera"]["nearZ"] = camComp.nearZ;
+			entry["camera"]["farZ"] = camComp.farZ;
+			entry["camera"]["isActive"] = camComp.isActive;
+		}
+
+		// free look
+		if(world.HasComponent<FreeLookComponent>(entity))
+		{
+			const auto& freeLookComp = world.GetComponent<FreeLookComponent>(entity);
+			entry["freelook"]["moveSpeed"] = freeLookComp.moveSpeed;
+			entry["freelook"]["rotateSpeed"] = freeLookComp.rotateSpeed;
+			entry["freelook"]["yaw"] = freeLookComp.yaw;
+			entry["freelook"]["pitch"] = freeLookComp.pitch;
+			entry["freelook"]["enabled"] = freeLookComp.Enabled;
+		}
+
+		// spin 
+		if(world.HasComponent<SpinComponent>(entity))
+		{
+			const auto& spinComp = world.GetComponent<SpinComponent>(entity);
+			entry["spin"]["speed"] = spinComp.speed;
+			entry["spin"]["angle"] = spinComp.angle;
+		}
+
 		root["entities"].push_back(std::move(entry));
 	}
-
-	std::filesystem::path path(filePath);
-	if (path.has_parent_path())
-	{
-		std::filesystem::create_directories(path.parent_path());
-	}
-
-	std::ofstream out(filePath);
-	if (!out)
-	{
-		return false;
-	}
-
-	out << root.dump(2);
-	return true;
+	return root.dump(2);
 }
 
-bool SceneSerializer::Load(Scene& scene, const std::string& filePath)
+bool SceneSerializer::LoadFromString(Scene& scene, const std::string& data)
 {
-	std::ifstream in(filePath);
-	if (!in)
-	{
-		return false;
-	}
-
 	json root;
-	in >> root;
+	root = json::parse(data,nullptr,false);
 
 	if (!root.contains("entities"))
 	{
@@ -132,6 +199,12 @@ bool SceneSerializer::Load(Scene& scene, const std::string& filePath)
 
 	World& world = scene.GetWorld();
 	PhysicsWorld* physicsWorld = nullptr;
+
+	// シーン名のロード
+	if (root.contains("sceneName"))
+	{
+		scene.SetSceneName(root["sceneName"].get<std::string>());
+	}
 
 	for (const auto& entry : root["entities"])
 	{
@@ -153,7 +226,12 @@ bool SceneSerializer::Load(Scene& scene, const std::string& filePath)
 
 		if (entity == INVALID_ENTITY)
 		{
-			continue;
+			const bool isPrefab = entry.contains("prefab") || entry.contains("prefabGuid");
+			if (isPrefab)
+			{
+				continue;	// プレハブ指定なのに見つからない場合だけスキップ
+			}
+			entity = world.CreateEntity();	// 非プレハブは素のエンティティとして復元
 		}
 
 		if (entry.contains("name"))
@@ -257,6 +335,130 @@ bool SceneSerializer::Load(Scene& scene, const std::string& filePath)
 				const auto& t = world.GetComponent<TransformComponent>(entity);
 				physicsWorld->SetActorPose(entity, t.position, t.rotation);
 			}
+		}
+
+
+
+		// ---- Material ---- //
+		if (entry.contains("material"))
+		{
+			const auto& mj = entry["material"];
+			MaterialComponent mat{};
+			mat.FilePath = mj.value("filePath", "");
+			mat.RampFilePath = mj.value("rampPath", "");
+			mat.usePixelShader = mj.value("usePixelShader", false);
+			mat.pixelshader = static_cast<E_PIXEL_SHADER>(mj.value("pixelShader", 0));
+
+			mat.material = std::make_shared<Material>();
+			mat.material->Init();
+			if (!mat.FilePath.empty())
+				mat.material->SetTextureFromFile(std::filesystem::path(mat.FilePath).wstring());
+			if (!mat.RampFilePath.empty())
+				mat.material->SetToonRampTexture(std::filesystem::path(mat.RampFilePath).wstring());
+
+			if (world.HasComponent<MaterialComponent>(entity))
+				world.GetComponent<MaterialComponent>(entity) = mat;
+			else
+				world.AddComponent<MaterialComponent>(entity, mat);
+		}
+
+		// mesh
+		if (entry.contains("mesh"))
+		{
+			const auto& meshJson = entry["mesh"];
+			MeshComponent meshComp{};
+			meshComp.FilePath = meshJson.value("filePath", "");
+			meshComp.scale = meshJson.value("scale", 1.0f);
+
+			if (!meshComp.FilePath.empty())
+			{
+				auto result = ModelLoader::LoadFromFile(APP->GetDevice(),meshComp.FilePath,meshComp.scale);
+				meshComp.mesh = result.mesh;
+			}
+
+			if (world.HasComponent<MeshComponent>(entity))
+			{
+				world.GetComponent<MeshComponent>(entity) = meshComp;
+			}
+			else
+			{
+				world.AddComponent<MeshComponent>(entity, meshComp);
+			}
+		}
+
+		// ---- Light ---- //
+		if (entry.contains("light"))
+		{
+			const auto& lj = entry["light"];
+			LightComponent l{};
+			l.type = static_cast<LightComponent::LightType>(lj.value("type", 0));
+			if (lj.contains("color"))
+			{
+				const auto& c = lj["color"];
+				l.color = float4(c[0], c[1], c[2], c[3]);
+			}
+			if (lj.contains("ambient"))
+			{
+				const auto& a = lj["ambient"];
+				l.ambientColor = float4(a[0], a[1], a[2], a[3]);
+			}
+			l.intensity = lj.value("intensity", 1.0f);
+			l.range = lj.value("range", 10.0f);
+			l.spotAngle = lj.value("spotAngle", 45.0f);
+			l.isActive = lj.value("isActive", true);
+
+			if (world.HasComponent<LightComponent>(entity))
+				world.GetComponent<LightComponent>(entity) = l;
+			else
+				world.AddComponent<LightComponent>(entity, l);
+		}
+
+		// ---- camera ---- //
+		if (entry.contains("camera"))
+		{
+			const auto& cj = entry["camera"];
+			CameraComponent cam{};
+			cam.projection = static_cast<CameraComponent::Projection>(cj.value("projection", 0));
+			cam.cameraType = static_cast<CameraComponent::CameraType>(cj.value("cameraType", 0));
+			cam.orhoSize = cj.value("orhoSize", 10.0f);
+			cam.fovY = cj.value("fovY", 60.0f);
+			cam.nearZ = cj.value("nearZ", 0.1f);
+			cam.farZ = cj.value("farZ", 100.0f);
+			cam.isActive = cj.value("isActive", true);
+			if (world.HasComponent<CameraComponent>(entity))
+				world.GetComponent<CameraComponent>(entity) = cam;
+			else
+				world.AddComponent<CameraComponent>(entity, cam);
+		}
+
+
+		// ---- free look ---- //
+		if (entry.contains("freelook"))
+		{
+			const auto& fj = entry["freelook"];
+			FreeLookComponent freeLook{};
+			freeLook.moveSpeed = fj.value("moveSpeed", 5.0f);
+			freeLook.rotateSpeed = fj.value("rotateSpeed", 1.0f);
+			freeLook.yaw = fj.value("yaw", 0.0f);
+			freeLook.pitch = fj.value("pitch", 0.0f);
+			freeLook.Enabled = fj.value("enabled", false);
+			if (world.HasComponent<FreeLookComponent>(entity))
+				world.GetComponent<FreeLookComponent>(entity) = freeLook;
+			else
+				world.AddComponent<FreeLookComponent>(entity, freeLook);
+		}
+
+		// ---- spin ---- //
+		if (entry.contains("spin"))
+		{
+			const auto& sj = entry["spin"];
+			SpinComponent spin{};
+			spin.speed = sj.value("speed", 0.0f);
+			spin.angle = sj.value("angle", 0.0f);
+			if (world.HasComponent<SpinComponent>(entity))
+				world.GetComponent<SpinComponent>(entity) = spin;
+			else
+				world.AddComponent<SpinComponent>(entity, spin);
 		}
 	}
 

@@ -54,15 +54,18 @@ void Engine::CreateGameWindow(int width, int height)
 		return;
 	}
 
-	RECT rect = { 0, 0, static_cast<LONG>(width), static_cast<LONG>(height) };
-	AdjustWindowRectEx(&rect, WS_OVERLAPPEDWINDOW, FALSE, WS_EX_APPWINDOW);
+	// ------------------------ //
+	// ボーダレスフルスクリーン //
+	// ------------------------ //
+	const int screenW = GetSystemMetrics(SM_CXSCREEN);
+	const int screenH = GetSystemMetrics(SM_CYSCREEN);
 
 	m_hWnd = CreateWindow(
 		CLASS_NAME,
 		PROC_NAME,
-		WS_OVERLAPPEDWINDOW,
-		CW_USEDEFAULT, CW_USEDEFAULT,
-		rect.right - rect.left, rect.bottom - rect.top,
+		WS_POPUP,
+		0,0,
+		screenW,screenH,
 		NULL, NULL, m_hInstance, NULL
 	);
 }
@@ -74,7 +77,14 @@ HRESULT Engine::Init(HINSTANCE hInstance, int width, int height)
 	CreateGameWindow(width, height);
 
 	LOG->Init();
-	m_DirectX = MakeUnique<DirectXApp>(m_hWnd, width, height);
+
+	// ウィンドウの実サイズでスワップチェーンを作る
+	RECT rc{};
+	GetClientRect(m_hWnd, &rc);
+	const int clientW = rc.right - rc.left;
+	const int clientH = rc.bottom - rc.top;
+
+	m_DirectX = MakeUnique<DirectXApp>(m_hWnd, clientW, clientH);
 
 	TIME->Init();
 	INPUT->Init(m_hWnd);
@@ -173,6 +183,7 @@ void Engine::Run()
 
 void Engine::Terminate()
 {
+	APP->WaitForGPUIdle();
 	OnShutDown();
 	IMGUI::Release();
 	LOG->ShutDown();

@@ -55,10 +55,13 @@ private:
 		_In_ World& world);
 
 	/// @brief Asset一覧の描画
-	void DrawAssetPanel();
+	void DrawAssetPanel(_In_ SceneManager& sceneManager);
 
 	/// @brief メモリ使用量の描画
 	void DrawMemoryPanel();
+
+	/// @brief プレイ/停止ボタンの描画
+	void DrawPlayControl(_In_ Scene* activeScene);
 
 	/// @brief Scene保存 / 読み込み
 	/// @param sceneManager シーンマネージャーの参照
@@ -125,4 +128,19 @@ private:
 	void SpawnModelFromFile(World& world,
 		_In_ const std::string& modelpath,
 		_In_ const float3& pos);
+
+	int m_GizmoOperation = 7;
+
+	std::string m_PlaySnap = "";
+
+	bool m_ShowCreateScriptPopup = false;
+	char m_NewScriptName[64] = "NewScript";
+	void CreateScriptFile(const std::string& die, const std::string& name);
+
+	void OpenInEditor(const std::string& path);
+
+	char m_AddCompSearchBuffer[64] = "";
+	bool m_FocusAddCompSearch = false;
+
+	void AddToProject(_In_ const std::string cppRel, _In_ const std::string hppRel);
 };

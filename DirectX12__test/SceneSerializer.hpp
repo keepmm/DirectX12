@@ -23,6 +23,9 @@ public:
 	static bool Load(
 		_In_ Scene& scene,
 		_In_ const std::string& filePath);
+
+	static std::string SaveToString(_In_ Scene& scene);
+	static bool LoadFromString(_In_ Scene& scene, _In_ const std::string& data);
 private:
 };
 

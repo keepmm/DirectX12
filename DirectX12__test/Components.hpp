@@ -59,6 +59,7 @@ struct MeshComponent
 {
 	std::shared_ptr<Mesh> mesh;
 	std::string FilePath;
+	float scale = 1.0f;
 };
 
 struct MaterialComponent
@@ -69,6 +70,7 @@ struct MaterialComponent
 	E_PIXEL_SHADER pixelshader = E_PIXEL_SHADER::BASIC;
 
 	std::string FilePath;
+	std::string RampFilePath;
 };
 
 struct RigidBodyComponent

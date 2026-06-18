@@ -264,7 +264,7 @@ void DirectXApp::CreateRootSignature()
 {
 
 	CD3DX12_DESCRIPTOR_RANGE srvRange = {};
-	srvRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
+	srvRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 0);
 	
 
 	// 配列の数がそのまま定数バッファやSRVの数になる
@@ -275,25 +275,34 @@ void DirectXApp::CreateRootSignature()
 	rootParameters[2].InitAsConstantBufferView(2, 0, D3D12_SHADER_VISIBILITY_ALL);
 	rootParameters[3].InitAsConstantBufferView(3, 0, D3D12_SHADER_VISIBILITY_ALL);
 
-
+	// t0 にSRVを割り当てる
 	rootParameters[4].InitAsDescriptorTable(1, &srvRange, D3D12_SHADER_VISIBILITY_PIXEL);
 
 
-	CD3DX12_STATIC_SAMPLER_DESC staticSamplerDesc(
+	CD3DX12_STATIC_SAMPLER_DESC staticSamplerDesc[2] = {
+		CD3DX12_STATIC_SAMPLER_DESC(
 		0,	// shaderRegister : s0
 		D3D12_FILTER_MIN_MAG_MIP_LINEAR,
 		D3D12_TEXTURE_ADDRESS_MODE_WRAP,
 		D3D12_TEXTURE_ADDRESS_MODE_WRAP,
 		D3D12_TEXTURE_ADDRESS_MODE_WRAP
-		);
+		),
 
+	CD3DX12_STATIC_SAMPLER_DESC(
+		1,	// shaderRegister : s1
+		D3D12_FILTER_MIN_MAG_MIP_POINT,
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP
+		)
+	};
 
 	CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
 	rootSignatureDesc.Init(
 		_countof(rootParameters),
 		rootParameters,
-		1,
-		&staticSamplerDesc,
+		_countof(staticSamplerDesc),
+		staticSamplerDesc,
 		D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT
 	);
 
@@ -434,7 +443,7 @@ void DirectXApp::CreatePipelineStateObject()
 	m_IconPso = m_PsoCache.GetOrCreate("IconPSO", m_Device.Get(), iconDesc);
 	if (m_IconPso == nullptr) { assert(false); }
 
-	CreateMeshShaderPipelineState();
+	//CreateMeshShaderPipelineState();
 	m_CBAllocator.Init();
 }
 

@@ -5,6 +5,7 @@
 #include "PrefabLibrary.hpp"
 #include "Components.hpp"
 #include "ModelLoader.hpp"
+#include "PlayState.hpp"
 
 Application::Application()
 {
@@ -19,8 +20,14 @@ Application* Application::GetInstance()
 HRESULT Application::OnInit()
 {
 	// ---- 各ウィンドウの初期化 ---- //
-	if(!m_GameMode)
-	m_EditorWindow = std::make_unique<EditorWindow>(*m_DirectX);
+	if (m_GameMode)
+	{
+		PLAY.SetMode(EngineMode::Play);
+	}
+	else
+	{
+		m_EditorWindow = std::make_unique<EditorWindow>(*m_DirectX);
+	}
 
 
 	// RuntimeSceneの登録

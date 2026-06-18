@@ -30,7 +30,9 @@ struct PSInput
 };
 
 Texture2D g_Texture : register(t0);
+Texture2D g_RampTexture : register(t1);
 SamplerState g_Sampler : register(s0);
+SamplerState g_RampSampler : register(s1);
 
 void ComputeLight(LightData light, float3 worldPos, out float3 l, out float atten)
 {
@@ -79,9 +81,11 @@ float4 ToonPS(PSInput input) : SV_TARGET
         ComputeLight(lights[i], input.worldPos, l, atten);
 
         float ndotl = saturate(dot(n, l)) * atten;
-        float toonLevel = (ndotl > 0.7f) ? 1.0f : (ndotl > 0.35f) ? 0.6f : 0.25f;
 
-        diffuse += lights[i].color.rgb * baseColor * toonLevel;
+        // 明るさ(0~1)を横軸にランプテクスチャを引く
+        float3 ramp = g_RampTexture.Sample(g_RampSampler, float2(ndotl, 0.5f)).rgb;
+
+        diffuse += lights[i].color.rgb * baseColor * ramp;
     }
 
     float3 ambient = baseColor * ambientColor.rgb;

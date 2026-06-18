@@ -54,7 +54,7 @@ private:
                     [](World& w, Entity e){                              \
                         auto& sc = w.HasComponent<ScriptComponent>(e)    \
                             ? w.GetComponent<ScriptComponent>(e)         \
-                            : w.AddComponent(e, ScriptComponent{});      \
+                            : w.AddComponent<ScriptComponent>(e, ScriptComponent{}); \
                         sc.AddBehavior<TYPE>(w, e);                      \
                     });                                                  \
             }                                                            \

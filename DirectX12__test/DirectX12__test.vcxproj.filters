@@ -43,6 +43,9 @@
     <Filter Include="リソース ファイル\MeshShader">
       <UniqueIdentifier>{863d10d9-1015-46ad-9e1d-fd0993608194}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ソース ファイル\EditorWindow">
+      <UniqueIdentifier>{9d583090-850e-40be-a820-010655939fda}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="main.cpp">
@@ -141,9 +144,6 @@
     <ClCompile Include="PrefabLibrary.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="EditorWindow.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
     <ClCompile Include="RenderTexture.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
@@ -161,6 +161,18 @@
     </ClCompile>
     <ClCompile Include="ConstantBufferAllocator.cpp">
       <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="ImGuizmo.cpp">
+      <Filter>ソース ファイル\imgui</Filter>
+    </ClCompile>
+    <ClCompile Include="EditorWindow.cpp">
+      <Filter>ソース ファイル\EditorWindow</Filter>
+    </ClCompile>
+    <ClCompile Include="AssetWindow.cpp">
+      <Filter>ソース ファイル\EditorWindow</Filter>
+    </ClCompile>
+    <ClCompile Include="InspectorWindow.cpp">
+      <Filter>ソース ファイル\EditorWindow</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -305,6 +317,12 @@
     <ClInclude Include="ConstantBufferAllocator.hpp">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="ImGuizmo.h">
+      <Filter>ソース ファイル\imgui</Filter>
+    </ClInclude>
+    <ClInclude Include="PlayState.hpp">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="PixelShader.hlsl">
@@ -318,9 +336,6 @@
     </FxCompile>
     <FxCompile Include="PS_LineShader.hlsl">
       <Filter>リソース ファイル\Shader\PixelShader</Filter>
-    </FxCompile>
-    <FxCompile Include="MS_MeshShader.hlsl">
-      <Filter>リソース ファイル\MeshShader</Filter>
     </FxCompile>
   </ItemGroup>
   <ItemGroup>
@@ -459,5 +474,269 @@
     <None Include="Assets\**\*.*" />
     <None Include="Assets\**\*.*" />
     <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*">
+      <Filter>ヘッダー ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
   </ItemGroup>
 </Project>

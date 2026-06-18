@@ -16,6 +16,8 @@ public:
 	bool SetTextureFromFile(_In_ const std::wstring& filePath);
 	bool SetTextureFromMemory(_In_ const std::uint8_t* data, size_t size);
 
+	bool SetToonRampTexture(_In_ const std::wstring& filepath);
+
 	void Apply(
 		_In_ ID3D12GraphicsCommandList* commandList,
 		_In_ const float4x4& world,
@@ -71,4 +73,21 @@ private:
 		_In_ const DirectX::Image* srcImage,
 		_In_ const DirectX::TexMetadata& metadata
 	);
+
+	bool UploadTextureTo(
+		_In_ const DirectX::Image* srcImage,
+		_In_ const DirectX::TexMetadata& metadata,
+		UINT srvSlot,
+		_Inout_ ComPtr<ID3D12Resource>& outTexture,
+		_Inout_ ComPtr<ID3D12Resource>& outUpload,
+		_Out_ D3D12_PLACED_SUBRESOURCE_FOOTPRINT& outFootPrint,
+		_Out_ bool& outPending
+	);
+
+	ComPtr<ID3D12Resource> m_RampTexture;
+	ComPtr<ID3D12Resource> m_RampUpload;
+	D3D12_PLACED_SUBRESOURCE_FOOTPRINT m_RampFootprint = {};
+	bool m_RampUploadPending = false;
+
+	void CreateDefaultRampTexture();
 };

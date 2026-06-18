@@ -123,6 +123,10 @@
     <FxCompile>
       <ShaderModel>6.8</ShaderModel>
     </FxCompile>
+    <PostBuildEvent>
+      <Command>
+      </Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -143,6 +147,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Application.cpp" />
+    <ClCompile Include="AssetWindow.cpp" />
     <ClCompile Include="ConstantBufferAllocator.cpp" />
     <ClCompile Include="cr_main.cpp" />
     <ClCompile Include="DebugLineRenderer.cpp" />
@@ -156,12 +161,14 @@
     <ClCompile Include="IconLibrary.cpp" />
     <ClCompile Include="imgui.cpp" />
     <ClCompile Include="imguiinit.cpp" />
+    <ClCompile Include="ImGuizmo.cpp" />
     <ClCompile Include="imgui_draw.cpp" />
     <ClCompile Include="imgui_impl_dx12.cpp" />
     <ClCompile Include="imgui_impl_win32.cpp" />
     <ClCompile Include="imgui_tables.cpp" />
     <ClCompile Include="imgui_widgets.cpp" />
     <ClCompile Include="Input.cpp" />
+    <ClCompile Include="InspectorWindow.cpp" />
     <ClCompile Include="Logger.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Material.cpp" />
@@ -205,6 +212,7 @@
     <ClInclude Include="imconfig.h" />
     <ClInclude Include="imgui.h" />
     <ClInclude Include="imguiinit.hpp" />
+    <ClInclude Include="ImGuizmo.h" />
     <ClInclude Include="imgui_internal.h" />
     <ClInclude Include="imstb_rectpack.h" />
     <ClInclude Include="imstb_textedit.h" />
@@ -221,6 +229,7 @@
     <ClInclude Include="pch.h" />
     <ClInclude Include="PhysicsWorld.hpp" />
     <ClInclude Include="PipelineStateCache.hpp" />
+    <ClInclude Include="PlayState.hpp" />
     <ClInclude Include="Polygon.hpp" />
     <ClInclude Include="PrefabLibrary.hpp" />
     <ClInclude Include="RegisterScript.hpp" />
@@ -240,13 +249,6 @@
     <ClInclude Include="World.hpp" />
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="MS_MeshShader.hlsl">
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Mesh</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">MeshMain</EntryPointName>
-    </FxCompile>
     <FxCompile Include="PixelShader.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>

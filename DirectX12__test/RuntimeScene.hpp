@@ -36,6 +36,8 @@ public:
 
 	void SetSceneFilePath(_In_ const std::string& path) { m_SceneFilePath = path; }
 
+	void SetSceneName(_In_ const std::string& name) { m_SceneName = name; }
+
 	void AddDebugLine(
 		_In_ const float3& start,
 		_In_ const float3& end,
@@ -48,12 +50,14 @@ public:
 	{
 		m_DebugLines.clear();
 	}
+	void EditorUpdate(float dt);
 private:
 	void DrawGizmos(const RenderContext& renderContext);
 
 	void DrawGrid();
 
 	void DrawLight();
+
 
 	struct DebugLine
 	{
@@ -85,5 +89,7 @@ private:
 	bool n_IconReady;
 
 	bool m_Initialized = false;
+
+	std::string m_SceneName = "";
 };
 
