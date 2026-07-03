@@ -189,7 +189,10 @@ public:
 	bool IsKeyboardCaptured() const { return  m_ImGuiWantText; }
 	bool IsMouseCaptured() const { return m_ImGuiWantMouse; }
 
+	void SetViewportHovered(bool v) { m_ViewportHovered = v; }
+	bool IsViewportHovered() const { return m_ViewportHovered; }
 private:
+	bool m_ViewportHovered = false;
 	Input();
 	~Input() = default;
 	Input(const Input&) = delete;

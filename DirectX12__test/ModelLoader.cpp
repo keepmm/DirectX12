@@ -10,6 +10,7 @@
 #include "DirectX.hpp"
 #include "assimp/material.h"
 #include "DirectXTex/DirectXTex.h"
+#include "PMXLoader.hpp"
 
 namespace
 {
@@ -166,187 +167,196 @@ ModelCpuData ModelLoader::ParseFile(const std::string& filepath, float scale)
 {
     ModelCpuData out{};
 
-    Assimp::Importer importer;
-
-    const unsigned int flags =
-        aiProcess_Triangulate |
-        aiProcess_GenSmoothNormals |
-		aiProcess_CalcTangentSpace |
-        aiProcess_JoinIdenticalVertices |
-        aiProcess_FlipUVs |
-        aiProcess_ConvertToLeftHanded;
-
-    // モデル読み込み
-    const aiScene* scene = importer.ReadFile(filepath, flags);
-
-    // エラー判定
-    if (scene == nullptr || !scene->HasMeshes())
+	const std::string ext = std::filesystem::path(filepath).extension().string();
+    if (_stricmp(ext.c_str(), ".pmx") == 0)
     {
-        LOG->LogError("Failed to load model: " + filepath + " - " + importer.GetErrorString());
-        return out;   // success=false
+        if (!PMXLoader::Parse(filepath, scale, out))
+            return out;   // success=false
     }
-
-    // メッシュの処理
-    for (unsigned int meshIndex = 0; meshIndex < scene->mNumMeshes; ++meshIndex)
+    else
     {
-        const aiMesh* mesh = scene->mMeshes[meshIndex];
-        const std::uint32_t baseVertex = static_cast<std::uint32_t>(out.vertices.size());
 
-        out.vertices.reserve(out.vertices.size() + mesh->mNumVertices);
+        Assimp::Importer importer;
 
-        for (unsigned int i = 0; i < mesh->mNumVertices; ++i)
+        const unsigned int flags =
+            aiProcess_Triangulate |
+            aiProcess_GenSmoothNormals |
+            aiProcess_CalcTangentSpace |
+            aiProcess_JoinIdenticalVertices |
+            aiProcess_FlipUVs |
+            aiProcess_ConvertToLeftHanded;
+
+        // モデル読み込み
+        const aiScene* scene = importer.ReadFile(filepath, flags);
+
+        // エラー判定
+        if (scene == nullptr || !scene->HasMeshes())
         {
-            Vertex v{};
-            const aiVector3D& pos = mesh->mVertices[i];
-            v.position = { pos.x * scale, pos.y * scale, pos.z * scale };
-
-            if (mesh->HasNormals())
-            {
-                const aiVector3D& n = mesh->mNormals[i];
-                v.normal = { n.x, n.y, n.z };
-            }
-            else
-            {
-                v.normal = { 0.0f, 1.0f, 0.0f };
-            }
-
-            if (mesh->HasTangentsAndBitangents())
-            {
-                const aiVector3D& t = mesh->mTangents[i];
-				v.tangent = { t.x, t.y, t.z };
-            }
-            else
-            {
-				v.tangent = { 1.0f, 0.0f, 0.0f };
-            }
-
-            if (mesh->HasVertexColors(0))
-            {
-                const aiColor4D& c = mesh->mColors[0][i];
-                v.col = { c.r, c.g, c.b, c.a };
-            }
-            else
-            {
-                v.col = { 1.0f, 1.0f, 1.0f, 1.0f };
-            }
-
-            if (mesh->HasTextureCoords(0))
-            {
-                const aiVector3D& uv = mesh->mTextureCoords[0][i];
-                v.uv = { uv.x, uv.y };
-            }
-            else
-            {
-                v.uv = { 0.0f, 0.0f };
-            }
-
-            out.vertices.push_back(v);
+            LOG->LogError("Failed to load model: " + filepath + " - " + importer.GetErrorString());
+            return out;   // success=false
         }
 
-        // スキンの影響度バッファ拡張
-        if (out.skinData.infuences.size() < out.vertices.size())
+        // メッシュの処理
+        for (unsigned int meshIndex = 0; meshIndex < scene->mNumMeshes; ++meshIndex)
         {
-            out.skinData.infuences.resize(out.vertices.size());
+            const aiMesh* mesh = scene->mMeshes[meshIndex];
+            const std::uint32_t baseVertex = static_cast<std::uint32_t>(out.vertices.size());
+
+            out.vertices.reserve(out.vertices.size() + mesh->mNumVertices);
+
+            for (unsigned int i = 0; i < mesh->mNumVertices; ++i)
+            {
+                Vertex v{};
+                const aiVector3D& pos = mesh->mVertices[i];
+                v.position = { pos.x * scale, pos.y * scale, pos.z * scale };
+
+                if (mesh->HasNormals())
+                {
+                    const aiVector3D& n = mesh->mNormals[i];
+                    v.normal = { n.x, n.y, n.z };
+                }
+                else
+                {
+                    v.normal = { 0.0f, 1.0f, 0.0f };
+                }
+
+                if (mesh->HasTangentsAndBitangents())
+                {
+                    const aiVector3D& t = mesh->mTangents[i];
+                    v.tangent = { t.x, t.y, t.z };
+                }
+                else
+                {
+                    v.tangent = { 1.0f, 0.0f, 0.0f };
+                }
+
+                if (mesh->HasVertexColors(0))
+                {
+                    const aiColor4D& c = mesh->mColors[0][i];
+                    v.col = { c.r, c.g, c.b, c.a };
+                }
+                else
+                {
+                    v.col = { 1.0f, 1.0f, 1.0f, 1.0f };
+                }
+
+                if (mesh->HasTextureCoords(0))
+                {
+                    const aiVector3D& uv = mesh->mTextureCoords[0][i];
+                    v.uv = { uv.x, uv.y };
+                }
+                else
+                {
+                    v.uv = { 0.0f, 0.0f };
+                }
+
+                out.vertices.push_back(v);
+            }
+
+            // スキンの影響度バッファ拡張
+            if (out.skinData.infuences.size() < out.vertices.size())
+            {
+                out.skinData.infuences.resize(out.vertices.size());
+            }
+
+            // ボーンの処理
+            for (unsigned int i = 0; i < mesh->mNumBones; ++i)
+            {
+                const aiBone* bone = mesh->mBones[i];
+                const std::uint16_t boneIndex = GetOrAddBoneIndex(bone, out.skinData);
+
+                for (unsigned int w = 0; w < bone->mNumWeights; ++w)
+                {
+                    const aiVertexWeight& weight = bone->mWeights[w];
+                    const std::uint32_t vertexID = baseVertex + weight.mVertexId;
+                    AddInfluence(out.skinData.infuences[vertexID], boneIndex, weight.mWeight);
+                }
+            }
+
+            // 面（インデックス）の処理
+            const std::uint32_t indexStart = static_cast<std::uint32_t>(out.indices.size());
+            for (unsigned int f = 0; f < mesh->mNumFaces; ++f)
+            {
+                const aiFace& face = mesh->mFaces[f];
+                if (face.mNumIndices != 3) { LOG->LogError("三角形ではない面が見つかりました: " + std::to_string(meshIndex)); continue; }
+                out.indices.push_back(baseVertex + face.mIndices[0]);
+                out.indices.push_back(baseVertex + face.mIndices[1]);
+                out.indices.push_back(baseVertex + face.mIndices[2]);
+            }
+            const std::uint32_t indexCount =
+                static_cast<std::uint32_t>(out.indices.size()) - indexStart;
+
+            // このaiMesh = 1サブメッシュ（materialIndexで後述のmaterialsを参照）
+            out.subMeshes.push_back(SubMesh{ indexStart, indexCount, mesh->mMaterialIndex });
         }
 
-        // ボーンの処理
-        for (unsigned int i = 0; i < mesh->mNumBones; ++i)
-        {
-            const aiBone* bone = mesh->mBones[i];
-            const std::uint16_t boneIndex = GetOrAddBoneIndex(bone, out.skinData);
+        NormalizeInfluence(out.skinData.infuences);
 
-            for (unsigned int w = 0; w < bone->mNumWeights; ++w)
-            {
-                const aiVertexWeight& weight = bone->mWeights[w];
-                const std::uint32_t vertexID = baseVertex + weight.mVertexId;
-                AddInfluence(out.skinData.infuences[vertexID], boneIndex, weight.mWeight);
-            }
+        if (out.vertices.empty() && out.indices.empty())
+        {
+            LOG->LogError("No valid vertices or indices found in model: " + filepath);
+            return out;   // success=false
         }
 
-        // 面（インデックス）の処理
-        const std::uint32_t indexStart = static_cast<std::uint32_t>(out.indices.size());
-        for (unsigned int f = 0; f < mesh->mNumFaces; ++f)
+        // --- マテリアル（テクスチャパス）処理：GPUは触らずパス/データだけ抽出 ---
+        const std::filesystem::path modelPath(filepath);
+        const std::filesystem::path baseDir = modelPath.parent_path();
+
+        // ファイル名を basename 化し textures/ or 直下から実在パスを探す（.exr→.png）
+        auto findInFolders = [&](std::filesystem::path fname) -> std::wstring
+            {
+                if (fname.extension() == ".exr") fname.replace_extension(".png");
+                for (const auto& dir : { baseDir / "textures", baseDir })
+                {
+                    std::filesystem::path cand = dir / fname;
+                    if (std::filesystem::exists(cand)) return cand.wstring();
+                }
+                return L"";
+            };
+
+        // assimpが返すパスは basename 化して解決
+        auto resolveByType = [&](const aiMaterial* mat, aiTextureType type) -> std::wstring
+            {
+                aiString p{};
+                if (mat->GetTexture(type, 0, &p) != AI_SUCCESS) return L"";
+                std::string s = p.C_Str();
+                if (s.empty() || s[0] == '*') return L"";
+                return findInFolders(std::filesystem::path(s).filename());
+            };
+
+        // diffuseパスから兄弟マップを命名規則で派生（_diff→_metal 等）。拡張子は複数試す
+        auto deriveSibling = [&](const std::wstring& diffuse,
+            const std::wstring& fromKey, const std::wstring& toKey) -> std::wstring
+            {
+                if (diffuse.empty()) return L"";
+                std::filesystem::path pd(diffuse);
+                std::wstring stem = pd.stem().wstring();           // 例: bolt_..._diff_4k
+                size_t at = stem.find(fromKey);
+                if (at == std::wstring::npos) return L"";
+                stem.replace(at, fromKey.size(), toKey);           // _diff → _metal
+                for (const wchar_t* ext : { L".png", L".jpg", L".jpeg", L".tga" })
+                {
+                    std::filesystem::path cand = pd.parent_path() / (stem + ext);
+                    if (std::filesystem::exists(cand)) return cand.wstring();
+                }
+                return L"";
+            };
+
+        // 法線マップを持つ（＝本体）マテリアルを優先して確定
+        out.materials.resize(scene->mNumMaterials);
+        for (unsigned int i = 0; i < scene->mNumMaterials; ++i)
         {
-            const aiFace& face = mesh->mFaces[f];
-            if (face.mNumIndices != 3) { LOG->LogError("三角形ではない面が見つかりました: " + std::to_string(meshIndex)); continue; }
-            out.indices.push_back(baseVertex + face.mIndices[0]);
-            out.indices.push_back(baseVertex + face.mIndices[1]);
-            out.indices.push_back(baseVertex + face.mIndices[2]);
+            const aiMaterial* material = scene->mMaterials[i];
+            std::wstring diff = resolveByType(material, aiTextureType_DIFFUSE);
+            std::wstring nor = resolveByType(material, aiTextureType_NORMALS);
+            if (nor.empty()) nor = deriveSibling(diff, L"_diff", L"_nor_gl");
+
+            out.materials[i].diffuse = diff;
+            out.materials[i].normal = nor;
+            out.materials[i].metal = deriveSibling(diff, L"_diff", L"_metal");
+            out.materials[i].rough = deriveSibling(diff, L"_diff", L"_rough");
         }
-        const std::uint32_t indexCount =
-            static_cast<std::uint32_t>(out.indices.size()) - indexStart;
-
-        // このaiMesh = 1サブメッシュ（materialIndexで後述のmaterialsを参照）
-        out.subMeshes.push_back(SubMesh{ indexStart, indexCount, mesh->mMaterialIndex });
     }
-
-    NormalizeInfluence(out.skinData.infuences);
-
-    if (out.vertices.empty() && out.indices.empty())
-    {
-        LOG->LogError("No valid vertices or indices found in model: " + filepath);
-        return out;   // success=false
-    }
-
-    // --- マテリアル（テクスチャパス）処理：GPUは触らずパス/データだけ抽出 ---
-    const std::filesystem::path modelPath(filepath);
-    const std::filesystem::path baseDir = modelPath.parent_path();
-
-    // ファイル名を basename 化し textures/ or 直下から実在パスを探す（.exr→.png）
-    auto findInFolders = [&](std::filesystem::path fname) -> std::wstring
-        {
-            if (fname.extension() == ".exr") fname.replace_extension(".png");
-            for (const auto& dir : { baseDir / "textures", baseDir })
-            {
-                std::filesystem::path cand = dir / fname;
-                if (std::filesystem::exists(cand)) return cand.wstring();
-            }
-            return L"";
-        };
-
-    // assimpが返すパスは basename 化して解決
-    auto resolveByType = [&](const aiMaterial* mat, aiTextureType type) -> std::wstring
-        {
-            aiString p{};
-            if (mat->GetTexture(type, 0, &p) != AI_SUCCESS) return L"";
-            std::string s = p.C_Str();
-            if (s.empty() || s[0] == '*') return L"";
-            return findInFolders(std::filesystem::path(s).filename());
-        };
-
-    // diffuseパスから兄弟マップを命名規則で派生（_diff→_metal 等）。拡張子は複数試す
-    auto deriveSibling = [&](const std::wstring& diffuse,
-        const std::wstring& fromKey, const std::wstring& toKey) -> std::wstring
-        {
-            if (diffuse.empty()) return L"";
-            std::filesystem::path pd(diffuse);
-            std::wstring stem = pd.stem().wstring();           // 例: bolt_..._diff_4k
-            size_t at = stem.find(fromKey);
-            if (at == std::wstring::npos) return L"";
-            stem.replace(at, fromKey.size(), toKey);           // _diff → _metal
-            for (const wchar_t* ext : { L".png", L".jpg", L".jpeg", L".tga" })
-            {
-                std::filesystem::path cand = pd.parent_path() / (stem + ext);
-                if (std::filesystem::exists(cand)) return cand.wstring();
-            }
-            return L"";
-        };
-
-    // 法線マップを持つ（＝本体）マテリアルを優先して確定
-    out.materials.resize(scene->mNumMaterials);
-    for (unsigned int i = 0; i < scene->mNumMaterials; ++i)
-    {
-        const aiMaterial* material = scene->mMaterials[i];
-        std::wstring diff = resolveByType(material, aiTextureType_DIFFUSE);
-        std::wstring nor = resolveByType(material, aiTextureType_NORMALS);
-        if (nor.empty()) nor = deriveSibling(diff, L"_diff", L"_nor_gl");
-
-        out.materials[i].diffuse = diff;
-        out.materials[i].normal = nor;
-        out.materials[i].metal = deriveSibling(diff, L"_diff", L"_metal");
-        out.materials[i].rough = deriveSibling(diff, L"_diff", L"_rough");
-    }
-
     // --- 各マップを RGBA8 にデコード（このParseFileはワーカースレッドで実行される）---
     auto decode = [](const std::wstring& path) -> DecodedImage
         {

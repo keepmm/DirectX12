@@ -210,6 +210,9 @@
     <ClCompile Include="ShadowMap.cpp">
       <Filter>Rendering</Filter>
     </ClCompile>
+    <ClCompile Include="PMXLoader.cpp">
+      <Filter>Mesh_Model</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.hpp">
@@ -394,6 +397,9 @@
     </ClInclude>
     <ClInclude Include="Theme.hpp">
       <Filter>Config</Filter>
+    </ClInclude>
+    <ClInclude Include="PMXLoader.hpp">
+      <Filter>Mesh_Model</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

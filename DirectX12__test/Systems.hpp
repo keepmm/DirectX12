@@ -363,17 +363,17 @@ class FreeLookSystem
 public:
 	void Update(World& world, float deltatime,CameraComponent::CameraType targetType)
 	{
-		const bool rmb = INPUT->MouseInput.Right().IsPressed();
+		// ビューポート上で右クリック中のみカメラ操作＆カーソルロック
+		const bool active = INPUT->MouseInput.Right().IsPressed()
+			&& INPUT->IsViewportHovered();
 
-		// 右クリック開始 → カーソル非表示＆ロック（中心固定）
-		if (rmb && !m_CursorHidden)
+		if (active && !m_CursorHidden)
 		{
 			INPUT->SetCursorLock(true);
 			INPUT->ShowCursor(false);
 			m_CursorHidden = true;
 		}
-		// 右クリック終了 → カーソル復帰
-		else if (!rmb && m_CursorHidden)
+		else if (!active && m_CursorHidden)
 		{
 			INPUT->SetCursorLock(false);
 			INPUT->ShowCursor(true);
@@ -390,9 +390,7 @@ public:
 				if (!world.HasComponent<CameraComponent>(entity)) return;
 				if (world.GetComponent<CameraComponent>(entity).cameraType != targetType) return;
 
-				// 右クリック押下中だけカメラ操作（フライモード）
-				const bool active = INPUT->MouseInput.Right().IsPressed();
-				if (!active) return;   // ← 右クリックしてなければ回転もWASDも無効
+				if (!active) return;
 
 				// 回転
 				fl.yaw += (float)INPUT->MouseInput.DeltaX() * fl.rotateSpeed;

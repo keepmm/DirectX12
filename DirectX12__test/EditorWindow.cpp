@@ -217,10 +217,13 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 	}
 	ImGui::End();
 
+	INPUT->SetViewportHovered(false);
 	// ---- ビューポートパネル ---- //
 	if (ImGui::Begin(u8("ゲーム画面")) && m_ShowViewport)
 	{
 		ImVec2 availableSize = ImGui::GetContentRegionAvail();
+		if (ImGui::IsWindowHovered())
+			INPUT->SetViewportHovered(true);
 
 		// --------------------------------------------------------------------//
 		//	ビューポートのサイズが変更された場合、レンダーテクスチャもリサイズ //
@@ -289,6 +292,8 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 	if (ImGui::Begin(u8("エディタ画面")) && m_ShowViewport)
 	{
 		ImVec2 availableSize = ImGui::GetContentRegionAvail();
+		if (ImGui::IsWindowHovered())
+			INPUT->SetViewportHovered(true);
 		// レンダーテクスチャが有効な場合は、ImGuiに描画
 		if (m_EditorRenderTexture && m_EditorTextureHandleValid)
 		{

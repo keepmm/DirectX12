@@ -90,9 +90,13 @@ void EditorWindow::DrawAssetPanel(SceneManager& sceneManager)
 		// タイル1個を描く共通処理
 		auto drawTile = [&](const fs::directory_entry& entry, bool isFolder)
 			{
-				const std::string name = entry.path().filename().string();
-				const std::string fullPath = entry.path().string();
-				const std::string ext = entry.path().extension().string();
+				auto U8 = [](const std::filesystem::path& p) {
+					auto s = p.u8string();
+					return std::string(s.begin(), s.end());
+					};
+				const std::string name = U8(entry.path().filename());
+				const std::string fullPath = U8(entry.path());
+				const std::string ext = U8(entry.path().extension());
 
 				// -------------------------------------//
 				// アイコンとフォールバック色を決める	//
@@ -189,7 +193,7 @@ void EditorWindow::DrawAssetPanel(SceneManager& sceneManager)
 				{
 					// 拡張子からペイロード種別を決める
 					const char* payloadType = "ASSET_FILE";   // 既定（汎用）
-					if (ext == ".fbx" || ext == ".obj")
+					if (ext == ".fbx" || ext == ".obj" || ext == ".pmx")
 						payloadType = "ASSET_MODEL";
 					else if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" ||
 						ext == ".dds" || ext == ".tga" || ext == ".bmp" || ext == ".hdr")

@@ -184,6 +184,7 @@
     <ClCompile Include="PhysicsWorld.cpp" />
     <ClCompile Include="PipelineStateCache.cpp" />
     <ClCompile Include="PlayState.cpp" />
+    <ClCompile Include="PMXLoader.cpp" />
     <ClCompile Include="Polygon.cpp" />
     <ClCompile Include="PrefabLibrary.cpp" />
     <ClCompile Include="RegisterScript.cpp" />
@@ -243,6 +244,7 @@
     <ClInclude Include="PhysicsWorld.hpp" />
     <ClInclude Include="PipelineStateCache.hpp" />
     <ClInclude Include="PlayState.hpp" />
+    <ClInclude Include="PMXLoader.hpp" />
     <ClInclude Include="Polygon.hpp" />
     <ClInclude Include="PrefabLibrary.hpp" />
     <ClInclude Include="RegisterScript.hpp" />
