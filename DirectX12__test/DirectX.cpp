@@ -634,6 +634,7 @@ HRESULT DirectXApp::BeginRender()
 	const UINT targetIndex = m_FrameIndex;
 
 	const UINT64 fenceToWait = m_FenceValue[targetIndex];
+	m_DeferredReleases[m_FrameIndex].clear();	// 前フレームの解放予約をクリア
 	if (m_Fence->GetCompletedValue() < fenceToWait)
 	{
 		m_Fence->SetEventOnCompletion(fenceToWait, m_Fence_Event);

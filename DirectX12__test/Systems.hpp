@@ -10,6 +10,7 @@
 #include "MonoBehavior.hpp"
 #include "Util.hpp"
 #include "Debug.hpp"
+#include "imguiinit.hpp"
 
 class SpinSystem
 {
@@ -214,23 +215,45 @@ public:
 		if (found)
 		{
 			// 方向がゼロ/不正ならデフォルトへ（NaN行列防止）
-			const float len2 = shadowDir.x * shadowDir.x + shadowDir.y * shadowDir.y + shadowDir.z * shadowDir.z;
-			if (len2 < 1e-6f)
-				shadowDir = { -0.5f, -1.0f, -0.5f };
-
-
 			DirectX::XMVECTOR d = DirectX::XMVector3Normalize(DirectX::XMLoadFloat3(&shadowDir));
 			const float dist = 50.0f;
 			const float ortho = 30.0f;
-			DirectX::XMVECTOR center = DirectX::XMVectorZero();
+			const float mapSize = m_Data.shadowParams.z;   // 2048
+
+			// --- カメラ追従：エディタ(FreeLook)カメラ優先、無ければ通常カメラ ---
+			float3 camPos{ 0,0,0 }, camFwd{ 0,0,1 };
+			bool got = false, gotEditor = false;
+			world.Each<TransformComponent, CameraComponent>(
+				[&](Entity e, TransformComponent& tr, CameraComponent&)
+				{
+					if (gotEditor) return;
+					const bool editor = world.HasComponent<FreeLookComponent>(e);
+					if (!got || editor)
+					{
+						camPos = tr.position;
+						auto q = DirectX::XMLoadFloat4(&tr.rotation);
+						auto fwd = DirectX::XMVector3Rotate(DirectX::XMVectorSet(0, 0, 1, 0), q);
+						DirectX::XMStoreFloat3(&camFwd, fwd);
+						got = true; gotEditor = editor;
+					}
+				});
+
+			// カメラの少し前方を影の中心に（Yは0=地面基準）
+			float3 focus = {
+				camPos.x + camFwd.x * (ortho * 0.4f),
+				0.0f,
+				camPos.z + camFwd.z * (ortho * 0.4f)
+			};
+
+			// テクセル単位にスナップ（カメラ移動時の影のシマー防止）
+			const float texelWorld = ortho / mapSize;
+			focus.x = floorf(focus.x / texelWorld) * texelWorld;
+			focus.z = floorf(focus.z / texelWorld) * texelWorld;
+
+			DirectX::XMVECTOR center = DirectX::XMLoadFloat3(&focus);
 			DirectX::XMVECTOR lightPos = DirectX::XMVectorSubtract(center, DirectX::XMVectorScale(d, dist));
 			DirectX::XMVECTOR up = (fabsf(shadowDir.y) > 0.99f)
 				? DirectX::XMVectorSet(1, 0, 0, 0) : DirectX::XMVectorSet(0, 1, 0, 0);
-
-			matrix v = DirectX::XMMatrixLookToLH(lightPos, d, up);
-			matrix p = DirectX::XMMatrixOrthographicLH(ortho, ortho, 0.1f, 150.0f);
-			DirectX::XMStoreFloat4x4(&m_Data.lightviewproj, DirectX::XMMatrixTranspose(v * p));
-			m_Data.shadowParams.y = 1.0f;
 		}
 
 		m_Data.lightCount.x = static_cast<float>(count);
@@ -340,6 +363,23 @@ class FreeLookSystem
 public:
 	void Update(World& world, float deltatime,CameraComponent::CameraType targetType)
 	{
+		const bool rmb = INPUT->MouseInput.Right().IsPressed();
+
+		// 右クリック開始 → カーソル非表示＆ロック（中心固定）
+		if (rmb && !m_CursorHidden)
+		{
+			INPUT->SetCursorLock(true);
+			INPUT->ShowCursor(false);
+			m_CursorHidden = true;
+		}
+		// 右クリック終了 → カーソル復帰
+		else if (!rmb && m_CursorHidden)
+		{
+			INPUT->SetCursorLock(false);
+			INPUT->ShowCursor(true);
+			m_CursorHidden = false;
+		}
+
 		world.Each<TransformComponent, FreeLookComponent>(
 			[&](Entity entity, TransformComponent& tr, FreeLookComponent& fl)
 			{
@@ -350,29 +390,26 @@ public:
 				if (!world.HasComponent<CameraComponent>(entity)) return;
 				if (world.GetComponent<CameraComponent>(entity).cameraType != targetType) return;
 
-				//--------------- //
-				// 右クリックで回転  //
-				//--------------- //
-				if (INPUT->MouseInput.Right().IsPressed())
-				{
-					fl.yaw += (float)INPUT->MouseInput.DeltaX() * fl.rotateSpeed;
-					fl.pitch += (float)INPUT->MouseInput.DeltaY() * fl.rotateSpeed;
-					fl.pitch = std::clamp(fl.pitch, -DirectX::XM_PIDIV2 + 0.01f, DirectX::XM_PIDIV2 - 0.01f);
-				}
+				// 右クリック押下中だけカメラ操作（フライモード）
+				const bool active = INPUT->MouseInput.Right().IsPressed();
+				if (!active) return;   // ← 右クリックしてなければ回転もWASDも無効
 
-				// 回転の更新
+				// 回転
+				fl.yaw += (float)INPUT->MouseInput.DeltaX() * fl.rotateSpeed;
+				fl.pitch += (float)INPUT->MouseInput.DeltaY() * fl.rotateSpeed;
+				fl.pitch = std::clamp(fl.pitch, -DirectX::XM_PIDIV2 + 0.01f, DirectX::XM_PIDIV2 - 0.01f);
+
 				vector q = DirectX::XMQuaternionRotationRollPitchYaw(fl.pitch, fl.yaw, 0.0f);
 				DirectX::XMStoreFloat4(&tr.rotation, DirectX::XMQuaternionNormalize(q));
 
+				// 移動（WASD）
 				float speed = 1.0f;
-
-				// 移動量
 				vector move = DirectX::XMVectorZero();
 				if (INPUT->Key.Shift().IsPressed()) speed *= 5.0f;
-				if (INPUT->Key.W().IsPressed()) move = DirectX::XMVectorAdd(move, DirectX::XMVectorSet(0.0f, 0.0f, speed, 0.0f));
-				if (INPUT->Key.S().IsPressed()) move = DirectX::XMVectorAdd(move, DirectX::XMVectorSet(0.0f, 0.0f, -speed, 0.0f));
-				if (INPUT->Key.A().IsPressed()) move = DirectX::XMVectorAdd(move, DirectX::XMVectorSet(-speed, 0.0f, 0.0f, 0.0f));
-				if (INPUT->Key.D().IsPressed()) move = DirectX::XMVectorAdd(move, DirectX::XMVectorSet(speed, 0.0f, 0.0f, 0.0f));
+				if (INPUT->Key.W().IsPressed()) move = DirectX::XMVectorAdd(move, DirectX::XMVectorSet(0, 0, speed, 0));
+				if (INPUT->Key.S().IsPressed()) move = DirectX::XMVectorAdd(move, DirectX::XMVectorSet(0, 0, -speed, 0));
+				if (INPUT->Key.A().IsPressed()) move = DirectX::XMVectorAdd(move, DirectX::XMVectorSet(-speed, 0, 0, 0));
+				if (INPUT->Key.D().IsPressed()) move = DirectX::XMVectorAdd(move, DirectX::XMVectorSet(speed, 0, 0, 0));
 
 				if (!DirectX::XMVector3Equal(move, DirectX::XMVectorZero()))
 				{
@@ -384,6 +421,8 @@ public:
 				}
 			});
 	}
+private:
+	bool m_CursorHidden = false;
 };
 
 class CameraSystem
@@ -686,7 +725,9 @@ private:
 			XMMatrixTranslation(tr.position.x, tr.position.y, tr.position.z);
 
 		XMMATRIX worldMat = local;
-		if (tr.parent != INVALID_ENTITY && world.HasComponent<TransformComponent>(tr.parent))
+		// 親が自分自身でなく、実在する場合のみ
+		if (tr.parent != INVALID_ENTITY && tr.parent != e &&
+			world.HasComponent<TransformComponent>(tr.parent))
 		{
 			auto& p = world.GetComponent<TransformComponent>(tr.parent);
 			UpdateWorld(world, tr.parent, p);

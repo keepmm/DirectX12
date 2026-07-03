@@ -397,26 +397,29 @@ void RuntimeScene::DrawLight()
 				// --------------------------//
 			case LightComponent::LightType::Directional:
 			{
+				const float4 arrowColor = { 1.0f, 0.9f, 0.2f, 1.0f };  // 黄色で目立たせる
 				const float len = 3.0f;
-				const float3 tip = pos + float3{
-					dir.x * len,
-					dir.y * len,
-					dir.z * len,
-				};
+				const float3 tip = pos + float3{ dir.x * len, dir.y * len, dir.z * len };
 
-				// 矢じり
-				float3 up = (fabsf(dir.y) > 0.99f) ? float3{ 1,0,0 } : float3{ 0,1,0 };
-				vector right = DirectX::XMVector3Normalize(
-					DirectX::XMVector3Cross(V, DirectX::XMLoadFloat3(&up)));
-				float3 r;
-				DirectX::XMStoreFloat3(&r, right);
-				const float3 back = tip - float3{
-					r.x,
-					r.y,
-					r.z,
-				};
-				m_DebugLines.push_back({ tip,back + r * 0.5f,color });
-				m_DebugLines.push_back({ tip,back - r * 0.5f,color });
+				// 軸線（光源位置 -> 進行方向）
+				m_DebugLines.push_back({ pos, tip, arrowColor });
+
+				// dirに直交する2軸（矢じり用）
+				float3 upv = (fabsf(dir.y) > 0.99f) ? float3{ 1,0,0 } : float3{ 0,1,0 };
+				vector rV = DirectX::XMVector3Normalize(
+					DirectX::XMVector3Cross(V, DirectX::XMLoadFloat3(&upv)));
+				vector uV = DirectX::XMVector3Normalize(DirectX::XMVector3Cross(V, rV));
+				float3 r, u;
+				DirectX::XMStoreFloat3(&r, rV);
+				DirectX::XMStoreFloat3(&u, uV);
+
+				// 矢じり（先端から手前へ4本）
+				const float head = 0.4f;
+				const float3 back = tip - float3{ dir.x * head, dir.y * head, dir.z * head };
+				m_DebugLines.push_back({ tip, back + r * head, arrowColor });
+				m_DebugLines.push_back({ tip, back - r * head, arrowColor });
+				m_DebugLines.push_back({ tip, back + u * head, arrowColor });
+				m_DebugLines.push_back({ tip, back - u * head, arrowColor });
 				break;
 			}
 			// ------------------//

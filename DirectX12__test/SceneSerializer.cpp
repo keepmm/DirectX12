@@ -159,6 +159,9 @@ std::string SceneSerializer::SaveToString(Scene& scene)
             entry["material"]["filePath"] = matComp.FilePath;
             entry["material"]["rampFilePath"] = matComp.RampFilePath;
             entry["material"]["shaderName"] = matComp.shaderName;
+			entry["material"]["roughness"] = matComp.material->roughness;
+            entry["material"]["metallic"] = matComp.material->metallic;
+			entry["material"]["rimColor"] = { matComp.material->rimColor.x, matComp.material->rimColor.y, matComp.material->rimColor.z, matComp.material->rimColor.w };
         }
 
         // ---- それ以外の汎用コンポーネント ---- //
@@ -364,6 +367,9 @@ bool SceneSerializer::LoadFromString(Scene& scene, const std::string& data)
 
                 mat.material = std::make_shared<Material>();
                 mat.material->Init();
+				mat.material->roughness = mj.value("roughness", 0.5f);
+				mat.material->metallic = mj.value("metallic", 0.0f);
+				mat.material->rimColor = ToFloat4(mj.value("rimColor", json::array({ 0.0f,0.0f,0.0f,1.0f })), float4(0, 0, 0, 1));
                 if (!mat.FilePath.empty())
                     mat.material->SetTextureFromFile(std::filesystem::path(mat.FilePath).wstring());
                 if (!mat.RampFilePath.empty())

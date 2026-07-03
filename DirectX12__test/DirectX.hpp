@@ -189,6 +189,10 @@ public:
 	inline ShadowMap& GetShadowMap() noexcept { return m_ShadowMap; }
 
 	void WaitForGPUIdle();
+	void DeferRelease(ComPtr<ID3D12Resource>&& r)
+	{
+		if (r) m_DeferredReleases[m_FrameIndex].push_back(std::move(r));
+	}
 private:
 	static DirectXApp* s_Instance;
 
@@ -262,4 +266,5 @@ private:
 
 	float3 m_EnvAmbient = { 0.1f,0.1f,0.1f };
 	ShadowMap m_ShadowMap{};
+	std::vector<ComPtr<ID3D12Resource>> m_DeferredReleases[RTV_NUM];
 };

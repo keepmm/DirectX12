@@ -12,6 +12,17 @@
 #include "Defines.hpp"
 #include "Mesh.hpp"
 
+/**
+ *.	
+ */
+struct DecodedImage
+{
+	std::vector<std::uint8_t> pixels;
+	UINT width = 0;
+	UINT height = 0;
+	bool ok = false;
+};
+
  /*
   *	1マテリアル分のテクスチャパス
   */
@@ -21,8 +32,12 @@ struct MaterialTextureSet
 	std::wstring normal;
 	std::wstring metal;
 	std::wstring rough;
-};
 
+	DecodedImage diffuseImage;
+	DecodedImage normalImage;
+	DecodedImage metalImage;
+	DecodedImage roughImage;
+};
 
 /*
 *	ボーンノードの定義
@@ -58,9 +73,9 @@ struct BoneInfuence
  */
 struct SkinData
 {
-	std::vector<BoneInfuence> infuences;						// 頂点ごとのボーンの影響データ
+	std::vector<BoneInfuence> infuences;							// 頂点ごとのボーンの影響データ
 	std::vector<std::string> boneNames;								// ボーンの名前
-	std::vector<float4x4> offsetMatrices;						// ボーンのオフセット行列
+	std::vector<float4x4> offsetMatrices;							// ボーンのオフセット行列
 	std::unordered_map<std::string, std::uint16_t> boneNametoIndex;	// ボーン名からインデックスへのマップ
 };
 
@@ -72,7 +87,7 @@ struct ModelLoadResult
 	std::shared_ptr<Mesh> mesh;						// メッシュデータ
 
 	std::vector<SubMesh> subMeshes;
-	std::vector<MaterialTextureSet> materials;	// マテリアルごとのテクスチャパス
+	std::vector<MaterialTextureSet> materials;		// マテリアルごとのテクスチャパス
 
 	std::wstring diffuseTexturePath;				//テクスチャのファイルパス
 	std::wstring normalTexturePath;					// 法線マップのファイルパス
@@ -92,7 +107,7 @@ struct ModelCpuData
 	std::vector<std::uint32_t>  indices;
 
 	std::vector<SubMesh> subMeshes;
-	std::vector<MaterialTextureSet> materials;	// マテリアルごとのテクスチャパス
+	std::vector<MaterialTextureSet> materials;		// マテリアルごとのテクスチャパス
 
 	std::wstring                diffuseTexturePath;
 	std::wstring				normalTexturePath;	// 法線マップのファイルパス

@@ -48,10 +48,10 @@ inline std::vector<std::shared_ptr<Material>> BuildMaterials(
     {
         auto m = std::make_shared<Material>();
         m->Init();
-        if (!set.diffuse.empty()) m->SetTextureFromFile(set.diffuse);
-        if (!set.normal.empty())  m->SetNormalTexture(set.normal);
-        if (!set.metal.empty())   m->SetMetalTexture(set.metal);
-        if (!set.rough.empty())   m->SetRoughTexture(set.rough);
+        if (set.diffuseImage.ok) m->CreateTextureFromRGBA(set.diffuseImage.width, set.diffuseImage.height, set.diffuseImage.pixels.data());
+        if (set.normalImage.ok)  m->CreateNormalFromRGBA(set.normalImage.width, set.normalImage.height, set.normalImage.pixels.data());
+        if (set.metalImage.ok)   m->CreateMetalFromRGBA(set.metalImage.width, set.metalImage.height, set.metalImage.pixels.data());
+        if (set.roughImage.ok)   m->CreateRoughFromRGBA(set.roughImage.width, set.roughImage.height, set.roughImage.pixels.data());
         out.push_back(m);
     }
     return out;

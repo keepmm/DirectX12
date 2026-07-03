@@ -262,6 +262,7 @@
     <ClInclude Include="ShadowMap.hpp" />
     <ClInclude Include="Systems.hpp" />
     <ClInclude Include="Engine/ThreadPool.hpp" />
+    <ClInclude Include="Theme.hpp" />
     <ClInclude Include="Time.hpp" />
     <ClInclude Include="Util.hpp" />
     <ClInclude Include="Vertex.hpp" />

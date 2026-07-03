@@ -392,6 +392,9 @@
     <ClInclude Include="ShadowMap.hpp">
       <Filter>Rendering</Filter>
     </ClInclude>
+    <ClInclude Include="Theme.hpp">
+      <Filter>Config</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="BRDF.hlsli">

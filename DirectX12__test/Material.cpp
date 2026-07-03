@@ -468,32 +468,35 @@ void Material::CreateCheckerTexture(const ComPtr<ID3D12Device>& device)
 
 void Material::UpdateTextureIfNeeded(ID3D12GraphicsCommandList* commandList)
 {
-	if (!m_TextureUploadPending || m_Texture == nullptr || m_TextureUpload == nullptr || commandList == nullptr)
+	if (commandList == nullptr) return;
+
+
+	// --- diffuse（pending時のみコピー）---
+	if (m_TextureUploadPending && m_Texture != nullptr && m_TextureUpload != nullptr)
 	{
-		return;
+		D3D12_TEXTURE_COPY_LOCATION dst = {};
+		dst.pResource = m_Texture.Get();
+		dst.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+		dst.SubresourceIndex = 0;
+
+		D3D12_TEXTURE_COPY_LOCATION src = {};
+		src.pResource = m_TextureUpload.Get();
+		src.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+		src.PlacedFootprint = m_TextureFootprint;
+
+		commandList->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
+
+		auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+			m_Texture.Get(),
+			D3D12_RESOURCE_STATE_COPY_DEST,
+			D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		commandList->ResourceBarrier(1, &barrier);
+
+		m_TextureUploadPending = false;   // ← コピーした時だけfalse
+		APP->DeferRelease(std::move(m_TextureUpload));
 	}
 
-	D3D12_TEXTURE_COPY_LOCATION dst = {};
-	dst.pResource = m_Texture.Get();
-	dst.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
-	dst.SubresourceIndex = 0;
-
-	D3D12_TEXTURE_COPY_LOCATION src = {};
-	src.pResource = m_TextureUpload.Get();
-	src.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
-	src.PlacedFootprint = m_TextureFootprint;
-
-	commandList->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
-
-	auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
-		m_Texture.Get(),
-		D3D12_RESOURCE_STATE_COPY_DEST,
-		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
-	commandList->ResourceBarrier(1, &barrier);
-
-	m_TextureUploadPending = false;
-
-	// ランプテクスチャも同様にアップロード
+	// --- ランプ ---
 	if (m_RampUploadPending && m_RampTexture != nullptr && m_RampUpload != nullptr)
 	{
 		D3D12_TEXTURE_COPY_LOCATION dst = {};
@@ -515,7 +518,42 @@ void Material::UpdateTextureIfNeeded(ID3D12GraphicsCommandList* commandList)
 		commandList->ResourceBarrier(1, &barrier);
 
 		m_RampUploadPending = false;
+		APP->DeferRelease(std::move(m_RampUpload));
 	}
+
+	// --- normal / metal / rough（共通flush）---
+	auto flush = [&](bool& pending,
+		const ComPtr<ID3D12Resource>& tex,
+		ComPtr<ID3D12Resource>& upload,
+		const D3D12_PLACED_SUBRESOURCE_FOOTPRINT& fp)
+		{
+			if (!pending || tex == nullptr || upload == nullptr) return;
+
+			D3D12_TEXTURE_COPY_LOCATION dst = {};
+			dst.pResource = tex.Get();
+			dst.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+			dst.SubresourceIndex = 0;
+
+			D3D12_TEXTURE_COPY_LOCATION src = {};
+			src.pResource = upload.Get();
+			src.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+			src.PlacedFootprint = fp;
+
+			commandList->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
+
+			auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+				tex.Get(),
+				D3D12_RESOURCE_STATE_COPY_DEST,
+				D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+			commandList->ResourceBarrier(1, &barrier);
+
+			pending = false;
+			APP->DeferRelease(std::move(upload));
+		};
+
+	flush(m_NormalPending, m_NormalTexture, m_NormalUpload, m_NormalFootprint);
+	flush(m_MetalPending, m_MetalTexture, m_MetalUpload, m_MetalFootprint);
+	flush(m_RoughPending, m_RoughTexture, m_RoughUpload, m_RoughFootprint);
 }
 
 bool Material::CreateTextureFromRGBA(
@@ -569,6 +607,88 @@ bool Material::CreateTextureFromRGBA(
 	//cpu.ptr += device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);  // 既存と同じ＋1
 	device->CreateShaderResourceView(m_Texture.Get(), &srvDesc, cpu);
 	return true;
+}
+
+bool Material::CreateMapFromRGBA(
+	UINT slot,
+	UINT width, UINT height, const std::uint8_t* rgba,
+	ComPtr<ID3D12Resource>& outTexture,
+	ComPtr<ID3D12Resource>& outUpload,
+	D3D12_PLACED_SUBRESOURCE_FOOTPRINT& outFootprint,
+	bool& outPending)
+{
+	auto device = APP->GetDevice();
+	if (device == nullptr || rgba == nullptr || width == 0 || height == 0) return false;
+	if (!EnsureSrvHeap()) return false;   // 7枚ヒープ確保（t0..t6）
+
+	constexpr DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	constexpr UINT pixelSize = 4;
+
+	// テクスチャ本体（DEFAULTヒープ）
+	CD3DX12_RESOURCE_DESC texDesc = CD3DX12_RESOURCE_DESC::Tex2D(format, width, height);
+	CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_DEFAULT);
+	if (FAILED(device->CreateCommittedResource(
+		&heapProps, D3D12_HEAP_FLAG_NONE, &texDesc,
+		D3D12_RESOURCE_STATE_COPY_DEST, nullptr,
+		IID_PPV_ARGS(outTexture.ReleaseAndGetAddressOf()))))
+		return false;
+
+	// フットプリント取得＆アップロードバッファ
+	D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint = {};
+	UINT numRows = 0; UINT64 rowSize = 0, uploadSize = 0;
+	device->GetCopyableFootprints(&texDesc, 0, 1, 0, &footprint, &numRows, &rowSize, &uploadSize);
+	outFootprint = footprint;
+
+	CD3DX12_HEAP_PROPERTIES uploadHeap(D3D12_HEAP_TYPE_UPLOAD);
+	CD3DX12_RESOURCE_DESC uploadDesc = CD3DX12_RESOURCE_DESC::Buffer(uploadSize);
+	if (FAILED(device->CreateCommittedResource(
+		&uploadHeap, D3D12_HEAP_FLAG_NONE, &uploadDesc,
+		D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
+		IID_PPV_ARGS(outUpload.ReleaseAndGetAddressOf()))))
+		return false;
+
+	// ピクセルをアップロードバッファへ（行ピッチを合わせてコピー）
+	void* mapped = nullptr;
+	CD3DX12_RANGE readRange(0, 0);
+	if (SUCCEEDED(outUpload->Map(0, &readRange, &mapped)))
+	{
+		auto* dst = reinterpret_cast<std::uint8_t*>(mapped);
+		const UINT srcRowPitch = width * pixelSize;
+		for (UINT y = 0; y < height; ++y)
+			std::memcpy(dst + y * footprint.Footprint.RowPitch,
+				rgba + y * srcRowPitch, srcRowPitch);
+		outUpload->Unmap(0, nullptr);
+		outPending = true;   // 実コピーは UpdateTextureIfNeeded で
+	}
+
+	// SRV を slot 番目に作成
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.Format = format;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MipLevels = 1;
+
+	const UINT inc = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	auto cpu = m_TextureSrvHeap->GetCPUDescriptorHandleForHeapStart();
+	cpu.ptr += static_cast<SIZE_T>(slot) * inc;
+	device->CreateShaderResourceView(outTexture.Get(), &srvDesc, cpu);
+
+	return true;
+}
+
+bool Material::CreateNormalFromRGBA(UINT w, UINT h, const std::uint8_t* p)
+{
+	m_HasNormal = CreateMapFromRGBA(2, w, h, p, m_NormalTexture, m_NormalUpload, m_NormalFootprint, m_NormalPending); return m_HasNormal;
+}
+
+bool Material::CreateMetalFromRGBA(UINT w, UINT h, const std::uint8_t* p)
+{
+	m_HasMetal = CreateMapFromRGBA(3, w, h, p, m_MetalTexture, m_MetalUpload, m_MetalFootprint, m_MetalPending);  return m_HasMetal;
+}
+
+bool Material::CreateRoughFromRGBA(UINT w, UINT h, const std::uint8_t* p)
+{
+	m_HasRough = CreateMapFromRGBA(4, w, h, p, m_RoughTexture, m_RoughUpload, m_RoughFootprint, m_RoughPending);  return m_HasRough;
 }
 
 bool Material::SetNormalTexture(const std::wstring& path)

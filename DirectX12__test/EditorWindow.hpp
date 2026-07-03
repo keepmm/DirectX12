@@ -98,6 +98,9 @@ private:
 	/// @param entity entityのID
 	void DrawAddComponentPopup(_In_ World& world, _In_ Entity entity);
 
+	/// @brief GUIのスタイル設定を行うWindowを表示する
+	void DrawStyleSetting();
+
 	Entity m_SelectedEntity = INVALID_ENTITY;
 	std::string m_SelectedPrefab;
 	std::string m_SelectedAsset;
@@ -179,4 +182,6 @@ private:
 
 	char m_AddCompSearchBuffer[128] = {};
 	bool m_FocusAddCompSearch = false;
+
+	bool m_ShowStyleSetting = false;
 };

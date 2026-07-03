@@ -311,48 +311,62 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 			}
 
 			// マルチマテリアルのスロット一覧（読み取り表示）
+			Material* target = materialComp.material.get();
 			if (!materialComp.materials.empty())
 			{
+				static int selectedSub = 0;   // 編集中のサブマテリアル
+				const int count = (int)materialComp.materials.size();
+				if (selectedSub >= count) selectedSub = 0;
+
 				ImGui::Separator();
-				ImGui::Text(u8("サブマテリアル: %d"), (int)materialComp.materials.size());
-				for (size_t i = 0; i < materialComp.materials.size(); ++i)
-					ImGui::BulletText("Material %zu", i);
+				ImGui::Text(u8("サブマテリアル: %d"), count);
+				for (int i = 0; i < count; ++i)
+				{
+					ImGui::PushID(i);
+					if (ImGui::Selectable(("Material " + std::to_string(i)).c_str(),
+						selectedSub == i))
+						selectedSub = i;
+					ImGui::PopID();
+				}
+				if (materialComp.materials[selectedSub])
+					// 選択中のサブマテリアルをtargetに設定
+					target = materialComp.materials[selectedSub].get();
 			}
 
 			// --- マテリアル質感パラメータ ---
-			if (materialComp.material)
+			if (target)
 			{
 				ImGui::Separator();
 				ImGui::Text(u8("マテリアル質感パラメータ"));
 
 				if (materialComp.shaderName == "PBR")
 				{
-					ImGui::SliderFloat(u8("Roughness##Mat"), &materialComp.material->roughness, 0.0f, 1.0f);
-					ImGui::SliderFloat(u8("Metallic##Mat"), &materialComp.material->metallic, 0.0f, 1.0f);
-					ImGui::ColorEdit4(u8("RimColor##Mat"), &materialComp.material->rimColor.x);
+					ImGui::SliderFloat(u8("Roughness##Mat"), &target->roughness, 0.0f, 1.0f);
+					ImGui::SliderFloat(u8("Metallic##Mat"), &target->metallic, 0.0f, 1.0f);
+					ImGui::ColorEdit4(u8("RimColor##Mat"), &target->rimColor.x);
 				}
 				if (materialComp.shaderName == "Rim")
 				{
-					ImGui::ColorEdit4(u8("RimColor##Mat"), &materialComp.material->rimColor.x);
+					ImGui::ColorEdit4(u8("RimColor##Mat"), &target->rimColor.x);
 				}
 
 				if (materialComp.shaderName == "Fresnel")
 				{
-					ImGui::ColorEdit4(u8("RimColor##Mat"), &materialComp.material->rimColor.x);
-					ImGui::SliderFloat(u8("Roughness##Mat"), &materialComp.material->roughness, 0.0f, 1.0f);
+					ImGui::ColorEdit4(u8("RimColor##Mat"), &target->rimColor.x);
+					ImGui::SliderFloat(u8("Roughness##Mat"), &target->roughness, 0.0f, 1.0f);
 				}
 
 				if (materialComp.shaderName == "Dissolve")
 				{
-					ImGui::ColorEdit4(u8("RimColor##Mat"), &materialComp.material->rimColor.x);
-					ImGui::SliderFloat(u8("Roughness##Mat"), &materialComp.material->roughness, 0.0f, 1.0f);
-					ImGui::SliderFloat(u8("Metallic##Mat"), &materialComp.material->metallic, 0.0f, 1.0f);
+					ImGui::ColorEdit4(u8("RimColor##Mat"), &target->rimColor.x);
+					ImGui::SliderFloat(u8("Roughness##Mat"), &target->roughness, 0.0f, 1.0f);
+					ImGui::SliderFloat(u8("Metallic##Mat"), &target->metallic, 0.0f, 1.0f);
 				}
 
 				if (materialComp.shaderName == "BlinnPhong")
 				{
-					ImGui::SliderFloat(u8("Roughness##Mat"), &materialComp.material->roughness, 0.0f, 1.0f);
-					ImGui::SliderFloat(u8("Metallic##Mat"), &materialComp.material->metallic, 0.0f, 1.0f);
+					ImGui::SliderFloat(u8("Roughness##Mat"), &target->roughness, 0.0f, 1.0f);
+					ImGui::SliderFloat(u8("Metallic##Mat"), &target->metallic, 0.0f, 1.0f);
 				}
 			}
 

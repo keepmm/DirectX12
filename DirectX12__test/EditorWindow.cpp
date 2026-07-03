@@ -137,6 +137,7 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 			ImGui::Checkbox(u8("メモリ消費量を表示"), &m_ShowMemory);
 			ImGui::Checkbox(u8("詳細を表示"), &m_ShowDetails);
 			ImGui::Checkbox(u8("コンソールを表示"), &m_ShowConsole);
+			ImGui::Checkbox(u8("スタイル設定を表示"), &m_ShowStyleSetting);
 			ImGui::EndMenu();
 		}
 		ImGui::EndMainMenuBar();
@@ -420,6 +421,8 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 		}
 	}
 	ImGui::End();
+
+	DrawStyleSetting();
 }
 
 void EditorWindow::ReleaseRenderTextures()
@@ -991,6 +994,48 @@ void EditorWindow::DrawColliderDebug(const ColliderComponent& collider, const Tr
 		}
 	}
 }
+
+#include "Theme.hpp"
+void EditorWindow::DrawStyleSetting()
+{
+	//---- スタイル設定 ---- //
+	if (!m_ShowStyleSetting) return;
+
+	// 独立ウィンドウ
+	if (ImGui::Begin(u8("スタイル設定"), &m_ShowStyleSetting))
+	{
+		// ---- テーマ ---- //
+		static int themeIdx = 0;
+		static ImVec4 accent = ImVec4(0.26f, 0.59f, 0.98f, 1.0f);
+		const char* themes[] = { "Dark", "Light", "Classic" };
+		if (ImGui::Combo(u8("テーマ"), &themeIdx, themes, IM_ARRAYSIZE(themes)))
+			ApplyTheme((uiTheme)themeIdx, accent);
+		if (ImGui::ColorEdit3(u8("アクセント色"), &accent.x))
+			ApplyTheme((uiTheme)themeIdx, accent);
+
+		ImGui::Separator();
+
+		// ---- フォント切替 ----
+		ImGuiIO& io = ImGui::GetIO();
+		if (ImGui::BeginCombo(u8("フォント"),
+			io.FontDefault ? "current" : "default"))
+		{
+			for (int i = 0; i < io.Fonts->Fonts.Size; ++i)
+			{
+				ImFont* f = io.Fonts->Fonts[i];
+				ImGui::PushID(i);
+				bool sel = (io.FontDefault == f);
+				// フォント名は登録時のデバッグ名が入る
+				if (ImGui::Selectable(u8(f->GetDebugName()), sel))
+					io.FontDefault = f;
+				ImGui::PopID();
+			}
+			ImGui::EndCombo();
+		}
+	}
+	ImGui::End();
+}
+
 
 #include "ModelLoader.hpp"
 #include "Systems.hpp"

@@ -9,6 +9,7 @@
 #include <filesystem>
 #include "DirectX.hpp"
 #include "assimp/material.h"
+#include "DirectXTex/DirectXTex.h"
 
 namespace
 {
@@ -344,6 +345,56 @@ ModelCpuData ModelLoader::ParseFile(const std::string& filepath, float scale)
         out.materials[i].normal = nor;
         out.materials[i].metal = deriveSibling(diff, L"_diff", L"_metal");
         out.materials[i].rough = deriveSibling(diff, L"_diff", L"_rough");
+    }
+
+    // --- 各マップを RGBA8 にデコード（このParseFileはワーカースレッドで実行される）---
+    auto decode = [](const std::wstring& path) -> DecodedImage
+        {
+            DecodedImage d;
+            if (path.empty()) return d;
+
+            DirectX::TexMetadata meta{};
+            DirectX::ScratchImage img{};
+
+            const std::wstring ext = std::filesystem::path(path).extension().wstring();
+            HRESULT hr;
+            if (_wcsicmp(ext.c_str(), L".hdr") == 0)
+                hr = DirectX::LoadFromHDRFile(path.c_str(), &meta, img);
+            else if (_wcsicmp(ext.c_str(), L".tga") == 0)
+                hr = DirectX::LoadFromTGAFile(path.c_str(), &meta, img);
+            else if (_wcsicmp(ext.c_str(), L".dds") == 0)
+                hr = DirectX::LoadFromDDSFile(path.c_str(), DirectX::DDS_FLAGS_NONE, &meta, img);
+            else
+                hr = DirectX::LoadFromWICFile(path.c_str(), DirectX::WIC_FLAGS_NONE, &meta, img);
+
+            if (FAILED(hr)) return d;
+
+            const DirectX::Image* src = img.GetImage(0, 0, 0);
+            if (src == nullptr) return d;
+
+            // RGBA8 に統一（Material の CreateTextureFromRGBA が R8G8B8A8_UNORM 前提）
+            DirectX::ScratchImage converted;
+            if (meta.format != DXGI_FORMAT_R8G8B8A8_UNORM)
+            {
+                if (FAILED(DirectX::Convert(*src, DXGI_FORMAT_R8G8B8A8_UNORM,
+                    DirectX::TEX_FILTER_DEFAULT, DirectX::TEX_THRESHOLD_DEFAULT, converted)))
+                    return d;
+                src = converted.GetImage(0, 0, 0);
+            }
+
+            d.width = static_cast<UINT>(src->width);
+            d.height = static_cast<UINT>(src->height);
+            d.pixels.assign(src->pixels, src->pixels + src->rowPitch * src->height);
+            d.ok = true;
+            return d;
+        };
+
+    for (auto& set : out.materials)
+    {
+        set.diffuseImage = decode(set.diffuse);
+        set.normalImage = decode(set.normal);
+        set.metalImage = decode(set.metal);
+        set.roughImage = decode(set.rough);
     }
 
     // 単一マテリアル互換：法線を持つ最初のマテリアルを従来フィールドにも入れる

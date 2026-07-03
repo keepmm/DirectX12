@@ -36,6 +36,20 @@ public:
 		_In_ UINT Height,
 		_In_ const std::uint8_t* data
 	);
+
+	bool CreateMapFromRGBA(
+		UINT srvSlot,
+		_In_ UINT Width,
+		_In_ UINT Height,
+		_In_ const std::uint8_t* data,
+		_Inout_ ComPtr<ID3D12Resource>& outTexture,
+		_Inout_ ComPtr<ID3D12Resource>& outUpload,
+		_Out_ D3D12_PLACED_SUBRESOURCE_FOOTPRINT& outFootPrint,
+		_Out_ bool& outPending
+	);
+	bool CreateNormalFromRGBA(UINT w, UINT h, const std::uint8_t* p);
+	bool CreateMetalFromRGBA(UINT w, UINT h, const std::uint8_t* p);
+	bool CreateRoughFromRGBA(UINT w, UINT h, const std::uint8_t* p);
 public:
 	float roughness = 0.5f;
 	float metallic = 0.0f;

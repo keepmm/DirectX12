@@ -120,39 +120,47 @@ void Input::Update()
 	GetCursorPos(&pt);
 	ScreenToClient(m_hWnd, &pt);
 
-	// 過去のマウス座標を保存
-	m_PrevMouseX = m_MouseX;
-	m_PrevMouseY = m_MouseY;
+	RECT rect;
+	GetClientRect(m_hWnd, &rect);
+	POINT center = { (rect.right - rect.left) / 2, (rect.bottom - rect.top) / 2 };
 
-	// 新しいマウス座標を取得
-	if (IMGUI::IsInitialized())
+	if (m_CursorLocked)
 	{
-		const ImVec2 imguiMousePos = IMGUI::GetMousePosInViewPort();
-		m_MouseX = static_cast<int>(imguiMousePos.x);
-		m_MouseY = static_cast<int>(imguiMousePos.y);
+		// ロック中：中心からのズレ＝マウス移動量
+		m_MouseDeltaX = pt.x - center.x;
+		m_MouseDeltaY = pt.y - center.y;
+
+		// カーソルを中心へ戻す（画面上は固定＝動かない）
+		POINT sc = center;
+		ClientToScreen(m_hWnd, &sc);
+		SetCursorPos(sc.x, sc.y);
+
+		// 絶対位置は中心に固定
+		m_MouseX = m_PrevMouseX = center.x;
+		m_MouseY = m_PrevMouseY = center.y;
 	}
 	else
 	{
-		m_MouseX = pt.x;
-		m_MouseY = pt.y;
+		// 通常：前回との差分
+		m_PrevMouseX = m_MouseX;
+		m_PrevMouseY = m_MouseY;
+
+		if (IMGUI::IsInitialized())
+		{
+			const ImVec2 p = IMGUI::GetMousePosInViewPort();
+			m_MouseX = (int)p.x;
+			m_MouseY = (int)p.y;
+		}
+		else
+		{
+			m_MouseX = pt.x;
+			m_MouseY = pt.y;
+		}
+		m_MouseDeltaX = m_MouseX - m_PrevMouseX;
+		m_MouseDeltaY = m_MouseY - m_PrevMouseY;
 	}
 
-	// マウスの移動量計算
-	m_MouseDeltaX = m_MouseX - m_PrevMouseX;
-	m_MouseDeltaY = m_MouseY - m_PrevMouseY;
-
-	// カーソルロック処理
-	if (m_CursorLocked)
-	{
-		RECT rect;
-		GetClientRect(m_hWnd, &rect);
-		POINT center = { (rect.right - rect.left) / 2, (rect.bottom - rect.top) / 2 };
-		ClientToScreen(m_hWnd, &center);
-		SetCursorPos(center.x, center.y);
-	}
-
-	// ホイールはフレーム終了時にリセット
-	m_MouseWheel = 0;
+	m_MouseWheel = 0;   // ホイールリセット
 }
 
 bool Input::GetKey(int vkCode) const
@@ -199,12 +207,10 @@ void Input::ShowCursor(bool show)
 void Input::SetCursorLock(bool lock)
 {
 	m_CursorLocked = lock;
-	if (!lock)
-	{
-		// ロック解除時にカーソルを現在のマウス位置に移動
-		POINT pt;
-		GetCursorPos(&pt);
-		ScreenToClient(m_hWnd, &pt);
-		SetCursorPos(pt.x, pt.y);
-	}
+
+	RECT rect;
+	GetClientRect(m_hWnd, &rect);
+	POINT center = { (rect.right - rect.left) / 2, (rect.bottom - rect.top) / 2 };
+	ClientToScreen(m_hWnd, &center);
+	SetCursorPos(center.x, center.y);   // ロック/アンロック両方で中心へ
 }
