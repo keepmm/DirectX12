@@ -12,6 +12,7 @@
 
 bool KeyState::IsPressed() const
 {
+	if (m_Input->IsKeyboardCaptured()) return false;
 	return m_Input->GetKey(m_VKCode);
 }
 

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "EngineAPI.hpp"
+
 #define PLAY PlayState::Get()
 
 enum class EngineMode
@@ -9,22 +11,18 @@ enum class EngineMode
 	PAUSE
 };
 
-class PlayState
+class ENGINE_API PlayState
 {
 public:
-	static PlayState& Get()
-	{
-		static PlayState instance;
-		return instance;
-	}
+	static PlayState& Get();
 
-	void SetMode(_In_ EngineMode mode) { m_CurrentMode = mode; }
-	inline EngineMode GetCurrentMode() const noexcept { return m_CurrentMode; }
-	void SetStandalone(bool standalone) { m_Standalone = standalone; }
-	bool IsStandalone() const noexcept { return m_Standalone; }
+    void SetMode(EngineMode mode);
+    EngineMode GetCurrentMode() const noexcept;
+    void SetStandalone(bool standalone);
+    bool IsStandalone() const noexcept;
+    bool isPlaying() const noexcept;
 
-	bool isPlaying() const noexcept { return m_CurrentMode == EngineMode::Play; }
 private:
-	EngineMode m_CurrentMode = EngineMode::EDITOR;
-	bool m_Standalone = false;
+    EngineMode m_CurrentMode = EngineMode::EDITOR;
+    bool m_Standalone = false;
 };

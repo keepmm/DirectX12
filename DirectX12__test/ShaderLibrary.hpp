@@ -60,6 +60,14 @@ public:
 		UINT compileFlags = 0
 		);
 
+	const Shader* Reload(
+		_In_ const std::wstring& filePath,
+		_In_ const std::string& entry,
+		_In_ const std::string& profile,
+		_Out_ std::string& outError,
+		_In_ UINT flags = 0
+	);
+
 	void Clear();
 
 	bool ReoadChanged();

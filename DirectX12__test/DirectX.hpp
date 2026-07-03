@@ -91,6 +91,12 @@ struct DescriptorAllocator
 	}
 };
 
+struct RegisteredPass
+{
+	ShaderPassDef def;
+	ComPtr<ID3D12PipelineState> pso;
+};
+
 #include "ConstantBufferAllocator.hpp"
 
 #define APP DirectXApp::GetCurrent()
@@ -121,6 +127,23 @@ public:
 
 	bool ReloadShader();
 
+	bool CreateShadeFromSource(
+		_In_ const std::string& name,
+		_In_ const std::string& hlslCode,
+		_In_ std::string& psEntry,
+		_Out_ std::string& outError,
+		_In_ bool alphaBlend = false
+	);
+
+	ID3D12PipelineState* RegisterShaderPass(
+		_In_ const std::string& name,
+		_In_ const ShaderPassDef& def
+	);
+	ID3D12PipelineState* GetPipelineStateByName(
+		_In_ std::string& name
+	)const;
+	std::vector<std::string> GetShaderNames() const;
+
 	// ---------------------------------------------------//
 	//						Getter						  //
 	// ---------------------------------------------------//
@@ -132,6 +155,8 @@ public:
 	inline ComPtr<ID3D12PipelineState> GetLinePso() const noexcept { return m_LinePso; }
 	inline ComPtr<ID3D12PipelineState> GetIconPso() const noexcept { return m_IconPso; }
 	inline ID3D12PipelineState* GetMeshPso() const noexcept { return m_MeshPso.Get(); }
+	inline ID3D12PipelineState* GetUIPso() const noexcept { return m_UIPso.Get(); }
+	inline ID3D12PipelineState* GetSkyPso() const noexcept { return m_SkyPso.Get(); }
 	inline bool IsMeshShaderSupported() const noexcept { return m_MeshShaderSupported; }
 	inline ComPtr<ID3D12CommandQueue> GetCommandQueue() const noexcept { return m_CommandQueue; }
 	inline UINT GetFrameIndex() const noexcept { return m_FrameIndex; }
@@ -192,6 +217,8 @@ private:
 	ComPtr<ID3D12PipelineState> m_pipelineStateWireFrame;
 	ComPtr<ID3D12PipelineState> m_LinePso;
 	ComPtr<ID3D12PipelineState> m_IconPso;
+	ComPtr<ID3D12PipelineState> m_UIPso;
+	ComPtr<ID3D12PipelineState> m_SkyPso;
 
 	ComPtr<ID3D12GraphicsCommandList6> m_CommandList6;
 	ComPtr<ID3D12PipelineState> m_MeshPso;
@@ -212,4 +239,10 @@ private:
 
 	void CreateRootSignature();
 	void CreatePipelineStateObject();
+
+	std::unordered_map<std::string, RegisteredPass> m_ShaderRegistry;
+
+	void RegisterBuiltinShaders();
+
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC MakeBasePsoDesc()const;
 };

@@ -15,8 +15,28 @@ void Logger::WriteLog(LogLevel level, const std::string& message)
 
 	std::string TimeStamp = GetCurrentTime();
 	std::string LevelStr = GetLogLevelString(level);
-    std::string FullMessage = "[" + TimeStamp + "] [" + LevelStr + "] " + message;
+    //std::string FullMessage = "[" + TimeStamp + "] [" + LevelStr + "] " + message;
 
+    // 直前と同じレベルなら行を増やさずカウントして末尾の更新
+    const bool isDup = !m_RecentLogs.empty() &&
+        level == m_LastLogLevel &&
+        message == m_LastRawMessage;
+
+    if (isDup)
+    {
+        ++m_LastCount;
+        std::string full = "[" + TimeStamp + "] [" + LevelStr + "] "
+            + message + " (" + std::to_string(m_LastCount) + ")";
+        m_RecentLogs.back() = full;
+        return;                       // コンソール/ファイルへの重複出力は抑制（スパム防止）
+    }
+
+    // 新規メッセージ
+    m_LastLogLevel = level;
+    m_LastRawMessage = message;
+    m_LastCount = 1;
+
+    std::string FullMessage = "[" + TimeStamp + "] [" + LevelStr + "] " + message;
 	m_RecentLogs.push_back(FullMessage);
     if(m_RecentLogs.size() > m_MaxRecentLogs)
     {
@@ -166,6 +186,11 @@ void Logger::LogError(const std::string& message)
 void Logger::LogDebug(const std::string& message)
 {
 	WriteLog(LogLevel::Debug, message);
+}
+
+const std::deque<std::string>& Logger::GetRecentLogs() const
+{
+    return m_RecentLogs;
 }
 
 Logger::~Logger()

@@ -58,6 +58,8 @@ private:
 
 	void DrawLight();
 
+	void DrawColliders();
+
 
 	struct DebugLine
 	{
@@ -77,6 +79,10 @@ private:
 	FreeLookSystem m_FreeLookSystem;
 	CameraSystem m_CameraSystem;
 	ScriptSystem m_ScriptSystem;
+	SpriteRenderSystem m_SpriteRenderSystem;
+	CanvasRenderSystem m_CanvasRenderSystem;
+	AudioSystem m_AudioSystem;
+	TransformSystem m_TransformSystem;
 
 	bool m_ScriptSystemStarted = false;
 
@@ -84,8 +90,12 @@ private:
 	std::vector<DebugLine> m_DebugLines;
 
 	Mesh m_IconQuad;
+	Mesh m_SpriteQuad;
+	Mesh m_UIQuad;
+	Mesh m_SkyboxCube;
 	std::shared_ptr<Material> m_LightIcon;
 	std::shared_ptr<Material> m_CameraIcon;
+	std::shared_ptr<Material> m_SkyBox;
 	bool n_IconReady;
 
 	bool m_Initialized = false;

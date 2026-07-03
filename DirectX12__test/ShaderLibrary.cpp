@@ -41,6 +41,25 @@ const Shader* ShaderLibrary::Load(
     return shader.get();
 }
 
+const Shader* ShaderLibrary::Reload(const std::wstring& filePath, const std::string& entry, const std::string& profile, std::string& outError, UINT flags)
+{
+    const ShaderKey key{ filePath,entry,profile,flags };
+    auto shader = std::make_shared<Shader>();
+    if(!shader->LoadFromFile(filePath, entry, profile, flags))
+    {
+        outError = shader->GetLastError(); // UIÇ÷ñﬂÇ∑
+        return nullptr;
+	}
+    outError.clear();
+    ShaderEntry e{ shader };
+    if (std::filesystem::exists(filePath))
+    {
+        e.lastWriteTime = std::filesystem::last_write_time(filePath);        
+    }
+    m_Shaders[key] = e; // è„èëÇ´
+    return shader.get();
+}
+
 void ShaderLibrary::Clear()
 {
     m_Shaders.clear();

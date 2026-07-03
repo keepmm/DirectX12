@@ -160,29 +160,6 @@ void EditorWindow::DrawAssetPanel(SceneManager& sceneManager)
 					m_SelectedAsset = fullPath;
 				}
 
-				// 右クリックでコンテキストメニュー
-				if (ImGui::BeginPopupContextWindow("AssetCtx##", ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems))
-				{
-					if (ImGui::BeginMenu(u8("作成")))
-					{
-
-
-						//if (ImGui::MenuItem(u8("フォルダーの作成")))
-						//{
-
-						//}
-						//ImGui::EndMenu();
-
-						if (ImGui::MenuItem(u8("C++ スクリプト")))
-						{
-							// 作成処理(予定)
-							m_ShowCreateScriptPopup = true;
-						}
-						ImGui::EndMenu();
-					}
-					ImGui::EndPopup();
-				}
-
 				// フォルダはダブルクリックで中に入る
 				if (isFolder &&
 					ImGui::IsItemHovered() &&
@@ -210,7 +187,19 @@ void EditorWindow::DrawAssetPanel(SceneManager& sceneManager)
 				// ---- ドラッグ元（ファイルのみ）---- //
 				if (!isFolder && ImGui::BeginDragDropSource())
 				{
-					ImGui::SetDragDropPayload("ASSET_MODEL",
+					// 拡張子からペイロード種別を決める
+					const char* payloadType = "ASSET_FILE";   // 既定（汎用）
+					if (ext == ".fbx" || ext == ".obj")
+						payloadType = "ASSET_MODEL";
+					else if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" ||
+						ext == ".dds" || ext == ".tga" || ext == ".bmp" || ext == ".hdr")
+						payloadType = "ASSET_TEXTURE";
+					else if (ext == ".ttf" || ext == ".ttc" || ext == ".otf")
+						payloadType = "ASSET_FONT";
+					else if (ext == ".wav" || ext == ".mp3" || ext == ".ogg")
+						payloadType = "ASSET_AUDIO";
+
+					ImGui::SetDragDropPayload(payloadType,
 						fullPath.c_str(), fullPath.size() + 1);
 					ImGui::Text("%s", name.c_str());
 					ImGui::EndDragDropSource();
@@ -237,6 +226,28 @@ void EditorWindow::DrawAssetPanel(SceneManager& sceneManager)
 				if (nextTileRight < windowRight)
 				{
 					ImGui::SameLine();
+				}
+
+				// 右クリックでコンテキストメニュー
+				if (ImGui::BeginPopupContextWindow("AssetCtx##", ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems))
+				{
+					if (ImGui::BeginMenu(u8("作成")))
+					{
+
+
+						if (ImGui::MenuItem(u8("フォルダーの作成")))
+						{
+							CreateFolder(m_CurrentAssetDir);
+						}
+
+						if (ImGui::MenuItem(u8("C++ スクリプト")))
+						{
+							// 作成処理(予定)
+							m_ShowCreateScriptPopup = true;
+						}
+						ImGui::EndMenu();
+					}
+					ImGui::EndPopup();
 				}
 
 				ImGui::PopID();

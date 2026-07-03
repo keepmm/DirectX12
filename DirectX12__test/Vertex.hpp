@@ -17,4 +17,5 @@ struct Vertex
 	float3 normal;
 	float4 col;
 	float2 uv;
+	float3 tangent;
 };

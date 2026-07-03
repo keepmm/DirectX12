@@ -6,12 +6,8 @@
 #include "../imguiinit.hpp"
 #include "../imgui-master/backends/imgui_impl_dx12.h"
 #include "../imgui-master/backends/imgui_impl_win32.h"
-
-#define CR_HOST CR_UNSAFE
-#include "../cr.h"
-
-cr_plugin g_plugin;
-ScriptContext g_scriptContext;
+#include "../ScriptHost.hpp"
+#include "../IconLibrary.hpp"
 
 static LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -127,6 +123,7 @@ void Engine::Run()
 
 			float deltaTime = TIME->GetDeltaTime();
 
+
 			m_DirectX->ReloadShader();
 			if (FAILED(m_DirectX->BeginRender()))
 			{
@@ -134,9 +131,15 @@ void Engine::Run()
 				return;
 			}
 			IMGUI::BeginFrame();
+			IconLibrary::Get()->BeginFrame();
+			ImGuiIO& io = ImGui::GetIO();
+			INPUT->SetImGuiCapture(io.WantCaptureKeyboard, io.WantCaptureMouse, io.WantTextInput);
 
 			// エンジン更新
 			m_SceneManager.Update(deltaTime);
+
+			Scene* scene = m_SceneManager.GetActiveScene();
+			ScriptHost::Update(deltaTime,&scene->GetWorld());
 
 
 			// 固定タイムステップ更新
@@ -183,6 +186,7 @@ void Engine::Run()
 
 void Engine::Terminate()
 {
+	ScriptHost::Close();
 	APP->WaitForGPUIdle();
 	OnShutDown();
 	IMGUI::Release();

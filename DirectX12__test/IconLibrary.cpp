@@ -4,6 +4,9 @@
 #include "DirectXTex/DirectXTex.h"
 #include "Logger.hpp"
 #include <filesystem>
+#include <wincodec.h>
+#include <wrl/client.h>
+#pragma comment (lib, "windowscodecs.lib")
 
 ImTextureID IconLibrary::GetOrLoad(const std::wstring& path)
 {
@@ -14,14 +17,11 @@ ImTextureID IconLibrary::GetOrLoad(const std::wstring& path)
 		return it->second;
 	}
 
-	ImTextureID id = 0;
-	if (!LoadTexture(path, id))
-	{
-		// 失敗も記録して毎フレーム再試行しないようにする
-		m_Cache[path] = 0;
-		return 0;
-	}
+	if (m_LoadsThisFrame >= kMaxLoadsPerFrame) return 0;
+	++m_LoadsThisFrame;
 
+	ImTextureID id = 0;
+	if (!LoadTexture(path, id)) { m_Cache[path] = 0; return 0; }
 	m_Cache[path] = id;
 	return id;
 }
@@ -51,21 +51,84 @@ bool IconLibrary::LoadTexture(const std::wstring& path, ImTextureID& outId)
 		return false;
 	}
 
-	// ---- WICで読み込み ---- //
-	DirectX::TexMetadata metadata{};
-	DirectX::ScratchImage image{};
-	if (FAILED(DirectX::LoadFromWICFile(
-		resolved.c_str(), DirectX::WIC_FLAGS_NONE, &metadata, image)))
+	// ---- WICで「縮小しながら」デコード（4Kを保持しない）---- //
+	using Microsoft::WRL::ComPtr;
+	constexpr UINT kThumb = 128;
+
+	ComPtr<IWICImagingFactory> wic;
+	if (FAILED(CoCreateInstance(CLSID_WICImagingFactory, nullptr,
+		CLSCTX_INPROC_SERVER, IID_PPV_ARGS(wic.GetAddressOf()))))
 	{
-		LOG->LogError("IconLibrary: LoadFromWICFile failed");
+		LOG->LogError("IconLibrary: WIC factory failed");
 		return false;
 	}
 
-	const DirectX::Image* srcImage = image.GetImage(0, 0, 0);
-	if (srcImage == nullptr)
+	ComPtr<IWICBitmapDecoder> decoder;
+	if (FAILED(wic->CreateDecoderFromFilename(resolved.c_str(), nullptr,
+		GENERIC_READ, WICDecodeMetadataCacheOnDemand, decoder.GetAddressOf())))
+	{
+		LOG->LogError("IconLibrary: WIC decoder failed");
+		return false;
+	}
+
+	ComPtr<IWICBitmapFrameDecode> frame;
+	if (FAILED(decoder->GetFrame(0, frame.GetAddressOf())))
 	{
 		return false;
 	}
+
+	UINT ow = 0, oh = 0;
+	frame->GetSize(&ow, &oh);
+	if (ow == 0 || oh == 0)
+	{
+		return false;
+	}
+
+	// アスペクト比維持で最大辺kThumb（元が小さければ等倍）
+	UINT tw = ow, th = oh;
+	if (ow > kThumb || oh > kThumb)
+	{
+		if (ow >= oh) { th = std::max<UINT>(1, oh * kThumb / ow); tw = kThumb; }
+		else { tw = std::max<UINT>(1, ow * kThumb / oh); th = kThumb; }
+	}
+
+	// 縮小
+	ComPtr<IWICBitmapScaler> scaler;
+	if (FAILED(wic->CreateBitmapScaler(scaler.GetAddressOf())))
+	{
+		return false;
+	}
+	if (FAILED(scaler->Initialize(frame.Get(), tw, th, WICBitmapInterpolationModeFant)))
+	{
+		return false;
+	}
+
+	// RGBA8へ変換
+	ComPtr<IWICFormatConverter> conv;
+	if (FAILED(wic->CreateFormatConverter(conv.GetAddressOf())))
+	{
+		return false;
+	}
+	if (FAILED(conv->Initialize(scaler.Get(), GUID_WICPixelFormat32bppRGBA,
+		WICBitmapDitherTypeNone, nullptr, 0.0, WICBitmapPaletteTypeCustom)))
+	{
+		return false;
+	}
+
+	// ピクセル取得（小サイズRGBA）
+	const UINT rowPitch = tw * 4;
+	std::vector<std::uint8_t> pixels(static_cast<size_t>(rowPitch) * th);
+	if (FAILED(conv->CopyPixels(nullptr, rowPitch,
+		static_cast<UINT>(pixels.size()), pixels.data())))
+	{
+		return false;
+	}
+
+	// 以降で使うメタ情報（縮小後）
+	DirectX::TexMetadata metadata{};
+	metadata.width = tw;
+	metadata.height = th;
+	metadata.format = DXGI_FORMAT_R8G8B8A8_UNORM;
 
 	// ---- テクスチャ本体（DEFAULTヒープ）---- //
 	const CD3DX12_RESOURCE_DESC texDesc = CD3DX12_RESOURCE_DESC::Tex2D(
@@ -73,7 +136,7 @@ bool IconLibrary::LoadTexture(const std::wstring& path, ImTextureID& outId)
 		static_cast<UINT64>(metadata.width),
 		static_cast<UINT>(metadata.height));
 
-	Microsoft::WRL::ComPtr<ID3D12Resource> texture;
+	ComPtr<ID3D12Resource> texture;
 	CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_DEFAULT);
 	if (FAILED(device->CreateCommittedResource(
 		&heapProps, D3D12_HEAP_FLAG_NONE, &texDesc,
@@ -91,7 +154,7 @@ bool IconLibrary::LoadTexture(const std::wstring& path, ImTextureID& outId)
 	device->GetCopyableFootprints(&texDesc, 0, 1, 0,
 		&footprint, &numRows, &rowSizeInBytes, &uploadSize);
 
-	Microsoft::WRL::ComPtr<ID3D12Resource> upload;
+	ComPtr<ID3D12Resource> upload;
 	CD3DX12_HEAP_PROPERTIES uploadHeap(D3D12_HEAP_TYPE_UPLOAD);
 	CD3DX12_RESOURCE_DESC uploadDesc = CD3DX12_RESOURCE_DESC::Buffer(uploadSize);
 	if (FAILED(device->CreateCommittedResource(
@@ -102,7 +165,7 @@ bool IconLibrary::LoadTexture(const std::wstring& path, ImTextureID& outId)
 		return false;
 	}
 
-	// ピクセルコピー
+	// ピクセルコピー（縮小後バッファから）
 	void* mapped = nullptr;
 	CD3DX12_RANGE readRange(0, 0);
 	if (FAILED(upload->Map(0, &readRange, &mapped)))
@@ -110,20 +173,18 @@ bool IconLibrary::LoadTexture(const std::wstring& path, ImTextureID& outId)
 		return false;
 	}
 	auto* dst = reinterpret_cast<std::uint8_t*>(mapped);
-	const size_t copyBytes = (srcImage->rowPitch < static_cast<size_t>(rowSizeInBytes))
-		? srcImage->rowPitch : static_cast<size_t>(rowSizeInBytes);
 	for (UINT y = 0; y < metadata.height; ++y)
 	{
 		std::memcpy(
 			dst + static_cast<size_t>(y) * footprint.Footprint.RowPitch,
-			srcImage->pixels + static_cast<size_t>(y) * srcImage->rowPitch,
-			copyBytes);
+			pixels.data() + static_cast<size_t>(y) * rowPitch,
+			rowPitch);
 	}
 	upload->Unmap(0, nullptr);
 
-	// ---- 自前のコマンドリストで即時アップロード ---- //
-	Microsoft::WRL::ComPtr<ID3D12CommandAllocator> cmdAlloc;
-	Microsoft::WRL::ComPtr<ID3D12GraphicsCommandList> cmdList;
+	// ---- 専用のコマンドリストで即アップロード ---- //
+	ComPtr<ID3D12CommandAllocator> cmdAlloc;
+	ComPtr<ID3D12GraphicsCommandList> cmdList;
 	if (FAILED(device->CreateCommandAllocator(
 		D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(cmdAlloc.GetAddressOf()))))
 	{
@@ -159,14 +220,14 @@ bool IconLibrary::LoadTexture(const std::wstring& path, ImTextureID& outId)
 	ID3D12CommandList* lists[] = { cmdList.Get() };
 	APP->GetCommandQueue()->ExecuteCommandLists(1, lists);
 
-	// アップロード完了を待つ（エディタ用の1回きりロードなので同期でよい）
+	// アップロード完了待ち（エディタ用に1回きりロードなので同期でよい）
 	APP->WaitForGPUIdle();
 
-	// ---- グローバルSRVヒープにSRVを作成 ---- //
+	// ---- グローバルSRVヒープにSRV作成 ---- //
 	UINT srvIndex = 0;
 	if (!APP->GetSrvAllocator().Allocate(srvIndex))
 	{
-		LOG->LogError("IconLibrary: SRVヒープが満杯です");
+		LOG->LogError("IconLibrary: SRVヒープが枯渇です");
 		return false;
 	}
 
@@ -179,10 +240,8 @@ bool IconLibrary::LoadTexture(const std::wstring& path, ImTextureID& outId)
 	device->CreateShaderResourceView(
 		texture.Get(), &srvDesc, APP->GetSrvAllocator().Cpu(srvIndex));
 
-	// GPUハンドルがそのまま ImTextureID になる（RenderTextureと同じパターン）
 	outId = static_cast<ImTextureID>(APP->GetSrvAllocator().Gpu(srvIndex).ptr);
 
-	// テクスチャ本体を保持（ComPtrが解放されないように）
 	m_Textures.push_back(texture);
 
 	LOG->LogInfo("IconLibrary: icon loaded");

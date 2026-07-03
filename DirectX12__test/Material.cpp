@@ -5,6 +5,59 @@
 #include "Logger.hpp"
 #include "ConstantBufferAllocator.hpp"
 
+/// @brief テクスチャの読み込み(拡張子に応じて自動判別)
+/// @param filePath ファイルのパス
+/// @param meta metadata
+/// @param img scrachimage
+/// @return 成功時はS_OK、失敗時はエラーコード
+static HRESULT LoadImgAny(
+	_In_ const std::wstring& filePath, 
+	_In_ DirectX::TexMetadata& meta, 
+	_In_ DirectX::ScratchImage& img)
+{
+	HRESULT hr;
+
+	std::filesystem::path resolved = filePath;
+	if (resolved.is_relative())
+	{
+		wchar_t exePath[MAX_PATH] = {};
+		GetModuleFileNameW(nullptr, exePath, MAX_PATH);
+		resolved = std::filesystem::path(exePath).parent_path() / resolved;
+	}
+
+	if (!std::filesystem::exists(resolved))
+	{
+		LOG->LogError("SetTextureFromFile: " + resolved.string() + " not found");
+		return false;
+	}
+
+	const std::wstring ext = resolved.extension().wstring();
+	auto iequals = [](std::wstring a, const wchar_t* b)
+		{
+			std::transform(a.begin(), a.end(), a.begin(), ::towlower);
+			return a == b;
+		};
+
+	if (iequals(ext, L".hdr"))
+	{
+		hr = DirectX::LoadFromHDRFile(resolved.c_str(), &meta, img);
+	}
+	else if (iequals(ext, L".dds"))
+	{
+		hr = DirectX::LoadFromDDSFile(resolved.c_str(), DirectX::DDS_FLAGS_NONE, &meta, img);
+	}
+	else if (iequals(ext, L".tga"))
+	{
+		hr = DirectX::LoadFromTGAFile(resolved.c_str(), &meta, img);
+	}
+	else
+	{
+		hr = DirectX::LoadFromWICFile(resolved.c_str(), DirectX::WIC_FLAGS_NONE, &meta, img);
+	}
+
+	return hr;
+}
+
 void Material::Init()
 {
 	// 引数のどれかが空の場合初期化しない
@@ -25,30 +78,14 @@ bool Material::SetTextureFromFile(const std::wstring& filePath)
 		return false;
 	}
 
-	std::filesystem::path resolved = filePath;
-	if (resolved.is_relative())
-	{
-		wchar_t exePath[MAX_PATH] = {};
-		GetModuleFileNameW(nullptr, exePath, MAX_PATH);
-		resolved = std::filesystem::path(exePath).parent_path() / resolved;
-	}
-
-	if (!std::filesystem::exists(resolved))
-	{
-		LOG->LogError("SetTextureFromFile: texture not found");
-		return false;
-	}
-
 	DirectX::TexMetadata metadata{};
 	DirectX::ScratchImage image{};
-	const HRESULT hr = DirectX::LoadFromWICFile(
-		resolved.c_str(), DirectX::WIC_FLAGS_NONE, &metadata, image);
 
 	// 読み込みに失敗
-	if (FAILED(hr)) {
-		LOG->LogHRESULT(hr, "LoadFromWICFile failed");
+	if (FAILED(LoadImgAny(filePath, metadata, image))) {
+		LOG->LogError("LoadFromWICFile failed");
 		return false;
-	}
+	}	
 
 	const DirectX::Image* srcImage = image.GetImage(0, 0, 0);
 	if (srcImage == nullptr)
@@ -226,17 +263,27 @@ bool Material::SetToonRampTexture(const std::wstring& filepath)
 		m_RampUploadPending);
 }
 
+/// @brief マテリアルを適用する
+/// @param commandList コマンドリスト
+/// @param world world行列
+/// @param view view行列
+/// @param projection proj行列
+/// @param wireframe wireframe描画するか
+/// @param frameIndex 描画インデックス
+/// @param cbAlloc 定数バッファアロケータ
+/// @param shaderName シェーダーの名前
+/// @param overridePso 使用するPSO
 void Material::Apply(
 	ID3D12GraphicsCommandList* commandList,
 	const float4x4& world,
 	const float4x4& view,
 	const float4x4& projection,
 	bool wireframe,
-	E_VERTEX_SHADER vsType,
-	E_PIXEL_SHADER psType,
-	ID3D12PipelineState* overridePso,
 	UINT frameIndex,
-	ConstantBufferAllocator* cbAlloc)
+	ConstantBufferAllocator* cbAlloc,
+	std::string shaderName,
+	ID3D12PipelineState* overridePso
+	)
 {
 
 	// コマンドリストが空の場合は適用しない
@@ -279,7 +326,18 @@ void Material::Apply(
 	BuildPerObject(world, &odata);
 	const D3D12_GPU_VIRTUAL_ADDRESS b1 = cbAlloc->Allocate(frameSlot, &odata, sizeof(ObjectCB));
 
-	if (b0 == 0 || b1 == 0)
+	// b3
+	MaterialCB mdata{};
+	mdata.mapFlags = { m_HasNormal ? 1.0f : 0.0f,
+				   m_HasMetal ? 1.0f : 0.0f,
+				   m_HasRough ? 1.0f : 0.0f, 0.0f };
+	mdata.roughness = roughness;
+	mdata.metallic = metallic;
+	mdata.rimColor = rimColor;
+	const D3D12_GPU_VIRTUAL_ADDRESS b3 = cbAlloc->Allocate(frameSlot, &mdata, sizeof(MaterialCB));
+
+
+	if (b0 == 0 || b1 == 0 || b3 == 0)
 	{
 		// リングが溢れた等で確保できない場合は描画しない
 		return;
@@ -288,39 +346,29 @@ void Material::Apply(
 	// ルートパラメータに定数バッファのGPU仮想アドレスをセット
 	commandList->SetGraphicsRootConstantBufferView(0, b0);
 	commandList->SetGraphicsRootConstantBufferView(1, b1);
+	commandList->SetGraphicsRootConstantBufferView(3, b3);
 
 	// PSOの選択
-	ID3D12PipelineState* selectedPSO = overridePso;
-
-	if (selectedPSO == nullptr)
-	{
-		if (wireframe)
-		{
-			selectedPSO = m_WirePso.Get();
-		}
-		else
-		{
-			const size_t vsIndex = static_cast<size_t>(vsType);
-			const size_t psIndex = static_cast<size_t>(psType);
-			selectedPSO = m_PipelineStates[vsIndex][psIndex].Get();
-		}
-	}
-
-	if(selectedPSO == nullptr) 
-	{
-		return;
-	}
-
-	commandList->SetPipelineState(selectedPSO);
+	ID3D12PipelineState* pso = overridePso;
+	std::string name = "Basic";
+	if (!pso && wireframe)            pso = m_WirePso.Get();
+	if (!pso)                         pso = APP->GetPipelineStateByName(shaderName);
+	if (!pso)                         pso = APP->GetPipelineStateByName(name); // 安全網
+	if (!pso) return;
+	commandList->SetPipelineState(pso);
 }
 
 void Material::BuildPerFrame(const float4x4& view, const float4x4& projection, FrameCB* out) const
 {
 	FrameCB data{};
-
 	const auto v = DirectX::XMLoadFloat4x4(&view);
 	const auto p = DirectX::XMLoadFloat4x4(&projection);
 	DirectX::XMStoreFloat4x4(&data.viewProj, DirectX::XMMatrixTranspose(v * p));
+
+	// カメラのワールド座標 = view の逆行列の平行移動
+	const auto invV = DirectX::XMMatrixInverse(nullptr, v);
+	DirectX::XMFLOAT4X4 iv; DirectX::XMStoreFloat4x4(&iv, invV);
+	data.cameraPos = { iv._41, iv._42, iv._43, 1.0f };
 
 	*out = data;
 }
@@ -489,6 +537,128 @@ void Material::UpdateTextureIfNeeded(ID3D12GraphicsCommandList* commandList)
 
 		m_RampUploadPending = false;
 	}
+}
+
+bool Material::CreateTextureFromRGBA(
+	UINT width, UINT height, const std::uint8_t* rgba)
+{
+	auto device = APP->GetDevice();
+	if (device == nullptr || rgba == nullptr || width == 0 || height == 0) return false;
+
+	constexpr DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	constexpr UINT pixelSize = 4;
+
+	// SRVヒープ（無ければ作る）
+	if (m_TextureSrvHeap == nullptr)
+	{
+		D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
+		heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+		heapDesc.NumDescriptors = 2;
+		heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+		if (FAILED(device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(m_TextureSrvHeap.GetAddressOf()))))
+			return false;
+	}
+
+	CD3DX12_RESOURCE_DESC texDesc = CD3DX12_RESOURCE_DESC::Tex2D(format, width, height);
+	CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_DEFAULT);
+	if (FAILED(device->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &texDesc,
+		D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(m_Texture.ReleaseAndGetAddressOf()))))
+		return false;
+
+	D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint = {};
+	UINT numRows = 0; UINT64 rowSize = 0, uploadSize = 0;
+	device->GetCopyableFootprints(&texDesc, 0, 1, 0, &footprint, &numRows, &rowSize, &uploadSize);
+	m_TextureFootprint = footprint;
+
+	CD3DX12_HEAP_PROPERTIES uploadHeap(D3D12_HEAP_TYPE_UPLOAD);
+	CD3DX12_RESOURCE_DESC uploadDesc = CD3DX12_RESOURCE_DESC::Buffer(uploadSize);
+	if (FAILED(device->CreateCommittedResource(&uploadHeap, D3D12_HEAP_FLAG_NONE, &uploadDesc,
+		D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(m_TextureUpload.ReleaseAndGetAddressOf()))))
+		return false;
+
+	void* mapped = nullptr;
+	CD3DX12_RANGE readRange(0, 0);
+	if (SUCCEEDED(m_TextureUpload->Map(0, &readRange, &mapped)))
+	{
+		auto* dst = reinterpret_cast<std::uint8_t*>(mapped);
+		const UINT srcRowPitch = width * pixelSize;
+		for (UINT y = 0; y < height; ++y)
+			std::memcpy(dst + y * footprint.Footprint.RowPitch,
+				rgba + y * srcRowPitch, srcRowPitch);
+		m_TextureUpload->Unmap(0, nullptr);
+		m_TextureUploadPending = true; 
+	}
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.Format = format;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MipLevels = 1;
+	auto cpu = m_TextureSrvHeap->GetCPUDescriptorHandleForHeapStart();
+	//cpu.ptr += device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);  // 既存と同じ＋1
+	device->CreateShaderResourceView(m_Texture.Get(), &srvDesc, cpu);
+	return true;
+}
+
+bool Material::SetNormalTexture(const std::wstring& path)
+{
+	if (!EnsureSrvHeap()) return false;
+	DirectX::TexMetadata metadata{};
+	DirectX::ScratchImage image{};
+	if (!LoadImgAny(path, metadata, image)) return false;
+	m_HasNormal = UploadTextureTo(image.GetImage(0, 0, 0),metadata,2,
+		m_NormalTexture,m_NormalUpload,m_NormalFootprint,m_NormalPending);
+	return m_HasNormal;
+}
+
+bool Material::SetMetalTexture(const std::wstring& path)
+{
+	if (!EnsureSrvHeap()) return false;
+	DirectX::TexMetadata metadata{};
+	DirectX::ScratchImage image{};
+	if (!LoadImgAny(path, metadata, image)) return false;
+	m_HasMetal = UploadTextureTo(image.GetImage(0, 0, 0),metadata,3,
+		m_MetalTexture,m_MetalUpload,m_MetalFootprint,m_MetalPending);
+	return m_HasMetal;
+}
+
+bool Material::SetRoughTexture(const std::wstring& path)
+{
+	if (!EnsureSrvHeap()) return false;
+	DirectX::TexMetadata metadata{};
+	DirectX::ScratchImage image{};
+	if (!LoadImgAny(path, metadata, image)) return false;
+	m_HasRough = UploadTextureTo(image.GetImage(0, 0, 0),metadata,4,
+		m_RoughTexture,m_RoughUpload,m_RoughFootprint,m_RoughPending);
+	return m_HasRough;
+}
+
+bool Material::EnsureSrvHeap()
+{
+	if (m_TextureSrvHeap != nullptr) return true;
+
+	auto device = APP->GetDevice();
+	D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
+	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+	heapDesc.NumDescriptors = 5;                       // t0..t4
+	heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+	if (FAILED(device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(m_TextureSrvHeap.GetAddressOf()))))
+		return false;
+
+	// 全slotを1x1白のダミーSRVで初期化（未設定slotをサンプルしても安全に）
+	D3D12_SHADER_RESOURCE_VIEW_DESC nullSrv = {};
+	nullSrv.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	nullSrv.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	nullSrv.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	nullSrv.Texture2D.MipLevels = 1;
+	const UINT inc = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	auto cpu = m_TextureSrvHeap->GetCPUDescriptorHandleForHeapStart();
+	for (UINT i = 0; i < 5; ++i)
+	{
+		device->CreateShaderResourceView(nullptr, &nullSrv, cpu);  // null descriptor（サンプルすると0）
+		cpu.ptr += inc;
+	}
+	return true;
 }
 
 bool Material::UploadTextureData(const DirectX::Image* srcImage, const DirectX::TexMetadata& metadata)

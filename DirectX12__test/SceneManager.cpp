@@ -99,13 +99,19 @@ Scene* SceneManager::GetActiveScene() const
 
 void SceneManager::Update(float deltatime)
 {
-	// 非同期処理をロック
-	std::unique_lock<std::mutex> lock(m_SceneMutex);
+	// AsyncLoader を遅延生成（device が用意できてから）
+	if (!m_AsyncLoader)
+	{
+		m_AsyncLoader = std::make_unique<AsyncLoader>(m_ThreadPool, APP->GetDevice());
+	}
+
+	// 完了した非同期ロードをメインスレッドで反映（GPU化＋コールバック）
+	m_AsyncLoader->ProcessCompletedTasks();
 
 	// シーンロード / アンロード処理
 	ProcessSceneQueue();
 
-	// ふぇーふぉ処理
+	// フェード処理
 	UpdateFade(deltatime);
 
 	// ロード済みシーンの更新
@@ -296,6 +302,7 @@ void SceneManager::FixedUpdate(float fixedDeltatime)
 			{
 				physicsWorld->Update(fixedDeltatime);
 				physicsWorld->SyncTransforms(scene->GetWorld());
+				physicsWorld->DispatchEvents(scene->GetWorld());
 			}
 			scene->FixedUpdate(fixedDeltatime);
 		}

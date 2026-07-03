@@ -24,24 +24,48 @@ public:
 		_In_ const float4x4& view,
 		_In_ const float4x4& projection,
 		bool wireframe,
-		E_VERTEX_SHADER vsType = E_VERTEX_SHADER::BASIC,
-		E_PIXEL_SHADER psType = E_PIXEL_SHADER::BASIC,
-		_In_opt_ ID3D12PipelineState* overridePso = nullptr,
 		UINT frameIndex = 0,
-		_In_ ConstantBufferAllocator* cbAlloc = nullptr);
+		_In_ ConstantBufferAllocator* cbAlloc = nullptr,
+		_In_ std::string shaderName = "",
+		_In_opt_ ID3D12PipelineState* overridePso = nullptr);
+		
+	void UpdateTextureIfNeeded(_In_ ID3D12GraphicsCommandList* commandList);
 
+	bool CreateTextureFromRGBA(
+		_In_ UINT Width,
+		_In_ UINT Height,
+		_In_ const std::uint8_t* data
+	);
+public:
+	float roughness = 0.5f;
+	float metallic = 0.0f;
+	float4 rimColor = { 1.0f,1.0f,1.0f,1.0f };
+
+	bool SetNormalTexture(_In_ const std::wstring& path);
+	bool SetMetalTexture(_In_ const std::wstring& path);
+	bool SetRoughTexture(_In_ const std::wstring& path);
+
+	// SRVヒープを5枚で確保＋全slotをデフォルト充填（重複コード集約）
+	bool EnsureSrvHeap();
 private:
 	struct alignas(256) FrameCB
 	{
 		float4x4 viewProj;
-		float4 lightDir;
-		float4 lightColor;
-		float4 ambientColor;
+		float4 cameraPos;
 	};
 
 	struct alignas(256) ObjectCB
 	{
 		float4x4 world;
+	};
+
+	struct alignas(256) MaterialCB
+	{
+		float roughness;
+		float metallic;
+		float2 _pad;
+		float4 rimColor;
+		float4 mapFlags; // x: hasNormal, y: hasMetal, z: hasRough
 	};
 
 	static constexpr UINT FRAME_COUNT = RTV_NUM;
@@ -51,7 +75,6 @@ private:
 	void BuildPerObject(const float4x4& world, _Out_ ObjectCB* out) const;
 
 	void CreateCheckerTexture(_In_ const ComPtr<ID3D12Device>& device);
-	void UpdateTextureIfNeeded(_In_ ID3D12GraphicsCommandList* commandList);
 
 	ComPtr<ID3D12Resource> m_ConstantBuffer[FRAME_COUNT];
 	std::uint8_t* m_MappedData[FRAME_COUNT] = {};
@@ -90,4 +113,11 @@ private:
 	bool m_RampUploadPending = false;
 
 	void CreateDefaultRampTexture();
+
+	ComPtr<ID3D12Resource> m_NormalTexture, m_NormalUpload;
+	ComPtr<ID3D12Resource> m_MetalTexture, m_MetalUpload;
+	ComPtr<ID3D12Resource> m_RoughTexture, m_RoughUpload;
+	D3D12_PLACED_SUBRESOURCE_FOOTPRINT m_NormalFootprint = {}, m_MetalFootprint = {}, m_RoughFootprint = {};
+	bool m_NormalPending = false, m_MetalPending = false, m_RoughPending = false;
+	bool m_HasNormal = false, m_HasMetal = false, m_HasRough = false;
 };

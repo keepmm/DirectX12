@@ -42,6 +42,7 @@ public:
 	void RemoveRigidbody(_In_ Entity entity);
 
 	void SyncTransforms(_In_ class World& world);
+	void DispatchEvents(_In_ class World& world);
 
 	void SetActorPose(
 		_In_ Entity entity,
@@ -52,6 +53,17 @@ public:
 	physx::PxScene* GetScene() const { return m_Scene; }
 
 private:
+	struct CollisionEvent
+	{
+		Entity a;
+		Entity b;
+		bool isTrigger;
+		bool isEnter;	// false = Exit
+	};
+
+	class EventCallback;
+	std::unique_ptr<EventCallback> m_EventCallback;
+
 	std::unique_ptr<physx::PxDefaultAllocator> m_Allocator;
 	std::unique_ptr<physx::PxDefaultErrorCallback> m_ErrorCallback;
 	physx::PxFoundation* m_Foundation = nullptr;

@@ -179,6 +179,16 @@ public:
 	void ShowCursor(bool show);
 	void SetCursorLock(bool lock);
 
+	void SetImGuiCapture(bool keyboard, bool mouse, bool text)
+	{
+		m_ImGuiWantKeyboard = keyboard;
+		m_ImGuiWantMouse = mouse;
+		m_ImGuiWantText = text;
+	}
+
+	bool IsKeyboardCaptured() const { return  m_ImGuiWantText; }
+	bool IsMouseCaptured() const { return m_ImGuiWantMouse; }
+
 private:
 	Input();
 	~Input() = default;
@@ -206,4 +216,8 @@ private:
 	friend class Mouse;
 	friend LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 	void OnMouseWheel(int delta) { m_MouseWheel = delta; }
+
+	bool m_ImGuiWantKeyboard = false;
+	bool m_ImGuiWantMouse = false;
+	bool m_ImGuiWantText = false;
 };

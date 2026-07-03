@@ -12,6 +12,7 @@
 #include "Scene.hpp"
 #include "RenderContext.hpp"
 #include "Engine/ThreadPool.hpp"
+#include "AsyncLoader.hpp"
 #include <mutex>
 #include <unordered_map>
 #include <string>
@@ -75,6 +76,7 @@ public:
 
 	float GetFadeAlpha() const { return m_FadeAlpha; }
 
+	AsyncLoader& GetAsyncLoader() { return *m_AsyncLoader; }
 private:
 	struct SceneEntry
 	{
@@ -93,6 +95,7 @@ private:
 
 	mutable std::mutex m_SceneMutex;
 	ThreadPool m_ThreadPool;
+	std::unique_ptr<AsyncLoader> m_AsyncLoader;
 
 	/// @brief シーンコールバック設定
 	void ProcessSceneQueue();

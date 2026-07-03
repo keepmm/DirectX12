@@ -1,5 +1,6 @@
 #include "PhysicsWorld.hpp"
 #include "Components.hpp"
+#include "MonoBehavior.hpp"
 
 #include <PxPhysicsAPI.h>
 
@@ -10,7 +11,67 @@ using namespace physx;
 namespace {
 	PxDefaultAllocator gAllocator;
 	PxDefaultErrorCallback gErrorCallback;
+
+	PxFilterFlags CollisionFilterShader(
+		PxFilterObjectAttributes attributes0, PxFilterData filterData0,
+		PxFilterObjectAttributes attributes1, PxFilterData filterData1,
+		PxPairFlags& pairFlags, const void* constantBlock, PxU32 constantBlockSize)
+	{
+		if (PxFilterObjectIsTrigger(attributes0) || PxFilterObjectIsTrigger(attributes1))
+		{
+			pairFlags = PxPairFlag::eTRIGGER_DEFAULT;
+			return PxFilterFlag::eDEFAULT;
+		}
+		pairFlags = PxPairFlag::eCONTACT_DEFAULT
+			| PxPairFlag::eNOTIFY_TOUCH_FOUND
+			| PxPairFlag::eNOTIFY_TOUCH_LOST;
+		return PxFilterFlag::eDEFAULT;
+	}
 }
+
+class PhysicsWorld::EventCallback : public PxSimulationEventCallback
+{
+public:
+	std::vector<CollisionEvent> events;
+
+	void onContact(
+		const PxContactPairHeader& pairHeader,
+		const PxContactPair* pairs,
+		PxU32 nbPairs) override
+	{
+		Entity a = static_cast<Entity>(reinterpret_cast<uintptr_t>(pairHeader.actors[0]->userData));
+		Entity b = static_cast<Entity>(reinterpret_cast<uintptr_t>(pairHeader.actors[1]->userData));
+
+		for (PxU32 i = 0; i < nbPairs; ++i)
+		{
+			const PxContactPair& pair = pairs[i];
+			if (pair.events & PxPairFlag::eNOTIFY_TOUCH_FOUND)
+				events.push_back({ a,b,false,true });
+			if (pair.events & PxPairFlag::eNOTIFY_TOUCH_LOST)
+				events.push_back({ a,b,false,false });
+		}
+	}
+
+	void onTrigger(PxTriggerPair* pairs, PxU32 count)override
+	{
+		for (PxU32 i = 0; i < count; ++i)
+		{
+			const PxTriggerPair& pair = pairs[i];
+			if (pair.flags & (PxTriggerPairFlag::eREMOVED_SHAPE_TRIGGER | PxTriggerPairFlag::eREMOVED_SHAPE_OTHER))
+				continue;
+
+			Entity trigger = static_cast<Entity>(reinterpret_cast<uintptr_t>(pair.triggerActor->userData));
+			Entity other = static_cast<Entity>(reinterpret_cast<uintptr_t>(pair.otherActor->userData));
+			bool isEnter = pair.status & PxPairFlag::eNOTIFY_TOUCH_FOUND;
+			events.push_back({ trigger,other,true,isEnter });
+		}
+	}
+
+	void onConstraintBreak(PxConstraintInfo*, PxU32) override {}
+	void onWake(PxActor**, PxU32) override {}
+	void onSleep(PxActor**, PxU32) override {}
+	void onAdvance(const PxRigidBody* const*, const PxTransform*, const PxU32) override {}
+};
 
 
 PhysicsWorld::PhysicsWorld()
@@ -47,7 +108,11 @@ void PhysicsWorld::Init()
 	sceneDesc.gravity = PxVec3(0.0f, -9.8f, 0.0f);
 	sceneDesc.staticStructure = PxPruningStructureType::eDYNAMIC_AABB_TREE;
 	sceneDesc.dynamicStructure = PxPruningStructureType::eDYNAMIC_AABB_TREE;
-	sceneDesc.filterShader = PxDefaultSimulationFilterShader;
+
+	m_EventCallback = std::make_unique<EventCallback>();
+
+	sceneDesc.filterShader = CollisionFilterShader;
+	sceneDesc.simulationEventCallback = m_EventCallback.get();
 
 	m_Dispatcher = PxDefaultCpuDispatcherCreate(4);
 	sceneDesc.cpuDispatcher = m_Dispatcher;
@@ -211,6 +276,29 @@ void PhysicsWorld::SyncTransforms(World& world)
 		const DirectX::XMMATRIX worldMatrix = scaleMatrix * rotMatrix * transMatrix;
 		DirectX::XMStoreFloat4x4(&transformComp.world, worldMatrix);
 	}
+}
+
+void PhysicsWorld::DispatchEvents(World& world)
+{
+	if (!m_ErrorCallback) return;
+	for (auto& e : m_EventCallback->events)
+	{
+		auto notify = [&](Entity self, Entity other)
+			{
+				if (!world.HasComponent<ScriptComponent>(self)) return;
+				auto& sc = world.GetComponent<ScriptComponent>(self);
+				for (auto& b : sc.behaviors)
+				{
+					if (e.isTrigger)
+						e.isEnter ? b->OnTriggerEnter(other) : b->OnTriggerExit(other);
+					else
+						e.isEnter ? b->OnCollisionEnter(other) : b->OnCollisionExit(other);
+				}
+			};
+		notify(e.a, e.b);
+		notify(e.b, e.a);
+	}
+	m_EventCallback->events.clear();
 }
 
 void PhysicsWorld::SetActorPose(Entity entity, const float3& position, const float4& rotation)

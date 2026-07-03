@@ -255,16 +255,97 @@ bool DirectXApp::ReloadShader()
 		return false;
 	}
 
+	WaitForGPUIdle();
 	m_PsoCache.Clear();
 	CreatePipelineStateObject();
 	return true;
+}
+
+bool DirectXApp::CreateShadeFromSource(const std::string& name, const std::string& hlslCode, std::string& psEntry, std::string& outError, bool alphaBlend)
+{
+	namespace fs = std::filesystem;
+	fs::create_directories(L"Assets/Shaders");
+	const std::wstring& path = L"Assets/Shaders/" + std::wstring(name.begin(), name.end()) + L".hlsl";
+
+	// 1,保存
+	std::ofstream ofs(path, std::ios::binary);
+	ofs << hlslCode;
+
+	//2 強制コンパイル
+	const Shader* ps = m_ShaderLibrary.Reload(path, psEntry, "ps_5_0", outError);
+	if (ps == nullptr) return false;
+
+	// 3 PSO登録
+	WaitForGPUIdle();
+	ShaderPassDef def;
+	def.psFile = path;
+	def.psEntry = psEntry;
+	def.alphaBlend = alphaBlend;
+
+}
+
+ID3D12PipelineState* DirectXApp::RegisterShaderPass(const std::string& name, const ShaderPassDef& def)
+{
+	const Shader* vs = m_ShaderLibrary.Load(def.vsFile, def.vsEntry, def.vsProfile);
+	const Shader* ps = m_ShaderLibrary.Load(def.psFile, def.psEntry, def.psProfile);
+	if (vs == nullptr || ps == nullptr)
+	{
+		return nullptr;
+	}
+
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = MakeBasePsoDesc();
+	desc.VS = vs->GetByteCode();
+	desc.PS = ps->GetByteCode();
+	if (def.alphaBlend)
+	{
+		auto& rt = desc.BlendState.RenderTarget[0];
+		rt.BlendEnable = TRUE;
+		rt.SrcBlend = D3D12_BLEND_SRC_ALPHA;
+		rt.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+		rt.BlendOp = D3D12_BLEND_OP_ADD;
+	}
+
+	auto pso = m_PsoCache.GetOrCreate(name, m_Device.Get(), desc);
+	if (pso == nullptr)
+	{
+		return nullptr;
+	}
+
+	m_ShaderRegistry[name] = { def,pso };
+	return pso.Get();
+}
+
+ID3D12PipelineState* DirectXApp::GetPipelineStateByName(std::string& name) const
+{
+	auto it = m_ShaderRegistry.find(name);
+	if (it != m_ShaderRegistry.end())
+	{
+		return it->second.pso.Get();
+	}
+	return nullptr;
+}
+
+std::vector<std::string> DirectXApp::GetShaderNames() const
+{
+	std::vector<std::string> names;
+	names.reserve(m_ShaderRegistry.size());
+	for (auto& [name, _] : m_ShaderRegistry)
+	{
+		names.push_back(name);
+	}
+	return names;
 }
 
 void DirectXApp::CreateRootSignature()
 {
 
 	CD3DX12_DESCRIPTOR_RANGE srvRange = {};
-	srvRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 0);
+	srvRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 5, 0);
+	// t0 albedo
+	// t1 toon ramp
+	// t2 normal
+	// t3 metal
+	// t4 roughness
 	
 
 	// 配列の数がそのまま定数バッファやSRVの数になる
@@ -333,6 +414,7 @@ void DirectXApp::CreatePipelineStateObject()
 		{"Normal",0,DXGI_FORMAT_R32G32B32_FLOAT,0,12,D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,0},
 		{"COLOR",0,DXGI_FORMAT_R32G32B32A32_FLOAT,0,24,D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,0},
 		{"TEXCOORD",0,DXGI_FORMAT_R32G32_FLOAT,0,40,D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,0}, 
+		{"TANGENT",0,DXGI_FORMAT_R32G32B32_FLOAT,0,48,D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,0}
 	};
 
 	const Shader* vs = m_ShaderLibrary.Load(L"VertexShader.hlsl", "BasicVS", "vs_5_0");
@@ -342,9 +424,12 @@ void DirectXApp::CreatePipelineStateObject()
 	const Shader* lineVS = m_ShaderLibrary.Load(L"PS_LineShader.hlsl", "LineVS", "vs_5_0");
 	const Shader* linePS = m_ShaderLibrary.Load(L"PS_LineShader.hlsl", "LinePS", "ps_5_0");
 	const Shader* iconPS = m_ShaderLibrary.Load(L"PixelShader.hlsl", "unlitPS", "ps_5_0");
+	const Shader* skyVS = m_ShaderLibrary.Load(L"SkyBoxShader.hlsl", "SkyboxVS", "vs_5_0");
+	const Shader* skyPS = m_ShaderLibrary.Load(L"SkyBoxShader.hlsl", "SkyboxPS", "ps_5_0");
 
 	if (vs == nullptr || ps == nullptr || toon == nullptr || 
-		wirePs == nullptr || lineVS == nullptr || linePS == nullptr)
+		wirePs == nullptr || lineVS == nullptr || linePS == nullptr || 
+		skyPS == nullptr || skyVS == nullptr)
 	{
 		assert(false);
 		return;
@@ -377,23 +462,7 @@ void DirectXApp::CreatePipelineStateObject()
 	const size_t psToonIndex = static_cast<size_t>(E_PIXEL_SHADER::TOON);
 
 
-	m_PipelineStates[vsIndex][psIndex] = m_PsoCache.GetOrCreate("BasicVS_BasicPS",
-		m_Device.Get(),
-		psoDesc
-	);
-	if(m_PipelineStates[vsIndex][psIndex] == nullptr) {
-		assert(false);
-	}
-
-	auto toonDesc = psoDesc;
-	toonDesc.PS = toon->GetByteCode();
-	m_PipelineStates[vsIndex][psToonIndex] = m_PsoCache.GetOrCreate("BasicVS_ToonPS",
-		m_Device.Get(),toonDesc
-	);
-	if(m_PipelineStates[vsIndex][psToonIndex] == nullptr) {
-		assert(false);
-	}
-
+	RegisterBuiltinShaders();
 
 	auto wireDesc = psoDesc;
 	wireDesc.RasterizerState.FillMode = D3D12_FILL_MODE_WIREFRAME;
@@ -443,8 +512,78 @@ void DirectXApp::CreatePipelineStateObject()
 	m_IconPso = m_PsoCache.GetOrCreate("IconPSO", m_Device.Get(), iconDesc);
 	if (m_IconPso == nullptr) { assert(false); }
 
+	// ---------------------------------- //
+	//			UI用のPSOを作成			  //
+	// ---------------------------------- //
+	auto uiDesc = iconDesc;
+	auto& uirt = uiDesc.BlendState.RenderTarget[0];
+	uirt.BlendEnable = TRUE;
+	uirt.SrcBlend = D3D12_BLEND_SRC_ALPHA;
+	uirt.DestBlend = D3D12_BLEND_INV_SRC_ALPHA;
+	uirt.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+	uirt.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+	uiDesc.DepthStencilState.DepthEnable = FALSE;
+	uiDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+	uiDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+	m_UIPso = m_PsoCache.GetOrCreate("UIPSO", m_Device.Get(), uiDesc);
+	if (m_UIPso == nullptr) { assert(false); }
+
+	// ---------------------------------- //
+	//			SkyBox用のPSOを作成		  //
+	// ---------------------------------- //
+	auto skyDesc = psoDesc;
+	skyDesc.VS = skyVS->GetByteCode();
+	skyDesc.PS = skyPS->GetByteCode();
+	skyDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+	skyDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+	skyDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+	m_SkyPso = m_PsoCache.GetOrCreate("SkyBoxPSO", m_Device.Get(), skyDesc);
+	if (m_SkyPso == nullptr) { assert(false); }
+
 	//CreateMeshShaderPipelineState();
 	m_CBAllocator.Init();
+}
+
+void DirectXApp::RegisterBuiltinShaders()
+{
+	struct Entry { const char* name; ShaderPassDef def; };
+	const Entry builtins[] = {
+		{ "Basic", { L"VertexShader.hlsl","BasicVS","vs_5_0", L"PixelShader.hlsl","BasicPS","ps_5_0", false } },
+		{ "Toon",  { L"VertexShader.hlsl","BasicVS","vs_5_0", L"ToonShader.hlsl", "ToonPS", "ps_5_0", false } },
+		{ "Unlit", { L"VertexShader.hlsl","BasicVS","vs_5_0", L"PixelShader.hlsl","unlitPS","ps_5_0", true  } },
+		{ "PBR",   { L"VertexShader.hlsl","BasicVS","vs_5_0", L"PbrShader.hlsl",  "PbrPS",  "ps_5_0", false } },
+		{ "Rim",   { L"VertexShader.hlsl","BasicVS","vs_5_0", L"RimShader.hlsl",  "RimPS",  "ps_5_0", false } },
+		{ "Fresnel",   { L"VertexShader.hlsl","BasicVS","vs_5_0", L"FresnelShader.hlsl",  "FresnelPS",  "ps_5_0", false } },
+		{ "Dissolve",   { L"VertexShader.hlsl","BasicVS","vs_5_0", L"DissolveShader.hlsl",  "DissolvePS",  "ps_5_0", false } },
+		{ "BlinnPhong",   { L"VertexShader.hlsl","BasicVS","vs_5_0", L"BlinnPhongShader.hlsl",  "PhongPS",  "ps_5_0", false } },
+	};
+	for (auto& e : builtins) RegisterShaderPass(e.name, e.def);
+}
+
+D3D12_GRAPHICS_PIPELINE_STATE_DESC DirectXApp::MakeBasePsoDesc() const
+{
+	static const D3D12_INPUT_ELEMENT_DESC layout[] =
+	{
+		{"Position",0,DXGI_FORMAT_R32G32B32_FLOAT,0,0,D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,0},
+		{"Normal",0,DXGI_FORMAT_R32G32B32_FLOAT,0,12,D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,0},
+		{"COLOR",0,DXGI_FORMAT_R32G32B32A32_FLOAT,0,24,D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,0},
+		{"TEXCOORD",0,DXGI_FORMAT_R32G32_FLOAT,0,40,D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,0},
+		{"TANGENT",0,DXGI_FORMAT_R32G32B32_FLOAT,0,48,D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,0}
+	};
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
+	desc.InputLayout = { layout, _countof(layout) };
+	desc.pRootSignature = m_rootSignature.Get();
+	desc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+	desc.RasterizerState.CullMode = D3D12_CULL_MODE_BACK;
+	desc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+	desc.DepthStencilState = CD3DX12_DEPTH_STENCIL_DESC(D3D12_DEFAULT);
+	desc.SampleMask = UINT_MAX;
+	desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+	desc.NumRenderTargets = 1;
+	desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+	desc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
+	desc.SampleDesc.Count = 1;
+	return desc;
 }
 
 DirectXApp::~DirectXApp()

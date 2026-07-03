@@ -40,11 +40,14 @@
     <Filter Include="リソース ファイル\Shader\VertexShader">
       <UniqueIdentifier>{38b63b28-92b1-4254-951c-7e3ce716bc03}</UniqueIdentifier>
     </Filter>
-    <Filter Include="リソース ファイル\MeshShader">
-      <UniqueIdentifier>{863d10d9-1015-46ad-9e1d-fd0993608194}</UniqueIdentifier>
-    </Filter>
     <Filter Include="ソース ファイル\EditorWindow">
       <UniqueIdentifier>{9d583090-850e-40be-a820-010655939fda}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ヘッダー ファイル\EditorWindow">
+      <UniqueIdentifier>{52b49344-b9ef-4a93-94a6-bb9015acf45a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="ヘッダー ファイル\Script">
+      <UniqueIdentifier>{8e3e0f5c-dda6-43a5-b9d7-68a41ae23eb5}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
   <ItemGroup>
@@ -147,16 +150,10 @@
     <ClCompile Include="RenderTexture.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
-    <ClCompile Include="RuntimeScene.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
     <ClCompile Include="IconLibrary.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="RegisterScript.cpp">
-      <Filter>ソース ファイル</Filter>
-    </ClCompile>
-    <ClCompile Include="cr_main.cpp">
       <Filter>ソース ファイル</Filter>
     </ClCompile>
     <ClCompile Include="ConstantBufferAllocator.cpp">
@@ -173,6 +170,27 @@
     </ClCompile>
     <ClCompile Include="InspectorWindow.cpp">
       <Filter>ソース ファイル\EditorWindow</Filter>
+    </ClCompile>
+    <ClCompile Include="ScriptHost.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="RuntimeScene.cpp">
+      <Filter>ソース ファイル\Scene</Filter>
+    </ClCompile>
+    <ClCompile Include="FontAtlas.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="ComponentRegistry.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="AudioEngine.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="AsyncLoader.cpp">
+      <Filter>ソース ファイル</Filter>
+    </ClCompile>
+    <ClCompile Include="PlayState.cpp">
+      <Filter>ソース ファイル</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -284,9 +302,6 @@
     <ClInclude Include="PrefabLibrary.hpp">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="EditorWindow.hpp">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
     <ClInclude Include="RenderTexture.hpp">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
@@ -305,9 +320,6 @@
     <ClInclude Include="IconLibrary.hpp">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
-    <ClInclude Include="RegisterScript.hpp">
-      <Filter>ヘッダー ファイル</Filter>
-    </ClInclude>
     <ClInclude Include="cr.h">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
@@ -323,36 +335,370 @@
     <ClInclude Include="PlayState.hpp">
       <Filter>ヘッダー ファイル</Filter>
     </ClInclude>
+    <ClInclude Include="ShaderTemplates.hpp">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="EditorWindow.hpp">
+      <Filter>ヘッダー ファイル\EditorWindow</Filter>
+    </ClInclude>
+    <ClInclude Include="FontAtlas.hpp">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="Debug.hpp">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="ScriptHost.hpp">
+      <Filter>ヘッダー ファイル\Script</Filter>
+    </ClInclude>
+    <ClInclude Include="ScriptField.hpp">
+      <Filter>ヘッダー ファイル\Script</Filter>
+    </ClInclude>
+    <ClInclude Include="ScriptContext.hpp">
+      <Filter>ヘッダー ファイル\Script</Filter>
+    </ClInclude>
+    <ClInclude Include="RegisterScript.hpp">
+      <Filter>ヘッダー ファイル\Script</Filter>
+    </ClInclude>
+    <ClInclude Include="ComponentRegistry.hpp">
+      <Filter>ヘッダー ファイル\ECS</Filter>
+    </ClInclude>
+    <ClInclude Include="AudioEngine.hpp">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="Util.hpp">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
+    <ClInclude Include="AsyncLoader.hpp">
+      <Filter>ヘッダー ファイル</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="PixelShader.hlsl">
+    <None Include="PixelShader.hlsl">
       <Filter>リソース ファイル\Shader\PixelShader</Filter>
-    </FxCompile>
-    <FxCompile Include="VertexShader.hlsl">
+    </None>
+    <None Include="VertexShader.hlsl">
       <Filter>リソース ファイル\Shader\VertexShader</Filter>
-    </FxCompile>
-    <FxCompile Include="ToonShader.hlsl">
+    </None>
+    <None Include="ToonShader.hlsl">
       <Filter>リソース ファイル\Shader\PixelShader</Filter>
-    </FxCompile>
-    <FxCompile Include="PS_LineShader.hlsl">
+    </None>
+    <None Include="PBRShader.hlsl">
       <Filter>リソース ファイル\Shader\PixelShader</Filter>
-    </FxCompile>
+    </None>
+    <None Include="FresnelShader.hlsl">
+      <Filter>リソース ファイル\Shader\PixelShader</Filter>
+    </None>
+    <None Include="BlinnPhongShader.hlsl">
+      <Filter>リソース ファイル\Shader\PixelShader</Filter>
+    </None>
+    <None Include="DissolveShader.hlsl">
+      <Filter>リソース ファイル\Shader\PixelShader</Filter>
+    </None>
+    <None Include="PS_LineShader.hlsl">
+      <Filter>リソース ファイル\Shader\PixelShader</Filter>
+    </None>
+    <None Include="RimShader.hlsl">
+      <Filter>リソース ファイル\Shader\PixelShader</Filter>
+    </None>
+    <None Include="SkyBoxShader.hlsl">
+      <Filter>リソース ファイル\Shader\PixelShader</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <None Include="imgui.ini">
       <Filter>ソース ファイル\imgui</Filter>
     </None>
-    <None Include="Assets\**\*.*">
+    <None Include="Assets\Icons\File.png">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\Icons\Folder.png">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\Icons\Image.png">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\Icons\Json.png">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\Icons\LightIcon.png">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\Icons\Material.png">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\Icons\Model.png">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\Model\akai\Akai.fbx">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\Model\akai\Akai_Idle.fbx">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\Model\akai\Akai_Run.fbx">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\Model\Camera.fbx">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\Model\Player.fbx">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\Model\spot\1x\asd.png">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\Model\spot\spot.fbx">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\Model\spot\spot_texture.png">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\Model\test.fbx">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\Scenes\Ingame.json">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\Scenes\Red.json">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\Scenes\SampleScene.json">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\Scripts\empty.txt">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\Scripts\kawaguchi.cpp">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\Texture\Mutant_diffuse.png">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\Texture\RampTex.bmp">
       <Filter>リソース ファイル</Filter>
     </None>
     <None Include="packages.config" />
-    <None Include="Assets\**\*.*" />
-    <None Include="Assets\**\*.*" />
-    <None Include="Assets\**\*.*" />
-    <None Include="Assets\**\*.*" />
-    <None Include="Assets\**\*.*" />
-    <None Include="Assets\**\*.*" />
-    <None Include="Assets\**\*.*" />
+    <None Include="Assets\Icons\CameraIcon.png" />
+    <None Include="Assets\Icons\File.png" />
+    <None Include="Assets\Icons\Folder.png" />
+    <None Include="Assets\Icons\Image.png" />
+    <None Include="Assets\Icons\Json.png" />
+    <None Include="Assets\Icons\LightIcon.png" />
+    <None Include="Assets\Icons\Material.png" />
+    <None Include="Assets\Icons\Model.png" />
+    <None Include="Assets\Model\akai\Akai.fbx" />
+    <None Include="Assets\Model\akai\Akai_Idle.fbx" />
+    <None Include="Assets\Model\akai\Akai_Run.fbx" />
+    <None Include="Assets\Model\Camera.fbx" />
+    <None Include="Assets\Model\Player.fbx" />
+    <None Include="Assets\Model\spot\1x\aaa.png" />
+    <None Include="Assets\Model\spot\1x\asd.png" />
+    <None Include="Assets\Model\spot\kawa2.png" />
+    <None Include="Assets\Model\spot\kousuke.png" />
+    <None Include="Assets\Model\spot\spot.fbx" />
+    <None Include="Assets\Model\spot\spot_texture.png" />
+    <None Include="Assets\Model\spot\texture.png" />
+    <None Include="Assets\Model\test.fbx" />
+    <None Include="Assets\Scenes\Ingame.json" />
+    <None Include="Assets\Scenes\Red.json" />
+    <None Include="Assets\Scenes\SampleScene.json" />
+    <None Include="Assets\Scripts\empty.txt" />
+    <None Include="Assets\Scripts\kawaguchi.cpp" />
+    <None Include="Assets\Texture\Mutant_diffuse.png" />
+    <None Include="Assets\Texture\RampTex.bmp" />
+    <None Include="Assets\Icons\CameraIcon.png" />
+    <None Include="Assets\Icons\File.png" />
+    <None Include="Assets\Icons\Folder.png" />
+    <None Include="Assets\Icons\Image.png" />
+    <None Include="Assets\Icons\Json.png" />
+    <None Include="Assets\Icons\LightIcon.png" />
+    <None Include="Assets\Icons\Material.png" />
+    <None Include="Assets\Icons\Model.png" />
+    <None Include="Assets\Model\akai\Akai.fbx" />
+    <None Include="Assets\Model\akai\Akai_Idle.fbx" />
+    <None Include="Assets\Model\akai\Akai_Run.fbx" />
+    <None Include="Assets\Model\Camera.fbx" />
+    <None Include="Assets\Model\Player.fbx" />
+    <None Include="Assets\Model\spot\1x\aaa.png" />
+    <None Include="Assets\Model\spot\1x\asd.png" />
+    <None Include="Assets\Model\spot\kawa2.png" />
+    <None Include="Assets\Model\spot\kousuke.png" />
+    <None Include="Assets\Model\spot\spot.fbx" />
+    <None Include="Assets\Model\spot\spot_texture.png" />
+    <None Include="Assets\Model\spot\texture.png" />
+    <None Include="Assets\Model\test.fbx" />
+    <None Include="Assets\Scenes\Ingame.json" />
+    <None Include="Assets\Scenes\Red.json" />
+    <None Include="Assets\Scenes\SampleScene.json" />
+    <None Include="Assets\Scripts\empty.txt" />
+    <None Include="Assets\Scripts\kawaguchi.cpp" />
+    <None Include="Assets\Texture\Mutant_diffuse.png" />
+    <None Include="Assets\Texture\RampTex.bmp" />
+    <None Include="Assets\Icons\CameraIcon.png" />
+    <None Include="Assets\Icons\File.png" />
+    <None Include="Assets\Icons\Folder.png" />
+    <None Include="Assets\Icons\Image.png" />
+    <None Include="Assets\Icons\Json.png" />
+    <None Include="Assets\Icons\LightIcon.png" />
+    <None Include="Assets\Icons\Material.png" />
+    <None Include="Assets\Icons\Model.png" />
+    <None Include="Assets\Model\akai\Akai.fbx" />
+    <None Include="Assets\Model\akai\Akai_Idle.fbx" />
+    <None Include="Assets\Model\akai\Akai_Run.fbx" />
+    <None Include="Assets\Model\Camera.fbx" />
+    <None Include="Assets\Model\Player.fbx" />
+    <None Include="Assets\Model\spot\1x\aaa.png" />
+    <None Include="Assets\Model\spot\1x\asd.png" />
+    <None Include="Assets\Model\spot\kawa2.png" />
+    <None Include="Assets\Model\spot\kousuke.png" />
+    <None Include="Assets\Model\spot\spot.fbx" />
+    <None Include="Assets\Model\spot\spot_texture.png" />
+    <None Include="Assets\Model\spot\texture.png" />
+    <None Include="Assets\Model\test.fbx" />
+    <None Include="Assets\Scenes\Ingame.json" />
+    <None Include="Assets\Scenes\Red.json" />
+    <None Include="Assets\Scenes\SampleScene.json" />
+    <None Include="Assets\Scripts\empty.txt" />
+    <None Include="Assets\Scripts\kawaguchi.cpp" />
+    <None Include="Assets\Texture\Mutant_diffuse.png" />
+    <None Include="Assets\Texture\RampTex.bmp" />
+    <None Include="Assets\Icons\CameraIcon.png" />
+    <None Include="Assets\Icons\File.png" />
+    <None Include="Assets\Icons\Folder.png" />
+    <None Include="Assets\Icons\Image.png" />
+    <None Include="Assets\Icons\Json.png" />
+    <None Include="Assets\Icons\LightIcon.png" />
+    <None Include="Assets\Icons\Material.png" />
+    <None Include="Assets\Icons\Model.png" />
+    <None Include="Assets\Model\akai\Akai.fbx" />
+    <None Include="Assets\Model\akai\Akai_Idle.fbx" />
+    <None Include="Assets\Model\akai\Akai_Run.fbx" />
+    <None Include="Assets\Model\Camera.fbx" />
+    <None Include="Assets\Model\Player.fbx" />
+    <None Include="Assets\Model\spot\1x\aaa.png" />
+    <None Include="Assets\Model\spot\1x\asd.png" />
+    <None Include="Assets\Model\spot\kawa2.png" />
+    <None Include="Assets\Model\spot\kousuke.png" />
+    <None Include="Assets\Model\spot\spot.fbx" />
+    <None Include="Assets\Model\spot\spot_texture.png" />
+    <None Include="Assets\Model\spot\texture.png" />
+    <None Include="Assets\Model\test.fbx" />
+    <None Include="Assets\Scenes\Ingame.json" />
+    <None Include="Assets\Scenes\Red.json" />
+    <None Include="Assets\Scenes\SampleScene.json" />
+    <None Include="Assets\Scripts\empty.txt" />
+    <None Include="Assets\Scripts\kawaguchi.cpp" />
+    <None Include="Assets\Texture\Mutant_diffuse.png" />
+    <None Include="Assets\Texture\RampTex.bmp" />
+    <None Include="Assets\Icons\CameraIcon.png" />
+    <None Include="Assets\Icons\File.png" />
+    <None Include="Assets\Icons\Folder.png" />
+    <None Include="Assets\Icons\Image.png" />
+    <None Include="Assets\Icons\Json.png" />
+    <None Include="Assets\Icons\LightIcon.png" />
+    <None Include="Assets\Icons\Material.png" />
+    <None Include="Assets\Icons\Model.png" />
+    <None Include="Assets\Model\akai\Akai.fbx" />
+    <None Include="Assets\Model\akai\Akai_Idle.fbx" />
+    <None Include="Assets\Model\akai\Akai_Run.fbx" />
+    <None Include="Assets\Model\Camera.fbx" />
+    <None Include="Assets\Model\Player.fbx" />
+    <None Include="Assets\Model\spot\1x\aaa.png" />
+    <None Include="Assets\Model\spot\1x\asd.png" />
+    <None Include="Assets\Model\spot\kawa2.png" />
+    <None Include="Assets\Model\spot\kousuke.png" />
+    <None Include="Assets\Model\spot\spot.fbx" />
+    <None Include="Assets\Model\spot\spot_texture.png" />
+    <None Include="Assets\Model\spot\texture.png" />
+    <None Include="Assets\Model\test.fbx" />
+    <None Include="Assets\Scenes\Ingame.json" />
+    <None Include="Assets\Scenes\Red.json" />
+    <None Include="Assets\Scenes\SampleScene.json" />
+    <None Include="Assets\Scripts\empty.txt" />
+    <None Include="Assets\Scripts\kawaguchi.cpp" />
+    <None Include="Assets\Texture\Mutant_diffuse.png" />
+    <None Include="Assets\Texture\RampTex.bmp" />
+    <None Include="Assets\Icons\CameraIcon.png" />
+    <None Include="Assets\Icons\File.png" />
+    <None Include="Assets\Icons\Folder.png" />
+    <None Include="Assets\Icons\Image.png" />
+    <None Include="Assets\Icons\Json.png" />
+    <None Include="Assets\Icons\LightIcon.png" />
+    <None Include="Assets\Icons\Material.png" />
+    <None Include="Assets\Icons\Model.png" />
+    <None Include="Assets\Model\akai\Akai.fbx" />
+    <None Include="Assets\Model\akai\Akai_Idle.fbx" />
+    <None Include="Assets\Model\akai\Akai_Run.fbx" />
+    <None Include="Assets\Model\Camera.fbx" />
+    <None Include="Assets\Model\Player.fbx" />
+    <None Include="Assets\Model\spot\1x\aaa.png" />
+    <None Include="Assets\Model\spot\1x\asd.png" />
+    <None Include="Assets\Model\spot\kawa2.png" />
+    <None Include="Assets\Model\spot\kousuke.png" />
+    <None Include="Assets\Model\spot\spot.fbx" />
+    <None Include="Assets\Model\spot\spot_texture.png" />
+    <None Include="Assets\Model\spot\texture.png" />
+    <None Include="Assets\Model\test.fbx" />
+    <None Include="Assets\Scenes\Ingame.json" />
+    <None Include="Assets\Scenes\Red.json" />
+    <None Include="Assets\Scenes\SampleScene.json" />
+    <None Include="Assets\Scripts\empty.txt" />
+    <None Include="Assets\Scripts\kawaguchi.cpp" />
+    <None Include="Assets\Texture\Mutant_diffuse.png" />
+    <None Include="Assets\Texture\RampTex.bmp" />
+    <None Include="Assets\Icons\CameraIcon.png" />
+    <None Include="Assets\Icons\File.png" />
+    <None Include="Assets\Icons\Folder.png" />
+    <None Include="Assets\Icons\Image.png" />
+    <None Include="Assets\Icons\Json.png" />
+    <None Include="Assets\Icons\LightIcon.png" />
+    <None Include="Assets\Icons\Material.png" />
+    <None Include="Assets\Icons\Model.png" />
+    <None Include="Assets\Icons\mp3.png" />
+    <None Include="Assets\Icons\mp4.png" />
+    <None Include="Assets\Model\akai\Akai.fbx" />
+    <None Include="Assets\Model\akai\Akai_Idle.fbx" />
+    <None Include="Assets\Model\akai\Akai_Run.fbx" />
+    <None Include="Assets\Model\bolt_rifle\bolt_action_rifle_7_62_4k.fbx" />
+    <None Include="Assets\Model\bolt_rifle\textures\bolt_action_rifle_7_62_accesories_alpha_4k.png" />
+    <None Include="Assets\Model\bolt_rifle\textures\bolt_action_rifle_7_62_accesories_diff_4k.png" />
+    <None Include="Assets\Model\bolt_rifle\textures\bolt_action_rifle_7_62_accesories_metal_4k.png" />
+    <None Include="Assets\Model\bolt_rifle\textures\bolt_action_rifle_7_62_accesories_nor_gl_4k.png" />
+    <None Include="Assets\Model\bolt_rifle\textures\bolt_action_rifle_7_62_accesories_rough_4k.png" />
+    <None Include="Assets\Model\bolt_rifle\textures\bolt_action_rifle_7_62_diff_4k.jpg" />
+    <None Include="Assets\Model\bolt_rifle\textures\bolt_action_rifle_7_62_metal_4k.png" />
+    <None Include="Assets\Model\bolt_rifle\textures\bolt_action_rifle_7_62_nor_gl_4k.png" />
+    <None Include="Assets\Model\bolt_rifle\textures\bolt_action_rifle_7_62_rough_4k.png" />
+    <None Include="Assets\Model\Camera.fbx" />
+    <None Include="Assets\Model\Player.fbx" />
+    <None Include="Assets\Model\spot\1x\asd.png" />
+    <None Include="Assets\Model\spot\spot.fbx" />
+    <None Include="Assets\Model\spot\spot_texture.png" />
+    <None Include="Assets\Model\test.fbx" />
+    <None Include="Assets\Model\textures\bolt_action_rifle_7_62_accesories_alpha_4k.png" />
+    <None Include="Assets\Model\textures\bolt_action_rifle_7_62_accesories_diff_4k.png" />
+    <None Include="Assets\Model\textures\bolt_action_rifle_7_62_accesories_metal_4k.png" />
+    <None Include="Assets\Model\textures\bolt_action_rifle_7_62_accesories_nor_gl_4k.png" />
+    <None Include="Assets\Model\textures\bolt_action_rifle_7_62_accesories_rough_4k.png" />
+    <None Include="Assets\Model\textures\bolt_action_rifle_7_62_diff_4k.jpg" />
+    <None Include="Assets\Model\textures\bolt_action_rifle_7_62_metal_4k.exr" />
+    <None Include="Assets\Model\textures\bolt_action_rifle_7_62_nor_gl_4k.exr" />
+    <None Include="Assets\Model\textures\bolt_action_rifle_7_62_rough_4k.exr" />
+    <None Include="Assets\Scenes\Ingame.json" />
+    <None Include="Assets\Scenes\Red.json" />
+    <None Include="Assets\Scenes\SampleScene.json" />
+    <None Include="Assets\Scripts\empty.txt" />
+    <None Include="Assets\Scripts\kawaguchi.cpp" />
+    <None Include="Assets\Scripts\kawaguchi.hpp" />
+    <None Include="Assets\Scripts\Player.cpp" />
+    <None Include="Assets\Scripts\Player.hpp" />
+    <None Include="Assets\Scripts\Testtext.cpp" />
+    <None Include="Assets\Scripts\Testtext.hpp" />
+    <None Include="Assets\Texture\metal.jpg" />
+    <None Include="Assets\Texture\Mutant_diffuse.png" />
+    <None Include="Assets\Texture\plate.png" />
+    <None Include="Assets\Texture\RampTex.bmp" />
+    <None Include="Assets\Texture\sky.hdr" />
     <None Include="Assets\**\*.*" />
     <None Include="Assets\**\*.*" />
     <None Include="Assets\**\*.*" />
@@ -738,5 +1084,221 @@
     <None Include="Assets\**\*.*">
       <Filter>リソース ファイル</Filter>
     </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*" />
+    <None Include="Assets\**\*.*">
+      <Filter>ソース ファイル</Filter>
+    </None>
+    <None Include="Assets\Icons\File.png">
+      <Filter>ヘッダー ファイル</Filter>
+    </None>
+    <None Include="Assets\Icons\Folder.png">
+      <Filter>ヘッダー ファイル</Filter>
+    </None>
+    <None Include="Assets\Icons\Image.png">
+      <Filter>ヘッダー ファイル</Filter>
+    </None>
+    <None Include="Assets\Icons\Json.png">
+      <Filter>ヘッダー ファイル</Filter>
+    </None>
+    <None Include="Assets\Icons\LightIcon.png">
+      <Filter>ヘッダー ファイル</Filter>
+    </None>
+    <None Include="Assets\Icons\Material.png">
+      <Filter>ヘッダー ファイル</Filter>
+    </None>
+    <None Include="Assets\Icons\Model.png">
+      <Filter>ヘッダー ファイル</Filter>
+    </None>
+    <None Include="Assets\Model\akai\Akai.fbx">
+      <Filter>ヘッダー ファイル</Filter>
+    </None>
+    <None Include="Assets\Model\akai\Akai_Idle.fbx">
+      <Filter>ヘッダー ファイル</Filter>
+    </None>
+    <None Include="Assets\Model\akai\Akai_Run.fbx">
+      <Filter>ヘッダー ファイル</Filter>
+    </None>
+    <None Include="Assets\Model\Camera.fbx">
+      <Filter>ヘッダー ファイル</Filter>
+    </None>
+    <None Include="Assets\Model\Player.fbx">
+      <Filter>ヘッダー ファイル</Filter>
+    </None>
+    <None Include="Assets\Model\spot\1x\aaa.png">
+      <Filter>ヘッダー ファイル</Filter>
+    </None>
+    <None Include="Assets\Model\spot\1x\asd.png">
+      <Filter>ヘッダー ファイル</Filter>
+    </None>
+    <None Include="Assets\Model\spot\kawa2.png">
+      <Filter>ヘッダー ファイル</Filter>
+    </None>
+    <None Include="Assets\Model\spot\kousuke.png">
+      <Filter>ヘッダー ファイル</Filter>
+    </None>
+    <None Include="Assets\Model\spot\spot.fbx">
+      <Filter>ヘッダー ファイル</Filter>
+    </None>
+    <None Include="Assets\Model\spot\spot_texture.png">
+      <Filter>ヘッダー ファイル</Filter>
+    </None>
+    <None Include="Assets\Model\spot\texture.png">
+      <Filter>ヘッダー ファイル</Filter>
+    </None>
+    <None Include="Assets\Model\test.fbx">
+      <Filter>ヘッダー ファイル</Filter>
+    </None>
+    <None Include="Assets\Scenes\Ingame.json">
+      <Filter>ヘッダー ファイル</Filter>
+    </None>
+    <None Include="Assets\Scenes\Red.json">
+      <Filter>ヘッダー ファイル</Filter>
+    </None>
+    <None Include="Assets\Scenes\SampleScene.json">
+      <Filter>ヘッダー ファイル</Filter>
+    </None>
+    <None Include="Assets\Scripts\empty.txt">
+      <Filter>ヘッダー ファイル</Filter>
+    </None>
+    <None Include="Assets\Scripts\kawaguchi.cpp">
+      <Filter>ヘッダー ファイル</Filter>
+    </None>
+    <None Include="Assets\Texture\Mutant_diffuse.png">
+      <Filter>ヘッダー ファイル</Filter>
+    </None>
+    <None Include="Assets\Texture\RampTex.bmp">
+      <Filter>ヘッダー ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\**\*.*">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Assets\Icons\CameraIcon.png">
+      <Filter>リソース ファイル</Filter>
+    </None>
+    <None Include="Common.hlsli">
+      <Filter>リソース ファイル\Shader</Filter>
+    </None>
+    <None Include="Lighting.hlsli">
+      <Filter>リソース ファイル\Shader</Filter>
+    </None>
+    <None Include="BRDF.hlsli">
+      <Filter>リソース ファイル\Shader</Filter>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="Assets\Texture\plate.png">
+      <Filter>リソース ファイル</Filter>
+    </Image>
+    <Image Include="Assets\Texture\metal.jpg">
+      <Filter>リソース ファイル</Filter>
+    </Image>
   </ItemGroup>
 </Project>

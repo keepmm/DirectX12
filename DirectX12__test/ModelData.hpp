@@ -4,7 +4,8 @@
  * 
  * 作成者 
  * 作成日 2026/5/4
- * 更新履歴
+ * 更新履歴	5.4 作成
+ *			7.3 法線マップ、メタルマップ、ラフネスマップの追加
  * *********************************************************************/
 #pragma once
 
@@ -58,7 +59,27 @@ struct ModelLoadResult
 {
 	std::shared_ptr<Mesh> mesh;						// メッシュデータ
 	std::wstring diffuseTexturePath;				//テクスチャのファイルパス
+	std::wstring normalTexturePath;					// 法線マップのファイルパス
+	std::wstring metalTexturePath;					// メタルマップのファイルパス
+	std::wstring roughTexturePath;					// ラフネスマップのファイルパス
 	std::vector<std::uint8_t> diffusetextureData;	// 埋め込みテクスチャ
 	Skeleton skeleton;								// スケルトンデータ
 	SkinData skinData;								// スキニングデータ
+};
+
+/*
+ *	CPU側だけで保持するモデルデータの定義
+ */
+struct ModelCpuData
+{
+	std::vector<Vertex>         vertices;
+	std::vector<std::uint32_t>  indices;
+	std::wstring                diffuseTexturePath;
+	std::wstring				normalTexturePath;	// 法線マップのファイルパス
+	std::wstring				metalTexturePath;	// メタルマップのファイルパス
+	std::wstring				roughTexturePath;	// ラフネスマップのファイルパス
+	std::vector<std::uint8_t>   diffuseTextureData;
+	Skeleton                    skeleton;
+	SkinData                    skinData;
+	bool                        success = false;
 };

@@ -4,6 +4,7 @@
 #include "RenderTexture.hpp"
 #include "Mesh.hpp"
 #include "Material.hpp"
+#include "PlayState.hpp"
 
 RuntimeScene::RuntimeScene(std::string sceneFilePath, const ComPtr<ID3D12Device>& device, const ComPtr<ID3D12PipelineState>& linePso)
 	: m_SceneFilePath(std::move(sceneFilePath)),
@@ -46,7 +47,7 @@ void RuntimeScene::OnLoad()
 		// -------------------------------------//
 		auto camera = m_World.CreateEntity();
 		auto& tr = m_World.AddComponent(camera, TransformComponent{});
-		m_World.AddComponent(camera, NameComponent{ "MainCamera" });
+		m_World.AddComponent(camera, NameComponent{ "MainCamera1" });
 		auto& maincamera = m_World.AddComponent(camera, CameraComponent{});
 		tr.position = { 0.0f, 5.0f, 0.0f };
 		maincamera.cameraType = CameraComponent::CameraType::Main;
@@ -75,7 +76,7 @@ void RuntimeScene::OnLoad()
 		// -------------------------- //
 		auto editcam = m_World.CreateEntity();
 		auto& t = m_World.AddComponent(editcam, TransformComponent{});
-		m_World.AddComponent(editcam, NameComponent{ "EditorCamera" });
+		m_World.AddComponent(editcam, NameComponent{ "EditorCamer1a" });
 		auto& editCameraComp = m_World.AddComponent(editcam, CameraComponent{});
 		editCameraComp.cameraType = CameraComponent::CameraType::Secondary;
 		auto& freeLook = m_World.AddComponent(editcam, FreeLookComponent{});
@@ -84,21 +85,29 @@ void RuntimeScene::OnLoad()
 		t.RebuildWorld();
 	}
 
-
 	// -----------------------------//
 	//  アイコン用マテリアルの作成  //
 	// -----------------------------//
 	m_IconQuad.CreateQuad(APP->GetDevice());
 
+	m_UIQuad.CreateQuad(APP->GetDevice());
+
 	m_CameraIcon = std::make_shared<Material>();
 	m_CameraIcon->Init();
-	m_CameraIcon->SetTextureFromFile(L"Assets/CameraIcon.png");
+	m_CameraIcon->SetTextureFromFile(L"Assets/Icons/CameraIcon.png");
 
 	m_LightIcon = std::make_shared<Material>();
 	m_LightIcon->Init();
-	m_LightIcon->SetTextureFromFile(L"Assets/LightIcon.png");
-
+	m_LightIcon->SetTextureFromFile(L"Assets/Icons/LightIcon.png");
 	n_IconReady = true;
+
+	// -----------------------------//
+	//      スカイボックスの用意     //
+	// -----------------------------//
+	m_SkyboxCube.CreateCube(APP->GetDevice());
+	m_SkyBox = std::make_shared<Material>();
+	m_SkyBox->Init();
+	m_SkyBox->SetTextureFromFile(L"Assets/Texture/sky.hdr");
 
 	m_Initialized = true;
 	LOG->LogInfo("RuntimeScene : Loaded");
@@ -122,8 +131,10 @@ void RuntimeScene::Update(float deltatime)
 	m_ScriptSystem.Update(m_World, deltatime);
 	m_SpinSystem.Update(m_World, deltatime);
 	m_LightSystem.Apply(m_World);
-	m_FreeLookSystem.Update(m_World, deltatime);
+	m_FreeLookSystem.Update(m_World, deltatime, CameraComponent::CameraType::Secondary);
 	m_CameraSystem.Update(m_World, 16.0f / 9.0f);
+	m_AudioSystem.Update(m_World, PLAY.isPlaying());
+	m_TransformSystem.Update(m_World);
 }
 
 void RuntimeScene::FixedUpdate(float fixedDeltatime)
@@ -142,36 +153,26 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 {
 	RenderContext context = renderContext;
 	context.lightCb = m_LightSystem.GetLightData();
-	const CameraComponent* main = nullptr;
+
+	const CameraComponent::CameraType wantType =
+		context.isSceneView ? CameraComponent::CameraType::Secondary
+		: CameraComponent::CameraType::Main;
+
+	const CameraComponent* cam = nullptr;
+	const CameraComponent* fallback = nullptr;
+
 	m_World.Each<CameraComponent>([&](Entity, CameraComponent& camera)
 		{
-			if (camera.cameraType == CameraComponent::CameraType::Main)
-			{
-				main = &camera;
-			}
+			if (camera.cameraType == wantType) cam = &camera;
+			else                               fallback = &camera;  // 望む種別が無い時の保険
 		});
-	
-	// -----------------------------//
-	//   メインカメラがある場合		//
-	//   メインカメラの行列で描画	//
-	// -----------------------------//
-	if (main)
+
+	if (!cam) cam = fallback;   // 該当が無ければ何でも使う（黒画面防止）
+
+	if (cam)
 	{
-		// 行列の更新	
-		context.view = main->view;
-		context.projection = main->proj;
-	}
-	else
-	{
-		// メインカメラがない場合はEditorCameraを探す
-		m_World.Each<CameraComponent, TransformComponent>([&](Entity, CameraComponent& camera, TransformComponent& transform)
-			{
-				if (camera.cameraType == CameraComponent::CameraType::Secondary)
-				{
-					context.view = camera.view;
-					context.projection = camera.proj;
-				}
-			});
+		context.view = cam->view;
+		context.projection = cam->proj;
 	}
 
 	// ビューポート用レンダーテクスチャへの描画設定
@@ -204,6 +205,17 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 		// クリア
 		renderTexture->Clear(commandList, { 0.2f, 0.2f, 0.2f, 1.0f });
 
+		// skybox描画
+		if (m_SkyBox)
+		{
+			float4x4 identity;
+			DirectX::XMStoreFloat4x4(&identity, DirectX::XMMatrixIdentity());
+			m_SkyBox->Apply(
+				context.CommandList, identity, context.view, context.projection,
+				false, context.frameIndex, context.cbAllocator, "",
+				APP->GetSkyPso());
+			m_SkyboxCube.Draw(context.CommandList);
+		}
 
 		// ---------------------//
 		// デバッグラインの描画 //
@@ -213,6 +225,7 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 			DrawGrid();
 			DrawLight();
 			DrawGizmos(context);
+			DrawColliders();
 		}
 
 		// デバッグラインを追加
@@ -225,9 +238,11 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 		// デバッグラインをクリア
 		m_DebugLines.clear();
 
-
 		// シーン描画
 		m_RenderSystem.Draw(m_World, context);
+
+		m_CanvasRenderSystem.Draw(m_World, context, m_UIQuad, APP->GetUIPso(),
+			(float)WINDOW_WIDTH, (float)WINDOW_HEIGHT);
 
 		// リソースバリア: レンダーターゲット → ピクセルシェーダーリソース
 		// imguiでimageをサンプルするため
@@ -235,12 +250,25 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 	}
 	else
 	{
+		// skybox描画
+		if (m_SkyBox)
+		{
+			float4x4 identity;
+			DirectX::XMStoreFloat4x4(&identity, DirectX::XMMatrixIdentity());
+			m_SkyBox->Apply(
+				context.CommandList, identity, context.view, context.projection,
+				false, context.frameIndex, context.cbAllocator, "",
+				APP->GetSkyPso());
+			m_SkyboxCube.Draw(context.CommandList);
+		}
+
 		// デバッグラインの描画
 		m_DebugLineRenderer.Begin();
 		if (context.isSceneView) {
 			DrawGrid();
 			DrawLight();
 			DrawGizmos(context);
+			DrawColliders();
 		}
 
 		// デバッグラインを追加
@@ -255,6 +283,9 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 
 		// 通常描画（メインレンダーターゲット）
 		m_RenderSystem.Draw(m_World, context);
+
+		m_CanvasRenderSystem.Draw(m_World, context,m_UIQuad,APP->GetUIPso(),
+			(float)WINDOW_WIDTH,(float)WINDOW_HEIGHT);
 	}
 }
 
@@ -289,7 +320,7 @@ void RuntimeScene::DrawGizmos(const RenderContext& renderContext)
 			if (m_World.HasComponent<FreeLookComponent>(e)) return;
 			const float4x4 world = billboard(tr.position);
 			m_CameraIcon->Apply(renderContext.CommandList, world, renderContext.view, renderContext.projection,
-				false, E_VERTEX_SHADER::BASIC, E_PIXEL_SHADER::BASIC, iconPso, renderContext.frameIndex, renderContext.cbAllocator);
+				false, renderContext.frameIndex, renderContext.cbAllocator,"",iconPso);
 			m_IconQuad.Draw(renderContext.CommandList);
 		});
 
@@ -299,7 +330,7 @@ void RuntimeScene::DrawGizmos(const RenderContext& renderContext)
 		{
 			const float4x4 world = billboard(tr.position);
 			m_LightIcon->Apply(renderContext.CommandList, world, renderContext.view, renderContext.projection,
-				false, E_VERTEX_SHADER::BASIC, E_PIXEL_SHADER::BASIC, iconPso, renderContext.frameIndex, renderContext.cbAllocator);
+				false, renderContext.frameIndex, renderContext.cbAllocator,"",iconPso);
 			m_IconQuad.Draw(renderContext.CommandList);
 		});
 }
@@ -450,9 +481,115 @@ void RuntimeScene::DrawLight()
 		});
 }
 
+void RuntimeScene::DrawColliders()
+{
+	const float4 green = { 0.0f, 1.0f, 0.0f, 1.0f };   // コライダーは緑
+
+	m_World.Each<TransformComponent, ColliderComponent>(
+		[&](Entity, TransformComponent& tr, ColliderComponent& col)
+		{
+			// 回転クォータニオンをロード
+			const auto rot = DirectX::XMQuaternionNormalize(
+				DirectX::XMLoadFloat4(&tr.rotation));
+			const DirectX::XMVECTOR origin = DirectX::XMLoadFloat3(&tr.position);
+
+			// ローカル座標 → ワールド座標に変換するヘルパー
+			auto toWorld = [&](float x, float y, float z) -> float3
+				{
+					DirectX::XMVECTOR p = DirectX::XMVectorSet(x, y, z, 0.0f);
+					p = DirectX::XMVector3Rotate(p, rot);
+					p = DirectX::XMVectorAdd(p, origin);
+					float3 out;
+					DirectX::XMStoreFloat3(&out, p);
+					return out;
+				};
+
+			auto line = [&](float3 a, float3 b)
+				{
+					m_DebugLineRenderer.AddLine(a, b, green);
+				};
+
+			switch (col.shapeType)
+			{
+			case ColliderComponent::ShapeType::Box:
+			{
+				const float hx = col.size.x * 0.5f;
+				const float hy = col.size.y * 0.5f;
+				const float hz = col.size.z * 0.5f;
+
+				// 8頂点
+				float3 v[8] = {
+					toWorld(-hx, -hy, -hz), toWorld(hx, -hy, -hz),
+					toWorld(hx, -hy,  hz), toWorld(-hx, -hy,  hz),
+					toWorld(-hx,  hy, -hz), toWorld(hx,  hy, -hz),
+					toWorld(hx,  hy,  hz), toWorld(-hx,  hy,  hz),
+				};
+				// 下面
+				line(v[0], v[1]); line(v[1], v[2]); line(v[2], v[3]); line(v[3], v[0]);
+				// 上面
+				line(v[4], v[5]); line(v[5], v[6]); line(v[6], v[7]); line(v[7], v[4]);
+				// 縦
+				line(v[0], v[4]); line(v[1], v[5]); line(v[2], v[6]); line(v[3], v[7]);
+				break;
+			}
+			case ColliderComponent::ShapeType::Sphere:
+			case ColliderComponent::ShapeType::Mesh:   // Meshは暫定でSphere扱い
+			{
+				const float r = col.radius;
+				constexpr int seg = 24;
+				// XY / YZ / XZ の3リング
+				for (int i = 0; i < seg; ++i)
+				{
+					const float a = DirectX::XM_2PI * i / seg;
+					const float b = DirectX::XM_2PI * (i + 1) / seg;
+					line(toWorld(cosf(a) * r, sinf(a) * r, 0), toWorld(cosf(b) * r, sinf(b) * r, 0));
+					line(toWorld(0, cosf(a) * r, sinf(a) * r), toWorld(0, cosf(b) * r, sinf(b) * r));
+					line(toWorld(cosf(a) * r, 0, sinf(a) * r), toWorld(cosf(b) * r, 0, sinf(b) * r));
+				}
+				break;
+			}
+			case ColliderComponent::ShapeType::Capsule:
+			{
+				const float r = col.radius;
+				const float hh = col.size.y * 0.5f;   // 半分の円柱高さ
+				constexpr int seg = 24;
+
+				// 上下の円（Y軸方向のカプセル）
+				for (int i = 0; i < seg; ++i)
+				{
+					const float a = DirectX::XM_2PI * i / seg;
+					const float b = DirectX::XM_2PI * (i + 1) / seg;
+					line(toWorld(cosf(a) * r, hh, sinf(a) * r), toWorld(cosf(b) * r, hh, sinf(b) * r));
+					line(toWorld(cosf(a) * r, -hh, sinf(a) * r), toWorld(cosf(b) * r, -hh, sinf(b) * r));
+				}
+				// 側面の4本
+				line(toWorld(r, -hh, 0), toWorld(r, hh, 0));
+				line(toWorld(-r, -hh, 0), toWorld(-r, hh, 0));
+				line(toWorld(0, -hh, r), toWorld(0, hh, r));
+				line(toWorld(0, -hh, -r), toWorld(0, hh, -r));
+
+				// 上下の半球（縦アーチ）
+				for (int i = 0; i < seg / 2; ++i)
+				{
+					const float a = DirectX::XM_PI * i / (seg / 2);
+					const float b = DirectX::XM_PI * (i + 1) / (seg / 2);
+					// 上半球
+					line(toWorld(cosf(a) * r, hh + sinf(a) * r, 0), toWorld(cosf(b) * r, hh + sinf(b) * r, 0));
+					line(toWorld(0, hh + sinf(a) * r, cosf(a) * r), toWorld(0, hh + sinf(b) * r, cosf(b) * r));
+					// 下半球
+					line(toWorld(cosf(a) * r, -hh - sinf(a) * r, 0), toWorld(cosf(b) * r, -hh - sinf(b) * r, 0));
+					line(toWorld(0, -hh - sinf(a) * r, cosf(a) * r), toWorld(0, -hh - sinf(b) * r, cosf(b) * r));
+				}
+				break;
+			}
+			}
+		});
+}
+
 void RuntimeScene::EditorUpdate(float dt)
 {
 	m_LightSystem.Apply(m_World);
-	m_FreeLookSystem.Update(m_World, dt);   // エディタカメラ操作
+	m_FreeLookSystem.Update(m_World, dt,CameraComponent::CameraType::Secondary);   // エディタカメラ操作
 	m_CameraSystem.Update(m_World, 16.0f / 9.0f);
+	m_TransformSystem.Update(m_World);
 }

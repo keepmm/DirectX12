@@ -33,6 +33,8 @@ public:
 	inline RenderTexture* GetEditorRenderTexture() const { return m_EditorRenderTexture.get(); }
 
 	ImVec2 GetViewportSize() const { return m_ViewportSize; }
+
+	void ReleaseRenderTextures();
 private:
 	/// @brief シーンの情報を描画する
 	/// @param scene シーンの描法
@@ -41,6 +43,11 @@ private:
 	/// @brief エンティティリストを描画する
 	/// @param world entityの情報を持つWorldクラスの参照
 	void DrawEntityList(_In_ World& world);
+
+	/// @brief 
+	/// @param world 
+	/// @param entity 
+	void DrawEntityNode(_In_ World& world, _In_ Entity entity);
 
 	/// @brief インスペクターの描画
 	/// @param world entityの情報を持つWorldクラスの参照
@@ -60,12 +67,35 @@ private:
 	/// @brief メモリ使用量の描画
 	void DrawMemoryPanel();
 
+	/// @brief コンソールウィンドウの描画
+	void DrawConsole();
+
 	/// @brief プレイ/停止ボタンの描画
 	void DrawPlayControl(_In_ Scene* activeScene);
 
 	/// @brief Scene保存 / 読み込み
 	/// @param sceneManager シーンマネージャーの参照
 	void DrawScenePanel(_In_ SceneManager& sceneManager);
+
+	/// @brief canvasの検索または作成
+	/// @param world worldの参照
+	/// @return 既に存在する場合はIDを返す、存在しない場合は新規作成してIDを返す
+	Entity EnsureCanvas(World& world);
+
+	/// @brief imageの作成(Entity)
+	/// @param world worldの参照
+	/// @return 作成したEntityのID
+	Entity CreateImage(_In_ World& world);
+
+	/// @brief Textの作成(Entity)
+	/// @param world worldの参照
+	/// @return 作成したEntityのID
+	Entity CreateText(_In_ World& world);
+
+	/// @brief InspectorにAddComponentのポップアップを表示する
+	/// @param world worldの参照
+	/// @param entity entityのID
+	void DrawAddComponentPopup(_In_ World& world, _In_ Entity entity);
 
 	Entity m_SelectedEntity = INVALID_ENTITY;
 	std::string m_SelectedPrefab;
@@ -89,6 +119,7 @@ private:
 	bool m_ShowProperties = true;	// 右: プロパティパネル（インスペクタ）
 	bool m_ShowDetails = true;		// 下: 詳細パネル
 	bool m_ShowMemory = true;		// メモリ使用量表示
+	bool m_ShowConsole = true;		// コンソール表示
 	bool m_DockLayout = false;
 
 	// ビューポート情報
@@ -139,8 +170,12 @@ private:
 
 	void OpenInEditor(const std::string& path);
 
-	char m_AddCompSearchBuffer[64] = "";
-	bool m_FocusAddCompSearch = false;
-
 	void AddToProject(_In_ const std::string cppRel, _In_ const std::string hppRel);
+	void CreateFolder(_In_ const std::string& dir);
+
+	char m_ScriptSerachBuffer[128] = {};
+	bool m_FocusScriptSearch = false;
+
+	char m_AddCompSearchBuffer[128] = {};
+	bool m_FocusAddCompSearch = false;
 };

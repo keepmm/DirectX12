@@ -6,6 +6,9 @@
 #include "Components.hpp"
 #include "ModelLoader.hpp"
 #include "PlayState.hpp"
+#include "ScriptHost.hpp"
+#include "AudioEngine.hpp"
+#include "FontAtlas.hpp"
 
 Application::Application()
 {
@@ -50,6 +53,12 @@ HRESULT Application::OnInit()
 		m_DirectX->GetPipelineStateWireFrame());
 	Polygon::CreatePolygon();
 
+	// スクリプトホストの初期化
+	ScriptHost::Open(&m_SceneManager.GetActiveScene()->GetWorld());
+
+	// オーディオエンジンの初期化
+	AudioEngine::Get().Init();
+
 	return S_OK;
 }
 
@@ -63,6 +72,14 @@ void Application::OnUpdate()
 
 void Application::OnShutDown()
 {
+	AudioEngine::Get().Shutdown();
+
+	FontLibrary::Clear();
+
+	if (m_EditorWindow)
+	{
+		m_EditorWindow->ReleaseRenderTextures();
+	}
 }
 
 void Application::OnInitPrefabs()

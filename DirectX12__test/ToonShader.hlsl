@@ -1,93 +1,55 @@
-#define MAX_LIGHTS 10
-
-cbuffer Frame : register(b0)
-{
-    float4x4 viewProj;
-}
-
-struct LightData
-{
-    float4 dir;
-    float4 color;
-    float4 posRange;
-    float4 param;
-};
-
-cbuffer Light : register(b2)
-{
-    float4 ambientColor;
-    float4 lightCount;
-    LightData lights[MAX_LIGHTS];
-}
-
-struct PSInput
-{
-    float4 pos : SV_POSITION;
-    float3 normal : NORMAL;
-    float3 worldPos : TEXCOORD1;
-    float4 col : COLOR;
-    float2 uv : TEXCOORD;
-};
+#include "Common.hlsli"
+#include "Lighting.hlsli"
+#include "BRDF.hlsli"
 
 Texture2D g_Texture : register(t0);
 Texture2D g_RampTexture : register(t1);
 SamplerState g_Sampler : register(s0);
 SamplerState g_RampSampler : register(s1);
 
-void ComputeLight(LightData light, float3 worldPos, out float3 l, out float atten)
+cbuffer Material : register(b3)
 {
-    // ライトタイプの取得
-    const int type = (int) light.param.x;
-    atten = 1.0f;
-    
-    // Directional Light
-    if (type == 0)
-    {
-        l = (-light.dir.xyz);
-        return;
-    }
-    
-    // Point / Spot ライト
-    float3 toLight = light.posRange.xyz - worldPos;
-    float dist = length(toLight);
-    l = toLight / max(dist, 0.0001f);
-    
-    float range = max(light.posRange.w, 0.0001f);
-    atten = saturate(1.0f - dist / range);
-    atten *= atten; // 二乗で減衰
-    
-    if (type == 2)
-    {
-        float cosAngle = dot(-l, normalize(light.dir.xyz));
-        float spotCos = light.param.y;
-        float spotFactor = saturate((cosAngle - spotCos) / max(1.0f - spotCos, 0.0001f));
-        atten *= spotFactor;
-    }
+    float roughness;    // ハイライトの大きさ（大=広い）
+    float metallic;     // ハイライトの強さ
+    float2 _pad;
+    float4 rimColor;    // rgb: リム色 / a: リム強さ
 }
 
 float4 ToonPS(PSInput input) : SV_TARGET
 {
-    float4 texcolor = g_Texture.Sample(g_Sampler, input.uv);
-
-    float3 n = normalize(input.normal);
-    float3 baseColor = input.col.rgb * texcolor.rgb;
-
-    float3 diffuse = float3(0.0f, 0.0f, 0.0f);
-    const int count = (int) lightCount.x;
+    float4 texColor = g_Texture.Sample(g_Sampler, input.uv);
+    float3 baseColor = input.col.rgb * texColor.rgb;
+    float3 N = normalize(input.normal);
+    float3 V = normalize(cameraPos.xyz - input.worldPos);
+    
+    float shininess = lerp(64.0f, 8.0f, saturate(roughness));
+    
+    float3 diffuse = 0;
+    float specMask = 0;
+    const int count = (int)lightCount.x;
     for (int i = 0; i < count; ++i)
     {
-        float3 l;
+        float3 L;
         float atten;
-        ComputeLight(lights[i], input.worldPos, l, atten);
-
-        float ndotl = saturate(dot(n, l)) * atten;
-
-        // 明るさ(0~1)を横軸にランプテクスチャを引く
-        float3 ramp = g_RampTexture.Sample(g_RampSampler, float2(ndotl, 0.5f)).rgb;
-
+        ComputeLight(lights[i], input.worldPos, L, atten);
+        float nDotL = saturate(dot(N, L)) * atten;
+        
+        // ランプで階調化したディフューズ(2 ~ 3トーン)
+        float3 ramp = g_RampTexture.Sample(g_RampSampler, float2(nDotL, 0.5f)).rgb;
         diffuse += lights[i].color.rgb * baseColor * ramp;
+        
+        // アニメ調すぺきゅら
+        float3 H = normalize(L + V);
+        float spec = pow(saturate(dot(N, H)), shininess);
+        specMask = max(specMask, step(0.5f, spec) * atten);
+
     }
 
-    float3 ambient = baseColor * ambientColor.rgb;
-    return float4(diffuse + ambient, input.col.a * texcolor.a);
+    float3 color = diffuse + baseColor * ambientColor.rgb;
+    color += specMask * metallic;
+    
+    float rim = Fresnel(N, V, 3.0f);
+    color += rimColor.rgb * rim * rimColor.a;
+    
+    return float4(color, input.col.a * texColor.a);
 }

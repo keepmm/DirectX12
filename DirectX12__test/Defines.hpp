@@ -8,7 +8,47 @@
  * *********************************************************************/
 #pragma once
 
+#pragma once
+
+#define NOMINMAX
+
+ // DirectX 12 
+#include <windows.h>
+#include <wrl.h>
+#include <d3d12.h>
+#include <dxgi1_6.h>
 #include <DirectXMath.h>
+#include <DirectXColors.h>
+#include <DirectXCollision.h>
+#include <d3dcompiler.h>
+
+// C++標準ライブラリ
+#include <memory>
+#include <vector>
+#include <string>
+#include <stdexcept>
+#include <array>
+#include <chrono>
+#include <unordered_map>
+
+// FILE I/O
+#include <filesystem>
+#include <fstream>
+#include <sstream>
+#include <cassert>
+#include <ostream>
+#include <unordered_set>
+#include <type_traits>
+#include <utility>
+
+// 非同期処理
+#include <thread>
+#include <queue>
+#include <mutex>
+#include <functional>
+#include <condition_variable>
+#include <future>
+
 
  // -------------------------------//
  //			 型エイリアス			   //
@@ -82,18 +122,16 @@ inline vector operator*(const vector& a, const float& b)
 #define FPS 60
 #define FRAME_TIME (1000 / FPS)
 
-#include "pch.h"
-
 #include <wrl/client.h>
 template<typename T>
 using ComPtr = Microsoft::WRL::ComPtr<T>;
 
-#include <memory>
 template<typename T, typename... Args>
 std::unique_ptr<T> MakeUnique(Args&&... args)
 {
     return std::make_unique<T>(std::forward<Args>(args)...);
 }
+
 
 template<typename T, typename... Args>
 std::shared_ptr<T> MakeShared(Args&&... args)

@@ -21,9 +21,15 @@ public:
     /// パスのPNGを読み込んで ImTextureID を返す（2回目以降はキャッシュから即返す）
     ImTextureID GetOrLoad(_In_ const std::wstring& path);
 
+    void BeginFrame()
+    {
+        m_LoadsThisFrame = 0;
+	}
 private:
     bool LoadTexture(_In_ const std::wstring& path, _Out_ ImTextureID& outId);
 
     std::unordered_map<std::wstring, ImTextureID> m_Cache;     // パス → ImTextureID
     std::vector<ComPtr<ID3D12Resource>> m_Textures;            // テクスチャ本体を保持（解放防止）
+    int m_LoadsThisFrame = 0;
+    static constexpr int kMaxLoadsPerFrame = 1; // 1フレームで読み込む最大数
 };

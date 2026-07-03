@@ -5,6 +5,17 @@
 
 constexpr UINT MAX_LIGHTS = 10;
 
+struct ShaderPassDef
+{
+	std::wstring vsFile = L"VertexShader.hlsl";
+	std::string vsEntry = "BasicVS";
+	std::string vsProfile;
+	std::wstring psFile;
+	std::string psEntry;
+	std::string psProfile = "ps_5_0";
+	bool alphaBlend = false;
+};
+
 struct LightData
 {
 	float4 dir{ 0.0f, -1.0f, 0.0f, 0.0f };		// xyz: ï˚å¸Åiê≥ãKâªçœÇ›Åj
@@ -31,6 +42,7 @@ enum class E_PIXEL_SHADER
 	BASIC,
 	TOON,
 	EMISSIVE,
+	PBR,
 	COUNT
 };
 
