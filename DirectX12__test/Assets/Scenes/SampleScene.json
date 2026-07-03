@@ -52,7 +52,7 @@
           0.0,
           1.0
         ],
-        "Intensity": 1.059999942779541,
+        "Intensity": 4.046000003814697,
         "IsActive": true,
         "IsShow": false,
         "Range": 10.0,
@@ -227,9 +227,9 @@
           0.20791171491146088,
           -0.977998673915863
         ],
-        "Intensity": 12.717000007629395,
-        "IsActive": true,
-        "IsShow": true,
+        "Intensity": 41.040000915527344,
+        "IsActive": false,
+        "IsShow": false,
         "Range": 6.935999870300293,
         "SpotAngle": 117.26599884033203,
         "Type": 2
@@ -269,24 +269,24 @@
       "Free Look": {
         "Enabled": true,
         "MoveSpeed": 5.0,
-        "Pitch": 0.39250025153160095,
+        "Pitch": -0.19749963283538818,
         "RotateSpeed": 0.0024999999441206455,
-        "Yaw": 2.7399933338165283
+        "Yaw": 5.652493476867676
       },
       "id": 8,
       "name": "EditorCamera",
       "transform": {
         "parent": 0,
         "position": [
-          -1.4349570274353027,
-          1.3970720767974854,
-          2.169398307800293
+          1.7371972799301147,
+          0.47793737053871155,
+          -1.4887839555740356
         ],
         "rotation": [
-          0.03889188915491104,
-          0.9610978364944458,
-          -0.1910749077796936,
-          0.19562438130378723
+          0.09372787177562714,
+          0.308634489774704,
+          0.030577052384614944,
+          -0.9460575580596924
         ],
         "scale": [
           1.0,
@@ -428,34 +428,36 @@
       }
     },
     {
-      "Rect Transform": {
-        "AnchoredPosition": [
-          50.0,
-          100.0
-        ],
-        "Pivot": [
-          0.5,
-          0.5
-        ],
-        "SizeDelta": [
-          100.0,
-          50.0
-        ]
+      "id": 14,
+      "material": {
+        "filePath": "",
+        "rampFilePath": "",
+        "shaderName": "PBR"
       },
-      "UI Text": {
-        "Color": [
-          1.0,
+      "mesh": {
+        "filePath": "Assets\\Model\\bolt_rifle\\bolt_action_rifle_7_62_4k.fbx",
+        "scale": 3.0
+      },
+      "name": "Model_15",
+      "transform": {
+        "parent": 0,
+        "position": [
+          2.200000047683716,
+          0.8999999761581421,
+          0.0
+        ],
+        "rotation": [
+          0.030843637883663177,
+          -0.7064338326454163,
+          0.7064337730407715,
+          0.030843643471598625
+        ],
+        "scale": [
           1.0,
           1.0,
           1.0
-        ],
-        "Font": "C:\\Windows\\Fonts\\meiryo.ttc",
-        "FontPath": "C:\\Windows\\Fonts\\meiryo.ttc",
-        "FontSize": 200.0,
-        "Text": "Text"
-      },
-      "id": 14,
-      "name": "Text_1"
+        ]
+      }
     }
   ],
   "sceneName": "Red"

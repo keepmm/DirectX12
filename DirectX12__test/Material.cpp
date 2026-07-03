@@ -94,21 +94,7 @@ bool Material::SetTextureFromFile(const std::wstring& filePath)
 		return false;
 	}
 
-	if (m_TextureSrvHeap == nullptr)
-	{
-		D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
-		heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-		heapDesc.NumDescriptors = 2;
-		heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-
-		if (FAILED(APP->GetDevice()->CreateDescriptorHeap(
-			&heapDesc,
-			IID_PPV_ARGS(m_TextureSrvHeap.GetAddressOf()))))
-		{
-			LOG->LogError("SetTextureFromFile: CreateDescriptorHeap failed");
-			return false;
-		}
-	}
+	if (!EnsureSrvHeap()) return false;
 
 	// テクスチャのサイズとフォーマットを定義
 	const CD3DX12_RESOURCE_DESC texDesc = CD3DX12_RESOURCE_DESC::Tex2D(
@@ -292,6 +278,8 @@ void Material::Apply(
 	}
 
 	UpdateTextureIfNeeded(commandList);
+	BindEnvironmentIfNeeded();
+	BindShadowMapIfNeeded();
 
 	if (m_TextureSrvHeap != nullptr)
 	{
@@ -328,9 +316,8 @@ void Material::Apply(
 
 	// b3
 	MaterialCB mdata{};
-	mdata.mapFlags = { m_HasNormal ? 1.0f : 0.0f,
-				   m_HasMetal ? 1.0f : 0.0f,
-				   m_HasRough ? 1.0f : 0.0f, 0.0f };
+	mdata.mapFlags = { m_HasNormal ? 1.f : 0.f, m_HasMetal ? 1.f : 0.f,
+					   m_HasRough ? 1.f : 0.f, m_EnvMaxMip };   // w>0 なら環境あり
 	mdata.roughness = roughness;
 	mdata.metallic = metallic;
 	mdata.rimColor = rimColor;
@@ -393,16 +380,8 @@ void Material::CreateCheckerTexture(const ComPtr<ID3D12Device>& device)
 		return;
 	}
 
-	// シェーダーからアクセスするためのSRVを作成するためのディスクリプタヒープを作成
-	D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
-	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-	heapDesc.NumDescriptors = 2;
-	heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-
-	// ディスクリプタヒープの作成に失敗した場合は処理しない
-	if(FAILED(device->CreateDescriptorHeap(&heapDesc,IID_PPV_ARGS(m_TextureSrvHeap.GetAddressOf())))) {
-		return;
-	}
+	// シェーダーからアクセスするためのSRVを作成するためのディスクリプタヒープを作成;
+	if (!EnsureSrvHeap()) return ;
 
 	// テクスチャのサイズとフォーマットを定義
 	constexpr UINT width = 2;
@@ -549,15 +528,7 @@ bool Material::CreateTextureFromRGBA(
 	constexpr UINT pixelSize = 4;
 
 	// SRVヒープ（無ければ作る）
-	if (m_TextureSrvHeap == nullptr)
-	{
-		D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
-		heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-		heapDesc.NumDescriptors = 2;
-		heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-		if (FAILED(device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(m_TextureSrvHeap.GetAddressOf()))))
-			return false;
-	}
+	if (!EnsureSrvHeap()) return false;
 
 	CD3DX12_RESOURCE_DESC texDesc = CD3DX12_RESOURCE_DESC::Tex2D(format, width, height);
 	CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_DEFAULT);
@@ -640,7 +611,7 @@ bool Material::EnsureSrvHeap()
 	auto device = APP->GetDevice();
 	D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
 	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-	heapDesc.NumDescriptors = 5;                       // t0..t4
+	heapDesc.NumDescriptors = 7;                       // t0..t6
 	heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	if (FAILED(device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(m_TextureSrvHeap.GetAddressOf()))))
 		return false;
@@ -666,18 +637,7 @@ bool Material::UploadTextureData(const DirectX::Image* srcImage, const DirectX::
 	// ----------------------- //
 	// SRVヒープがなければ作成 //
 	// ----------------------- //
-	if (m_TextureSrvHeap == nullptr)
-	{
-		D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
-		heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-		heapDesc.NumDescriptors = 2;
-		heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
-		if(FAILED(APP->GetDevice()->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(m_TextureSrvHeap.GetAddressOf()))))
-		{
-			LOG->LogError("UploadTextureData: CreateDescriptorHeap failed");
-			return false;
-		}
-	}
+	if (!EnsureSrvHeap()) return false;
 
 	// ----------------------- //
 	//   テクスチャ本体の作成  //
@@ -869,4 +829,46 @@ void Material::CreateDefaultRampTexture()
 
 	UploadTextureTo(&img, meta, 1,
 		m_RampTexture, m_RampUpload, m_RampFootprint, m_RampUploadPending);
+}
+
+void Material::BindEnvironmentIfNeeded()
+{
+	if (m_EnvBound) return;
+	auto* env = APP->GetEnvTexture();
+	if (!env || !m_TextureSrvHeap) return;
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC srv = {};
+	srv.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;   // HDRのフォーマットに合わせる
+	srv.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srv.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srv.Texture2D.MipLevels = APP->GetEnvMipLevels();
+
+	const UINT inc = APP->GetDevice()->GetDescriptorHandleIncrementSize(
+		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	auto cpu = m_TextureSrvHeap->GetCPUDescriptorHandleForHeapStart();
+	cpu.ptr += 5 * inc;                       // slot5 = t5
+	APP->GetDevice()->CreateShaderResourceView(env, &srv, cpu);
+
+	m_EnvMaxMip = float(APP->GetEnvMipLevels() - 1);
+	m_EnvBound = true;
+}
+
+void Material::BindShadowMapIfNeeded()
+{
+	if (m_ShadowBound) return;
+	auto* sm = APP->GetShadowMap().GetResource();
+	if (!sm || !m_TextureSrvHeap) return;
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC srv = {};
+	srv.Format = DXGI_FORMAT_R32_FLOAT;      // TYPELESS深度をR32として読む
+	srv.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srv.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srv.Texture2D.MipLevels = 1;
+
+	const UINT inc = APP->GetDevice()->GetDescriptorHandleIncrementSize(
+		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	auto cpu = m_TextureSrvHeap->GetCPUDescriptorHandleForHeapStart();
+	cpu.ptr += 6 * inc;   // slot6 = t6
+	APP->GetDevice()->CreateShaderResourceView(sm, &srv, cpu);
+	m_ShadowBound = true;
 }

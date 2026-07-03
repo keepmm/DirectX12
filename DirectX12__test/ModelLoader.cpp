@@ -263,18 +263,20 @@ ModelCpuData ModelLoader::ParseFile(const std::string& filepath, float scale)
         }
 
         // 面（インデックス）の処理
+        const std::uint32_t indexStart = static_cast<std::uint32_t>(out.indices.size());
         for (unsigned int f = 0; f < mesh->mNumFaces; ++f)
         {
             const aiFace& face = mesh->mFaces[f];
-            if (face.mNumIndices != 3)
-            {
-                LOG->LogError("Non-triangulated face found in mesh: " + std::to_string(meshIndex));
-                continue;
-            }
+            if (face.mNumIndices != 3) { LOG->LogError("三角形ではない面が見つかりました: " + std::to_string(meshIndex)); continue; }
             out.indices.push_back(baseVertex + face.mIndices[0]);
             out.indices.push_back(baseVertex + face.mIndices[1]);
             out.indices.push_back(baseVertex + face.mIndices[2]);
         }
+        const std::uint32_t indexCount =
+            static_cast<std::uint32_t>(out.indices.size()) - indexStart;
+
+        // このaiMesh = 1サブメッシュ（materialIndexで後述のmaterialsを参照）
+        out.subMeshes.push_back(SubMesh{ indexStart, indexCount, mesh->mMaterialIndex });
     }
 
     NormalizeInfluence(out.skinData.infuences);
@@ -330,27 +332,28 @@ ModelCpuData ModelLoader::ParseFile(const std::string& filepath, float scale)
         };
 
     // 法線マップを持つ（＝本体）マテリアルを優先して確定
+    out.materials.resize(scene->mNumMaterials);
     for (unsigned int i = 0; i < scene->mNumMaterials; ++i)
     {
         const aiMaterial* material = scene->mMaterials[i];
-
         std::wstring diff = resolveByType(material, aiTextureType_DIFFUSE);
         std::wstring nor = resolveByType(material, aiTextureType_NORMALS);
         if (nor.empty()) nor = deriveSibling(diff, L"_diff", L"_nor_gl");
-        std::wstring metal = deriveSibling(diff, L"_diff", L"_metal");
-        std::wstring rough = deriveSibling(diff, L"_diff", L"_rough");
 
-        if (!nor.empty())   // 本体確定
+        out.materials[i].diffuse = diff;
+        out.materials[i].normal = nor;
+        out.materials[i].metal = deriveSibling(diff, L"_diff", L"_metal");
+        out.materials[i].rough = deriveSibling(diff, L"_diff", L"_rough");
+    }
+
+    // 単一マテリアル互換：法線を持つ最初のマテリアルを従来フィールドにも入れる
+    for (auto& m : out.materials)
+        if (!m.normal.empty())
         {
-            out.diffuseTexturePath = diff;
-            out.normalTexturePath = nor;
-            out.metalTexturePath = metal;
-            out.roughTexturePath = rough;
+            out.diffuseTexturePath = m.diffuse; out.normalTexturePath = m.normal;
+            out.metalTexturePath = m.metal;     out.roughTexturePath = m.rough;
             break;
         }
-        if (out.diffuseTexturePath.empty() && !diff.empty())
-            out.diffuseTexturePath = diff;   // フォールバック
-    }
 
     out.success = true;
     return out;
@@ -363,14 +366,17 @@ ModelLoadResult ModelLoader::upload(const ModelCpuData& cpu)
     if (device == nullptr || !cpu.success) return result;
 
     auto mesh = std::make_shared<Mesh>();
-    mesh->Init(device, cpu.vertices, cpu.indices, nullptr);   // GPUバッファ作成
+    mesh->Init(device, cpu.vertices, cpu.indices,
+        cpu.subMeshes.empty() ? nullptr : &cpu.subMeshes);
     result.mesh = mesh;
+	result.subMeshes = cpu.subMeshes;
+	result.materials = cpu.materials;
 
     result.diffuseTexturePath = cpu.diffuseTexturePath;
 	result.normalTexturePath = cpu.normalTexturePath;
 	result.metalTexturePath = cpu.metalTexturePath;
 	result.roughTexturePath = cpu.roughTexturePath;
-    result.diffusetextureData = cpu.diffuseTextureData;   // ※既存メンバ名（小文字t）
+    result.diffusetextureData = cpu.diffuseTextureData; 
     result.skeleton = cpu.skeleton;
     result.skinData = cpu.skinData;
     return result;

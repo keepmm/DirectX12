@@ -83,6 +83,7 @@ private:
 	CanvasRenderSystem m_CanvasRenderSystem;
 	AudioSystem m_AudioSystem;
 	TransformSystem m_TransformSystem;
+	ShadowSystem m_ShadowSystem;
 
 	bool m_ScriptSystemStarted = false;
 

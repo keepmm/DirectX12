@@ -201,6 +201,7 @@
       <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
       </ForcedIncludeFiles>
     </ClCompile>
+    <ClCompile Include="ShadowMap.cpp" />
     <ClCompile Include="Time.cpp" />
     <ClCompile Include="Vertex.cpp" />
   </ItemGroup>
@@ -258,6 +259,7 @@
     <ClInclude Include="Shader.hpp" />
     <ClInclude Include="ShaderLibrary.hpp" />
     <ClInclude Include="ShaderTemplates.hpp" />
+    <ClInclude Include="ShadowMap.hpp" />
     <ClInclude Include="Systems.hpp" />
     <ClInclude Include="Engine/ThreadPool.hpp" />
     <ClInclude Include="Time.hpp" />
@@ -403,6 +405,16 @@
   <ItemGroup>
     <Image Include="Assets\Texture\metal.jpg" />
     <Image Include="Assets\Texture\plate.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="ShadowShader.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
+      <FileType>Document</FileType>
+    </None>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

@@ -108,6 +108,7 @@ void RuntimeScene::OnLoad()
 	m_SkyBox = std::make_shared<Material>();
 	m_SkyBox->Init();
 	m_SkyBox->SetTextureFromFile(L"Assets/Texture/sky.hdr");
+	APP->LoadEnvironment(L"Assets/Texture/sky.hdr");
 
 	m_Initialized = true;
 	LOG->LogInfo("RuntimeScene : Loaded");
@@ -184,6 +185,14 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 
 		// リソースバリア: ピクセルシェーダーリソース → レンダーターゲット
 		renderTexture->Transition(commandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+		// シャドウマップの描画
+		if (context.lightCb.shadowParams.y > 0.5f)
+		{
+			APP->GetShadowMap().BeginRender(commandList);
+			m_ShadowSystem.Draw(m_World, context,APP->GetShadowPso());
+			APP->GetShadowMap().EndRender(commandList);
+		}
 
 		// RTV を設定
 		auto rtvHandle = renderTexture->GetRTV();

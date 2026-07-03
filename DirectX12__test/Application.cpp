@@ -72,6 +72,7 @@ void Application::OnUpdate()
 
 void Application::OnShutDown()
 {
+	AsyncLoader::Get().Shutdown();
 	AudioEngine::Get().Shutdown();
 
 	FontLibrary::Clear();

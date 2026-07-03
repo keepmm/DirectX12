@@ -11,6 +11,7 @@
 #include "ComponentRegistry.hpp"
 #include "MonoBehavior.hpp"
 #include "Logger.hpp"
+#include "Util.hpp"
 
 using json = nlohmann::json;
 
@@ -386,6 +387,14 @@ bool SceneSerializer::LoadFromString(Scene& scene, const std::string& data)
                 {
                     auto result = ModelLoader::LoadFromFile(APP->GetDevice(), meshComp.FilePath, meshComp.scale);
                     meshComp.mesh = result.mesh;
+
+                    // マルチマテリアル復元（FBX由来のテクスチャセットから再構築）
+                    if (!result.materials.empty() && world.HasComponent<MaterialComponent>(entity))
+                    {
+                        auto& mc = world.GetComponent<MaterialComponent>(entity);
+                        mc.materials = BuildMaterials(result, mc.shaderName);
+                        if (!mc.materials.empty()) mc.material = mc.materials[0];
+                    }
                 }
 
                 if (world.HasComponent<MeshComponent>(entity))

@@ -18,6 +18,7 @@
 #include "RenderTexture.hpp"
 #include "Components.hpp"
 #include "IconLibrary.hpp"
+#include "AsyncLoader.hpp"
 
 class EditorWindow
 {

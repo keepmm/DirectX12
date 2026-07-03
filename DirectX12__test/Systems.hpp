@@ -89,7 +89,35 @@ public:
 					material.shaderName
 				);
 
-				mesh.mesh->Draw(renderContext.CommandList);
+				const bool multi =
+					!material.materials.empty() && mesh.mesh->GetSubMeshCount() > 0;
+
+				if (multi)
+				{
+					const UINT sub = mesh.mesh->GetSubMeshCount();
+					for (UINT s = 0; s < sub; ++s)
+					{
+						// サブメッシュのmaterialIndexに対応するMaterialを選択（範囲外は0）
+						UINT mi = mesh.mesh->GetSubMeshMaterialIndex(s);
+						if (mi >= material.materials.size()) mi = 0;
+						auto& mat = material.materials[mi];
+						if (!mat) continue;
+
+						mat->Apply(renderContext.CommandList, transform.world,
+							renderContext.view, renderContext.projection,
+							renderContext.wireframe, renderContext.frameIndex,
+							renderContext.cbAllocator, material.shaderName);
+						mesh.mesh->DrawSubMesh(renderContext.CommandList, s);
+					}
+				}
+				else
+				{
+					material.material->Apply(renderContext.CommandList, transform.world,
+						renderContext.view, renderContext.projection,
+						renderContext.wireframe, renderContext.frameIndex,
+						renderContext.cbAllocator, material.shaderName);
+					mesh.mesh->Draw(renderContext.CommandList);
+				}
 			}
 		);
 	}
@@ -152,11 +180,58 @@ public:
 				// 環境光は最初のライトのものを採用
 				if (count == 0)
 				{
-					m_Data.ambientColor = light.ambientColor;
+					if (APP->HasEnvironment())
+					{
+						const float3 e = APP->GetEnvAmbient();
+						const float k = 0.5f;   // 環境光の強さ（好みで調整）
+						m_Data.ambientColor = float4(e.x * k, e.y * k, e.z * k, 1.0f);
+					}
+					else
+					{
+						m_Data.ambientColor = light.ambientColor;
+					}
 				}
 
 				++count;
 			});
+
+		// ----------------------------- //
+		//		シャドウマッピング	     //
+		// ----------------------------- //
+		m_Data.shadowParams = { 0.005f, 0.0f, 2048.0f, 0.0f };
+		float3 shadowDir{};
+		bool found = false;
+		world.Each<LightComponent>([&](Entity e, LightComponent& light)
+			{
+				// 見つかった or 非アクティブならスキップ
+				if (found || !light.isActive) return;
+				// 方向ライト以外はスキップ
+				if (light.type != LightComponent::LightType::Directional) return;
+				shadowDir = light.direction;
+				found = true;
+			});
+
+		if (found)
+		{
+			// 方向がゼロ/不正ならデフォルトへ（NaN行列防止）
+			const float len2 = shadowDir.x * shadowDir.x + shadowDir.y * shadowDir.y + shadowDir.z * shadowDir.z;
+			if (len2 < 1e-6f)
+				shadowDir = { -0.5f, -1.0f, -0.5f };
+
+
+			DirectX::XMVECTOR d = DirectX::XMVector3Normalize(DirectX::XMLoadFloat3(&shadowDir));
+			const float dist = 50.0f;
+			const float ortho = 30.0f;
+			DirectX::XMVECTOR center = DirectX::XMVectorZero();
+			DirectX::XMVECTOR lightPos = DirectX::XMVectorSubtract(center, DirectX::XMVectorScale(d, dist));
+			DirectX::XMVECTOR up = (fabsf(shadowDir.y) > 0.99f)
+				? DirectX::XMVectorSet(1, 0, 0, 0) : DirectX::XMVectorSet(0, 1, 0, 0);
+
+			matrix v = DirectX::XMMatrixLookToLH(lightPos, d, up);
+			matrix p = DirectX::XMMatrixOrthographicLH(ortho, ortho, 0.1f, 150.0f);
+			DirectX::XMStoreFloat4x4(&m_Data.lightviewproj, DirectX::XMMatrixTranspose(v * p));
+			m_Data.shadowParams.y = 1.0f;
+		}
 
 		m_Data.lightCount.x = static_cast<float>(count);
 	}
@@ -618,5 +693,44 @@ private:
 			worldMat = local * XMLoadFloat4x4(&p.world);
 		}
 		XMStoreFloat4x4(&tr.world, worldMat);
+	}
+};
+
+class ShadowSystem
+{
+public:
+	void Draw(
+		World& world, 
+		const RenderContext& ctx,
+		ID3D12PipelineState* shadowPso)
+	{
+		if(!shadowPso || !ctx.CommandList || !ctx.cbAllocator)
+		{
+			return;
+		}
+		auto* cmd = ctx.CommandList;
+		cmd->SetPipelineState(shadowPso);
+		cmd->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+		const UINT slot = ctx.frameIndex % RTV_NUM;
+
+		auto b2 = ctx.cbAllocator->Allocate(slot, &ctx.lightCb, sizeof(LightCB));
+		if (b2)
+		{
+			cmd->SetGraphicsRootConstantBufferView(2, b2);
+		}
+
+		world.Each<TransformComponent, MeshComponent>(
+			[&](Entity e, TransformComponent& tr, MeshComponent& mc)
+			{
+				if (!mc.mesh) return;
+				struct { float4x4 world; } obj{};
+				const auto w = DirectX::XMLoadFloat4x4(&tr.world);
+				DirectX::XMStoreFloat4x4(&obj.world, DirectX::XMMatrixTranspose(w));
+
+				auto b1 = ctx.cbAllocator->Allocate(slot, &obj, sizeof(obj));
+				if (b1) cmd->SetGraphicsRootConstantBufferView(1, b1);
+				mc.mesh->Draw(cmd);
+			});
 	}
 };

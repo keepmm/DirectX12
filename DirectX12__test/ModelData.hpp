@@ -12,6 +12,18 @@
 #include "Defines.hpp"
 #include "Mesh.hpp"
 
+ /*
+  *	1マテリアル分のテクスチャパス
+  */
+struct MaterialTextureSet
+{
+	std::wstring diffuse;
+	std::wstring normal;
+	std::wstring metal;
+	std::wstring rough;
+};
+
+
 /*
 *	ボーンノードの定義
 */
@@ -58,6 +70,10 @@ struct SkinData
 struct ModelLoadResult
 {
 	std::shared_ptr<Mesh> mesh;						// メッシュデータ
+
+	std::vector<SubMesh> subMeshes;
+	std::vector<MaterialTextureSet> materials;	// マテリアルごとのテクスチャパス
+
 	std::wstring diffuseTexturePath;				//テクスチャのファイルパス
 	std::wstring normalTexturePath;					// 法線マップのファイルパス
 	std::wstring metalTexturePath;					// メタルマップのファイルパス
@@ -74,6 +90,10 @@ struct ModelCpuData
 {
 	std::vector<Vertex>         vertices;
 	std::vector<std::uint32_t>  indices;
+
+	std::vector<SubMesh> subMeshes;
+	std::vector<MaterialTextureSet> materials;	// マテリアルごとのテクスチャパス
+
 	std::wstring                diffuseTexturePath;
 	std::wstring				normalTexturePath;	// 法線マップのファイルパス
 	std::wstring				metalTexturePath;	// メタルマップのファイルパス

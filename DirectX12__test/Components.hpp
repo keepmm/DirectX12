@@ -136,7 +136,8 @@ struct MeshComponent
 
 struct MaterialComponent
 {
-	std::shared_ptr<Material> material;
+	std::shared_ptr<Material> material;	// ’Pˆê
+	std::vector<std::shared_ptr<Material>> materials;	// •¡”
 	ID3D12PipelineState* overridePso = nullptr;
 
 	std::string FilePath;

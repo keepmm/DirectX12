@@ -30,4 +30,3 @@ public:
 		_In_ const ModelCpuData& cpu
 	);
 };
-

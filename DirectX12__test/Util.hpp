@@ -3,6 +3,8 @@
 #include <Windows.h>
 #include <commdlg.h>
 #pragma comment(lib, "Comdlg32.lib")
+#include "Material.hpp"
+#include "ModelData.hpp"
 
 // ---- UTF-8 <-> wide 変換 ---- //
 inline std::wstring Utf8ToWide(const std::string& s)
@@ -35,4 +37,22 @@ inline bool OpenFileDialog(std::wstring& out, const wchar_t* filter)
     ofn.Flags = OFN_FILEMUSTEXIST | OFN_PATHMUSTEXIST | OFN_NOCHANGEDIR;
     if (GetOpenFileNameW(&ofn)) { out = file; return true; }
     return false;
+}
+
+// --- マテリアル構築ヘルパ --- // 
+inline std::vector<std::shared_ptr<Material>> BuildMaterials(
+    const ModelLoadResult& model, const std::string& shaderName)
+{
+    std::vector<std::shared_ptr<Material>> out;
+    for (const auto& set : model.materials)
+    {
+        auto m = std::make_shared<Material>();
+        m->Init();
+        if (!set.diffuse.empty()) m->SetTextureFromFile(set.diffuse);
+        if (!set.normal.empty())  m->SetNormalTexture(set.normal);
+        if (!set.metal.empty())   m->SetMetalTexture(set.metal);
+        if (!set.rough.empty())   m->SetRoughTexture(set.rough);
+        out.push_back(m);
+    }
+    return out;
 }

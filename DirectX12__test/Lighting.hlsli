@@ -15,6 +15,8 @@ cbuffer Light : register(b2)
 {
     float4 ambientColor;
     float4 lightCount;
+    float4x4 lightviewproj;
+    float4 shadowParams;
     LightData lights[MAX_LIGHTS];
 }
 

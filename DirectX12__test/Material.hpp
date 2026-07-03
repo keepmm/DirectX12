@@ -120,4 +120,10 @@ private:
 	D3D12_PLACED_SUBRESOURCE_FOOTPRINT m_NormalFootprint = {}, m_MetalFootprint = {}, m_RoughFootprint = {};
 	bool m_NormalPending = false, m_MetalPending = false, m_RoughPending = false;
 	bool m_HasNormal = false, m_HasMetal = false, m_HasRough = false;
+
+	bool m_EnvBound = false;
+	float m_EnvMaxMip = 0.0f;
+	void BindEnvironmentIfNeeded();
+	void BindShadowMapIfNeeded();
+	bool m_ShadowBound = false;
 };

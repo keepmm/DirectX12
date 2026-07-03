@@ -28,6 +28,8 @@ struct alignas(256) LightCB
 {
 	float4 ambientColor{ 0.1f, 0.1f, 0.1f, 1.0f };
 	float4 lightCount{ 0.0f, 0.0f, 0.0f, 0.0f };	// x: —LŒøƒ‰ƒCƒg”
+	float4x4 lightviewproj{};
+	float4 shadowParams{ 0.002f, 0.0f, 2048.0f, 0.0f };
 	LightData lights[MAX_LIGHTS];
 };
 

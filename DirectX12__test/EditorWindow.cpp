@@ -14,6 +14,7 @@
 #include "ImGuizmo.h"
 #include "PlayState.hpp"
 #include <shellapi.h>
+#include "Util.hpp"
 
 #pragma comment(lib, "psapi.lib")
 
@@ -302,15 +303,12 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 				{
 					// エディタ画面の描画に使うカメラ（Main→Secondaryの順）
 					const CameraComponent* cam = nullptr;
+					const CameraComponent* fallback = nullptr;
 					gw.Each<CameraComponent>([&](Entity, CameraComponent& c) {
-						if (c.cameraType == CameraComponent::CameraType::Main) cam = &c;
+						if (c.cameraType == CameraComponent::CameraType::Secondary) cam = &c;
+						else                                                        fallback = &c;
 						});
-					if (cam == nullptr)
-					{
-						gw.Each<CameraComponent>([&](Entity, CameraComponent& c) {
-							if (c.cameraType == CameraComponent::CameraType::Secondary) cam = &c;
-							});
-					}
+					if (cam == nullptr) cam = fallback;   // Secondaryが無ければMainで代用
 
 					if (cam)
 					{
@@ -999,45 +997,26 @@ void EditorWindow::DrawColliderDebug(const ColliderComponent& collider, const Tr
 
 void EditorWindow::SpawnModelFromFile(World& world, const std::string& modelpath, const float3& pos)
 {
-	// 1. fbx を読み込む（Application.cpp と同じ
-	auto modelData = ModelLoader::LoadFromFile(
-		m_App.GetCurrent()->GetDevice(), modelpath, 0.01f);
-	if (modelData.mesh == nullptr) return;
-
-	// 2. マテリアル作成
-	auto material = MakeShared<Material>();
-	material->Init();
-	if (!modelData.diffuseTexturePath.empty())
-		material->SetTextureFromFile(modelData.diffuseTexturePath);
-	if (!modelData.normalTexturePath.empty())
-		material->SetNormalTexture(modelData.normalTexturePath);
-	if (!modelData.metalTexturePath.empty())
-		material->SetMetalTexture(modelData.metalTexturePath);
-	if (!modelData.roughTexturePath.empty())
-		material->SetRoughTexture(modelData.roughTexturePath);
-
-	// 3. エンティティを作ってコンポーネントを付ける
 	Entity e = world.CreateEntity();
-	TransformComponent tr{};
-	std::string name = "Model_" + std::to_string(e);
-	tr.position = pos;
-	tr.rotation = float4(0, 0, 0, 1);
-	tr.scale = float3(1, 1, 1);
-	tr.RebuildWorld();
-	MaterialComponent matComp{ material };
-	matComp.shaderName = "PBR";                 // PBRシェーダーで描画
-	if (!modelData.normalTexturePath.empty())
-		matComp.FilePath = WideToUtf8(modelData.diffuseTexturePath);  // Inspector表示用（任意）
-	world.AddComponent<MaterialComponent>(e, matComp);
-
+	// 先にTransform/名前だけ付けておく（メッシュは後から差し込む）
+	TransformComponent tr{}; tr.position = pos; tr.RebuildWorld();
 	world.AddComponent<TransformComponent>(e, tr);
-	world.AddComponent<MeshComponent>(e, MeshComponent{ modelData.mesh });
-	world.AddComponent<MaterialComponent>(e, MaterialComponent{ material });
-	world.AddComponent<NameComponent>(e, NameComponent{ name });
+	world.AddComponent<NameComponent>(e, NameComponent{ "Model_" + std::to_string(e) });
 
-	NameSytem::SetName(world, e,name);
+	// 非同期ロード（SceneManager経由でAsyncLoaderを取得）
+	AsyncLoader::Get().LoadModelAsync(modelpath, 0.01f,
+		[&world, e](ModelLoadResult result)
+		{
+			if (!world.IsEntityAlive(e) || !result.mesh) return;
+			world.AddComponent<MeshComponent>(e, MeshComponent{ result.mesh });
 
-	m_SelectedEntity = e; // 置いたものを選択状態に
+			MaterialComponent mc{};
+			mc.shaderName = "PBR";
+			mc.materials = BuildMaterials(result, "PBR");   // ← ここがまだメインでデコード
+			if (!mc.materials.empty()) mc.material = mc.materials[0];
+			world.AddComponent<MaterialComponent>(e, mc);
+		});
+	m_SelectedEntity = e;
 }
 
 void EditorWindow::CreateScriptFile(const std::string& die, const std::string& name)

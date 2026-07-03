@@ -32,7 +32,8 @@ public:
 	UINT GetSubMeshCount() const { return static_cast<UINT>(m_SubMeshes.size()); }
 
 	void CreateQuad(_In_ const ComPtr<ID3D12Device>& device);
-private:
+
+	UINT GetSubMeshMaterialIndex(UINT i)const { return m_SubMeshes[i].materialIndex; }
 	ComPtr<ID3D12Resource> m_VertexBuffer;
 	D3D12_VERTEX_BUFFER_VIEW m_VertexBufferView{};
 

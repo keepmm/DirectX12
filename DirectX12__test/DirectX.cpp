@@ -3,6 +3,7 @@
 #include <algorithm>
 #include "d3dx12.h"
 #include "Shader.hpp"
+#include "DirectXTex/DirectXTex.h"
 
 using ushort = unsigned short;
 
@@ -245,6 +246,8 @@ DirectXApp::DirectXApp(HWND hWnd, int Window_Width, int Window_Height) :
 	CreateRootSignature();
 	CreatePipelineStateObject();
 
+	m_ShadowMap.Init();
+
 	return;
 }
 
@@ -340,13 +343,13 @@ void DirectXApp::CreateRootSignature()
 {
 
 	CD3DX12_DESCRIPTOR_RANGE srvRange = {};
-	srvRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 5, 0);
+	srvRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 7, 0);
 	// t0 albedo
 	// t1 toon ramp
 	// t2 normal
 	// t3 metal
 	// t4 roughness
-	
+	// t5 環境
 
 	// 配列の数がそのまま定数バッファやSRVの数になる
 	CD3DX12_ROOT_PARAMETER rootParameters[5] = {};
@@ -360,7 +363,7 @@ void DirectXApp::CreateRootSignature()
 	rootParameters[4].InitAsDescriptorTable(1, &srvRange, D3D12_SHADER_VISIBILITY_PIXEL);
 
 
-	CD3DX12_STATIC_SAMPLER_DESC staticSamplerDesc[2] = {
+	CD3DX12_STATIC_SAMPLER_DESC staticSamplerDesc[3] = {
 		CD3DX12_STATIC_SAMPLER_DESC(
 		0,	// shaderRegister : s0
 		D3D12_FILTER_MIN_MAG_MIP_LINEAR,
@@ -375,7 +378,19 @@ void DirectXApp::CreateRootSignature()
 		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
 		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
 		D3D12_TEXTURE_ADDRESS_MODE_CLAMP
-		)
+		),
+
+		[] {
+			CD3DX12_STATIC_SAMPLER_DESC shadowSampler(
+				2, 
+				D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT,
+				D3D12_TEXTURE_ADDRESS_MODE_BORDER, 
+				D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+				D3D12_TEXTURE_ADDRESS_MODE_BORDER);
+			shadowSampler.ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+			shadowSampler.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE;
+			return shadowSampler;
+		}()
 	};
 
 	CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc;
@@ -426,10 +441,11 @@ void DirectXApp::CreatePipelineStateObject()
 	const Shader* iconPS = m_ShaderLibrary.Load(L"PixelShader.hlsl", "unlitPS", "ps_5_0");
 	const Shader* skyVS = m_ShaderLibrary.Load(L"SkyBoxShader.hlsl", "SkyboxVS", "vs_5_0");
 	const Shader* skyPS = m_ShaderLibrary.Load(L"SkyBoxShader.hlsl", "SkyboxPS", "ps_5_0");
+	const Shader* shadowVS = m_ShaderLibrary.Load(L"ShadowShader.hlsl", "ShadowVS", "vs_5_0");
 
 	if (vs == nullptr || ps == nullptr || toon == nullptr || 
 		wirePs == nullptr || lineVS == nullptr || linePS == nullptr || 
-		skyPS == nullptr || skyVS == nullptr)
+		skyPS == nullptr || skyVS == nullptr || shadowVS == nullptr)
 	{
 		assert(false);
 		return;
@@ -539,6 +555,20 @@ void DirectXApp::CreatePipelineStateObject()
 	skyDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
 	m_SkyPso = m_PsoCache.GetOrCreate("SkyBoxPSO", m_Device.Get(), skyDesc);
 	if (m_SkyPso == nullptr) { assert(false); }
+
+	// ---------------------------------- //
+	// 		Shadow用のPSOを作成			  //
+	// ---------------------------------- //
+	auto sd = MakeBasePsoDesc();
+	sd.VS = shadowVS->GetByteCode();
+	sd.PS = D3D12_SHADER_BYTECODE{ nullptr, 0 };   // PSなし
+	sd.NumRenderTargets = 0;
+	sd.RTVFormats[0] = DXGI_FORMAT_UNKNOWN;
+	sd.DSVFormat = DXGI_FORMAT_D32_FLOAT;
+	sd.RasterizerState.CullMode = D3D12_CULL_MODE_FRONT;
+	sd.RasterizerState.DepthBias = 10000;               // ピーターパン/アクネ対策
+	sd.RasterizerState.SlopeScaledDepthBias = 1.5f;
+	m_ShadowPso = m_PsoCache.GetOrCreate("ShadowPSO", m_Device.Get(), sd);
 
 	//CreateMeshShaderPipelineState();
 	m_CBAllocator.Init();
@@ -732,6 +762,39 @@ void DirectXApp::Present()
 	vp.MaxDepth = 1.0f;
 
 	m_CommandList->RSSetViewports(1, &vp);
+}
+
+bool DirectXApp::LoadEnvironment(const std::wstring& hdrpath)
+{
+	std::filesystem::path resolved = hdrpath;
+	if (resolved.is_relative())
+	{
+		wchar_t exe[MAX_PATH]{}; GetModuleFileNameW(nullptr, exe, MAX_PATH);
+		resolved = std::filesystem::path(exe).parent_path() / resolved;
+	}
+
+	DirectX::TexMetadata meta{}; DirectX::ScratchImage img{};
+	if (FAILED(DirectX::LoadFromHDRFile(resolved.c_str(), &meta, img)))
+		return false;
+
+	// ミップ生成（ラフネス反射のボケ用）
+	DirectX::ScratchImage mipped{};
+	if (FAILED(DirectX::GenerateMipMaps(*img.GetImage(0, 0, 0),
+		DirectX::TEX_FILTER_LINEAR, 0, mipped)))
+		mipped = std::move(img);   // 失敗時はミップ無しで続行
+	const DirectX::TexMetadata& mm = mipped.GetMetadata();
+	m_EnvMipLevels = static_cast<UINT>(mm.mipLevels);
+	{
+		const DirectX::Image* top = mipped.GetImage(m_EnvMipLevels - 1, 0, 0);
+		if (top && top->pixels)
+		{
+			// HDRは R32G32B32A32_FLOAT 想定
+			const float* p = reinterpret_cast<const float*>(top->pixels);
+			m_EnvAmbient = { p[0], p[1], p[2] };
+		}
+	}
+
+	return true;
 }
 
 void DirectXApp::WaitForGPUIdle()

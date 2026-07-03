@@ -99,14 +99,14 @@ Scene* SceneManager::GetActiveScene() const
 
 void SceneManager::Update(float deltatime)
 {
-	// AsyncLoader を遅延生成（device が用意できてから）
-	if (!m_AsyncLoader)
+	// AsyncLoader を一度だけ初期化（deviceが用意できてから）
+	if (!AsyncLoader::Get().IsReady())
 	{
-		m_AsyncLoader = std::make_unique<AsyncLoader>(m_ThreadPool, APP->GetDevice());
+		AsyncLoader::Get().Init(&m_ThreadPool, APP->GetDevice());
 	}
 
-	// 完了した非同期ロードをメインスレッドで反映（GPU化＋コールバック）
-	m_AsyncLoader->ProcessCompletedTasks();
+	// 完了した非同期ロードをメインスレッドで反映
+	AsyncLoader::Get().ProcessCompletedTasks();
 
 	// シーンロード / アンロード処理
 	ProcessSceneQueue();

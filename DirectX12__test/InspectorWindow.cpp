@@ -304,10 +304,19 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 				{
 					bool selected = (materialComp.shaderName == n);
 					if (ImGui::Selectable(n.c_str(), selected))
-						materialComp.shaderName = n;
+						materialComp.shaderName = n;   // shaderNameはコンポーネント共通なので配列側の変更は不要
 					if (selected) ImGui::SetItemDefaultFocus();
 				}
 				ImGui::EndCombo();
+			}
+
+			// マルチマテリアルのスロット一覧（読み取り表示）
+			if (!materialComp.materials.empty())
+			{
+				ImGui::Separator();
+				ImGui::Text(u8("サブマテリアル: %d"), (int)materialComp.materials.size());
+				for (size_t i = 0; i < materialComp.materials.size(); ++i)
+					ImGui::BulletText("Material %zu", i);
 			}
 
 			// --- マテリアル質感パラメータ ---

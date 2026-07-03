@@ -11,6 +11,7 @@
 #include "PipelineStateCache.hpp"
 
 #include "Defines.hpp"
+#include "ShadowMap.hpp"
 
 #pragma comment(lib, "d3d12.lib")
 #pragma comment(lib, "dxgi.lib")
@@ -157,6 +158,7 @@ public:
 	inline ID3D12PipelineState* GetMeshPso() const noexcept { return m_MeshPso.Get(); }
 	inline ID3D12PipelineState* GetUIPso() const noexcept { return m_UIPso.Get(); }
 	inline ID3D12PipelineState* GetSkyPso() const noexcept { return m_SkyPso.Get(); }
+	inline ID3D12PipelineState* GetShadowPso() const noexcept { return m_ShadowPso.Get(); }
 	inline bool IsMeshShaderSupported() const noexcept { return m_MeshShaderSupported; }
 	inline ComPtr<ID3D12CommandQueue> GetCommandQueue() const noexcept { return m_CommandQueue; }
 	inline UINT GetFrameIndex() const noexcept { return m_FrameIndex; }
@@ -179,6 +181,13 @@ public:
 	inline DescriptorAllocator& GetDsvAllocator() noexcept { return m_DsvAllocator; }
 	inline D3D12_CPU_DESCRIPTOR_HANDLE GetDsvHandle() const noexcept { return m_DSV_Handle; }
 	inline D3D12_CPU_DESCRIPTOR_HANDLE GetRtvHandle() const noexcept { return m_RTV_Handle[m_FrameIndex]; }
+	bool LoadEnvironment(const std::wstring& hdrpath);
+	ID3D12Resource* GetEnvTexture() const { return m_EnvTexture.Get(); }
+	UINT GetEnvMipLevels() const { return m_EnvMipLevels; }
+	const float3& GetEnvAmbient() const { return m_EnvAmbient; }
+	bool HasEnvironment() const { return m_EnvTexture != nullptr; }
+	inline ShadowMap& GetShadowMap() noexcept { return m_ShadowMap; }
+
 	void WaitForGPUIdle();
 private:
 	static DirectXApp* s_Instance;
@@ -219,6 +228,7 @@ private:
 	ComPtr<ID3D12PipelineState> m_IconPso;
 	ComPtr<ID3D12PipelineState> m_UIPso;
 	ComPtr<ID3D12PipelineState> m_SkyPso;
+	ComPtr<ID3D12PipelineState> m_ShadowPso;
 
 	ComPtr<ID3D12GraphicsCommandList6> m_CommandList6;
 	ComPtr<ID3D12PipelineState> m_MeshPso;
@@ -245,4 +255,11 @@ private:
 	void RegisterBuiltinShaders();
 
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC MakeBasePsoDesc()const;
+
+	// Environment Map
+	ComPtr<ID3D12Resource> m_EnvTexture;
+	UINT m_EnvMipLevels = 1;
+
+	float3 m_EnvAmbient = { 0.1f,0.1f,0.1f };
+	ShadowMap m_ShadowMap{};
 };
