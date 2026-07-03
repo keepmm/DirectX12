@@ -954,6 +954,7 @@ void Material::CreateDefaultRampTexture()
 void Material::BindEnvironmentIfNeeded()
 {
 	if (m_EnvBound) return;
+	if (!EnsureSrvHeap()) return;
 	auto* env = APP->GetEnvTexture();
 	if (!env || !m_TextureSrvHeap) return;
 
