@@ -1,6 +1,6 @@
 #include "ComponentRegistry.hpp"
 #include "Components.hpp"
-#include "imgui.h"
+#include "imguiinit.hpp"
 #include "DirectX.hpp"
 #include "Util.hpp"
 
@@ -15,6 +15,49 @@ void DrawExtraUI<AudioSourceComponent>(World&, Entity, AudioSourceComponent& src
     if (ImGui::Button("Play"))  src.playRequested = true;
     ImGui::SameLine();
     if (ImGui::Button("Stop"))  src.stopRequested = true;
+}
+
+template<>
+void DrawExtraUI<AnimatorComponent>(World&, Entity, AnimatorComponent& an)
+{
+    if (an.clips.empty())
+    {
+        ImGui::TextDisabled(u8("クリップなし"));
+        return;
+    }
+
+    // --- クリップ選択ドロップダウン ---
+    const char* preview = (an.currentClip >= 0 && an.currentClip < (int)an.clips.size())
+        ? an.clips[an.currentClip].name.c_str() : "(none)";
+
+    if (ImGui::BeginCombo(u8("Clip"), preview))
+    {
+        for (int i = 0; i < (int)an.clips.size(); ++i)
+        {
+            const bool selected = (an.currentClip == i);
+            std::string label = an.clips[i].name
+                + " (" + std::to_string((int)an.clips[i].duration) + "s)";
+            if (ImGui::Selectable(label.c_str(), selected))
+            {
+                an.currentClip = i;
+                an.time = 0.0f;   // 切替時は先頭から再生
+            }
+            if (selected) ImGui::SetItemDefaultFocus();
+        }
+        ImGui::EndCombo();
+    }
+
+    // --- 再生コントロール ---
+    if (ImGui::Button(an.playing ? u8("一時停止") : u8("再生")))
+        an.playing = !an.playing;
+    ImGui::SameLine();
+    if (ImGui::Button(u8("最初から")))
+        an.time = 0.0f;
+
+    // 進行バー（読み取り表示）
+    const auto& clip = an.clips[an.currentClip];
+    if (clip.duration > 0.0f)
+        ImGui::ProgressBar(an.time / clip.duration, ImVec2(-1, 0));
 }
 
 // パス系フィールドの共通描画（表示・対応ペイロード受け取り・ダイアログ・Apply）
@@ -233,6 +276,7 @@ static const std::vector<ComponentMeta> g_Components =
 	MakeMeta<CameraComponent>("Camera"),
 	MakeMeta<RigidBodyComponent>("Rigid Body"),
 	MakeMeta<ColliderComponent>("Collider"),
+	MakeMeta<AnimatorComponent>("Animator"),
 };
 
 const std::vector<ComponentMeta>& ComponentRegistry::All()

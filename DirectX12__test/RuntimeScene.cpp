@@ -136,6 +136,7 @@ void RuntimeScene::Update(float deltatime)
 	m_CameraSystem.Update(m_World, 16.0f / 9.0f);
 	m_AudioSystem.Update(m_World, PLAY.isPlaying());
 	m_TransformSystem.Update(m_World);
+	m_AnimatorSystem.Update(m_World, deltatime);
 }
 
 void RuntimeScene::FixedUpdate(float fixedDeltatime)
@@ -209,6 +210,22 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 		if (renderContext.scissorRect)
 		{
 			commandList->RSSetScissorRects(1, renderContext.scissorRect);
+		}
+
+		// --- ボーン行列パレット(b4)を単位行列でバインド
+		if (renderContext.cbAllocator)
+		{
+			static BoneCB s_IdentityBones = [] {
+				BoneCB cb{};
+				DirectX::XMFLOAT4X4 id;
+				DirectX::XMStoreFloat4x4(&id, DirectX::XMMatrixIdentity());
+				for (auto& m : cb.boneMatrices) m = id;
+				return cb;
+				}();
+
+			const UINT slot = renderContext.frameIndex % RTV_NUM;
+			auto b4 = renderContext.cbAllocator->Allocate(slot, &s_IdentityBones, sizeof(BoneCB));
+			if (b4) renderContext.CommandList->SetGraphicsRootConstantBufferView(5, b4);
 		}
 
 		// クリア
@@ -604,4 +621,5 @@ void RuntimeScene::EditorUpdate(float dt)
 	m_FreeLookSystem.Update(m_World, dt,CameraComponent::CameraType::Secondary);   // エディタカメラ操作
 	m_CameraSystem.Update(m_World, 16.0f / 9.0f);
 	m_TransformSystem.Update(m_World);
+	m_AnimatorSystem.Update(m_World, dt);
 }

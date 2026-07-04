@@ -352,7 +352,7 @@ void DirectXApp::CreateRootSignature()
 	// t5 環境
 
 	// 配列の数がそのまま定数バッファやSRVの数になる
-	CD3DX12_ROOT_PARAMETER rootParameters[5] = {};
+	CD3DX12_ROOT_PARAMETER rootParameters[6] = {};
 	// b0 ~ b3 にCBVを割り当てる
 	rootParameters[0].InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_ALL);
 	rootParameters[1].InitAsConstantBufferView(1, 0, D3D12_SHADER_VISIBILITY_ALL);
@@ -361,6 +361,7 @@ void DirectXApp::CreateRootSignature()
 
 	// t0 にSRVを割り当てる
 	rootParameters[4].InitAsDescriptorTable(1, &srvRange, D3D12_SHADER_VISIBILITY_PIXEL);
+	rootParameters[5].InitAsConstantBufferView(4,0,D3D12_SHADER_VISIBILITY_VERTEX);
 
 
 	CD3DX12_STATIC_SAMPLER_DESC staticSamplerDesc[3] = {
@@ -429,7 +430,9 @@ void DirectXApp::CreatePipelineStateObject()
 		{"Normal",0,DXGI_FORMAT_R32G32B32_FLOAT,0,12,D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,0},
 		{"COLOR",0,DXGI_FORMAT_R32G32B32A32_FLOAT,0,24,D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,0},
 		{"TEXCOORD",0,DXGI_FORMAT_R32G32_FLOAT,0,40,D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,0}, 
-		{"TANGENT",0,DXGI_FORMAT_R32G32B32_FLOAT,0,48,D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,0}
+		{"TANGENT",0,DXGI_FORMAT_R32G32B32_FLOAT,0,48,D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,0},
+		{"BLENDINDICES",0,DXGI_FORMAT_R32G32B32A32_UINT,0,60,D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,0},
+		{"BLENDWEIGHT",0,DXGI_FORMAT_R32G32B32A32_FLOAT,0,76,D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,0}
 	};
 
 	const Shader* vs = m_ShaderLibrary.Load(L"VertexShader.hlsl", "BasicVS", "vs_5_0");
@@ -586,6 +589,18 @@ void DirectXApp::RegisterBuiltinShaders()
 		{ "Fresnel",   { L"VertexShader.hlsl","BasicVS","vs_5_0", L"FresnelShader.hlsl",  "FresnelPS",  "ps_5_0", false } },
 		{ "Dissolve",   { L"VertexShader.hlsl","BasicVS","vs_5_0", L"DissolveShader.hlsl",  "DissolvePS",  "ps_5_0", false } },
 		{ "BlinnPhong",   { L"VertexShader.hlsl","BasicVS","vs_5_0", L"BlinnPhongShader.hlsl",  "PhongPS",  "ps_5_0", false } },
+
+		{ "SkinnedPBR", { L"SkinnedShader.hlsl","SkinnedVS","vs_5_0", L"PBRShader.hlsl","PbrPS","ps_5_0", false } },
+		{ "SkinnedToon",{ L"SkinnedShader.hlsl","SkinnedVS","vs_5_0", L"ToonShader.hlsl","ToonPS","ps_5_0", false } },
+		{ "SkinnedUnlit",{ L"SkinnedShader.hlsl","SkinnedVS","vs_5_0", L"PixelShader.hlsl","unlitPS","ps_5_0", true } },
+		{ "SkinnedRim",{ L"SkinnedShader.hlsl","SkinnedVS","vs_5_0", L"RimShader.hlsl","RimPS","ps_5_0", false } },
+		{ "SkinnedFresnel",{ L"SkinnedShader.hlsl","SkinnedVS","vs_5_0", L"FresnelShader.hlsl","FresnelPS","ps_5_0", false } },
+		{ "SkinnedDissolve",{ L"SkinnedShader.hlsl","SkinnedVS","vs_5_0", L"DissolveShader.hlsl","DissolvePS","ps_5_0", false } },
+		{ "SkinnedBlinnPhong",{ L"SkinnedShader.hlsl","SkinnedVS","vs_5_0", L"BlinnPhongShader.hlsl","PhongPS","ps_5_0", false } },
+
+
+		{ "Genshin_Toon",{ L"SkinnedShader.hlsl","SkinnedVS","vs_5_0", L"Genshin_ToonShader.hlsl","Genshin_ToonPS","ps_5_0", false } },
+
 	};
 	for (auto& e : builtins) RegisterShaderPass(e.name, e.def);
 }
@@ -598,7 +613,9 @@ D3D12_GRAPHICS_PIPELINE_STATE_DESC DirectXApp::MakeBasePsoDesc() const
 		{"Normal",0,DXGI_FORMAT_R32G32B32_FLOAT,0,12,D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,0},
 		{"COLOR",0,DXGI_FORMAT_R32G32B32A32_FLOAT,0,24,D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,0},
 		{"TEXCOORD",0,DXGI_FORMAT_R32G32_FLOAT,0,40,D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,0},
-		{"TANGENT",0,DXGI_FORMAT_R32G32B32_FLOAT,0,48,D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,0}
+		{"TANGENT",0,DXGI_FORMAT_R32G32B32_FLOAT,0,48,D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,0},
+		{ "BLENDINDICES",0,DXGI_FORMAT_R32G32B32A32_UINT,0,60,D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,0 },
+		{"BLENDWEIGHT",0,DXGI_FORMAT_R32G32B32A32_FLOAT,0,76,D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,0}
 	};
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
 	desc.InputLayout = { layout, _countof(layout) };
@@ -634,12 +651,12 @@ HRESULT DirectXApp::BeginRender()
 	const UINT targetIndex = m_FrameIndex;
 
 	const UINT64 fenceToWait = m_FenceValue[targetIndex];
-	m_DeferredReleases[m_FrameIndex].clear();	// 前フレームの解放予約をクリア
 	if (m_Fence->GetCompletedValue() < fenceToWait)
 	{
 		m_Fence->SetEventOnCompletion(fenceToWait, m_Fence_Event);
 		WaitForSingleObject(m_Fence_Event, INFINITE);
 	}
+	m_DeferredReleases[m_FrameIndex].clear();	// 前フレームの解放予約をクリア
 
 	HRESULT hr = m_CommandAllocator[targetIndex]->Reset();
 	if (FAILED(hr)) {

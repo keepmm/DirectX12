@@ -5,6 +5,7 @@
 #include <filesystem>
 #include <cstdint>
 #include <windows.h>
+#include "Util.hpp"
 
 namespace {
 
@@ -100,19 +101,36 @@ bool PMXLoader::Parse(const std::string& filepath, float scale, ModelCpuData& ou
 		for (int a = 0; a < addUV; ++a) { r.Read<float>(); r.Read<float>(); r.Read<float>(); r.Read<float>(); }
 
 		// ウェイト変形（今回はスキップ、後でSkinDataに）
+		// ウェイト変形 → 頂点に格納
 		const std::uint8_t weightType = r.Read<std::uint8_t>();
+		int   bi[4] = { 0, 0, 0, 0 };
+		float bw[4] = { 0, 0, 0, 0 };
 		switch (weightType)
 		{
-		case 0: r.ReadIndex(boneIdxSize, true); break;                         // BDEF1
-		case 1: r.ReadIndex(boneIdxSize, true); r.ReadIndex(boneIdxSize, true); r.Read<float>(); break; // BDEF2
-		case 3: // SDEF: bone2 + weight + C,R0,R1
-			r.ReadIndex(boneIdxSize, true); r.ReadIndex(boneIdxSize, true); r.Read<float>();
-			r.Skip(sizeof(float) * 9); break;
+		case 0: // BDEF1
+			bi[0] = r.ReadIndex(boneIdxSize, true); bw[0] = 1.0f;
+			break;
+		case 1: // BDEF2
+			bi[0] = r.ReadIndex(boneIdxSize, true);
+			bi[1] = r.ReadIndex(boneIdxSize, true);
+			bw[0] = r.Read<float>(); bw[1] = 1.0f - bw[0];
+			break;
+		case 3: // SDEF（ウェイトはBDEF2扱い、C/R0/R1はスキップ）
+			bi[0] = r.ReadIndex(boneIdxSize, true);
+			bi[1] = r.ReadIndex(boneIdxSize, true);
+			bw[0] = r.Read<float>(); bw[1] = 1.0f - bw[0];
+			r.Skip(sizeof(float) * 9);
+			break;
 		case 2: // BDEF4
 		case 4: // QDEF
-			r.ReadIndex(boneIdxSize, true); r.ReadIndex(boneIdxSize, true);
-			r.ReadIndex(boneIdxSize, true); r.ReadIndex(boneIdxSize, true);
-			r.Skip(sizeof(float) * 4); break;
+			for (int k = 0; k < 4; ++k) bi[k] = r.ReadIndex(boneIdxSize, true);
+			for (int k = 0; k < 4; ++k) bw[k] = r.Read<float>();
+			break;
+		}
+		for (int k = 0; k < 4; ++k)
+		{
+			v.boneIndices[k] = (std::uint32_t)(bi[k] < 0 ? 0 : bi[k]);
+			v.boneWeights[k] = bw[k];
 		}
 		r.Read<float>(); // edge scale
 
@@ -141,7 +159,7 @@ bool PMXLoader::Parse(const std::string& filepath, float scale, ModelCpuData& ou
 	std::uint32_t indexOffset = 0;
 	for (int i = 0; i < matCount; ++i)
 	{
-		r.ReadText(encoding);            // name JP
+		std::wstring name = r.ReadText(encoding);            // name JP
 		r.ReadText(encoding);            // name EN
 		r.Skip(sizeof(float) * 4);       // diffuse
 		r.Skip(sizeof(float) * 3);       // specular
@@ -158,6 +176,9 @@ bool PMXLoader::Parse(const std::string& filepath, float scale, ModelCpuData& ou
 		r.ReadText(encoding);            // memo
 		const std::int32_t surfaceCount = r.Read<std::int32_t>();
 
+		// マテリアルの名前もセット
+		out.materials[i].name = WideToUtf8(name);
+
 		// diffuseテクスチャをセット
 		if (texIndex >= 0 && texIndex < texCount)
 			out.materials[i].diffuse = texPaths[texIndex];
@@ -169,6 +190,100 @@ bool PMXLoader::Parse(const std::string& filepath, float scale, ModelCpuData& ou
 		sm.materialIndex = (UINT)i;
 		out.subMeshes.push_back(sm);
 		indexOffset += surfaceCount;
+	}
+
+	// --- ボーン ---
+	using namespace DirectX;
+	const std::int32_t boneCount = r.Read<std::int32_t>();
+	std::vector<float3> bonePos(boneCount);
+	std::vector<int>    boneParent(boneCount);
+
+	out.skeleton.nodes.resize(boneCount);
+	out.skinData.boneNames.resize(boneCount);
+	out.skinData.offsetMatrices.resize(boneCount);
+
+	for (int i = 0; i < boneCount; ++i)
+	{
+		std::wstring wname = r.ReadText(encoding);
+		r.ReadText(encoding);   // name EN
+		float3 pos = { r.Read<float>() * scale, r.Read<float>() * scale, r.Read<float>() * scale };
+		int parent = r.ReadIndex(boneIdxSize, true);
+		r.Read<std::int32_t>(); // layer
+		std::uint16_t flags = r.Read<std::uint16_t>();
+
+		// 接続先
+		if (flags & 0x0001) r.ReadIndex(boneIdxSize, true);   // 接続ボーンindex
+		else                r.Skip(sizeof(float) * 3);        // 接続オフセット
+
+		// 付与（回転/移動）
+		if (flags & (0x0100 | 0x0200))
+		{
+			const int appendParent					= r.ReadIndex(boneIdxSize, true);
+			const float appendRate					= r.Read<float>();
+			out.skeleton.nodes[i].appendParentIndex = appendParent;
+			out.skeleton.nodes[i].appendRate		= appendRate;
+			out.skeleton.nodes[i].appendRotation	= (flags & 0x0100) != 0;
+			out.skeleton.nodes[i].appendMove		= (flags & 0x0200) != 0;
+		}
+		// 軸固定
+		if (flags & 0x0400) r.Skip(sizeof(float) * 3);
+		// ローカル軸
+		if (flags & 0x0800) r.Skip(sizeof(float) * 6);
+		// 外部親変形
+		if (flags & 0x2000) r.Read<std::int32_t>();
+		// IK
+		if (flags & 0x0020)
+		{
+			IkData ik;
+			ik.boneIndex = i;									// このボーンがIKボーン
+			ik.targetIndex = r.ReadIndex(boneIdxSize, true);	// ターゲット(足首)
+			ik.loopCount = r.Read<std::int32_t>();				// 反復回数
+			ik.limitAngle = r.Read<float>();					// 制限角
+			const std::int32_t linkCount = r.Read<std::int32_t>();
+			for (int L = 0; L < linkCount; ++L)
+			{
+				// IKリンク
+				IkLink link;
+				// ボーンインデックス
+				link.boneIndex = r.ReadIndex(boneIdxSize, true);
+				// 回転制限の有無
+				const std::uint8_t hasLimit = r.Read<std::uint8_t>();
+				// 回転制限の有無がある場合は下限・上限を読み込む
+				link.hasLimit = (hasLimit != 0);
+				if (link.hasLimit)
+				{
+					link.lowerLimit = { r.Read<float>(),r.Read<float>(),r.Read<float>() };
+					link.upperLimit = { r.Read<float>(),r.Read<float>(),r.Read<float>() };
+				}
+				// IKリンクをIKデータに追加
+				ik.links.push_back(link);
+			}
+			out.skeleton.iks.push_back(ik);
+		}
+
+		bonePos[i] = pos;
+		boneParent[i] = parent;
+
+		const std::string name = WideToUtf8(wname);
+		out.skeleton.nodes[i].name = name;
+		out.skeleton.nodes[i].parentIndex = parent;
+		out.skeleton.nameToIndex[name] = i;
+		out.skinData.boneNames[i] = name;
+		out.skinData.boneNametoIndex[name] = (std::uint16_t)i;
+	}
+
+	// ローカル変換（親からの相対移動）＋ offset（逆バインド＝-worldPos）
+	for (int i = 0; i < boneCount; ++i)
+	{
+		const float3 p = bonePos[i];
+		const float3 pp = (boneParent[i] >= 0 && boneParent[i] < boneCount)
+			? bonePos[boneParent[i]] : float3{ 0,0,0 };
+
+		XMMATRIX local = XMMatrixTranslation(p.x - pp.x, p.y - pp.y, p.z - pp.z);
+		XMStoreFloat4x4(&out.skeleton.nodes[i].localTransform, local);
+
+		XMMATRIX offset = XMMatrixTranslation(-p.x, -p.y, -p.z);
+		XMStoreFloat4x4(&out.skinData.offsetMatrices[i], offset);
 	}
 
 	// 単一マテリアル互換（先頭のdiffuse）

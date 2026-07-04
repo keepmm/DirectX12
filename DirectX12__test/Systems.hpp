@@ -11,6 +11,7 @@
 #include "Util.hpp"
 #include "Debug.hpp"
 #include "imguiinit.hpp"
+#include "Animator.hpp"
 
 class SpinSystem
 {
@@ -54,12 +55,12 @@ public:
 			renderContext.CommandList6->DispatchMesh(1, 1, 1);
 		}
 
+		// b2: ライトCB
 		if (renderContext.cbAllocator != nullptr)
 		{
 			const UINT frameSlot = renderContext.frameIndex % RTV_NUM;
 			const D3D12_GPU_VIRTUAL_ADDRESS b2 = renderContext.cbAllocator->Allocate(
-			frameSlot,&renderContext.lightCb,sizeof(LightCB));
-
+				frameSlot, &renderContext.lightCb, sizeof(LightCB));
 			if (b2 != 0)
 			{
 				renderContext.CommandList->SetGraphicsRootConstantBufferView(2, b2);
@@ -67,8 +68,8 @@ public:
 		}
 
 		world.Each<TransformComponent, MeshComponent, MaterialComponent>(
-			[&renderContext](
-				Entity,
+			[&world, &renderContext](
+				Entity entity,
 				TransformComponent& transform,
 				MeshComponent& mesh,
 				MaterialComponent& material
@@ -79,16 +80,25 @@ public:
 					return;
 				}
 
-				material.material->Apply(
-					renderContext.CommandList,
-					transform.world,
-					renderContext.view,
-					renderContext.projection,
-					renderContext.wireframe,
-					renderContext.frameIndex,
-					renderContext.cbAllocator,
-					material.shaderName
-				);
+				// --- b4: ボーン行列パレット（Animatorがあれば実姿勢、無ければ単位）---
+				if (renderContext.cbAllocator)
+				{
+					const UINT slot = renderContext.frameIndex % RTV_NUM;
+					BoneCB cb{};
+					DirectX::XMFLOAT4X4 idm;
+					DirectX::XMStoreFloat4x4(&idm, DirectX::XMMatrixIdentity());
+					for (auto& m : cb.boneMatrices) m = idm;
+
+					if (world.HasComponent<AnimatorComponent>(entity))
+					{
+						auto& an = world.GetComponent<AnimatorComponent>(entity);
+						const size_t n = std::min<size_t>(an.palette.size(), MAX_BONES);
+						for (size_t i = 0; i < n; ++i) cb.boneMatrices[i] = an.palette[i];
+					}
+
+					auto b4 = renderContext.cbAllocator->Allocate(slot, &cb, sizeof(BoneCB));
+					if (b4) renderContext.CommandList->SetGraphicsRootConstantBufferView(5, b4);
+				}
 
 				const bool multi =
 					!material.materials.empty() && mesh.mesh->GetSubMeshCount() > 0;
@@ -98,7 +108,6 @@ public:
 					const UINT sub = mesh.mesh->GetSubMeshCount();
 					for (UINT s = 0; s < sub; ++s)
 					{
-						// サブメッシュのmaterialIndexに対応するMaterialを選択（範囲外は0）
 						UINT mi = mesh.mesh->GetSubMeshMaterialIndex(s);
 						if (mi >= material.materials.size()) mi = 0;
 						auto& mat = material.materials[mi];
@@ -773,3 +782,28 @@ public:
 			});
 	}
 };
+
+class AnimatorSystem
+{
+public:
+	void Update(World& world, float dt)
+	{
+		int n = 0;
+		world.Each<AnimatorComponent>([&](Entity, AnimatorComponent&) { ++n; });
+		static int c = 0;
+		if ((c++ % 60) == 0)
+			LOG->LogInfo("AnimatorSystem: animators=" + std::to_string(n) + " dt=" + std::to_string(dt));
+		world.Each<AnimatorComponent>([&](Entity, AnimatorComponent& an)
+			{
+				if (an.clips.empty()) return;
+				if (an.currentClip < 0 || an.currentClip >= (int)an.clips.size()) return;
+				const AnimationClip& clip = an.clips[an.currentClip];
+				if (an.playing && clip.duration > 0.0f)
+					an.time = fmodf(an.time + dt, clip.duration);
+				ComputePalette(an.skeleton, an.skinData, clip, an.time, an.palette);
+
+				ComputePalette(an.skeleton, an.skinData, clip, an.time, an.palette);
+			});
+	}
+};
+

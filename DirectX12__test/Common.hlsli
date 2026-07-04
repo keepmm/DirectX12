@@ -18,6 +18,8 @@ struct VSInput
     float4 col : COLOR;
     float2 uv : TEXCOORD;
     float3 tangent : TANGENT;
+    uint4 boneIndices : BLENDINDICES;
+    float4 boneWeights : BLENDWEIGHT;
 };
 
 struct PSInput

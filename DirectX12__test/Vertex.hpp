@@ -18,4 +18,6 @@ struct Vertex
 	float4 col;
 	float2 uv;
 	float3 tangent;
+	uint32_t boneIndices[4] = { 0,0,0,0 };
+	float boneWeights[4] = { 0.0f,0.0f,0.0f,0.0f };
 };

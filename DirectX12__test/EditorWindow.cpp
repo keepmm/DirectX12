@@ -1054,15 +1054,68 @@ void EditorWindow::SpawnModelFromFile(World& world, const std::string& modelpath
 	world.AddComponent<NameComponent>(e, NameComponent{ "Model_" + std::to_string(e) });
 
 	// 非同期ロード（SceneManager経由でAsyncLoaderを取得）
-	AsyncLoader::Get().LoadModelAsync(modelpath, 0.01f,
-		[&world, e](ModelLoadResult result)
+	AsyncLoader::Get().LoadModelAsync(modelpath, 1.0f,
+		[&world, e,modelpath](ModelLoadResult result)
 		{
+			LOG->LogInfo("callback: mesh=" + std::to_string(result.mesh != nullptr)
+				+ " clips=" + std::to_string(result.clips.size())
+				+ " bones=" + std::to_string(result.skinData.boneNames.size()));
+
 			if (!world.IsEntityAlive(e) || !result.mesh) return;
+
+			if (world.HasComponent<TransformComponent>(e))
+			{
+				auto& tr = world.GetComponent<TransformComponent>(e);
+				tr.scale = { 0.01f, 0.01f, 0.01f };   // 見た目のスケールはここで
+				tr.RebuildWorld();
+			}
+
 			world.AddComponent<MeshComponent>(e, MeshComponent{ result.mesh });
 
 			MaterialComponent mc{};
-			mc.shaderName = "PBR";
-			mc.materials = BuildMaterials(result, "PBR");   // ← ここがまだメインでデコード
+
+			// --------------------------------	//
+			//		アニメーション読み込み		//
+			// --------------------------------	//
+			if (!result.clips.empty() || !result.skinData.boneNames.empty())
+			{
+				AnimatorComponent an;
+				an.skeleton = result.skeleton;
+				an.skinData = result.skinData;
+				an.clips = result.clips;
+
+				namespace fs = std::filesystem;
+				fs::path base = fs::path(modelpath);
+				std::string stem = base.stem().string();   // "Akai"
+				for (auto& entry : fs::directory_iterator(base.parent_path()))
+				{
+					std::string fn = entry.path().stem().string();
+					if (entry.path().extension() == ".fbx" && fn != stem &&
+						fn.rfind(stem + "_", 0) == 0)   // "Akai_..." で始まる
+					{
+						auto extra = ModelLoader::LoadAnimationsOnly(entry.path().string());
+						for (auto& c : extra) an.clips.push_back(std::move(c));
+					}
+				}
+				for (auto& entry : fs::directory_iterator(base.parent_path()))
+				{
+					if (entry.path().extension() == ".vmd")
+					{
+						AnimationClip vc = ModelLoader::LoadVMDClip(entry.path().string(), an.skeleton);
+						if (!vc.channels.empty()) an.clips.push_back(std::move(vc));
+					}
+				}
+
+				world.AddComponent<AnimatorComponent>(e, an);
+				mc.shaderName = "SkinnedToon";
+			}
+			mc.materials = BuildMaterials(result, "PBR");
+
+			for (int i = 0; i < mc.materials.size(); ++i)
+			{
+				mc.materialnames.push_back(result.materials[i].name);
+			}
+
 			if (!mc.materials.empty()) mc.material = mc.materials[0];
 			world.AddComponent<MaterialComponent>(e, mc);
 		});

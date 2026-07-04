@@ -323,7 +323,7 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 				for (int i = 0; i < count; ++i)
 				{
 					ImGui::PushID(i);
-					if (ImGui::Selectable(("Material " + std::to_string(i)).c_str(),
+					if (ImGui::Selectable((materialComp.materialnames[i] + "##Material").c_str(),
 						selectedSub == i))
 						selectedSub = i;
 					ImGui::PopID();
@@ -339,34 +339,40 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 				ImGui::Separator();
 				ImGui::Text(u8("マテリアル質感パラメータ"));
 
-				if (materialComp.shaderName == "PBR")
+				if (materialComp.shaderName == "PBR" || materialComp.shaderName == "SkinnedPBR")
 				{
 					ImGui::SliderFloat(u8("Roughness##Mat"), &target->roughness, 0.0f, 1.0f);
 					ImGui::SliderFloat(u8("Metallic##Mat"), &target->metallic, 0.0f, 1.0f);
 					ImGui::ColorEdit4(u8("RimColor##Mat"), &target->rimColor.x);
 				}
-				if (materialComp.shaderName == "Rim")
+				if (materialComp.shaderName == "Rim" || materialComp.shaderName == "SkinnedRim")
 				{
 					ImGui::ColorEdit4(u8("RimColor##Mat"), &target->rimColor.x);
 				}
 
-				if (materialComp.shaderName == "Fresnel")
+				if (materialComp.shaderName == "Fresnel" || materialComp.shaderName == "SkinnedFresnel")
 				{
 					ImGui::ColorEdit4(u8("RimColor##Mat"), &target->rimColor.x);
 					ImGui::SliderFloat(u8("Roughness##Mat"), &target->roughness, 0.0f, 1.0f);
 				}
 
-				if (materialComp.shaderName == "Dissolve")
+				if (materialComp.shaderName == "Dissolve" || materialComp.shaderName == "SkinnedDissolve")
 				{
 					ImGui::ColorEdit4(u8("RimColor##Mat"), &target->rimColor.x);
+					ImGui::SliderFloat(u8("Roughness##Mat"), &target->roughness, 0.0f, 1.0f);
+					ImGui::SliderFloat(u8("Metallic##Mat"), &target->metallic, 0.0f, 1.0f);
+				}
+
+				if (materialComp.shaderName == "BlinnPhong" || materialComp.shaderName == "SkinnedBlinnPhong")
+				{
 					ImGui::SliderFloat(u8("Roughness##Mat"), &target->roughness, 0.0f, 1.0f);
 					ImGui::SliderFloat(u8("Metallic##Mat"), &target->metallic, 0.0f, 1.0f);
 				}
 
-				if (materialComp.shaderName == "BlinnPhong")
+				if (materialComp.shaderName == "Genshin_Toon")
 				{
-					ImGui::SliderFloat(u8("Roughness##Mat"), &target->roughness, 0.0f, 1.0f);
-					ImGui::SliderFloat(u8("Metallic##Mat"), &target->metallic, 0.0f, 1.0f);
+					ImGui::SliderFloat(u8("ハイライトの広さ##Mat"), &target->roughness, 0.0f, 1.0f);
+					ImGui::SliderFloat(u8("ハイライトの強さ##Mat"), &target->metallic, 0.0f, 1.0f);
 				}
 			}
 

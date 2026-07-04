@@ -7,6 +7,7 @@
 #include <string>
 #include "ScriptField.hpp"
 #include "AudioEngine.hpp"
+#include "ModelData.hpp"
 
 class Mesh;
 class Material;
@@ -138,6 +139,7 @@ struct MaterialComponent
 {
 	std::shared_ptr<Material> material;	// 単一
 	std::vector<std::shared_ptr<Material>> materials;	// 複数
+	std::vector<std::string> materialnames;	// 複数
 	ID3D12PipelineState* overridePso = nullptr;
 
 	std::string FilePath;
@@ -426,5 +428,22 @@ struct AudioListenerComponent
 	void Reflect(FieldList& f)
 	{
 		// AudioListenerには特にフィールドはない
+	}
+};
+
+struct AnimatorComponent
+{
+	Skeleton skeleton;
+	SkinData skinData;
+	std::vector<AnimationClip> clips;
+	int currentClip = 0;
+	float time = 0.0f;
+	bool playing = false;
+	std::vector<float4x4> palette;
+
+	void Reflect(FieldList& f)
+	{
+		f.Add("Time", time);
+		f.Add("Playing", playing);
 	}
 };

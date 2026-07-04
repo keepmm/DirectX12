@@ -56,3 +56,11 @@ inline std::vector<std::shared_ptr<Material>> BuildMaterials(
     }
     return out;
 }
+
+inline std::string ShiftJisUtf8(const std::string& sjis)
+{
+    int wlen = MultiByteToWideChar(932, 0, sjis.c_str(), (int)sjis.size(), nullptr, 0);
+	std::wstring w(wlen, L'\0');
+	MultiByteToWideChar(932, 0, sjis.c_str(), (int)sjis.size(), w.data(), wlen);
+	return WideToUtf8(w);
+}

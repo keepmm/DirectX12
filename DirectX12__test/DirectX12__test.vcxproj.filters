@@ -401,6 +401,9 @@
     <ClInclude Include="PMXLoader.hpp">
       <Filter>Mesh_Model</Filter>
     </ClInclude>
+    <ClInclude Include="Animator.hpp">
+      <Filter>Mesh_Model</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="BRDF.hlsli">
@@ -522,6 +525,12 @@
     </None>
     <None Include="ShadowShader.hlsl">
       <Filter>Shader\HLSL\VertexShader</Filter>
+    </None>
+    <None Include="SkinnedShader.hlsl">
+      <Filter>Shader\HLSL\VertexShader</Filter>
+    </None>
+    <None Include="Genshin_ToonShader.hlsl">
+      <Filter>Shader\HLSL\PixelShader</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>

@@ -33,6 +33,13 @@ struct alignas(256) LightCB
 	LightData lights[MAX_LIGHTS];
 };
 
+constexpr UINT MAX_BONES = 512;
+
+struct alignas(256) BoneCB
+{
+	float4x4 boneMatrices[MAX_BONES];
+};
+
 enum class E_VERTEX_SHADER
 {
 	BASIC,

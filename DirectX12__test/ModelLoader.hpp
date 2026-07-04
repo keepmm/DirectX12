@@ -29,4 +29,8 @@ public:
 	static ModelLoadResult upload(
 		_In_ const ModelCpuData& cpu
 	);
+
+	static std::vector<AnimationClip> LoadAnimationsOnly(_In_ const std::string& filepath);
+
+	static AnimationClip LoadVMDClip(const std::string& path,const Skeleton& skeleton);
 };

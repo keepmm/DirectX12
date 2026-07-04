@@ -84,6 +84,7 @@ private:
 	AudioSystem m_AudioSystem;
 	TransformSystem m_TransformSystem;
 	ShadowSystem m_ShadowSystem;
+	AnimatorSystem m_AnimatorSystem;
 
 	bool m_ScriptSystemStarted = false;
 

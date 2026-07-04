@@ -11,6 +11,7 @@
 #include "assimp/material.h"
 #include "DirectXTex/DirectXTex.h"
 #include "PMXLoader.hpp"
+#include "Util.hpp"
 
 namespace
 {
@@ -291,6 +292,23 @@ ModelCpuData ModelLoader::ParseFile(const std::string& filepath, float scale)
         }
 
         NormalizeInfluence(out.skinData.infuences);
+        if(scene->mRootNode)
+			AddSkeletonNode(scene->mRootNode, -1, out.skeleton);
+
+        //スキン影響を頂点バッファへ転機
+        const size_t vcount = out.vertices.size();
+        if (out.skinData.infuences.size() == vcount)
+        {
+            for (size_t i = 0; i < vcount; ++i)
+            {
+                const auto& inf = out.skinData.infuences[i];
+                for (int k = 0; k < 4; ++k)
+                {
+					out.vertices[i].boneIndices[k] = inf.indices[k];
+					out.vertices[i].boneWeights[k] = inf.weights[k];
+                }
+            }
+        }
 
         if (out.vertices.empty() && out.indices.empty())
         {
@@ -356,6 +374,43 @@ ModelCpuData ModelLoader::ParseFile(const std::string& filepath, float scale)
             out.materials[i].metal = deriveSibling(diff, L"_diff", L"_metal");
             out.materials[i].rough = deriveSibling(diff, L"_diff", L"_rough");
         }
+
+        for (unsigned int a = 0; a < scene->mNumAnimations; ++a)
+        {
+            const aiAnimation* anim = scene->mAnimations[a];
+            AnimationClip clip;
+            clip.name = anim->mName.C_Str();
+            clip.tickPerSecond = (anim->mTicksPerSecond != 0.0) ? (float)anim->mTicksPerSecond : 25.0f;
+            clip.duration = (float)(anim->mDuration / clip.tickPerSecond);
+
+            for (unsigned int c = 0; c < anim->mNumChannels; ++c)
+            {
+                const aiNodeAnim* ch = anim->mChannels[c];
+                BoneAnimationChannel channel;
+                channel.boneName = ch->mNodeName.C_Str();
+
+                const unsigned int n = ch->mNumPositionKeys;
+                for (unsigned int k = 0; k < n; ++k)
+                {
+                    KeyFrame kf;
+                    kf.time = (float)(ch->mPositionKeys[k].mTime / clip.tickPerSecond);
+                    const auto& p = ch->mPositionKeys[k].mValue;
+                    kf.position = { p.x, p.y, p.z };
+
+                    const unsigned int rk = (k < ch->mNumRotationKeys) ? k : ch->mNumRotationKeys - 1;
+                    const auto& q = ch->mRotationKeys[rk].mValue;
+                    kf.rotation = { q.x, q.y, q.z, q.w };
+
+                    const unsigned int sk = (k < ch->mNumScalingKeys) ? k : ch->mNumScalingKeys - 1;
+                    const auto& s = ch->mScalingKeys[sk].mValue;
+                    kf.scale = { s.x, s.y, s.z };
+
+                    channel.keyFrames.push_back(kf);
+                }
+                clip.channels.push_back(std::move(channel));
+            }
+            out.clips.push_back(std::move(clip));
+        }
     }
     // --- 各マップを RGBA8 にデコード（このParseFileはワーカースレッドで実行される）---
     auto decode = [](const std::wstring& path) -> DecodedImage
@@ -416,7 +471,24 @@ ModelCpuData ModelLoader::ParseFile(const std::string& filepath, float scale)
             break;
         }
 
-    out.success = true;
+    int wv = 0;
+    for (auto& v : out.vertices)
+    {
+        float s = v.boneWeights[0] + v.boneWeights[1] + v.boneWeights[2] + v.boneWeights[3];
+        if (s > 0.01f) ++wv;
+    }
+    LOG->LogInfo("verts_with_weight=" + std::to_string(wv) + "/" + std::to_string(out.vertices.size()));
+
+    int matched = 0, total = 0;
+    if (!out.clips.empty())
+    {
+        total = (int)out.clips[0].channels.size();
+        for (auto& ch : out.clips[0].channels)
+            if (out.skeleton.nameToIndex.count(ch.boneName)) ++matched;
+    }
+    LOG->LogInfo("matched_channels=" + std::to_string(matched) + "/" + std::to_string(total));
+
+	out.success = true;
     return out;
 }
 
@@ -438,7 +510,107 @@ ModelLoadResult ModelLoader::upload(const ModelCpuData& cpu)
 	result.metalTexturePath = cpu.metalTexturePath;
 	result.roughTexturePath = cpu.roughTexturePath;
     result.diffusetextureData = cpu.diffuseTextureData; 
+	result.clips = cpu.clips;
     result.skeleton = cpu.skeleton;
     result.skinData = cpu.skinData;
     return result;
+}
+
+std::vector<AnimationClip> ModelLoader::LoadAnimationsOnly(const std::string& filepath)
+{
+    std::vector<AnimationClip> clips;
+    Assimp::Importer importer;
+    const aiScene* scene = importer.ReadFile(filepath,
+        aiProcess_Triangulate | aiProcess_ConvertToLeftHanded);
+    if (!scene) { LOG->LogError("anim load failed: " + filepath); return clips; }
+
+    for (unsigned int a = 0; a < scene->mNumAnimations; ++a)
+    {
+        const aiAnimation* anim = scene->mAnimations[a];
+        AnimationClip clip;
+        clip.name = std::filesystem::path(filepath).stem().string();  // ファイル名をクリップ名に
+        clip.tickPerSecond = (anim->mTicksPerSecond != 0.0) ? (float)anim->mTicksPerSecond : 30.0f;
+        clip.duration = (float)(anim->mDuration / clip.tickPerSecond);
+
+        for (unsigned int c = 0; c < anim->mNumChannels; ++c)
+        {
+            const aiNodeAnim* ch = anim->mChannels[c];
+            BoneAnimationChannel channel;
+            channel.boneName = ch->mNodeName.C_Str();
+            for (unsigned int k = 0; k < ch->mNumPositionKeys; ++k)
+            {
+                KeyFrame kf;
+                kf.time = (float)(ch->mPositionKeys[k].mTime / clip.tickPerSecond);
+                const auto& p = ch->mPositionKeys[k].mValue; kf.position = { p.x,p.y,p.z };
+                const unsigned int rk = (k < ch->mNumRotationKeys) ? k : ch->mNumRotationKeys - 1;
+                const auto& q = ch->mRotationKeys[rk].mValue; kf.rotation = { q.x,q.y,q.z,q.w };
+                const unsigned int sk = (k < ch->mNumScalingKeys) ? k : ch->mNumScalingKeys - 1;
+                const auto& s = ch->mScalingKeys[sk].mValue; kf.scale = { s.x,s.y,s.z };
+                channel.keyFrames.push_back(kf);
+            }
+            clip.channels.push_back(std::move(channel));
+        }
+        clips.push_back(std::move(clip));
+    }
+    LOG->LogInfo("anim loaded: " + filepath + " clips=" + std::to_string(clips.size()));
+    return clips;
+}
+
+AnimationClip ModelLoader::LoadVMDClip(const std::string& path, const Skeleton& skeleton)
+{
+    AnimationClip clip;
+    std::ifstream ifs(path, std::ios::binary);
+    if (!ifs) { LOG->LogError("VMD open failed: " + path); return clip; }
+    std::vector<char> buf((std::istreambuf_iterator<char>(ifs)), {});
+    const char* d = buf.data();
+    if (buf.size() < 54) return clip;
+
+    size_t o = 50;   // 30(signature)+20(model name)
+    std::uint32_t count; std::memcpy(&count, d + o, 4); o += 4;
+
+    std::unordered_map<std::string, BoneAnimationChannel> channels;
+    float maxTime = 0.0f;
+
+    for (std::uint32_t i = 0; i < count; ++i)
+    {
+        char nameBuf[16] = {};
+        std::memcpy(nameBuf, d + o, 15); o += 15;
+        const std::string name = ShiftJisUtf8(std::string(nameBuf));
+
+        std::uint32_t frame; std::memcpy(&frame, d + o, 4); o += 4;
+        float pos[3];  std::memcpy(pos, d + o, 12); o += 12;
+        float quat[4]; std::memcpy(quat, d + o, 16); o += 16;  // x,y,z,w
+        o += 64;   // 補間パラメータ(今回は線形/slerp)
+
+        auto it = skeleton.nameToIndex.find(name);
+        if (it == skeleton.nameToIndex.end()) continue;   // モデルに無いボーンはスキップ
+        const auto& node = skeleton.nodes[it->second];
+
+        // バインドオフセット = ローカル変換の平行移動成分
+        const float3 bindOff = { node.localTransform._41, node.localTransform._42, node.localTransform._43 };
+
+        KeyFrame kf;
+        kf.time = frame / 30.0f;
+        kf.position = { bindOff.x + pos[0], bindOff.y + pos[1], bindOff.z + pos[2] };
+        kf.rotation = { quat[0], quat[1], quat[2], quat[3] };
+        kf.scale = { 1,1,1 };
+
+        auto& ch = channels[name];
+        ch.boneName = name;
+        ch.keyFrames.push_back(kf);
+        maxTime = std::max(maxTime, kf.time);
+    }
+
+    for (auto& [name, ch] : channels)
+    {
+        std::sort(ch.keyFrames.begin(), ch.keyFrames.end(),
+            [](const KeyFrame& a, const KeyFrame& b) { return a.time < b.time; });
+        clip.channels.push_back(std::move(ch));
+    }
+    clip.name = std::filesystem::path(path).stem().string();
+    clip.tickPerSecond = 30.0f;
+    clip.duration = maxTime;
+    LOG->LogInfo("VMD loaded: " + path + " ch=" + std::to_string(clip.channels.size())
+        + " dur=" + std::to_string(clip.duration));
+    return clip;
 }
