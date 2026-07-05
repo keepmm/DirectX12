@@ -162,7 +162,8 @@ private:
 
 	void SpawnModelFromFile(World& world,
 		_In_ const std::string& modelpath,
-		_In_ const float3& pos);
+		_In_ const float3& pos,
+		_In_ Scene* scene);
 
 	int m_GizmoOperation = 7;
 

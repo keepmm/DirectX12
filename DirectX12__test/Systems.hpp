@@ -80,14 +80,17 @@ public:
 					return;
 				}
 
-				// --- b4: ボーン行列パレット（Animatorがあれば実姿勢、無ければ単位）---
 				if (renderContext.cbAllocator)
 				{
 					const UINT slot = renderContext.frameIndex % RTV_NUM;
-					BoneCB cb{};
-					DirectX::XMFLOAT4X4 idm;
-					DirectX::XMStoreFloat4x4(&idm, DirectX::XMMatrixIdentity());
-					for (auto& m : cb.boneMatrices) m = idm;
+					BoneCB cb{};   // 既定で0埋め
+					if (world.HasComponent<AnimatorComponent>(entity))
+					{
+						auto& an = world.GetComponent<AnimatorComponent>(entity);
+						const size_t n = std::min<size_t>(an.palette.size(), MAX_BONES);
+						for (size_t i = 0; i < n; ++i) cb.boneMatrices[i] = an.palette[i];
+						for (size_t i = n; i < MAX_BONES; ++i) DirectX::XMStoreFloat4x4(&cb.boneMatrices[i], DirectX::XMMatrixIdentity());
+					}
 
 					if (world.HasComponent<AnimatorComponent>(entity))
 					{
@@ -100,9 +103,40 @@ public:
 					if (b4) renderContext.CommandList->SetGraphicsRootConstantBufferView(5, b4);
 				}
 
+				// --- b4: ボーン行列パレット（Animatorがあれば実姿勢、無ければ単位）---
+				if (renderContext.cbAllocator)
+				{
+					const UINT slot = renderContext.frameIndex % RTV_NUM;
+					const size_t vcount = mesh.mesh->GetVertexCount();
+
+					static thread_local std::vector<DirectX::XMFLOAT3> zeroBuf;
+					const std::vector<DirectX::XMFLOAT3>* offsets = nullptr;
+
+					if (world.HasComponent<AnimatorComponent>(entity))
+					{
+						auto& an = world.GetComponent<AnimatorComponent>(entity);
+						if (an.morphDirty)
+						{
+							RebuildMorphOffsets(an.morphs, an.morphWeights, vcount, an.morphoffsets);
+							an.morphDirty = false;
+						}
+						if (an.morphoffsets.size() == vcount) offsets = &an.morphoffsets;
+					}
+					if (!offsets)
+					{
+						if (zeroBuf.size() != vcount) zeroBuf.assign(vcount, DirectX::XMFLOAT3{ 0,0,0 });
+						offsets = &zeroBuf;
+					}
+
+					auto morphVA = renderContext.cbAllocator->Allocate(
+						slot, offsets->data(), offsets->size() * sizeof(DirectX::XMFLOAT3));
+					if (morphVA) renderContext.CommandList->SetGraphicsRootShaderResourceView(6, morphVA);
+				}
+
 				const bool multi =
 					!material.materials.empty() && mesh.mesh->GetSubMeshCount() > 0;
 
+				// --- 通常描画(全マテリアル・無条件) ---
 				if (multi)
 				{
 					const UINT sub = mesh.mesh->GetSubMeshCount();
@@ -127,6 +161,41 @@ public:
 						renderContext.wireframe, renderContext.frameIndex,
 						renderContext.cbAllocator, material.shaderName);
 					mesh.mesh->Draw(renderContext.CommandList);
+				}
+
+				// --- アウトラインパス(Genshin_Toonのみ・通常描画の後) ---
+				if (material.shaderName == "Genshin_Toon" && !renderContext.wireframe)
+				{
+					std::string outlineShaderName = "Genshin_Outline";
+					ID3D12PipelineState* outlinePso = APP->GetPipelineStateByName(outlineShaderName);
+					if (outlinePso)
+					{
+						if (multi)
+						{
+							const UINT sub = mesh.mesh->GetSubMeshCount();
+							for (UINT s = 0; s < sub; ++s)
+							{
+								UINT mi = mesh.mesh->GetSubMeshMaterialIndex(s);
+								if (mi >= material.materials.size()) mi = 0;
+								auto& mat = material.materials[mi];
+								if (!mat) continue;
+
+								mat->Apply(renderContext.CommandList, transform.world,
+									renderContext.view, renderContext.projection,
+									false, renderContext.frameIndex,
+									renderContext.cbAllocator, "", outlinePso);
+								mesh.mesh->DrawSubMesh(renderContext.CommandList, s);
+							}
+						}
+						else
+						{
+							material.material->Apply(renderContext.CommandList, transform.world,
+								renderContext.view, renderContext.projection,
+								false, renderContext.frameIndex,
+								renderContext.cbAllocator, "", outlinePso); 
+							mesh.mesh->Draw(renderContext.CommandList);
+						}
+					}
 				}
 			}
 		);
@@ -790,19 +859,21 @@ public:
 	{
 		int n = 0;
 		world.Each<AnimatorComponent>([&](Entity, AnimatorComponent&) { ++n; });
-		static int c = 0;
-		if ((c++ % 60) == 0)
-			LOG->LogInfo("AnimatorSystem: animators=" + std::to_string(n) + " dt=" + std::to_string(dt));
-		world.Each<AnimatorComponent>([&](Entity, AnimatorComponent& an)
+		//static int c = 0;
+		//if ((c++ % 60) == 0)
+		//	LOG->LogInfo("AnimatorSystem: animators=" + std::to_string(n) + " dt=" + std::to_string(dt));
+		world.Each<AnimatorComponent>([&](Entity e, AnimatorComponent& an)
 			{
 				if (an.clips.empty()) return;
 				if (an.currentClip < 0 || an.currentClip >= (int)an.clips.size()) return;
 				const AnimationClip& clip = an.clips[an.currentClip];
 				if (an.playing && clip.duration > 0.0f)
 					an.time = fmodf(an.time + dt, clip.duration);
-				ComputePalette(an.skeleton, an.skinData, clip, an.time, an.palette);
+				MmdPhysics* phys = nullptr;
+				if (world.HasComponent<MmdPhysicsComponent>(e))
+					phys = world.GetComponent<MmdPhysicsComponent>(e).impl.get();
 
-				ComputePalette(an.skeleton, an.skinData, clip, an.time, an.palette);
+				ComputePalette(an.skeleton, an.skinData, clip, an.time, an.palette, phys, dt);
 			});
 	}
 };

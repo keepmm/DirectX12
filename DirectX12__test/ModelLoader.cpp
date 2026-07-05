@@ -513,6 +513,8 @@ ModelLoadResult ModelLoader::upload(const ModelCpuData& cpu)
 	result.clips = cpu.clips;
     result.skeleton = cpu.skeleton;
     result.skinData = cpu.skinData;
+	result.morphs = cpu.morphs;
+	result.physics = cpu.physics;
     return result;
 }
 

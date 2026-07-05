@@ -2,18 +2,20 @@
 
 cbuffer BoneMatrices : register(b4)
 {
-    float4x4 bones[256];
+    float4x4 bones[512];
 }
 
-PSInput SkinnedVS(VSInput input)
+StructuredBuffer<float3> g_MorphOffsets : register(t7); // 頂点index対応のブレンド済みオフセット
+
+PSInput SkinnedVS(VSInput input, uint vertexId : SV_VertexID)
 {
     PSInput output;
 
-    // ウェイト合計（0なら非スキン＝単位）
     float wsum = input.boneWeights.x + input.boneWeights.y
                + input.boneWeights.z + input.boneWeights.w;
 
-    float4 pos = float4(input.pos, 1.0f);
+    // モーフを先に適用してからスキニング
+    float4 pos = float4(input.pos + g_MorphOffsets[vertexId], 1.0f);
     float4 skinned;
     float3 skinnedNormal;
 

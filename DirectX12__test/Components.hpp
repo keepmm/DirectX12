@@ -13,6 +13,7 @@ class Mesh;
 class Material;
 class Camera;
 class MonoBehavior;
+class MmdPhysics;
 
 namespace PhysX
 {
@@ -441,9 +442,20 @@ struct AnimatorComponent
 	bool playing = false;
 	std::vector<float4x4> palette;
 
+	MorphSet morphs;					// もーフ定義
+	std::vector<float> morphWeights;	// 各モーフの重み(0.0 ~ 1.0)
+	std::vector<float3> morphoffsets;	// CPUでブレンド済みの頂点オフセット
+	bool morphDirty = true;				// モーフの重みが変更されたかどうか
+
 	void Reflect(FieldList& f)
 	{
 		f.Add("Time", time);
 		f.Add("Playing", playing);
 	}
+};
+
+struct MmdPhysicsComponent
+{
+	std::shared_ptr<MmdPhysics> impl;
+	void Reflect(FieldList& f) {}
 };

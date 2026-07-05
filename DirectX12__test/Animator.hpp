@@ -1,12 +1,55 @@
 #pragma once
 #include "ModelData.hpp"
+#include <functional>
 #include <DirectXMath.h>
+#include "MmdPhysics.hpp"
+
+inline void RebuildMorphOffsets(
+	const MorphSet& morphSet,const std::vector<float>& weights,
+	size_t vertexCount, std::vector<float3>& out
+)
+{
+	// クリア
+	out.assign(vertexCount, float3{ 0.0f,0.0f,0.0f });
+
+	std::function<void(int, float)> apply = [&](int idx, float w)
+		{
+			// 0.0f 近似値は無視
+			if (idx < 0 || idx >= (int)morphSet.morphs.size() || fabsf(w) < 1e-6f) return;
+			const MorphData& m = morphSet.morphs[idx];
+			if (m.type == 1)
+			{
+				for (const auto& vo : m.vertexOffsets)
+				{
+					// 頂点インデックスが範囲外なら無視
+					if (vo.vertexIndex >= vertexCount) continue;
+					out[vo.vertexIndex].x += vo.offset.x * w;
+					out[vo.vertexIndex].y += vo.offset.y * w;
+					out[vo.vertexIndex].z += vo.offset.z * w;
+				}
+			}
+			// グループの場合は再帰的に適用
+			else if (m.type == 0)
+			{
+				for(const auto& [refIdx,rate] : m.groupOffsets)
+				{
+					apply(refIdx, w * rate);
+				}
+			}
+		};
+
+	for (size_t i = 0; i < weights.size(); ++i)
+	{
+		if (fabsf(weights[i]) > 1e-6f) apply((int)i, weights[i]);
+	}
+}
 
 // クリップを time秒 でサンプルし、スキン行列パレット(転置済み)を outPalette に生成
 inline void ComputePalette(
 	const Skeleton& skel, const SkinData& skin,
 	const AnimationClip& clip, float time,
-	std::vector<float4x4>& outPalette)
+	std::vector<float4x4>& outPalette,
+	MmdPhysics* physics = nullptr,float dt = 0.0f)
 {
 	using namespace DirectX;
 
@@ -43,11 +86,18 @@ inline void ComputePalette(
 	std::vector<XMMATRIX> local(nodeCount), global(nodeCount);
 	std::vector<XMVECTOR> boneRot(nodeCount), boneTrans(nodeCount);
 
+	std::vector<const BoneAnimationChannel*> nodeChannel(nodeCount, nullptr);
+	for (const auto& ch : clip.channels)
+	{
+		auto it = skel.nameToIndex.find(ch.boneName);
+		if (it != skel.nameToIndex.end()) nodeChannel[it->second] = &ch;
+	}
+
 	// FK ローカル回転 / 移動を計算
 	for (size_t i = 0; i < nodeCount; ++i)
 	{
 		const BoneNode& node = skel.nodes[i];
-		const BoneAnimationChannel* ch = findChannel(node.name);
+		const BoneAnimationChannel* ch = nodeChannel[i];
 		if (ch && !ch->keyFrames.empty())
 		{
 			KeyFrame kf = sample(*ch);
@@ -107,7 +157,7 @@ inline void ComputePalette(
 		if (ik.boneIndex < 0 || ik.targetIndex < 0) continue;
 
 		// FKベイクモーション対策
-		const BoneAnimationChannel* ikCh = findChannel(skel.nodes[ik.boneIndex].name);
+		const BoneAnimationChannel* ikCh = nodeChannel[ik.boneIndex];
 		if (!ikCh || ikCh->keyFrames.size() <= 1) continue;
 
 		// IKの反復回数だけループ
@@ -227,6 +277,12 @@ inline void ComputePalette(
 		}
 	}
 	ComputeGlobal();	// グローバル行列を更新
+
+	// ---- 物理適用 ---- //
+	if (physics && physics->IsValid())
+	{
+		physics->Step(global, dt);
+	}
 
 	// パレット
 	outPalette.resize(skin.boneNames.size());

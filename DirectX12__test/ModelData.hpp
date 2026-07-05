@@ -2,10 +2,12 @@
  * \file   ModelData.hpp
  * \brief  モデルデータの定義
  * 
- * 作成者 
+ * 作成者 keeep
  * 作成日 2026/5/4
  * 更新履歴	5.4 作成
  *			7.3 法線マップ、メタルマップ、ラフネスマップの追加
+ *			7.4 スケルトン、スキニングデータ、アニメーションデータの追加
+ *			7.5 Morphデータ、物理データの追加
  * *********************************************************************/
 #pragma once
 
@@ -110,6 +112,40 @@ struct SkinData
 	std::unordered_map<std::string, std::uint16_t> boneNametoIndex;	// ボーン名からインデックスへのマップ
 };
 
+#pragma region Morph
+
+/**
+ * .頂点もーふの1オフセットの定義
+ */
+struct VertexMorphOffset
+{
+	std::uint32_t vertexIndex = 0;
+	float3 offset{ 0.0f,0.0f,0.0f };
+};
+
+/**
+ * .もーフ1つ分のデータ
+ */
+struct MorphData
+{
+	std::string name;
+	int panel = 0;	// 0: 表示なし, 1: 顔, 2: 体, 3: その他
+	int type = 1;	// 1: 頂点, 2: ボーン, 3: UV, 4: 材質
+	std::vector<VertexMorphOffset> vertexOffsets;
+	std::vector<std::pair<int, float>> groupOffsets;
+};
+
+/**
+ * .MorphSet
+ */
+struct MorphSet
+{
+	std::vector<MorphData> morphs;
+	std::unordered_map<std::string, int> nameToIndex;
+};
+
+#pragma endregion
+
 #pragma region アニメーションデータ
 
 /**
@@ -142,6 +178,60 @@ struct AnimationClip
 
 #pragma endregion
 
+#pragma region 剛体アニメーションデータ
+
+/**
+ *	PMX剛体.
+ */
+struct PmxRigidBody
+{
+	std::string name;
+	int boneIndex = -1;						// 関連ボーン
+	uint8_t group = 0;						// 衝突グループ
+	uint16_t noCollisionMask = 0;			// 非衝突グループ
+	uint8_t shape = 0;						// 0: 球, 1: 箱, 2: カプセル
+	SCALE size{ 1.0f, 1.0f, 1.0f };			// 球:x=半径 箱:xyz半径 カプセル:x=半径,y=高さ
+	POSITION position{ 0.0f, 0.0f, 0.0f };	// 剛体の位置(モデル準拠)
+	float3 rotation{ 0.0f, 0.0f, 0.0f };	// 剛体の回転(モデル準拠、ラジアン)
+	float mass				= 1.0f;			// 
+	float linearDamping		= 0.0f;			//
+	float angularDamping	= 0.0f;			//
+	float restitution		= 0.0f;			//
+	float friction			= 0.05f;		// 
+	uint8_t physicsType = 0;				// 0: ボーン追従, 1: 物理演算, 2: 物理 + ボーン
+};
+
+/**
+ * .PMXジョイント(6DOF)の定義
+ */
+struct PmxJoint
+{
+	std::string name;
+	int rigidBodyA = -1;
+	int rigidBodyB = -1;
+	float3 position{ 0,0,0 };
+	float3 rotation{ 0,0,0 };
+	float3 moveLimitLower{ 0,0,0 };
+	float3 moveLimitUpper{ 0,0,0 };
+	float3 rotLimitLower{ 0,0,0 };
+	float3 rotLimitUpper{ 0,0,0 };
+	float3 springMove{ 0,0,0 };
+	float3 springRot{ 0,0,0 };
+};
+
+/**
+ * モデルの物理データ一式.
+ */
+struct PmxPhysics
+{
+	std::vector<PmxRigidBody> rigidBodies;
+	std::vector<PmxJoint> joints;
+};
+
+#pragma endregion
+
+#pragma region モデルロード
+
 /**
  *	モデルのロード結果の定義
  */
@@ -160,6 +250,8 @@ struct ModelLoadResult
 	Skeleton skeleton;								// スケルトンデータ
 	SkinData skinData;								// スキニングデータ
 	std::vector<AnimationClip> clips;				// アニメーションデータ
+	MorphSet morphs;								// モーフデータ
+	PmxPhysics					physics;
 };
 
 /*
@@ -182,5 +274,10 @@ struct ModelCpuData
 	Skeleton                    skeleton;
 	SkinData                    skinData;
 
+	MorphSet 					morphs;
+	PmxPhysics					physics;
+
 	bool                        success = false;
 };
+
+#pragma endregion

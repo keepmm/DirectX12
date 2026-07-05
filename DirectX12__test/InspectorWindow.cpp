@@ -322,11 +322,23 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 				ImGui::Text(u8("サブマテリアル: %d"), count);
 				for (int i = 0; i < count; ++i)
 				{
-					ImGui::PushID(i);
-					if (ImGui::Selectable((materialComp.materialnames[i] + "##Material").c_str(),
-						selectedSub == i))
-						selectedSub = i;
-					ImGui::PopID();
+					// materialnamesに名前が登録されている場合
+					if(!materialComp.materialnames[i].empty())
+					{
+						ImGui::PushID(i);
+						if (ImGui::Selectable((materialComp.materialnames[i] + "##Material").c_str(),
+							selectedSub == i))
+							selectedSub = i;
+						ImGui::PopID();
+					}
+					else
+					{
+						ImGui::PushID(i);
+						if (ImGui::Selectable((std::string("SubMaterial ") + std::to_string(i) + "##Material").c_str(),
+							selectedSub == i))
+							selectedSub = i;
+						ImGui::PopID();
+					}
 				}
 				if (materialComp.materials[selectedSub])
 					// 選択中のサブマテリアルをtargetに設定
@@ -373,6 +385,8 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 				{
 					ImGui::SliderFloat(u8("ハイライトの広さ##Mat"), &target->roughness, 0.0f, 1.0f);
 					ImGui::SliderFloat(u8("ハイライトの強さ##Mat"), &target->metallic, 0.0f, 1.0f);
+					ImGui::Checkbox(u8("フェイス描画##Mat"), &target->isFace);
+					ImGui::SliderFloat(u8("アウトライン幅##Mat"), &target->outlineWidth, 0.0f, 10.0f);
 				}
 			}
 

@@ -57,7 +57,11 @@ bool PMXLoader::Parse(const std::string& filepath, float scale, ModelCpuData& ou
 {
 	std::ifstream ifs(filepath, std::ios::binary);
 	if (!ifs) { LOG->LogError("PMX: ファイルを開けません: " + filepath); return false; }
+
+	// pmxファイルは最初の4バイトが固定
 	std::vector<std::uint8_t> buf((std::istreambuf_iterator<char>(ifs)), {});
+
+	// 層じゃない場合pmxファイルではないので失敗
 	if (buf.size() < 4) return false;
 
 	Reader r{ buf.data(), buf.data() + buf.size() };
@@ -77,7 +81,6 @@ bool PMXLoader::Parse(const std::string& filepath, float scale, ModelCpuData& ou
 	const int texIdxSize = g[3];
 	const int matIdxSize = g[4];
 	const int boneIdxSize = g[5];
-	// g[6]=morph, g[7]=rigidbody（今回未使用）
 
 	// --- モデル情報（名前・コメント）読み飛ばし ---
 	r.ReadText(encoding); // name JP
@@ -175,6 +178,8 @@ bool PMXLoader::Parse(const std::string& filepath, float scale, ModelCpuData& ou
 		if (toonFlag == 0) r.ReadIndex(texIdxSize, true); else r.Read<std::uint8_t>(); // toon
 		r.ReadText(encoding);            // memo
 		const std::int32_t surfaceCount = r.Read<std::int32_t>();
+		// morph
+
 
 		// マテリアルの名前もセット
 		out.materials[i].name = WideToUtf8(name);
@@ -286,12 +291,154 @@ bool PMXLoader::Parse(const std::string& filepath, float scale, ModelCpuData& ou
 		XMStoreFloat4x4(&out.skinData.offsetMatrices[i], offset);
 	}
 
+	// ---- モーフ ----
+	const int morphIdxSize = g[6];
+	const std::int32_t morphCount = r.Read<std::int32_t>();
+	out.morphs.morphs.resize(morphCount);
+	for (int i = 0; i < morphCount; ++i)
+	{
+		// モーフ名
+		std::wstring wname = r.ReadText(encoding);
+		r.ReadText(encoding);	//ENはスキップ
+		const std::uint8_t panel = r.Read<std::uint8_t>();
+		const std::uint8_t type = r.Read<std::uint8_t>();
+		const std::uint32_t offsetCount = r.Read<std::uint32_t>();
+
+		// モーフの種類ごとにオフセットを読み込む
+		MorphData& md = out.morphs.morphs[i];
+		md.name = WideToUtf8(wname);
+		md.panel = panel;
+		md.type = type;
+
+		switch (type)
+		{
+		case 0: // グループ
+			for(uint32_t k = 0;k < offsetCount; ++k)
+			{
+				int mi = r.ReadIndex(morphIdxSize, true);
+				float rate = r.Read<float>();
+				md.groupOffsets.push_back({ mi, rate });
+			}
+			break;
+		case 1: // 頂点
+			for(int k = 0; k < offsetCount; ++k)
+			{
+				VertexMorphOffset vo{};
+				vo.vertexIndex = (std::uint32_t)r.ReadIndex(vIdxSize, false);
+				vo.offset = { r.Read<float>() * scale,r.Read<float>() * scale, r.Read<float>() * scale };
+				md.vertexOffsets.push_back(vo);
+			}
+			break;
+		case 2: // ボーン
+			for (uint32_t k = 0; k < offsetCount; ++k)
+			{
+				r.ReadIndex(boneIdxSize, true);
+				r.Skip(sizeof(float) * 7); // 移動3 + 回転4
+			}
+			break;
+		case 3:
+		case 4:
+		case 5:
+		case 6:
+		case 7:	// UV
+			for (int k = 0; k < offsetCount; ++k)
+			{
+				r.ReadIndex(vIdxSize, false);
+				r.Skip(sizeof(float) * 4);
+			}
+			break;
+		case 8: // マテリアル
+			for (int k = 0; k < offsetCount; ++k)
+			{
+				r.ReadIndex(matIdxSize, true);
+				r.Read<std::uint8_t>();     // 演算方式
+				r.Skip(sizeof(float) * 4);  // diffuse
+				r.Skip(sizeof(float) * 3);  // specular
+				r.Skip(sizeof(float));      // specularity
+				r.Skip(sizeof(float) * 3);  // ambient
+				r.Skip(sizeof(float) * 4);  // edge color
+				r.Skip(sizeof(float));      // edge size
+				r.Skip(sizeof(float) * 4);  // texture係数
+				r.Skip(sizeof(float) * 4);  // sphere係数
+				r.Skip(sizeof(float) * 4);  // toon係数
+			}
+			break;
+		default:
+			break;
+		}
+
+		// モーフ名からインデックスへのマップを作成
+		out.morphs.nameToIndex[md.name] = i;
+	}
+
+	// ---- 表示枠 ----
+	const std::int32_t frameCount = r.Read<std::int32_t>();
+	for (int i = 0; i < frameCount; ++i)
+	{
+		r.ReadText(encoding);   // 枠名JP(未使用)
+		r.ReadText(encoding);   // 枠名EN(未使用)
+		r.Read<std::uint8_t>(); // 特殊枠フラグ(未使用)
+		const std::int32_t elemCount = r.Read<std::int32_t>();
+		for (int e = 0; e < elemCount; ++e)
+		{
+			const std::uint8_t target = r.Read<std::uint8_t>(); // 0:ボーン 1:モーフ
+			if (target == 0) r.ReadIndex(boneIdxSize, true);
+			else              r.ReadIndex(morphIdxSize, true);
+		}
+	}
+
+	// ---- 剛体 ---- //
+	const int rbIdxSize = g[7];
+	const std::int32_t rbCount = r.Read<std::int32_t>();
+	out.physics.rigidBodies.resize(rbCount);
+	for (uint32_t i = 0; i < rbCount; ++i)
+	{
+		PmxRigidBody& rb = out.physics.rigidBodies[i];
+		rb.name = WideToUtf8(r.ReadText(encoding));
+		r.ReadText(encoding);                       // name EN
+		rb.boneIndex = r.ReadIndex(boneIdxSize, true);
+		rb.group = r.Read<std::uint8_t>();
+		rb.noCollisionMask = r.Read<std::uint16_t>();
+		rb.shape = r.Read<std::uint8_t>();
+		rb.size = { r.Read<float>() * scale, r.Read<float>() * scale, r.Read<float>() * scale };
+		rb.position = { r.Read<float>() * scale, r.Read<float>() * scale, r.Read<float>() * scale };
+		rb.rotation = { r.Read<float>(), r.Read<float>(), r.Read<float>() };
+		rb.mass = r.Read<float>();
+		rb.linearDamping = r.Read<float>();
+		rb.angularDamping = r.Read<float>();
+		rb.restitution = r.Read<float>();
+		rb.friction = r.Read<float>();
+		rb.physicsType = r.Read<std::uint8_t>();
+	}
+
+	// ---- ジョイント ---- //
+	const std::int32_t jointCount = r.Read<std::int32_t>();
+	out.physics.joints.resize(jointCount);
+	for (int i = 0; i < jointCount; ++i)
+	{
+		PmxJoint& jt = out.physics.joints[i];
+		jt.name = WideToUtf8(r.ReadText(encoding));
+		r.ReadText(encoding);                       // name EN
+		const std::uint8_t jointType = r.Read<std::uint8_t>(); // 0=6DOFスプリング(2.0)
+		jt.rigidBodyA = r.ReadIndex(rbIdxSize, true);
+		jt.rigidBodyB = r.ReadIndex(rbIdxSize, true);
+		jt.position = { r.Read<float>() * scale, r.Read<float>() * scale, r.Read<float>() * scale };
+		jt.rotation = { r.Read<float>(), r.Read<float>(), r.Read<float>() };
+		jt.moveLimitLower = { r.Read<float>() * scale, r.Read<float>() * scale, r.Read<float>() * scale };
+		jt.moveLimitUpper = { r.Read<float>() * scale, r.Read<float>() * scale, r.Read<float>() * scale };
+		jt.rotLimitLower = { r.Read<float>(), r.Read<float>(), r.Read<float>() };
+		jt.rotLimitUpper = { r.Read<float>(), r.Read<float>(), r.Read<float>() };
+		jt.springMove = { r.Read<float>(), r.Read<float>(), r.Read<float>() };
+		jt.springRot = { r.Read<float>(), r.Read<float>(), r.Read<float>() };
+		(void)jointType;
+	}
+
 	// 単一マテリアル互換（先頭のdiffuse）
 	for (auto& m : out.materials)
 		if (!m.diffuse.empty()) { out.diffuseTexturePath = m.diffuse; break; }
 
 	out.success = true;
 	LOG->LogInfo("PMX: 読み込み成功 頂点=" + std::to_string(vertexCount)
-		+ " 面=" + std::to_string(indexCount / 3) + " 材質=" + std::to_string(matCount));
+		+ " 面=" + std::to_string(indexCount / 3) + " 材質=" + std::to_string(matCount) + " 剛体=" + std::to_string(rbCount) + " ジョイント=" + std::to_string(jointCount));
 	return true;
 }

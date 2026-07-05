@@ -132,9 +132,6 @@
     <ClCompile Include="ModelLoader.cpp">
       <Filter>Mesh_Model</Filter>
     </ClCompile>
-    <ClCompile Include="ComponentRegistry.cpp">
-      <Filter>ECS</Filter>
-    </ClCompile>
     <ClCompile Include="Scene.cpp">
       <Filter>Scene</Filter>
     </ClCompile>
@@ -212,6 +209,12 @@
     </ClCompile>
     <ClCompile Include="PMXLoader.cpp">
       <Filter>Mesh_Model</Filter>
+    </ClCompile>
+    <ClCompile Include="ComponentRegistry.cpp">
+      <Filter>Input_Audio_Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="MmdPhysics.cpp">
+      <Filter>Input_Audio_Physics</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -404,6 +407,9 @@
     <ClInclude Include="Animator.hpp">
       <Filter>Mesh_Model</Filter>
     </ClInclude>
+    <ClInclude Include="MmdPhysics.hpp">
+      <Filter>Input_Audio_Physics</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="BRDF.hlsli">
@@ -531,6 +537,9 @@
     </None>
     <None Include="Genshin_ToonShader.hlsl">
       <Filter>Shader\HLSL\PixelShader</Filter>
+    </None>
+    <None Include="GenshinOutline.hlsl">
+      <Filter>Shader\HLSL\VertexShader</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>

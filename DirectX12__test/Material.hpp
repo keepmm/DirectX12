@@ -11,11 +11,20 @@ class ConstantBufferAllocator;
 class Material
 {
 public:
+	/// @brief 初期化
 	void Init();
 
+	/*
+	*	テクスチャの設定
+	*/
 	bool SetTextureFromFile(_In_ const std::wstring& filePath);
+
+	/** 
+	*	メモリからテクスチャを設定
+	*/
 	bool SetTextureFromMemory(_In_ const std::uint8_t* data, size_t size);
 
+	/// @brief トゥーンラップテクスチャの設定
 	bool SetToonRampTexture(_In_ const std::wstring& filepath);
 
 	void Apply(
@@ -54,6 +63,8 @@ public:
 	float roughness = 0.5f;
 	float metallic = 0.0f;
 	float4 rimColor = { 1.0f,1.0f,1.0f,1.0f };
+	bool isFace = false;
+	float outlineWidth = 1.0f;
 
 	bool SetNormalTexture(_In_ const std::wstring& path);
 	bool SetMetalTexture(_In_ const std::wstring& path);
@@ -80,6 +91,7 @@ private:
 		float2 _pad;
 		float4 rimColor;
 		float4 mapFlags; // x: hasNormal, y: hasMetal, z: hasRough
+		float4 faceParam; // x isFace w Outline
 	};
 
 	static constexpr UINT FRAME_COUNT = RTV_NUM;
@@ -134,6 +146,8 @@ private:
 	D3D12_PLACED_SUBRESOURCE_FOOTPRINT m_NormalFootprint = {}, m_MetalFootprint = {}, m_RoughFootprint = {};
 	bool m_NormalPending = false, m_MetalPending = false, m_RoughPending = false;
 	bool m_HasNormal = false, m_HasMetal = false, m_HasRough = false;
+
+	UINT m_UploadFenceValue = 0;
 
 	bool m_EnvBound = false;
 	float m_EnvMaxMip = 0.0f;

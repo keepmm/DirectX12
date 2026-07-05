@@ -14,6 +14,7 @@ struct ShaderPassDef
 	std::string psEntry;
 	std::string psProfile = "ps_5_0";
 	bool alphaBlend = false;
+	D3D12_CULL_MODE cullMode = D3D12_CULL_MODE_BACK;
 };
 
 struct LightData

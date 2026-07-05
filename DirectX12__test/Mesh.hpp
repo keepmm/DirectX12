@@ -31,6 +31,8 @@ public:
 	/// @return サブメッシュの数
 	UINT GetSubMeshCount() const { return static_cast<UINT>(m_SubMeshes.size()); }
 
+	UINT GetVertexCount() const { return m_VertexCount; }
+
 	void CreateQuad(_In_ const ComPtr<ID3D12Device>& device);
 
 	UINT GetSubMeshMaterialIndex(UINT i)const { return m_SubMeshes[i].materialIndex; }
@@ -42,5 +44,6 @@ public:
 
 	UINT m_IndexCount = 0;
 	std::vector<SubMesh> m_SubMeshes;
+	UINT m_VertexCount = 0;
 };
 

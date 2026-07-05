@@ -269,7 +269,7 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 					// とりあえず原点に
 					float3 fragPosition = float3(0.0f, 0.0f, 0.0f);
 
-					SpawnModelFromFile(activeScene->GetWorld(), modelpath, fragPosition);
+					SpawnModelFromFile(activeScene->GetWorld(), modelpath, fragPosition,activeScene);
 				}
 				ImGui::EndDragDropTarget();
 			}
@@ -1045,7 +1045,7 @@ void EditorWindow::DrawStyleSetting()
 #include "ModelLoader.hpp"
 #include "Systems.hpp"
 
-void EditorWindow::SpawnModelFromFile(World& world, const std::string& modelpath, const float3& pos)
+void EditorWindow::SpawnModelFromFile(World& world, const std::string& modelpath, const float3& pos, Scene* scene)
 {
 	Entity e = world.CreateEntity();
 	// 先にTransform/名前だけ付けておく（メッシュは後から差し込む）
@@ -1055,7 +1055,7 @@ void EditorWindow::SpawnModelFromFile(World& world, const std::string& modelpath
 
 	// 非同期ロード（SceneManager経由でAsyncLoaderを取得）
 	AsyncLoader::Get().LoadModelAsync(modelpath, 1.0f,
-		[&world, e,modelpath](ModelLoadResult result)
+		[&world, e,modelpath,scene](ModelLoadResult result)
 		{
 			LOG->LogInfo("callback: mesh=" + std::to_string(result.mesh != nullptr)
 				+ " clips=" + std::to_string(result.clips.size())
@@ -1066,7 +1066,13 @@ void EditorWindow::SpawnModelFromFile(World& world, const std::string& modelpath
 			if (world.HasComponent<TransformComponent>(e))
 			{
 				auto& tr = world.GetComponent<TransformComponent>(e);
-				tr.scale = { 0.01f, 0.01f, 0.01f };   // 見た目のスケールはここで
+
+				// fbxの場合は0.01 pmxは0.1
+				if(modelpath.ends_with(".fbx"))
+					tr.scale = float3(0.01f, 0.01f, 0.01f);
+				else if(modelpath.ends_with(".pmx"))
+					tr.scale = float3(0.1f, 0.1f, 0.1f);
+
 				tr.RebuildWorld();
 			}
 
@@ -1083,6 +1089,24 @@ void EditorWindow::SpawnModelFromFile(World& world, const std::string& modelpath
 				an.skeleton = result.skeleton;
 				an.skinData = result.skinData;
 				an.clips = result.clips;
+				an.morphs = result.morphs;
+				an.morphWeights.assign(result.morphs.morphs.size(), 0.0f);
+			
+				auto physComp = MmdPhysicsComponent{};
+				physComp.impl = std::make_shared<MmdPhysics>();
+
+				// PhysXが未初期化ならここで初期化してからMMD物理を構築
+				auto& physicsWorld = scene->EnsurePhysicsWorld();
+				if (physicsWorld.GetPhysics() == nullptr)
+				{
+					physicsWorld.Init();
+				}
+
+				if (physicsWorld.GetPhysics())
+				{
+					physComp.impl->Init(physicsWorld.GetPhysics(), result.physics, an.skeleton);
+					world.AddComponent<MmdPhysicsComponent>(e, physComp);
+				}
 
 				namespace fs = std::filesystem;
 				fs::path base = fs::path(modelpath);

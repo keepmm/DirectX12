@@ -299,6 +299,7 @@ ID3D12PipelineState* DirectXApp::RegisterShaderPass(const std::string& name, con
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = MakeBasePsoDesc();
 	desc.VS = vs->GetByteCode();
 	desc.PS = ps->GetByteCode();
+	desc.RasterizerState.CullMode = def.cullMode;
 	if (def.alphaBlend)
 	{
 		auto& rt = desc.BlendState.RenderTarget[0];
@@ -352,7 +353,7 @@ void DirectXApp::CreateRootSignature()
 	// t5 環境
 
 	// 配列の数がそのまま定数バッファやSRVの数になる
-	CD3DX12_ROOT_PARAMETER rootParameters[6] = {};
+	CD3DX12_ROOT_PARAMETER rootParameters[7] = {};
 	// b0 ~ b3 にCBVを割り当てる
 	rootParameters[0].InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_ALL);
 	rootParameters[1].InitAsConstantBufferView(1, 0, D3D12_SHADER_VISIBILITY_ALL);
@@ -362,6 +363,7 @@ void DirectXApp::CreateRootSignature()
 	// t0 にSRVを割り当てる
 	rootParameters[4].InitAsDescriptorTable(1, &srvRange, D3D12_SHADER_VISIBILITY_PIXEL);
 	rootParameters[5].InitAsConstantBufferView(4,0,D3D12_SHADER_VISIBILITY_VERTEX);
+	rootParameters[6].InitAsShaderResourceView(7,0,D3D12_SHADER_VISIBILITY_VERTEX);
 
 
 	CD3DX12_STATIC_SAMPLER_DESC staticSamplerDesc[3] = {
@@ -600,7 +602,9 @@ void DirectXApp::RegisterBuiltinShaders()
 
 
 		{ "Genshin_Toon",{ L"SkinnedShader.hlsl","SkinnedVS","vs_5_0", L"Genshin_ToonShader.hlsl","Genshin_ToonPS","ps_5_0", false } },
-
+		{ "Genshin_Outline", { L"GenshinOutline.hlsl","Genshin_OutlineVS","vs_5_0",
+					   L"GenshinOutline.hlsl","Genshin_OutlinePS","ps_5_0",
+					   false, D3D12_CULL_MODE_FRONT } },
 	};
 	for (auto& e : builtins) RegisterShaderPass(e.name, e.def);
 }

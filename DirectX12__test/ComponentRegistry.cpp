@@ -3,6 +3,8 @@
 #include "imguiinit.hpp"
 #include "DirectX.hpp"
 #include "Util.hpp"
+#include "ModelLoader.hpp"
+#include "Debug.hpp"
 
 using json = nlohmann::json;
 
@@ -20,6 +22,53 @@ void DrawExtraUI<AudioSourceComponent>(World&, Entity, AudioSourceComponent& src
 template<>
 void DrawExtraUI<AnimatorComponent>(World&, Entity, AnimatorComponent& an)
 {
+    // --- VMD読み込みボタン (クリップが無くても押せるように先頭に置く) ---
+    if (ImGui::Button(u8("VMD読み込み...")))
+    {
+        std::wstring picked;
+        // フィルタはダブルNUL終端
+        if (OpenFileDialog(picked, L"VMD Motion\0*.vmd\0All\0*.*\0"))
+        {
+            const std::string path = WideToUtf8(picked);
+            AnimationClip vc = ModelLoader::LoadVMDClip(path, an.skeleton);
+            if (!vc.channels.empty())
+            {
+                an.clips.push_back(std::move(vc));
+                an.currentClip = (int)an.clips.size() - 1;   // 追加したクリップを選択
+                an.time = 0.0f;
+                an.playing = true;
+            }
+            else
+            {
+                LOG->LogWarning(u8("VMD読み込み失敗またはボーン不一致: ") + path);
+            }
+        }
+    }
+
+    // Assetsからのドラッグ&ドロップでもVMDを受け取る
+    if (ImGui::BeginDragDropTarget())
+    {
+        if (const ImGuiPayload* p = ImGui::AcceptDragDropPayload("ASSET_PATH"))
+        {
+            std::string path((const char*)p->Data, p->DataSize - 1);
+            if (path.size() > 4 &&
+                _stricmp(path.c_str() + path.size() - 4, ".vmd") == 0)
+            {
+                AnimationClip vc = ModelLoader::LoadVMDClip(path, an.skeleton);
+                if (!vc.channels.empty())
+                {
+                    an.clips.push_back(std::move(vc));
+                    an.currentClip = (int)an.clips.size() - 1;
+                    an.time = 0.0f;
+                    an.playing = true;
+                }
+            }
+        }
+        ImGui::EndDragDropTarget();
+    }
+
+    ImGui::Separator();
+
     if (an.clips.empty())
     {
         ImGui::TextDisabled(u8("クリップなし"));
@@ -40,7 +89,7 @@ void DrawExtraUI<AnimatorComponent>(World&, Entity, AnimatorComponent& an)
             if (ImGui::Selectable(label.c_str(), selected))
             {
                 an.currentClip = i;
-                an.time = 0.0f;   // 切替時は先頭から再生
+                an.time = 0.0f;
             }
             if (selected) ImGui::SetItemDefaultFocus();
         }
@@ -54,7 +103,6 @@ void DrawExtraUI<AnimatorComponent>(World&, Entity, AnimatorComponent& an)
     if (ImGui::Button(u8("最初から")))
         an.time = 0.0f;
 
-    // 進行バー（読み取り表示）
     const auto& clip = an.clips[an.currentClip];
     if (clip.duration > 0.0f)
         ImGui::ProgressBar(an.time / clip.duration, ImVec2(-1, 0));
