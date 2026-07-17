@@ -35,12 +35,20 @@ bool Shader::LoadFromFile(
 	m_Blob.Reset();
 	m_DxcBlob.Reset();
 
-	if (UseDxcProfile(profile))
+	std::wstring resolved = filepath;
+	if (!std::filesystem::exists(resolved))
 	{
-		return CompileWithDxc(filepath, entryPoint, profile, compileFlags);
+		std::wstring alt = L"Shaders/" +
+			std::wstring(std::filesystem::path(filepath).filename());
+		if (std::filesystem::exists(alt)) resolved = alt;
 	}
 
-	return CompileWithD3DCompile(filepath, entryPoint, profile, compileFlags);
+	if (UseDxcProfile(profile))
+	{
+		return CompileWithDxc(resolved, entryPoint, profile, compileFlags);
+	}
+
+	return CompileWithD3DCompile(resolved, entryPoint, profile, compileFlags);
 }
 
 bool Shader::CompileWithDxc(const std::wstring& filepath, const std::string& entryPoint, const std::string& profile, UINT compileFlags)
@@ -110,6 +118,12 @@ bool Shader::CompileWithDxc(const std::wstring& filepath, const std::string& ent
 		}
 	}
 
+	if (errors && errors->GetStringLength() > 0)
+	{
+		m_LastError = errors->GetStringPointer();	// •ÛŽ
+		OutputDebugStringA(m_LastError.c_str());
+	}
+
 	HRESULT status = S_OK;
 	if (FAILED(result->GetStatus(&status)) || FAILED(status))
 	{
@@ -137,7 +151,7 @@ bool Shader::CompileWithD3DCompile(const std::wstring& filepath, const std::stri
 	const auto hr = D3DCompileFromFile(
 		filepath.c_str(),
 		nullptr,
-		nullptr,
+		D3D_COMPILE_STANDARD_FILE_INCLUDE,
 		entryPoint.c_str(),
 		profile.c_str(),
 		compileFlags,
@@ -152,6 +166,11 @@ bool Shader::CompileWithD3DCompile(const std::wstring& filepath, const std::stri
 			OutputDebugStringA(static_cast<const char*>(errorBlob->GetBufferPointer()));
 		}
 		return false;
+	}
+
+	if (errorBlob)
+	{
+		m_LastError = static_cast<const char*>(errorBlob->GetBufferPointer());
 	}
 
 	return true;

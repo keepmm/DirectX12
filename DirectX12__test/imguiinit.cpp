@@ -11,6 +11,8 @@
 #include "imguiinit.hpp"
 #include "DirectX.hpp"
 #include <string_view>
+#include "Theme.hpp"
+#include <cstdlib>
 
 IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
@@ -114,7 +116,7 @@ bool IMGUI::Start(_In_ HWND hWnd,
 	io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 
 	// スタイル調整
-	ImGui::StyleColorsClassic();
+	ApplyTheme(uiTheme::Dark);
 	ImGuiStyle& style = ImGui::GetStyle();
 	style.WindowRounding = 0.0f;
 	style.Colors[ImGuiCol_WindowBg].w = 1.0f;
@@ -123,9 +125,34 @@ bool IMGUI::Start(_In_ HWND hWnd,
 	//	 日本語フォントの設定
 	// ===========================
 	ImFontConfig config;
+	auto* jp = io.Fonts->GetGlyphRangesJapanese();
 	config.OversampleH = 2;  // 水平方向のオーバーサンプリング
 	config.OversampleV = 1;  // 垂直方向のオーバーサンプリング
 	config.PixelSnapH = true; // ピクセルにスナップ
+
+	auto addFont = [&](const char* path, float size, const char* name) -> ImFont*
+		{
+			if (!std::filesystem::exists(path)) return nullptr;   // 無ければスキップ
+			strcpy_s(config.Name, name);
+			return io.Fonts->AddFontFromFileTTF(path, size, &config, jp);
+		};
+
+	// ユーザーフォントフォルダのパスを組み立て
+	std::string userFonts;
+	if (const char* local = std::getenv("LOCALAPPDATA"))
+		userFonts = std::string(local) + "\\Microsoft\\Windows\\Fonts\\";
+
+	ImFont* first = nullptr;
+	auto pick = [&](ImFont* f) { if (f && !first) first = f; };
+
+	// うずら（ユーザーフォント）
+	pick(addFont((userFonts + "uzura.ttf").c_str(), 16.0f, "うずら 16px"));
+	pick(addFont((userFonts + "uzura.ttf").c_str(), 20.0f, "うずら 20px"));
+	// システムフォント
+	pick(addFont("C:\\Windows\\Fonts\\meiryo.ttc", 18.0f, "メイリオ 18px"));
+	pick(addFont("C:\\Windows\\Fonts\\YuGothM.ttc", 18.0f, "游ゴシック 18px"));
+
+	io.FontDefault = first ? first : io.Fonts->AddFontDefault();
 
 	// ========================================
 	// Windowsの標準日本語フォントを読み込む
@@ -188,13 +215,6 @@ LRESULT IMGUI::ImGui_WndProHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lP
 {
 	return ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam);
 }
-// ======================================================
-// Shift-JIS文字列をUTF-8に変換してImGuiに表示する関数
-// ======================================================
-//std::string IMGUI::ToUTF8(const char* sjis)
-//{
-//	return ShiftJIStoUTF8(sjis);
-//}
 
 std::string IMGUI::ToUTF8(std::string text)
 {

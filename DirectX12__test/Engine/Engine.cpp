@@ -6,6 +6,8 @@
 #include "../imguiinit.hpp"
 #include "../imgui-master/backends/imgui_impl_dx12.h"
 #include "../imgui-master/backends/imgui_impl_win32.h"
+#include "../ScriptHost.hpp"
+#include "../IconLibrary.hpp"
 
 static LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -48,15 +50,18 @@ void Engine::CreateGameWindow(int width, int height)
 		return;
 	}
 
-	RECT rect = { 0, 0, static_cast<LONG>(width), static_cast<LONG>(height) };
-	AdjustWindowRectEx(&rect, WS_OVERLAPPEDWINDOW, FALSE, WS_EX_APPWINDOW);
+	// ------------------------ //
+	// ボーダレスフルスクリーン //
+	// ------------------------ //
+	const int screenW = GetSystemMetrics(SM_CXSCREEN);
+	const int screenH = GetSystemMetrics(SM_CYSCREEN);
 
 	m_hWnd = CreateWindow(
 		CLASS_NAME,
 		PROC_NAME,
-		WS_OVERLAPPEDWINDOW,
-		CW_USEDEFAULT, CW_USEDEFAULT,
-		rect.right - rect.left, rect.bottom - rect.top,
+		WS_POPUP,
+		0,0,
+		screenW,screenH,
 		NULL, NULL, m_hInstance, NULL
 	);
 }
@@ -68,12 +73,19 @@ HRESULT Engine::Init(HINSTANCE hInstance, int width, int height)
 	CreateGameWindow(width, height);
 
 	LOG->Init();
-	m_DirectX = MakeUnique<DirectXApp>(m_hWnd, width, height);
+
+	// ウィンドウの実サイズでスワップチェーンを作る
+	RECT rc{};
+	GetClientRect(m_hWnd, &rc);
+	const int clientW = rc.right - rc.left;
+	const int clientH = rc.bottom - rc.top;
+
+	m_DirectX = MakeUnique<DirectXApp>(m_hWnd, clientW, clientH);
 
 	TIME->Init();
 	INPUT->Init(m_hWnd);
 
-	if (!IMGUI::Start(m_hWnd, m_DirectX->GetDevice().Get(), m_DirectX->GetCommandQueue().Get(), DirectXApp::RTV_NUM, DXGI_FORMAT_R8G8B8A8_UNORM))
+	if (!IMGUI::Start(m_hWnd, m_DirectX->GetDevice().Get(), m_DirectX->GetCommandQueue().Get(),RTV_NUM, DXGI_FORMAT_R8G8B8A8_UNORM))
 	{
 		MessageBox(NULL, _T("IMGUIの初期化に失敗"), PROC_NAME, MB_OK);
 		return E_FAIL;
@@ -111,6 +123,7 @@ void Engine::Run()
 
 			float deltaTime = TIME->GetDeltaTime();
 
+
 			m_DirectX->ReloadShader();
 			if (FAILED(m_DirectX->BeginRender()))
 			{
@@ -118,9 +131,15 @@ void Engine::Run()
 				return;
 			}
 			IMGUI::BeginFrame();
+			IconLibrary::Get()->BeginFrame();
+			ImGuiIO& io = ImGui::GetIO();
+			INPUT->SetImGuiCapture(io.WantCaptureKeyboard, io.WantCaptureMouse, io.WantTextInput);
 
 			// エンジン更新
 			m_SceneManager.Update(deltaTime);
+
+			Scene* scene = m_SceneManager.GetActiveScene();
+			ScriptHost::Update(deltaTime,&scene->GetWorld());
 
 
 			// 固定タイムステップ更新
@@ -139,6 +158,7 @@ void Engine::Run()
 			RenderContext renderContext{};
 			renderContext.CommandList = m_DirectX->GetCommandList().Get();
 			renderContext.frameIndex = m_DirectX->GetFrameIndex();
+			renderContext.cbAllocator = &m_DirectX->GetConstantBufferAllocator();
 
 			const auto& settings = RenderSettings::Get();
 			renderContext.vertexShader = settings.vertexShader;
@@ -166,6 +186,8 @@ void Engine::Run()
 
 void Engine::Terminate()
 {
+	ScriptHost::Close();
+	APP->WaitForGPUIdle();
 	OnShutDown();
 	IMGUI::Release();
 	LOG->ShutDown();

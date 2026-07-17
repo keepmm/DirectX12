@@ -1,9 +1,23 @@
 #include "SceneManager.hpp"
 #include "Logger.hpp"
+#include "PlayState.hpp"
+#include "RuntimeScene.hpp"
+#include "SceneSerializer.hpp"
 
 SceneManager::SceneManager()
 	: m_ThreadPool(std::thread::hardware_concurrency())
 {
+}
+
+bool SceneManager::RegisterScene(const std::string& name)
+{
+	if(!m_SceneFactory) return false;
+
+	{
+		std::lock_guard<std::mutex> lk(m_SceneMutex);
+		if (m_Scenes.count(name)) return true;
+	}
+	RegisterScene(name, m_SceneFactory(ScenePathFromName(name)));
 }
 
 void SceneManager::RegisterScene(const std::string& name, std::unique_ptr<Scene> scene)
@@ -96,11 +110,20 @@ Scene* SceneManager::GetActiveScene() const
 
 void SceneManager::Update(float deltatime)
 {
-	// 非同期処理をロック
-	std::unique_lock<std::mutex> lock(m_SceneMutex);
+	// AsyncLoader を一度だけ初期化（deviceが用意できてから）
+	if (!AsyncLoader::Get().IsReady())
+	{
+		AsyncLoader::Get().Init(&m_ThreadPool, APP->GetDevice());
+	}
+
+	// 完了した非同期ロードをメインスレッドで反映
+	AsyncLoader::Get().ProcessCompletedTasks();
 
 	// シーンロード / アンロード処理
 	ProcessSceneQueue();
+
+	// フェード処理
+	UpdateFade(deltatime);
 
 	// ロード済みシーンの更新
 	UpdateLoadedScenes(deltatime);
@@ -112,6 +135,20 @@ void SceneManager::Draw(const RenderContext& renderContext)
 	{
 		m_ActiveScene->Draw(renderContext);
 	}
+}
+
+void SceneManager::RequestSceneChangeWithFade(const std::string& name)
+{
+	if (m_Transition != TransitionPhase::None) return;
+	m_PendingSceneName = name;
+	m_Transition = TransitionPhase::FadeOut;
+}
+
+void SceneManager::RequestSceneChangeWithString(const std::string& name)
+{
+	if (m_Transition != TransitionPhase::None) return;
+	m_PendingScenePath = name;
+	m_Transition = TransitionPhase::FadeOut;
 }
 
 void SceneManager::ProcessSceneQueue()
@@ -229,7 +266,14 @@ void SceneManager::UpdateLoadedScenes(float deltatime)
 	{
 		if(scene && scene->IsActive())
 		{
-			scene->Update(deltatime);
+			if (PLAY.isPlaying())
+			{
+				scene->Update(deltatime);
+			}
+			else
+			{
+				static_cast<RuntimeScene*>(scene)->EditorUpdate(deltatime);
+			}
 		}
 	}
 }
@@ -256,6 +300,11 @@ Scene* SceneManager::FindLoadedScene(const std::string& name) const
 
 void SceneManager::FixedUpdate(float fixedDeltatime)
 {
+	if(!PLAY.isPlaying())
+	{
+		return;
+	}
+
 	for (auto scene : m_LoadedScenes)
 	{
 		if(scene && scene->IsActive())
@@ -264,6 +313,7 @@ void SceneManager::FixedUpdate(float fixedDeltatime)
 			{
 				physicsWorld->Update(fixedDeltatime);
 				physicsWorld->SyncTransforms(scene->GetWorld());
+				physicsWorld->DispatchEvents(scene->GetWorld());
 			}
 			scene->FixedUpdate(fixedDeltatime);
 		}
@@ -278,5 +328,51 @@ void SceneManager::LateUpdate(float deltatime)
 		{
 			scene->LateUpdate(deltatime);
 		}
+	}
+}
+
+void SceneManager::UpdateFade(float deltatime)
+{
+	switch (m_Transition)
+	{
+	case TransitionPhase::FadeOut:
+		m_FadeAlpha += m_FadeSpeed * deltatime;
+		if (m_FadeAlpha >= 1.0f)
+		{
+			m_FadeAlpha = 1.0f;
+
+			// 真っ黒の瞬間に実処理（どちらの遷移かで分岐）
+			if (!m_PendingScenePath.empty())
+			{
+				// 方式A: アクティブシーンにファイルから上書きロード
+				if (m_ActiveScene)
+				{
+					APP->WaitForGPUIdle();
+					SceneSerializer::Load(*m_ActiveScene, m_PendingScenePath);
+				}
+				m_PendingScenePath.clear();
+			}
+			else if (!m_PendingSceneName.empty())
+			{
+				// 名前指定の切り替え
+				LoadScene(m_PendingSceneName);
+				m_PendingSceneName.clear();
+			}
+
+			m_Transition = TransitionPhase::FadeIn;
+		}
+		break;
+	case TransitionPhase::FadeIn:
+		m_FadeAlpha -= m_FadeSpeed * deltatime;
+		if (m_FadeAlpha <= 0.0f)
+		{
+			m_FadeAlpha = 0.0f;
+			m_Transition = TransitionPhase::None;
+		}
+		break;
+	case TransitionPhase::None:
+		break;
+	default:
+		break;
 	}
 }

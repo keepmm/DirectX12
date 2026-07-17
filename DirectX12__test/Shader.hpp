@@ -38,6 +38,8 @@ public:
 		}
 		return byteCode;
 	}
+
+	const std::string& GetLastError() const { return m_LastError; }
 private:
 	bool CompileWithDxc(
 		_In_ const std::wstring& filepath,
@@ -53,5 +55,6 @@ private:
 private:
 	ComPtr<ID3DBlob> m_Blob;
 	ComPtr<IDxcBlob> m_DxcBlob;
+	std::string m_LastError;
 };
 

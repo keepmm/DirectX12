@@ -45,7 +45,7 @@
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
     <PlatformToolset>v143</PlatformToolset>
-    <CharacterSet>Unicode</CharacterSet>
+    <CharacterSet>MultiByte</CharacterSet>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
@@ -105,7 +105,7 @@
     <ClCompile>
       <WarningLevel>Level3</WarningLevel>
       <SDLCheck>false</SDLCheck>
-      <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>ENGINE_EXPORTS;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
       <LanguageStandard>stdcpp20</LanguageStandard>
@@ -113,6 +113,7 @@
       <PrecompiledHeaderFile>
       </PrecompiledHeaderFile>
       <ForcedIncludeFiles>pch.h</ForcedIncludeFiles>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -123,6 +124,9 @@
     <FxCompile>
       <ShaderModel>6.8</ShaderModel>
     </FxCompile>
+    <PostBuildEvent>
+      <Command>xcopy /Y /E /I /D "$(ProjectDir)Assets" "$(OutDir)Assets"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
     <ClCompile>
@@ -130,19 +134,30 @@
       <FunctionLevelLinking>true</FunctionLevelLinking>
       <IntrinsicFunctions>true</IntrinsicFunctions>
       <SDLCheck>false</SDLCheck>
-      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions);ENGINE_EXPORTS</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <AdditionalDependencies>..\DirectX12__test\assimp-vc142-mt.lib;..\DirectX12__test\DirectXTex\x64\Release\DirectXTex.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
+    <PostBuildEvent>
+      <Command>xcopy /Y /E /I /D "$(ProjectDir)Assets" "$(OutDir)Assets"</Command>
+    </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Application.cpp" />
+    <ClCompile Include="AssetWindow.cpp" />
+    <ClCompile Include="AsyncLoader.cpp" />
+    <ClCompile Include="AudioEngine.cpp" />
+    <ClCompile Include="BeamRenderer.cpp" />
+    <ClCompile Include="BuildSystem.cpp" />
+    <ClCompile Include="ComponentRegistry.cpp" />
+    <ClCompile Include="ConstantBufferAllocator.cpp" />
     <ClCompile Include="DebugLineRenderer.cpp" />
     <ClCompile Include="DirectX.cpp" />
     <ClCompile Include="EditorWindow.cpp" />
@@ -151,32 +166,43 @@
       <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
       </ForcedIncludeFiles>
     </ClCompile>
+    <ClCompile Include="FireworkSystem.cpp" />
+    <ClCompile Include="FontAtlas.cpp" />
+    <ClCompile Include="GBuffer.cpp" />
     <ClCompile Include="IconLibrary.cpp" />
     <ClCompile Include="imgui.cpp" />
     <ClCompile Include="imguiinit.cpp" />
+    <ClCompile Include="ImGuizmo.cpp" />
     <ClCompile Include="imgui_draw.cpp" />
     <ClCompile Include="imgui_impl_dx12.cpp" />
     <ClCompile Include="imgui_impl_win32.cpp" />
     <ClCompile Include="imgui_tables.cpp" />
     <ClCompile Include="imgui_widgets.cpp" />
     <ClCompile Include="Input.cpp" />
+    <ClCompile Include="InspectorWindow.cpp" />
     <ClCompile Include="Logger.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Material.cpp" />
     <ClCompile Include="Mesh.cpp" />
     <ClCompile Include="MeshRenderer.cpp" />
+    <ClCompile Include="MmdPhysics.cpp" />
     <ClCompile Include="ModelLoader.cpp" />
     <ClCompile Include="MonoBehavior.cpp" />
     <ClCompile Include="PhysicsWorld.cpp" />
     <ClCompile Include="PipelineStateCache.cpp" />
+    <ClCompile Include="PlayState.cpp" />
+    <ClCompile Include="PMXLoader.cpp" />
     <ClCompile Include="Polygon.cpp" />
     <ClCompile Include="PrefabLibrary.cpp" />
+    <ClCompile Include="PsoRegistry.cpp" />
+    <ClCompile Include="RegisterScript.cpp" />
     <ClCompile Include="RenderTexture.cpp" />
     <ClCompile Include="RuntimeScene.cpp" />
     <ClCompile Include="SampleScene.cpp" />
     <ClCompile Include="Scene.cpp" />
     <ClCompile Include="SceneManager.cpp" />
     <ClCompile Include="SceneSerializer.cpp" />
+    <ClCompile Include="ScriptHost.cpp" />
     <ClCompile Include="Shader.cpp" />
     <ClCompile Include="ShaderLibrary.cpp" />
     <ClCompile Include="Engine/ThreadPool.cpp">
@@ -184,21 +210,37 @@
       <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
       </ForcedIncludeFiles>
     </ClCompile>
+    <ClCompile Include="ShadowMap.cpp" />
     <ClCompile Include="Time.cpp" />
     <ClCompile Include="Vertex.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="Animator.hpp" />
     <ClInclude Include="Application.hpp" />
+    <ClInclude Include="AsyncLoader.hpp" />
+    <ClInclude Include="AudioEngine.hpp" />
+    <ClInclude Include="BeamRenderer.hpp" />
+    <ClInclude Include="BuildSystem.hpp" />
+    <ClInclude Include="ComponentRegistry.hpp" />
     <ClInclude Include="Components.hpp" />
+    <ClInclude Include="ConstantBufferAllocator.hpp" />
+    <ClInclude Include="cr.h" />
+    <ClInclude Include="Debug.hpp" />
     <ClInclude Include="DebugLineRenderer.hpp" />
     <ClInclude Include="Defines.hpp" />
     <ClInclude Include="DirectX.hpp" />
     <ClInclude Include="EditorWindow.hpp" />
     <ClInclude Include="Engine/Engine.hpp" />
+    <ClInclude Include="EngineAPI.hpp" />
+    <ClInclude Include="FireworkSystem.hpp" />
+    <ClInclude Include="FontAtlas.hpp" />
+    <ClInclude Include="GameAPI.hpp" />
+    <ClInclude Include="GBuffer.hpp" />
     <ClInclude Include="IconLibrary.hpp" />
     <ClInclude Include="imconfig.h" />
     <ClInclude Include="imgui.h" />
     <ClInclude Include="imguiinit.hpp" />
+    <ClInclude Include="ImGuizmo.h" />
     <ClInclude Include="imgui_internal.h" />
     <ClInclude Include="imstb_rectpack.h" />
     <ClInclude Include="imstb_textedit.h" />
@@ -209,14 +251,19 @@
     <ClInclude Include="Material.hpp" />
     <ClInclude Include="Mesh.hpp" />
     <ClInclude Include="MeshRenderer.hpp" />
+    <ClInclude Include="MmdPhysics.hpp" />
     <ClInclude Include="ModelData.hpp" />
     <ClInclude Include="ModelLoader.hpp" />
     <ClInclude Include="MonoBehavior.hpp" />
     <ClInclude Include="pch.h" />
     <ClInclude Include="PhysicsWorld.hpp" />
     <ClInclude Include="PipelineStateCache.hpp" />
+    <ClInclude Include="PlayState.hpp" />
+    <ClInclude Include="PMXLoader.hpp" />
     <ClInclude Include="Polygon.hpp" />
     <ClInclude Include="PrefabLibrary.hpp" />
+    <ClInclude Include="PsoRegistry.hpp" />
+    <ClInclude Include="RegisterScript.hpp" />
     <ClInclude Include="RenderContext.hpp" />
     <ClInclude Include="RenderTexture.hpp" />
     <ClInclude Include="RuntimeScene.hpp" />
@@ -224,63 +271,230 @@
     <ClInclude Include="Scene.hpp" />
     <ClInclude Include="SceneManager.hpp" />
     <ClInclude Include="SceneSerializer.hpp" />
+    <ClInclude Include="ScriptContext.hpp" />
+    <ClInclude Include="ScriptField.hpp" />
+    <ClInclude Include="ScriptHost.hpp" />
+    <ClInclude Include="SePlayer.hpp" />
     <ClInclude Include="Shader.hpp" />
     <ClInclude Include="ShaderLibrary.hpp" />
+    <ClInclude Include="ShaderTemplates.hpp" />
+    <ClInclude Include="ShaderTypes.hpp" />
+    <ClInclude Include="ShadowMap.hpp" />
     <ClInclude Include="Systems.hpp" />
     <ClInclude Include="Engine/ThreadPool.hpp" />
+    <ClInclude Include="Theme.hpp" />
     <ClInclude Include="Time.hpp" />
+    <ClInclude Include="Util.hpp" />
     <ClInclude Include="Vertex.hpp" />
     <ClInclude Include="World.hpp" />
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="MS_MeshShader.hlsl">
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Mesh</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">MeshMain</EntryPointName>
-    </FxCompile>
-    <FxCompile Include="PixelShader.hlsl">
+    <None Include="GBufferShader.hlsl" />
+    <None Include="PBRShader.hlsl" />
+    <None Include="PixelShader.hlsl" />
+    <None Include="PS_LineShader.hlsl">
+      <FileType>Document</FileType>
+    </None>
+    <None Include="ToonShader.hlsl" />
+    <None Include="VertexShader.hlsl" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="BRDF.hlsli" />
+    <None Include="Common.hlsli" />
+    <None Include="Lighting.hlsli" />
+    <None Include="packages.config" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Assets\Icons\CameraIcon.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Assets\Icons\File.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Assets\Icons\Folder.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Assets\Icons\Image.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Assets\Icons\Json.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Assets\Icons\LightIcon.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Assets\Icons\Material.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Assets\Icons\Model.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Assets\Model\akai\Akai.fbx">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Assets\Model\akai\Akai_Idle.fbx">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Assets\Model\akai\Akai_Run.fbx">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Assets\Model\Camera.fbx">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Assets\Model\Player.fbx">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Assets\Model\spot\1x\asd.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Assets\Model\spot\spot.fbx">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Assets\Model\spot\spot_texture.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Assets\Model\test.fbx">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Assets\Scenes\Ingame.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Assets\Scenes\Red.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Assets\Scenes\SampleScene.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Assets\Scripts\empty.txt">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Assets\Scripts\kawaguchi.cpp">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Assets\Texture\Mutant_diffuse.png">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="Assets\Texture\RampTex.bmp">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="RimShader.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="FresnelShader.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">BasicPS</EntryPointName>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
-    </FxCompile>
-    <FxCompile Include="PS_LineShader.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="DissolveShader.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
-      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Release|x64'">LinePS</EntryPointName>
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">LinePS</EntryPointName>
-    </FxCompile>
-    <FxCompile Include="ToonShader.hlsl">
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
-      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">ToonPS</EntryPointName>
+      <FileType>Document</FileType>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
-    </FxCompile>
-    <FxCompile Include="VertexShader.hlsl">
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="BlinnPhongShader.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <FileType>Document</FileType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="SkyBoxShader.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="Assets\Texture\metal.jpg" />
+    <Image Include="Assets\Texture\plate.png" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="ShadowShader.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
-      <EntryPointName Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">BasicVS</EntryPointName>
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
-    </FxCompile>
+      <FileType>Document</FileType>
+    </None>
   </ItemGroup>
   <ItemGroup>
-    <None Include="imgui.ini" />
-    <None Include="packages.config" />
+    <None Include="SkinnedShader.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
+      <FileType>Document</FileType>
+    </None>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Assets\**\*.*">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    <None Include="Genshin_ToonShader.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="GenshinOutline.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="LaserBeamShader.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <FileType>Document</FileType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="DeferredLighting.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="PostProcess.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
+      <FileType>Document</FileType>
     </None>
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
@@ -289,6 +503,7 @@
     <Import Project="..\packages\assimp_native.4.0.1\build\native\assimp_native.targets" Condition="Exists('..\packages\assimp_native.4.0.1\build\native\assimp_native.targets')" />
     <Import Project="..\packages\Assimp_native_4.1_v142.4.1.0\build\native\Assimp_native_4.1_v142.targets" Condition="Exists('..\packages\Assimp_native_4.1_v142.4.1.0\build\native\Assimp_native_4.1_v142.targets')" />
     <Import Project="..\packages\NVIDIA.PhysX.4.1.229882250\build\native\NVIDIA.PhysX.targets" Condition="Exists('..\packages\NVIDIA.PhysX.4.1.229882250\build\native\NVIDIA.PhysX.targets')" />
+    <Import Project="..\packages\directxtex_desktop_win10.2026.5.8.1\build\native\directxtex_desktop_win10.targets" Condition="Exists('..\packages\directxtex_desktop_win10.2026.5.8.1\build\native\directxtex_desktop_win10.targets')" />
   </ImportGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
@@ -300,5 +515,6 @@
     <Error Condition="!Exists('..\packages\BulletSharp.x64.0.12.0\build\BulletSharp.x64.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\BulletSharp.x64.0.12.0\build\BulletSharp.x64.props'))" />
     <Error Condition="!Exists('..\packages\NVIDIA.PhysX.4.1.229882250\build\native\NVIDIA.PhysX.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\NVIDIA.PhysX.4.1.229882250\build\native\NVIDIA.PhysX.props'))" />
     <Error Condition="!Exists('..\packages\NVIDIA.PhysX.4.1.229882250\build\native\NVIDIA.PhysX.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\NVIDIA.PhysX.4.1.229882250\build\native\NVIDIA.PhysX.targets'))" />
+    <Error Condition="!Exists('..\packages\directxtex_desktop_win10.2026.5.8.1\build\native\directxtex_desktop_win10.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\directxtex_desktop_win10.2026.5.8.1\build\native\directxtex_desktop_win10.targets'))" />
   </Target>
 </Project>

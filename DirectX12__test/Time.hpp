@@ -8,10 +8,12 @@
  * *********************************************************************/
 #pragma once
 #include <Windows.h>
+#include "EngineAPI.hpp"
 
+// 
 #define TIME Time::GetInstance()
 
-class Time
+class ENGINE_API Time
 {
 public:
 	static Time* GetInstance();

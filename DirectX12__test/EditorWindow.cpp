@@ -10,20 +10,98 @@
 #include "Logger.hpp"
 #include <Psapi.h>
 #include "IconLibrary.hpp"
+#include "ModelLoader.hpp"
+#include "ImGuizmo.h"
+#include "PlayState.hpp"
+#include <shellapi.h>
+#include "Util.hpp"
+#include "BuildSystem.hpp"
+#include <ShObjIdl.h>
 
 #pragma comment(lib, "psapi.lib")
 
-EditorWindow::EditorWindow(DirectXApp& app)
+// ワイド文字列 → UTF-8(フォルダ選択ダイアログの結果用)
+static std::string WideToUTF8(const wchar_t* w)
+{
+	if (!w) return {};
+	int len = WideCharToMultiByte(CP_UTF8, 0, w, -1, nullptr, 0, nullptr, nullptr);
+	if (len <= 1) return {};
+	std::string result(len - 1, '\0');   // len は終端NUL込み
+	WideCharToMultiByte(CP_UTF8, 0, w, -1, result.data(), len, nullptr, nullptr);
+	return result;
+}
+
+static Entity GetParent(World& world, Entity e)
+{
+	if (world.HasComponent<TransformComponent>(e))
+		return world.GetComponent<TransformComponent>(e).parent;
+	if (world.HasComponent<RectTransformComponent>(e))
+		return world.GetComponent<RectTransformComponent>(e).parent;
+	return INVALID_ENTITY;
+}
+
+static void SetParent(World& world, Entity child, Entity parent)
+{
+	if (world.HasComponent<TransformComponent>(child))
+		world.GetComponent<TransformComponent>(child).parent = parent;
+	else if (world.HasComponent<RectTransformComponent>(child))
+		world.GetComponent<RectTransformComponent>(child).parent = parent;
+}
+
+static void SetParentKeepWorld(World& world, Entity child, Entity newParent)
+{
+	using namespace DirectX;
+	if (!world.HasComponent<TransformComponent>(child)) return;
+	auto& ct = world.GetComponent<TransformComponent>(child);
+
+	// 子の今のワールド行列（TransformSystem計算済み）
+	XMMATRIX childWorld = XMLoadFloat4x4(&ct.world);
+
+	if (newParent != INVALID_ENTITY && world.HasComponent<TransformComponent>(newParent))
+	{
+		auto& pt = world.GetComponent<TransformComponent>(newParent);
+		XMMATRIX parentWorld = XMLoadFloat4x4(&pt.world);
+
+		// 新ローカル = 子ワールド x 親ワールドの逆
+		XMVECTOR det;
+		XMMATRIX newLocal = childWorld * XMMatrixInverse(&det, parentWorld);
+
+		XMVECTOR s, r, t;
+		XMMatrixDecompose(&s, &r, &t, newLocal);
+		XMStoreFloat3(&ct.position, t);
+		XMStoreFloat4(&ct.rotation, r);
+		XMStoreFloat3(&ct.scale, s);
+	}
+	ct.parent = newParent;
+}
+
+static bool IsAncestor(World& world, Entity maybeAncestor, Entity child)
+{
+	Entity cur = child;
+	while (cur != INVALID_ENTITY && world.HasComponent<TransformComponent>(cur))
+	{
+		Entity p = world.GetComponent<TransformComponent>(cur).parent;
+		if (p == maybeAncestor) return true;
+		cur = p;
+	}
+	return false;
+}
+
+EditorWindow::EditorWindow(DirectXApp& app, SceneManager& sceneManager)
 	: m_App(app)
 {
 	// ファイルパスの初期値を設定
-	std::snprintf(m_SceneNameInput.data(), m_SceneNameInput.size(), "Assets/Scenes/SampleScene.json");
-	std::snprintf(m_SceneRegisterName.data(), m_SceneRegisterName.size(), "SampleScene");
-	std::snprintf(m_SceneRegisterPath.data(), m_SceneRegisterName.size(), "Assets/Scenes/SampleScene.json");
+	if (Scene* s = sceneManager.GetActiveScene())
+	{
+		std::snprintf(m_SceneRegisterName.data(), m_SceneRegisterName.size(),
+			"%s", s->GetSceneName().c_str());
+		std::snprintf(m_SceneRegisterPath.data(), m_SceneRegisterPath.size(),
+			"%s", s->GetSceneName().c_str());   // Sceneがパスを持っていなければ追加
+	}
 
 	// ゲーム画面用のレンダーテクスチャ初期化
 	m_GameRenderTexture = std::make_unique<RenderTexture>();
-	if (FAILED(m_GameRenderTexture->Init(m_App, 1280, 720)))
+	if (FAILED(m_GameRenderTexture->Init(1280, 720)))
 	{
 		m_GameRenderTexture = nullptr;
 		m_GameTextureHandleValid = false;
@@ -35,7 +113,7 @@ EditorWindow::EditorWindow(DirectXApp& app)
 
 	// エディタ用のレンダーテクスチャ初期化
 	m_EditorRenderTexture = std::make_unique<RenderTexture>();
-	if (FAILED(m_EditorRenderTexture->Init(m_App, 1280, 720)))
+	if (FAILED(m_EditorRenderTexture->Init(1280, 720)))
 	{
 		m_EditorRenderTexture = nullptr;
 		m_EditorTextureHandleValid = false;
@@ -48,7 +126,35 @@ EditorWindow::EditorWindow(DirectXApp& app)
 
 void EditorWindow::Draw(SceneManager& sceneManager)
 {
-	// 前フレームのデバッグlineをクリア
+	BuildSystem::Update();
+	// ビルド中は右下に進捗オーバーレイを表示
+	if (BuildSystem::IsBuilding() || (BuildSystem::GetProgress() >= 1.0f && m_BuildOverlayTimer > 0.0f))
+	{
+		if (BuildSystem::IsBuilding()) m_BuildOverlayTimer = 2.0f;      // 完了後2秒だけ残す
+		else                           m_BuildOverlayTimer -= ImGui::GetIO().DeltaTime;
+
+		ImGuiViewport* vp = ImGui::GetMainViewport();
+		ImGui::SetNextWindowPos(
+			ImVec2(vp->WorkPos.x + vp->WorkSize.x - 10.0f,
+				vp->WorkPos.y + vp->WorkSize.y - 10.0f),
+			ImGuiCond_Always, ImVec2(1.0f, 1.0f));   // 右下基準
+		ImGui::SetNextWindowBgAlpha(0.85f);
+		ImGui::Begin(u8("ビルド進捗"), nullptr,
+			ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize |
+			ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing |
+			ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoDocking);
+
+		float p = BuildSystem::GetProgress();
+		// MSBuild 区間(進捗が動かない)はバーを流れるアニメーションにする
+		if (BuildSystem::IsBuilding() && p <= 0.05f)
+			ImGui::ProgressBar(-1.0f * (float)ImGui::GetTime(), ImVec2(260, 0), u8("MSBuild..."));
+		else
+			ImGui::ProgressBar(p, ImVec2(260, 0));
+
+		ImGui::TextUnformatted(BuildSystem::GetStage().c_str());
+		ImGui::End();
+	}
+	ImGuizmo::BeginFrame();
 
 	// アクティブなシーンを取得
 	Scene* activeScene = sceneManager.GetActiveScene();
@@ -62,7 +168,8 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 			{
 				if (activeScene)
 				{
-					SceneSerializer::Save(*activeScene, m_SceneRegisterPath.data());
+					SceneSerializer::Save(*activeScene,
+					SceneManager::ScenePathFromName(activeScene->GetSceneName()));
 				}
 			}
 			ImGui::EndMenu();
@@ -75,6 +182,81 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 			ImGui::Checkbox(u8("プロパティを表示"), &m_ShowProperties);
 			ImGui::Checkbox(u8("メモリ消費量を表示"), &m_ShowMemory);
 			ImGui::Checkbox(u8("詳細を表示"), &m_ShowDetails);
+			ImGui::Checkbox(u8("コンソールを表示"), &m_ShowConsole);
+			ImGui::Checkbox(u8("スタイル設定を表示"), &m_ShowStyleSetting);
+			ImGui::EndMenu();
+		}
+
+		if (ImGui::BeginMenu(u8("ビルド")))
+		{
+			ImGui::InputText(u8("出力先"), m_BuildOutputDir.data(), m_BuildOutputDir.size());
+			ImGui::SameLine();
+			if (ImGui::Button(u8("参照...###BuildOutputDir")))
+			{
+				ComPtr<IFileOpenDialog> dialog;
+				if (SUCCEEDED(CoCreateInstance(CLSID_FileOpenDialog, nullptr,
+					CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&dialog))))
+				{
+					DWORD opts = 0;
+					dialog->GetOptions(&opts);
+					dialog->SetOptions(opts | FOS_PICKFOLDERS);
+					if (SUCCEEDED(dialog->Show(nullptr)))
+					{
+						ComPtr<IShellItem> item;
+						PWSTR pathW = nullptr;
+						if (SUCCEEDED(dialog->GetResult(&item)) &&
+							SUCCEEDED(item->GetDisplayName(SIGDN_FILESYSPATH, &pathW)))
+						{
+							std::string utf8 = WideToUTF8(pathW);
+							std::snprintf(m_BuildOutputDir.data(), m_BuildOutputDir.size(), "%s", utf8.c_str());
+							CoTaskMemFree(pathW);
+						}
+					}
+				}
+			}
+			static int configIndex = 0;
+			ImGui::Combo(u8("構成"), &configIndex, "Release\0Debug\0");
+			ImGui::InputText(u8("ゲーム名"), m_BuildGameName.data(), m_BuildGameName.size());
+			ImGui::InputText(u8("開始シーン"), m_BuildStartScene.data(), m_BuildStartScene.size());
+			ImGui::SameLine();
+			if(ImGui::Button(u8("参照...###BuildStartScene")))
+			{
+				ComPtr<IFileOpenDialog> dialog;
+				if (SUCCEEDED(CoCreateInstance(CLSID_FileOpenDialog, nullptr,
+					CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&dialog))))
+				{
+					DWORD opts = 0;
+					dialog->GetOptions(&opts);
+					dialog->SetOptions(opts | FOS_FILEMUSTEXIST);
+					if (SUCCEEDED(dialog->Show(nullptr)))
+					{
+						ComPtr<IShellItem> item;
+						PWSTR pathW = nullptr;
+						if (SUCCEEDED(dialog->GetResult(&item)) &&
+							SUCCEEDED(item->GetDisplayName(SIGDN_FILESYSPATH, &pathW)))
+						{
+							std::string utf8 = WideToUTF8(pathW);
+							std::snprintf(m_BuildStartScene.data(), m_BuildStartScene.size(), "%s", utf8.c_str());
+							CoTaskMemFree(pathW);
+						}
+					}
+				}
+			}
+
+			ImGui::BeginDisabled(BuildSystem::IsBuilding());
+			if (ImGui::MenuItem(u8("ゲームをビルド")))
+			{
+				BuildSetting s;
+				s.outputDir = m_BuildOutputDir.data();
+				s.gameName = m_BuildGameName.data();
+				s.startScene = m_BuildStartScene.data();
+				s.configuration = (configIndex == 0) ? "Release" : "Debug";
+				BuildSystem::Build(s);
+			}
+			ImGui::EndDisabled();
+
+			if (BuildSystem::IsBuilding())
+				ImGui::TextUnformatted(u8("ビルド中..."));
 			ImGui::EndMenu();
 		}
 
@@ -83,8 +265,19 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 
 	// ドッキングスペースのセットアップ
 	ImGuiViewport* viewport = ImGui::GetMainViewport();
-	ImGui::SetNextWindowPos(viewport->Pos);
-	ImGui::SetNextWindowSize(viewport->Size);
+	float h = ImGui::GetFrameHeight();
+	if (ImGui::BeginViewportSideBar("##PlayToolbar", viewport, ImGuiDir_Up, h,
+		ImGuiWindowFlags_NoScrollbar | ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_MenuBar))
+	{
+		if (ImGui::BeginMenuBar())
+		{
+			DrawPlayControl(activeScene);
+			ImGui::EndMenuBar();
+		}
+	}
+	ImGui::End();
+	ImGui::SetNextWindowPos(viewport->WorkPos);
+	ImGui::SetNextWindowSize(viewport->WorkSize);
 	ImGui::SetNextWindowViewport(viewport->ID);
 
 	ImGuiWindowFlags dockWindowFlags = ImGuiWindowFlags_NoDocking |
@@ -112,15 +305,16 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 		ImGui::DockBuilderSetNodeSize(dockspaceID, viewport->WorkSize);
 
 		ImGuiID dockMainID = dockspaceID;
-		ImGuiID dockLeftID = ImGui::DockBuilderSplitNode(dockMainID, ImGuiDir_Left, 0.15f, nullptr, &dockMainID);
-		ImGuiID dockRightID = ImGui::DockBuilderSplitNode(dockMainID, ImGuiDir_Right, 0.18f, nullptr, &dockMainID);
-		ImGuiID dockBottomID = ImGui::DockBuilderSplitNode(dockMainID, ImGuiDir_Down, 0.30f, nullptr, &dockMainID);
+		ImGuiID dockLeftID = ImGui::DockBuilderSplitNode(dockMainID, ImGuiDir_Left, 0.12f, nullptr, &dockMainID);
+		ImGuiID dockRightID = ImGui::DockBuilderSplitNode(dockMainID, ImGuiDir_Right, 0.15f, nullptr, &dockMainID);
+		ImGuiID dockBottomID = ImGui::DockBuilderSplitNode(dockMainID, ImGuiDir_Down, 0.20f, nullptr, &dockMainID);
 
 		ImGui::DockBuilderDockWindow(u8("アウトライナー"), dockLeftID);
 		ImGui::DockBuilderDockWindow(u8("ゲーム画面"), dockMainID);
 		ImGui::DockBuilderDockWindow(u8("エディタ画面"), dockMainID);
 		ImGui::DockBuilderDockWindow(u8("プロパティパネル"), dockRightID);
 		ImGui::DockBuilderDockWindow(u8("詳細パネル"), dockBottomID);
+		ImGui::DockBuilderDockWindow(u8("コンソール"), dockBottomID);
 
 		ImGui::DockBuilderFinish(dockspaceID);
 		m_DockLayout = true;
@@ -143,22 +337,24 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 	}
 	ImGui::End();
 
+	INPUT->SetViewportHovered(false);
 	// ---- ビューポートパネル ---- //
 	if (ImGui::Begin(u8("ゲーム画面")) && m_ShowViewport)
 	{
 		ImVec2 availableSize = ImGui::GetContentRegionAvail();
+		if (ImGui::IsWindowHovered())
+			INPUT->SetViewportHovered(true);
 
-		// --------------------------------------------------------------------//
-		//	ビューポートのサイズが変更された場合、レンダーテクスチャもリサイズ //
-		// --------------------------------------------------------------------//
+		// -------------------------------------------------------------------- //
+		//	ビューポートのサイズが変更された場合、レンダーテクスチャもリサイズ  //
+		// -------------------------------------------------------------------- //
 		const UINT newWidth = static_cast<UINT>(availableSize.x);
 		const UINT newHeight = static_cast<UINT>(availableSize.y);
 		if (m_GameRenderTexture && newWidth > 0 && newHeight > 0 &&
-			newWidth != m_GameRenderTexture->GetWidth() || newHeight != m_GameRenderTexture->GetHeight())
+			(newWidth != m_GameRenderTexture->GetWidth() || newHeight != m_GameRenderTexture->GetHeight()))
 		{
-			// 古いレンダーテクスチャを解放
-			m_App.WaitForGPUIdle();	// GPUが待機状態になるのを待つ
-			m_GameRenderTexture->Init(m_App, newWidth, newHeight);
+			m_App.WaitForGPUIdle();
+			m_GameRenderTexture->Init(newWidth, newHeight);
 		}
 
 		m_ViewportPos = ImGui::GetCursorScreenPos();
@@ -169,6 +365,16 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 		{
 			ImGui::Image(static_cast<ImTextureID>(m_GameRenderTexture->GetSRV().ptr),
 				availableSize, ImVec2(0, 0), ImVec2(1, 1));
+
+			// ---- シーンフェイド処理 ---- //
+			const float fade = sceneManager.GetFadeAlpha();
+			if (fade > 0.0f)
+			{
+				const ImVec2 p0 = ImGui::GetItemRectMin();
+				const ImVec2 p1 = ImGui::GetItemRectMax();
+				const ImU32 col = ImGui::GetColorU32(ImVec4(0, 0, 0, fade));
+				ImGui::GetWindowDrawList()->AddRectFilled(p0, p1, col);
+			}
 
 			if (ImGui::BeginDragDropTarget())
 			{
@@ -182,7 +388,7 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 					// とりあえず原点に
 					float3 fragPosition = float3(0.0f, 0.0f, 0.0f);
 
-					SpawnModelFromFile(activeScene->GetWorld(), modelpath, fragPosition);
+					SpawnModelFromFile(activeScene->GetWorld(), modelpath, fragPosition,activeScene);
 				}
 				ImGui::EndDragDropTarget();
 			}
@@ -205,11 +411,83 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 	if (ImGui::Begin(u8("エディタ画面")) && m_ShowViewport)
 	{
 		ImVec2 availableSize = ImGui::GetContentRegionAvail();
+		if (ImGui::IsWindowHovered())
+			INPUT->SetViewportHovered(true);
 		// レンダーテクスチャが有効な場合は、ImGuiに描画
 		if (m_EditorRenderTexture && m_EditorTextureHandleValid)
 		{
 			ImGui::Image(static_cast<ImTextureID>(m_EditorRenderTexture->GetSRV().ptr),
 				availableSize, ImVec2(0, 0), ImVec2(1, 1));
+
+			// ---- Gizmoの描画 ---- //
+			if (activeScene && m_SelectedEntity != INVALID_ENTITY)
+			{
+				World& gw = activeScene->GetWorld();
+				if (gw.IsEntityAlive(m_SelectedEntity) &&
+					gw.HasComponent<TransformComponent>(m_SelectedEntity))
+				{
+					// エディタ画面の描画に使うカメラ（Main→Secondaryの順）
+					const CameraComponent* cam = nullptr;
+					const CameraComponent* fallback = nullptr;
+					gw.Each<CameraComponent>([&](Entity, CameraComponent& c) {
+						if (c.cameraType == CameraComponent::CameraType::Secondary) cam = &c;
+						else                                                        fallback = &c;
+						});
+					if (cam == nullptr) cam = fallback;   // Secondaryが無ければMainで代用
+
+					if (cam)
+					{
+						// ギズモの描画先と領域を、直前のImageに合わせる
+						ImGuizmo::SetOrthographic(false);
+						ImGuizmo::SetDrawlist();
+						const ImVec2 imgPos = ImGui::GetItemRectMin();
+						const ImVec2 imgSize = ImGui::GetItemRectSize();
+						ImGuizmo::SetRect(imgPos.x, imgPos.y, imgSize.x, imgSize.y);
+
+						auto& tr = gw.GetComponent<TransformComponent>(m_SelectedEntity);
+						float4x4 world = tr.world;
+
+						if (ImGuizmo::Manipulate(
+							&cam->view._11, &cam->proj._11,
+							static_cast<ImGuizmo::OPERATION>(m_GizmoOperation),
+							ImGuizmo::LOCAL,
+							&world._11))
+						{
+							DirectX::XMMATRIX newLocal = DirectX::XMLoadFloat4x4(&world);
+
+							// 親がいる場合は親空間へ戻す
+							if (tr.parent != INVALID_ENTITY && tr.parent != m_SelectedEntity &&
+								gw.HasComponent<TransformComponent>(tr.parent))
+							{
+								const auto& pt = gw.GetComponent<TransformComponent>(tr.parent);
+								DirectX::XMVECTOR det;
+								DirectX::XMMATRIX inv = DirectX::XMMatrixInverse(&det, DirectX::XMLoadFloat4x4(&pt.world));
+								if (!DirectX::XMVectorGetX(DirectX::XMVectorEqual(det, DirectX::XMVectorZero())))
+								{
+									newLocal = newLocal * inv;
+								}
+							}
+
+							vector s, q, t;
+							if (DirectX::XMMatrixDecompose(&s, &q, &t, newLocal))
+							{
+								DirectX::XMStoreFloat3(&tr.position,t);
+								DirectX::XMStoreFloat4(&tr.rotation,q);
+								DirectX::XMStoreFloat3(&tr.scale,s);
+								tr.SyncEulerFromQuaternion();
+								tr.RebuildWorld();
+							}
+						}
+					}
+				}
+			}
+
+			if (ImGui::IsWindowFocused())
+			{
+				if (ImGui::IsKeyPressed(ImGuiKey_W)) m_GizmoOperation = ImGuizmo::TRANSLATE;
+				if (ImGui::IsKeyPressed(ImGuiKey_E)) m_GizmoOperation = ImGuizmo::ROTATE;
+				if (ImGui::IsKeyPressed(ImGuiKey_R)) m_GizmoOperation = ImGuizmo::SCALE;
+			}
 		}
 		else
 		{
@@ -240,6 +518,12 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 	}
 	ImGui::End();
 
+	if(ImGui::Begin(u8("コンソール")) && m_ShowConsole)
+	{
+		DrawConsole();
+	}
+	ImGui::End();
+
 	// ---- 詳細パネル ---- //
 	if (ImGui::Begin(u8("詳細パネル")) && m_ShowDetails)
 	{
@@ -247,7 +531,7 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 		{
 			if (ImGui::BeginTabItem(u8("アセット")))
 			{
-				DrawAssetPanel();
+				DrawAssetPanel(sceneManager);
 				ImGui::EndTabItem();
 			}
 
@@ -259,24 +543,27 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 				}
 				ImGui::EndTabItem();
 			}
-
-			if (ImGui::BeginTabBar(u8("メモリ消費量")))
-			{
-				if (m_ShowMemory)
-				{
-					DrawMemoryPanel();
-				}
-				ImGui::EndTabBar();
-			}
 			ImGui::EndTabBar();
 		}
 	}
 	ImGui::End();
+
+	DrawStyleSetting();
+
+	DrawMemoryPanel();
+}
+
+void EditorWindow::ReleaseRenderTextures()
+{
+	if (m_GameRenderTexture) { m_GameRenderTexture->Release();   m_GameRenderTexture.reset(); }
+	if (m_EditorRenderTexture) { m_EditorRenderTexture->Release(); m_EditorRenderTexture.reset(); }
 }
 
 void EditorWindow::DrawSceneInfo(Scene& scene)
 {
 	ImGui::Text(u8("シーン: %s"), scene.GetSceneName().c_str());
+	ImGui::Separator();
+	ImGui::Checkbox("Deferred Rendering", &RenderSettings::Get().deferred);
 	ImGui::Separator();
 }
 
@@ -285,526 +572,112 @@ void EditorWindow::DrawEntityList(World& world)
 	ImGui::Text(u8("エンティティ一覧"));
 	ImGui::InputText(u8("##FilterEntity"), m_EntityFilyer.data(), m_EntityFilyer.size());
 
-	const std::string filtertext = m_EntityFilyer.data();
-
 	if (ImGui::BeginChild("EntityList", ImVec2(0.0f, 0.0f), true))
 	{
-		for (Entity entity : world.GetEntities())
+		//   TransformもRectTransformも無いエンティティも拾う
+		for (Entity e : world.GetEntities())
 		{
-			std::string label = "Entity " + std::to_string(entity);
-			if (world.HasComponent<NameComponent>(entity))
-			{
-				label = world.GetComponent<NameComponent>(entity).name;
-			}
+			if (GetParent(world, e) == INVALID_ENTITY)   // ルートだけ
+				DrawEntityNode(world, e);
+		}
 
-			if (!filtertext.empty() && label.find(filtertext) == std::string::npos)
+		// 余白へのドロップ＝ルートに戻す
+		ImGui::Dummy(ImGui::GetContentRegionAvail());
+		if (ImGui::BeginDragDropTarget())
+		{
+			if (const ImGuiPayload* p = ImGui::AcceptDragDropPayload("ENTITY"))
 			{
-				continue;
+				Entity child = *(const Entity*)p->Data;
+				SetParent(world, child, INVALID_ENTITY);
 			}
+			ImGui::EndDragDropTarget();
+		}
 
-			bool selected = (m_SelectedEntity == entity);
-			if (ImGui::Selectable(label.c_str(), selected))
+		if (ImGui::BeginPopupContextWindow())
+		{
+			if (ImGui::BeginMenu(u8("作成")))
 			{
-				m_SelectedEntity = entity;
+				if (ImGui::MenuItem(u8("空のエンティティ")))
+				{
+					static int entityCount = 1;
+					Entity e = world.CreateEntity();
+					world.AddComponent<NameComponent>(e, NameComponent{ "Entity " + std::to_string(entityCount++) });
+					world.AddComponent<TransformComponent>(e, TransformComponent{});
+					m_SelectedEntity = e;
+				}
+				if (ImGui::BeginMenu("UI"))
+				{
+					if (ImGui::MenuItem("Image")) m_SelectedEntity = CreateImage(world);
+					if (ImGui::MenuItem("Text"))  m_SelectedEntity = CreateText(world);
+					ImGui::EndMenu();
+				}
+				ImGui::EndMenu();
 			}
+			if (ImGui::MenuItem(u8("エンティティを削除")) && m_SelectedEntity != INVALID_ENTITY)
+			{
+				APP->WaitForGPUIdle();
+				world.DestroyEntity(m_SelectedEntity);
+				m_SelectedEntity = INVALID_ENTITY;
+			}
+			ImGui::EndPopup();
 		}
 	}
-
-	// -------------------------------------//
-	//		Window内で右クリックで新規メニュー   //
-	// -------------------------------------//
-	if(ImGui::BeginPopupContextWindow())
-	{
-		if (ImGui::MenuItem(u8("エンティティを追加")))
-		{
-			Entity newEntity = world.CreateEntity();
-			world.AddComponent<NameComponent>(newEntity, NameComponent{ "New Entity" });
-		}
-
-		if (ImGui::MenuItem(u8("エンティティを削除")) && m_SelectedEntity != INVALID_ENTITY)
-		{
-			world.DestroyEntity(m_SelectedEntity);
-		}
-		ImGui::EndPopup();
-	}
-	ImGui::EndChild();
+	ImGui::EndChild(); 
 }
 
-void EditorWindow::DrawInspector(World& world,Scene* scene)
+void EditorWindow::DrawEntityNode(World& world, Entity entity)
 {
-	if (!world.IsEntityAlive(m_SelectedEntity))
+	std::string label = world.HasComponent<NameComponent>(entity)
+		? world.GetComponent<NameComponent>(entity).name
+		: ("Entity " + std::to_string(entity));
+
+	// 子を持っているか調べる
+	bool hasChildren = false;
+	world.Each<TransformComponent>([&](Entity e, TransformComponent& t) {
+		if (t.parent == entity) hasChildren = true;
+		});
+
+	ImGuiTreeNodeFlags flags =
+		ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
+	if (m_SelectedEntity == entity) flags |= ImGuiTreeNodeFlags_Selected;
+	if (!hasChildren)               flags |= ImGuiTreeNodeFlags_Leaf;  // 子無しは?を出さない
+
+	ImGui::PushID((int)entity);
+	bool open = ImGui::TreeNodeEx(label.c_str(), flags);
+
+	// クリックで選択
+	if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen())
+		m_SelectedEntity = entity;
+
+	// ドラッグソース
+	if (ImGui::BeginDragDropSource())
 	{
-		m_SelectedEntity = INVALID_ENTITY;
+		ImGui::SetDragDropPayload("ENTITY", &entity, sizeof(Entity));
+		ImGui::Text("%s", label.c_str());
+		ImGui::EndDragDropSource();
+	}
+	// ドロップターゲット（この上にドロップ = この子になる）
+	if (ImGui::BeginDragDropTarget())
+	{
+		if (const ImGuiPayload* p = ImGui::AcceptDragDropPayload("ENTITY"))
+		{
+			Entity child = *(const Entity*)p->Data;
+			if (child != entity && !IsAncestor(world, child, entity))
+				SetParentKeepWorld(world, child, entity);
+		}
+		ImGui::EndDragDropTarget();
 	}
 
-	if (m_SelectedEntity == INVALID_ENTITY)
+	// 開いていれば子を再帰描画
+	if (open)
 	{
-		ImGui::Text(u8("エンティティを選択してください"));
-		return;
+		world.Each<TransformComponent>([&](Entity e, TransformComponent& t) {
+			if (t.parent == entity)
+				DrawEntityNode(world, e);
+			});
+		ImGui::TreePop();
 	}
-
-	ImGui::Text(u8("詳細情報"));
-	ImGui::Separator();
-	ImGui::Text("Entity ID: %u", m_SelectedEntity);
-	ImGui::Separator();
-
-	// ---- Name Component ---- //
-	if (ImGui::CollapsingHeader(u8("Name Component"), ImGuiTreeNodeFlags_DefaultOpen))
-	{
-		if (world.HasComponent<NameComponent>(m_SelectedEntity))
-		{
-			auto& nameComp = world.GetComponent<NameComponent>(m_SelectedEntity);
-			if (ImGui::InputText(u8("##NameInput"), nameComp.name.data(), nameComp.name.size() + 1))
-			{
-				// 入力された名前が空でないことを確認
-				if (!nameComp.name.empty())
-				{
-					nameComp.name = std::string(nameComp.name.data());
-				}
-				else
-				{
-					nameComp.name = "Entity " + std::to_string(m_SelectedEntity);
-				}
-			}
-			ImGui::Separator();
-			if (ImGui::SmallButton(u8("Remove##NameComponent")))
-			{
-				world.DeleteComponent<NameComponent>(m_SelectedEntity);
-			}
-		}
-		else
-		{
-			if (ImGui::Button(u8("Add Component##NameComponent")))
-			{
-				world.AddComponent<NameComponent>(m_SelectedEntity, NameComponent{ "Entity " });
-			}
-		}
-	}
-
-	// ---- Transform Component ---- //
-	if (ImGui::CollapsingHeader(u8("Transform Component"), ImGuiTreeNodeFlags_DefaultOpen))
-	{
-		if (world.HasComponent<TransformComponent>(m_SelectedEntity))
-		{
-			auto& transform = world.GetComponent<TransformComponent>(m_SelectedEntity);
-
-			bool dirty = false;
-			dirty |= ImGui::DragFloat3(u8("位置##Pos"), &transform.position.x, 0.1f);
-			dirty |= ImGui::DragFloat4(u8("回転(クォータニオン)##Rot"), &transform.rotation.x, 0.1f);
-			dirty |= ImGui::DragFloat3(u8("スケール##Scale"), &transform.scale.x, 0.1f);
-
-			if (dirty)
-			{
-				transform.MarkDirty();
-
-				// コライダーの当たり判定も更新
-				if(world.HasComponent<ColliderComponent>(m_SelectedEntity))
-				{
-					auto& collider = world.GetComponent<ColliderComponent>(m_SelectedEntity);
-
-					if (collider.shapeType == ColliderComponent::ShapeType::Box)
-					{
-						collider.size = transform.scale;
-					}
-					else if(collider.shapeType == ColliderComponent::ShapeType::Sphere)
-					{
-						collider.radius = std::max(transform.scale.x, std::max(transform.scale.y, transform.scale.z)) * 0.5f;
-					}
-
-					// PhysicsWorldに反映
-					if(scene && world.HasComponent<RigidBodyComponent>(m_SelectedEntity))
-					{
-						auto* physicsWorld = scene->GetPhysicsWorld();
-						if (physicsWorld)
-						{
-							const auto& rb = world.GetComponent<RigidBodyComponent>(m_SelectedEntity);
-							physicsWorld->RemoveRigidbody(m_SelectedEntity);
-							physicsWorld->AddRigidbody(m_SelectedEntity, rb, collider);
-						}
-					}
-				}
-			}
-		}
-		else
-		{
-			if (ImGui::Button(u8("Add Component##TransformComponent")))
-			{
-				TransformComponent tr{};
-				tr.RebuildWorld();
-				world.AddComponent<TransformComponent>(m_SelectedEntity, tr);
-			}
-		}
-	}
-
-	// ---- Mesh Component ---- //
-	if (ImGui::CollapsingHeader(u8("Mesh Component")))
-	{
-		if (world.HasComponent<MeshComponent>(m_SelectedEntity))
-		{
-
-
-			auto& meshComp = world.GetComponent<MeshComponent>(m_SelectedEntity);
-			ImGui::Text(u8("メッシュコンポーネント"));
-
-			ImGui::Separator();
-			if (ImGui::SmallButton(u8("Remove##MeshComponent")))
-			{
-				world.DeleteComponent<MeshComponent>(m_SelectedEntity);
-			}
-		}
-		else
-		{
-			if (ImGui::Button(u8("Add Component##MeshComponent")))
-			{
-				MeshComponent mesh{};
-				world.AddComponent<MeshComponent>(m_SelectedEntity, mesh);
-			}
-		}
-	}
-
-	// ---- Material Component ---- //
-	if (ImGui::CollapsingHeader(u8("Material Component")))
-	{
-		if (world.HasComponent<MaterialComponent>(m_SelectedEntity))
-		{
-
-
-			auto& materialComp = world.GetComponent<MaterialComponent>(m_SelectedEntity);
-			ImGui::Checkbox(u8("デフォルト以外のPixelShaderを使う##Mat"), &materialComp.usePixelShader);
-
-			const char* shaderItems[] = { "BASIC", "TOON" };
-			int psIndex = static_cast<int>(materialComp.pixelshader);
-			if (ImGui::Combo(u8("PixelShader##Mat"), &psIndex, shaderItems, IM_ARRAYSIZE(shaderItems)))
-			{
-				materialComp.pixelshader = static_cast<E_PIXEL_SHADER>(psIndex);
-			}
-
-			ImGui::Separator();
-			if (ImGui::SmallButton(u8("Remove##MaterialComponent")))
-			{
-				world.DeleteComponent<MaterialComponent>(m_SelectedEntity);
-			}
-		}
-		else
-		{
-			if (ImGui::Button(u8("Add Component##MaterialComponent")))
-			{
-				MaterialComponent material{};
-				world.AddComponent<MaterialComponent>(m_SelectedEntity, material);
-			}
-		}
-	}
-
-	// ---- RigidBody Component ---- //
-	if (ImGui::CollapsingHeader(u8("RigidBody Component")))
-	{
-		if (world.HasComponent<RigidBodyComponent>(m_SelectedEntity))
-		{
-			auto& rigidBodyComp = world.GetComponent<RigidBodyComponent>(m_SelectedEntity);
-			ImGui::Text(u8("RigidBody Component"));
-			ImGui::Separator();
-
-			float mass = rigidBodyComp.mass;
-			if (ImGui::DragFloat(u8("質量##RigidBody"), &mass, 0.1f, 0.0f, 1000.0f))
-			{
-				rigidBodyComp.mass = mass;
-
-				// 質量が0以下にならないように
-				if (rigidBodyComp.mass < 0.01f && !rigidBodyComp.isStatic)
-				{
-					rigidBodyComp.mass = 0.01f;
-				}
-			}
-
-			// ツールチップ
-			if (ImGui::IsItemHovered())
-			{
-				ImGui::BeginTooltip();
-				ImGui::Text(u8("オブジェクトの質量"));
-				ImGui::EndTooltip();
-			}
-
-			// ボディタイプ選択
-			ImGui::Separator();
-			ImGui::Text(u8("ボディタイプ"));
-
-			bool isKinematic = rigidBodyComp.isKinematic;
-			bool isStatic = rigidBodyComp.isStatic;
-			bool isDynamic = !isKinematic && !isStatic;
-			bool useGravity = rigidBodyComp.useGravity;
-
-			if(ImGui::Button(u8("重力のオン/オフ##RigidBodyGravity")))
-			{
-				rigidBodyComp.useGravity = !rigidBodyComp.useGravity;
-			}
-			ImGui::Separator();
-
-			if (ImGui::RadioButton(u8("Dynamic##RigidBodyType"), isDynamic))
-			{
-				rigidBodyComp.isStatic = false;
-				rigidBodyComp.isKinematic = false;
-			}
-
-			ImGui::SameLine();
-			if (ImGui::RadioButton(u8("Kinematic##RigidBodyType"), isKinematic))
-			{
-				rigidBodyComp.isKinematic = true;
-				rigidBodyComp.isStatic = false;
-			}
-
-			ImGui::SameLine();
-			if (ImGui::RadioButton(u8("Static##RigidBodyType"), isStatic))
-			{
-				rigidBodyComp.isStatic = true;
-				rigidBodyComp.isKinematic = false;
-			}
-
-			// アクター情報
-			ImGui::Separator();
-			if (rigidBodyComp.actor)
-			{
-				ImGui::TextColored(ImVec4(0.2f, 0.8f, 0.2f, 1.0f), u8("アクター初期化済み"));
-			}
-			else
-			{
-				ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), u8("アクター未初期化"));
-			}
-
-			// 削除処理
-			ImGui::Separator();
-			if (ImGui::SmallButton(u8("Remove##RigidBodyComponent")))
-			{
-				world.DeleteComponent<RigidBodyComponent>(m_SelectedEntity);
-			}
-		}
-		else
-		{
-			if (ImGui::Button(u8("Add Component##RigidBodyComponent")))
-			{
-				RigidBodyComponent rigidBody{};
-				world.AddComponent<RigidBodyComponent>(m_SelectedEntity, rigidBody);
-			}
-		}
-	}
-
-	// ---- Collider Component ---- //
-	if (ImGui::CollapsingHeader(u8("Collider Component")))
-	{
-		if (world.HasComponent<ColliderComponent>(m_SelectedEntity))
-		{
-			auto& colliderComp = world.GetComponent<ColliderComponent>(m_SelectedEntity);
-			ImGui::Text(u8("コライダー設定"));
-			ImGui::Separator();
-
-			// シェイプタイプ選択
-			ImGui::Text(u8("形状"));
-			int shapeIndex = static_cast<int>(colliderComp.shapeType);
-			const char* shapeItems[] = { "Box", "Sphere", "Capsule", "Mesh" };
-			if (ImGui::Combo(u8("形状##ColliderShape"), &shapeIndex, shapeItems, IM_ARRAYSIZE(shapeItems)))
-			{
-				colliderComp.shapeType = static_cast<ColliderComponent::ShapeType>(shapeIndex);
-			}
-
-			ImGui::Separator();
-			ImGui::Text(u8("物理パラメータ"));
-
-			// サイズ設定
-			if (colliderComp.shapeType == ColliderComponent::ShapeType::Box)
-			{
-				ImGui::DragFloat3(u8("サイズ##ColliderSize"), &colliderComp.size.x, 0.1f, 0.01f, 100.0f);
-			}
-			else if (colliderComp.shapeType == ColliderComponent::ShapeType::Sphere)
-			{
-				ImGui::DragFloat(u8("半径##ColliderRadius"), &colliderComp.radius, 0.1f, 0.01f, 100.0f);
-			}
-			else if (colliderComp.shapeType == ColliderComponent::ShapeType::Capsule)
-			{
-				ImGui::DragFloat(u8("半径##ColliderRadius"), &colliderComp.radius, 0.1f, 0.01f, 100.0f);
-			}
-			// 共通パラメータ
-			ImGui::Separator();
-			ImGui::DragFloat(u8("摩擦係数##ColliderFriction"), &colliderComp.friction, 0.05f, 0.0f, 1.0f);
-
-			// ツールチップ
-			if (ImGui::IsItemHovered())
-			{
-				ImGui::BeginTooltip();
-				ImGui::Text(u8("0~1: 小さいほど滑りやすい"));
-				ImGui::EndTooltip();
-			}
-
-			ImGui::DragFloat(u8("反発係数##ColliderRestitution"), &colliderComp.restitution, 0.05f, 0.0f, 1.0f);
-
-			// ツールチップ
-			if (ImGui::IsItemHovered())
-			{
-				ImGui::BeginTooltip();
-				ImGui::Text(u8("0~1: 高いほど跳ねやすい"));
-				ImGui::EndTooltip();
-			}
-
-			// シェイプ情報表示
-			ImGui::Separator();
-			if (colliderComp.shape)
-			{
-				ImGui::TextColored(ImVec4(0.2f, 0.8f, 0.2f, 1.0f), u8("シェイプ初期化済み"));
-			}
-			else
-			{
-				ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), u8("シェイプ未初期化"));
-			}
-
-			// デバッグ描画オプション
-			ImGui::Separator();
-			ImGui::Text(u8("デバッグ表示"));
-
-			ImGui::Checkbox(u8("当たり判定を表示##DebugCollider"), &m_ShowColliderDebug);
-
-			if (m_ShowColliderDebug && scene && world.HasComponent<TransformComponent>(m_SelectedEntity))
-			{
-				const auto& transform = world.GetComponent<TransformComponent>(m_SelectedEntity);
-				DrawColliderDebug(colliderComp, transform);
-
-				// デバッグライン描画
-				auto* runtimeScene = dynamic_cast<RuntimeScene*>(scene);
-				if (runtimeScene)
-				{
-					runtimeScene->ClearDebugLines();
-					for (const auto& line : m_DebugLines)
-					{
-						runtimeScene->AddDebugLine(line.start, line.end, line.color);
-					}
-				}
-			}
-			else if (scene)
-			{
-				auto* runtimeScene = dynamic_cast<RuntimeScene*>(scene);
-				if (runtimeScene)
-				{
-					runtimeScene->ClearDebugLines();
-				}
-			}
-
-			// 削除処理
-			ImGui::Separator();
-			if (ImGui::SmallButton(u8("Remove##ColliderComponent")))
-			{
-				world.DeleteComponent<ColliderComponent>(m_SelectedEntity);
-			}
-		}
-		else
-		{
-			if (ImGui::Button(u8("Add Component##ColliderComponent")))
-			{
-				ColliderComponent collider{};
-				if(world.HasComponent<TransformComponent>(m_SelectedEntity))
-				{
-					const auto& transform = world.GetComponent<TransformComponent>(m_SelectedEntity);
-					collider.size = transform.scale;
-				}
-				else
-				{
-					collider.size = float3(1.0f, 1.0f, 1.0f);
-				}
-				collider.shapeType = ColliderComponent::ShapeType::Box;
-				collider.radius = 0.5f;
-				collider.friction = 0.5f;
-				collider.restitution = 0.5f;
-				collider.density = 1.0f;
-				world.AddComponent<ColliderComponent>(m_SelectedEntity, collider);
-
-				// PhysicsWorldに同期
-				if (scene && world.HasComponent<RigidBodyComponent>(m_SelectedEntity))
-				{
-					auto* physicsWolrd = scene->GetPhysicsWorld();
-					if (physicsWolrd)
-					{
-						const auto& rb = world.GetComponent<RigidBodyComponent>(m_SelectedEntity);
-						physicsWolrd->AddRigidbody(m_SelectedEntity, rb, collider);
-					}
-				}
-			}
-		}
-	}
-
-	// ---- Spin Component ---- //
-	if (ImGui::CollapsingHeader(u8("Spin Component")))
-	{
-		if (world.HasComponent<SpinComponent>(m_SelectedEntity))
-		{
-
-
-			auto& spinComp = world.GetComponent<SpinComponent>(m_SelectedEntity);
-			ImGui::Text(u8("スピンコンポーネント"));
-
-			ImGui::DragFloat(u8("角度##Spin"), &spinComp.angle, 0.1f, 0.0f, 360.0f);
-			ImGui::DragFloat(u8("速度##Spin"), &spinComp.speed, 0.1f, 0.0f, 100.0f);
-
-			ImGui::Separator();
-			if (ImGui::SmallButton(u8("Remove##SpinComponent")))
-			{
-				world.DeleteComponent<SpinComponent>(m_SelectedEntity);
-			}
-		}
-		else
-		{
-			if (ImGui::Button(u8("Add Component##SpinComponent")))
-			{
-				SpinComponent spin{};
-				world.AddComponent<SpinComponent>(m_SelectedEntity, spin);
-			}
-		}
-	}
-
-	// ---- Light Component ---- //
-	if (ImGui::CollapsingHeader(u8("Light Component"), ImGuiTreeNodeFlags_DefaultOpen))
-	{
-		if (world.HasComponent<LightComponent>(m_SelectedEntity))
-		{
-			auto& lightComp = world.GetComponent<LightComponent>(m_SelectedEntity);
-
-			const char* typeItems[] = { "Directional", "Point", "Spot" };
-			int typeIndex = static_cast<int>(lightComp.type);
-			if (ImGui::Combo(u8("タイプ##Light"), &typeIndex, typeItems, IM_ARRAYSIZE(typeItems)))
-			{
-				lightComp.type = static_cast<LightComponent::LightType>(typeIndex);
-			}
-
-			ImGui::ColorEdit4(u8("カラー##Light"), &lightComp.color.x);
-			ImGui::ColorEdit4(u8("環境色##Light"), &lightComp.ambientColor.x);
-			ImGui::DragFloat(u8("強度##Light"), &lightComp.intensity, 0.1f, 0.0f, 100.0f);
-			ImGui::DragFloat3(u8("方向##Light"), &lightComp.direction.x, 0.1f, -1.0f, 1.0f);
-			ImGui::DragFloat(u8("範囲##Light"), &lightComp.range, 0.1f, 0.0f, 100.0f);
-			ImGui::DragFloat(u8("スポットアングル##Light"), &lightComp.spotAngle, 0.1f, 0.0f, 180.0f);
-			ImGui::Checkbox(u8("有効##Light"), &lightComp.isActive);
-			ImGui::Checkbox(u8("シャドウ投影##Light"), &lightComp.castShadows);
-
-			ImGui::Separator();
-
-			// ------------//
-			//	ライト可視化 //
-			// ------------//
-			ImGui::Separator();
-			if (ImGui::Checkbox(u8("ライトの可視化##LightDebug"), &lightComp.isShow))
-			{
-				
-			}
-
-			ImGui::Separator();
-			if (ImGui::SmallButton(u8("Remove##LightComponent")))
-			{
-				world.DeleteComponent<LightComponent>(m_SelectedEntity);
-			}
-		}
-		else
-		{
-			if (ImGui::Button(u8("Add Component##LightComponent")))
-			{
-				LightComponent light{};
-				world.AddComponent<LightComponent>(m_SelectedEntity, light);
-			}
-		}
-	}
+	ImGui::PopID();
 }
 
 void EditorWindow::DrawPrefabPanel(Scene& scene, World& world)
@@ -874,42 +747,6 @@ void EditorWindow::DrawPrefabPanel(Scene& scene, World& world)
 	}
 }
 
-void EditorWindow::DrawAssetPanel()
-{
-	namespace fs = std::filesystem;
-	const fs::path assetRoot = "Assets";
-
-	if (!fs::exists(assetRoot))
-	{
-		ImGui::Text(u8("Assets フォルダが見つかりません"));
-		return;
-	}
-
-	// -------------------------//
-	// アセットライブラリの表示	//
-	// アイコン表示・横向き 	//
-	// -------------------------//
-	ImGui::Text(u8("アセットライブラリ"));
-	ImGui::Separator();
-
-
-	if (ImGui::BeginChild("AssetList", ImVec2(0.0f, 0.0f), true))
-	{
-		for (const auto& entry : fs::directory_iterator(assetRoot))
-		{
-			const std::string name = entry.path().filename().string();
-			const std::string fullPath = entry.path().string();
-
-			const bool selected = (m_SelectedAsset == fullPath);
-			if (ImGui::Selectable(name.c_str(), selected))
-			{
-				m_SelectedAsset = fullPath;
-			}
-		}
-	}
-	ImGui::EndChild();
-}
-
 #pragma region MemoryInfo
 
 constexpr double BYTES_TO_MB = 1.0 / (1024.0 * 1024.0);
@@ -956,25 +793,98 @@ SIZE_T GetPrivateWorkingSetBytes(HANDLE process)
 
 void EditorWindow::DrawMemoryPanel()
 {
-	const HANDLE process = GetCurrentProcess();
+	// ---- メモリ消費量表示 ---- //
+	if (!m_ShowMemory) return;
 
-	// メモリ使用量の表示
-	PROCESS_MEMORY_COUNTERS_EX pmc = {};
-	if (GetProcessMemoryInfo(
-		process,
-		reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&pmc),
-		sizeof(pmc)))
-	{
-		const double workingSetMB = static_cast<double>(pmc.WorkingSetSize) * BYTES_TO_MB;
-		const double privateCommitMB = static_cast<double>(pmc.PrivateUsage) * BYTES_TO_MB;
+	if (ImGui::Begin(u8("メモリ消費量"), &m_ShowMemory)) {
 
-		const SIZE_T privateWsBytes = GetPrivateWorkingSetBytes(process);
-		const double privateWorkingSetMB = static_cast<double>(privateWsBytes) * BYTES_TO_MB;
 
-		ImGui::Text(u8("メモリ(Private Working Set): %.1f MB"), privateWorkingSetMB);
-		ImGui::Text(u8("Working Set(共有含む): %.1f MB"), workingSetMB);
-		ImGui::Text(u8("Commit Size(PrivateUsage): %.1f MB"), privateCommitMB);
+		const HANDLE process = GetCurrentProcess();
+
+		// メモリ使用量の表示
+		PROCESS_MEMORY_COUNTERS_EX pmc = {};
+		if (GetProcessMemoryInfo(
+			process,
+			reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&pmc),
+			sizeof(pmc)))
+		{
+			const double workingSetMB = static_cast<double>(pmc.WorkingSetSize) * BYTES_TO_MB;
+			const double privateCommitMB = static_cast<double>(pmc.PrivateUsage) * BYTES_TO_MB;
+
+			const SIZE_T privateWsBytes = GetPrivateWorkingSetBytes(process);
+			const double privateWorkingSetMB = static_cast<double>(privateWsBytes) * BYTES_TO_MB;
+
+			ImGui::Text(u8("メモリ(Private Working Set): %.1f MB"), privateWorkingSetMB);
+			ImGui::Text(u8("Working Set(共有含む): %.1f MB"), workingSetMB);
+			ImGui::Text(u8("Commit Size(PrivateUsage): %.1f MB"), privateCommitMB);
+		}
 	}
+	ImGui::End();
+}
+
+void EditorWindow::DrawConsole()
+{
+	if (ImGui::Button(u8("クリア"))) { /* 後述: Logger側にClear追加 */ }
+	ImGui::SameLine();
+	static bool autoScroll = true;
+	ImGui::Checkbox(u8("自動スクロール"), &autoScroll);
+
+	ImGui::Separator();
+	ImGui::BeginChild("ConsoleScroll", ImVec2(0, 0), false,
+		ImGuiWindowFlags_HorizontalScrollbar);
+
+	for (const auto& line : LOG->GetRecentLogs())
+	{
+		std::string utf8 = IMGUI::ToUTF8(line);
+
+		ImVec4 color(1, 1, 1, 1);
+		if (line.find("[ERROR]") != std::string::npos) color = ImVec4(1.0f, 0.3f, 0.3f, 1);
+		else if (line.find("[WARNING]") != std::string::npos) color = ImVec4(1.0f, 0.85f, 0.3f, 1);
+		else if (line.find("[DEBUG]") != std::string::npos) color = ImVec4(0.5f, 0.7f, 1.0f, 1);
+
+		ImGui::PushStyleColor(ImGuiCol_Text, color);
+		ImGui::TextWrapped("%s", utf8.c_str());
+		ImGui::PopStyleColor();
+	}
+
+	if (autoScroll && ImGui::GetScrollY() >= ImGui::GetScrollMaxY())
+		ImGui::SetScrollHereY(1.0f);
+
+	ImGui::EndChild();
+}
+
+void EditorWindow::DrawPlayControl(Scene* activeScene)
+{
+	const EngineMode mode = PLAY.GetCurrentMode();
+	const bool isEditor = (mode == EngineMode::EDITOR);
+
+	if(ImGui::Button(isEditor ? u8("Play") : u8("Stop")))
+	{
+		if (isEditor)
+		{
+			APP->WaitForGPUIdle();
+			if(activeScene)
+				m_PlaySnap = SceneSerializer::SaveToString(*activeScene);
+			PLAY.SetMode(EngineMode::Play);
+		}
+		else
+		{
+			PLAY.SetMode(EngineMode::EDITOR);
+			APP->WaitForGPUIdle();
+			if(activeScene && !m_PlaySnap.empty())
+			{
+				SceneSerializer::LoadFromString(*activeScene, m_PlaySnap);
+			}
+		}
+	}
+
+	ImGui::SameLine();
+	ImGui::BeginDisabled(isEditor);
+	if(ImGui::Button(mode == EngineMode::PAUSE ? u8("Resume") : u8("Pause")))
+	{
+		PLAY.SetMode(mode == EngineMode::PAUSE ? EngineMode::Play : EngineMode::PAUSE);
+	}
+	ImGui::EndDisabled();
 }
 
 #pragma endregion
@@ -987,35 +897,60 @@ void EditorWindow::DrawScenePanel(SceneManager& sceneManager)
 	auto activeScene = sceneManager.GetActiveScene();
 	if (!activeScene) return;
 
-	ImGui::InputText(u8("シーン名##SceneName"), m_SceneRegisterName.data(), m_SceneRegisterName.size());
-	ImGui::InputText(u8("シーンパス##ScenePath"), m_SceneRegisterPath.data(), m_SceneRegisterPath.size());
+	if (ImGui::InputText(u8("シーン名##SceneName"), m_SceneRegisterName.data(), m_SceneRegisterName.size()))
+	{
+
+	}
 
 	if (ImGui::Button(u8("登録##RegisterScene")))
 	{
 		std::string name = m_SceneRegisterName.data();
-		std::string path = m_SceneRegisterPath.data();
-
 		if (!name.empty())
 		{
-			auto scene = std::make_unique<RuntimeScene>(path, m_App.GetDevice(), m_App.GetLinePso());
-			sceneManager.RegisterScene(name, std::move(scene));
+			sceneManager.RegisterScene(name);   // パスは規約から自動
 		}
 	}
-
 	ImGui::SameLine();
 	if (ImGui::Button(u8("ロード##LoadScene")))
 	{
 		std::string name = m_SceneRegisterName.data();
 		if (!name.empty())
 		{
+			sceneManager.RegisterScene(name);   // 未登録なら登録してから
 			sceneManager.LoadScene(name);
 		}
 	}
-
 	ImGui::SameLine();
 	if (ImGui::Button(u8("保存##SaveScene")))
 	{
-		SceneSerializer::Save(*activeScene, m_SceneRegisterPath.data());
+		if (activeScene)
+		{
+			SceneSerializer::Save(*activeScene,
+				SceneManager::ScenePathFromName(activeScene->GetSceneName()));
+		}
+	}
+
+	ImGui::Separator();
+	if (activeScene)
+	{
+		ImGui::Text(u8("スカイボックス: %s"), activeScene->GetSkyboxPath().c_str());
+		ImGui::SameLine();
+		if (ImGui::Button(u8("参照...##PickSkybox")))
+		{
+			std::wstring picked;
+			if (OpenFileDialog(picked, L"HDR/Sky Texture\0*.hdr;*.dds;*.png;*.jpg\0All\0*.*\0"))
+			{
+				std::string p = WideToUtf8(picked);
+				const size_t pos = p.find("Assets\\");
+				if (pos != std::string::npos)
+				{
+					p = p.substr(pos);
+					for (auto& c : p) if (c == '\\') c = '/';   // JSONでの見た目統一
+				}
+				if (auto* rs = dynamic_cast<RuntimeScene*>(activeScene))
+					rs->SetSkybox(p);
+			}
+		}
 	}
 
 	ImGui::Separator();
@@ -1062,6 +997,69 @@ void EditorWindow::DrawScenePanel(SceneManager& sceneManager)
 	ImGui::Separator();
 	DrawPrefabPanel(*activeScene, activeScene->GetWorld());
 }
+
+#pragma region Canvas
+// todo 親子化
+// todo Canvasの描画順序を考慮する
+// todo image, textの名前被りの解消
+
+Entity EditorWindow::EnsureCanvas(World& world)
+{
+	// 宣言
+	Entity canvas = INVALID_ENTITY;
+
+	// 既に宣言されるか確認
+	world.Each<CanvasComponent>([&](Entity e, CanvasComponent&)
+		{
+			// すでにCanvasが存在する場合はそれを返す
+			if(canvas == INVALID_ENTITY)
+				canvas = e;
+		});
+
+	// 見つからない場合は新規作成
+	if (canvas == INVALID_ENTITY)
+	{
+		canvas = world.CreateEntity();
+		world.AddComponent<NameComponent>(canvas, NameComponent{ "Canvas" });
+		world.AddComponent<RectTransformComponent>(canvas, RectTransformComponent{});
+		world.AddComponent<CanvasComponent>(canvas, CanvasComponent{});
+	}
+
+	// 値を返す
+	return canvas;
+}
+
+Entity EditorWindow::CreateImage(World& world)
+{
+	// canvasがあるか確認
+	// ない場合は作成
+	EnsureCanvas(world);
+	Entity e = world.CreateEntity();
+	static int num = 1;
+	std::string name = "Image_" + std::to_string(num++);
+	world.AddComponent<NameComponent>(e, NameComponent{ name });
+	auto& rt = world.AddComponent<RectTransformComponent>(e, RectTransformComponent{});
+	rt.SizeDelta = { 100.0f,100.0f };
+	world.AddComponent<UIImageComponent>(e, UIImageComponent{});
+	return e;
+}
+
+Entity EditorWindow::CreateText(World& world)
+{
+	// canvasがあるか確認
+	EnsureCanvas(world);
+	Entity e = world.CreateEntity();
+
+	static int num = 1;
+	std::string name = "Text_" + std::to_string(num++);
+	world.AddComponent<NameComponent>(e, NameComponent{ name });
+	auto& rt = world.AddComponent<RectTransformComponent>(e, RectTransformComponent{});
+	rt.SizeDelta = { 100.0f,50.0f };
+	world.AddComponent<UITextComponent>(e, UITextComponent{});
+	return e;
+}
+
+#pragma endregion
 
 void EditorWindow::DrawColliderDebug(const ColliderComponent& collider, const TransformComponent& transform)
 {
@@ -1157,38 +1155,206 @@ void EditorWindow::DrawColliderDebug(const ColliderComponent& collider, const Tr
 	}
 }
 
+#include "Theme.hpp"
+void EditorWindow::DrawStyleSetting()
+{
+	//---- スタイル設定 ---- //
+	if (!m_ShowStyleSetting) return;
+
+	// 独立ウィンドウ
+	if (ImGui::Begin(u8("スタイル設定"), &m_ShowStyleSetting))
+	{
+		// ---- テーマ ---- //
+		static int themeIdx = 0;
+		static ImVec4 accent = ImVec4(0.26f, 0.59f, 0.98f, 1.0f);
+		const char* themes[] = { "Dark", "Light", "Classic" };
+		if (ImGui::Combo(u8("テーマ"), &themeIdx, themes, IM_ARRAYSIZE(themes)))
+			ApplyTheme((uiTheme)themeIdx, accent);
+		if (ImGui::ColorEdit3(u8("アクセント色"), &accent.x))
+			ApplyTheme((uiTheme)themeIdx, accent);
+
+		ImGui::Separator();
+
+		// ---- フォント切替 ----
+		ImGuiIO& io = ImGui::GetIO();
+		if (ImGui::BeginCombo(u8("フォント"),
+			io.FontDefault ? "current" : "default"))
+		{
+			for (int i = 0; i < io.Fonts->Fonts.Size; ++i)
+			{
+				ImFont* f = io.Fonts->Fonts[i];
+				ImGui::PushID(i);
+				bool sel = (io.FontDefault == f);
+				// フォント名は登録時のデバッグ名が入る
+				if (ImGui::Selectable(u8(f->GetDebugName()), sel))
+					io.FontDefault = f;
+				ImGui::PopID();
+			}
+			ImGui::EndCombo();
+		}
+	}
+	ImGui::End();
+}
+
+
 #include "ModelLoader.hpp"
 #include "Systems.hpp"
 
-void EditorWindow::SpawnModelFromFile(World& world, const std::string& modelpath, const float3& pos)
+void EditorWindow::SpawnModelFromFile(World& world, const std::string& modelpath, const float3& pos, Scene* scene)
 {
-	// 1. fbx を読み込む（Application.cpp と同じ
-	auto modelData = ModelLoader::LoadFromFile(
-		m_App.GetCurrent()->GetDevice(), modelpath, 0.01f);
-	if (modelData.mesh == nullptr) return;
-
-	// 2. マテリアル作成
-	auto material = MakeShared<Material>();
-	material->Init();
-	if (!modelData.diffuseTexturePath.empty())
-		material->SetTextureFromFile(modelData.diffuseTexturePath);
-
-	// 3. エンティティを作ってコンポーネントを付ける
 	Entity e = world.CreateEntity();
-	TransformComponent tr{};
-	std::string name = "Model_" + std::to_string(e);
-	tr.position = pos;
-	tr.rotation = float4(0, 0, 0, 1);
-	tr.scale = float3(1, 1, 1);
-	tr.RebuildWorld();
-
+	// 先にTransform/名前だけ付けておく（メッシュは後から差し込む）
+	TransformComponent tr{}; tr.position = pos; tr.RebuildWorld();
 	world.AddComponent<TransformComponent>(e, tr);
-	world.AddComponent<MeshComponent>(e, MeshComponent{ modelData.mesh });
-	world.AddComponent<MaterialComponent>(e, MaterialComponent{ material });
-	world.AddComponent<NameComponent>(e, NameComponent{ name });
+	world.AddComponent<NameComponent>(e, NameComponent{ "Model_" + std::to_string(e) });
 
-	NameSytem::SetName(world, e,name);
-
-	m_SelectedEntity = e; // 置いたものを選択状態に
+	ModelLoader::PopulateModelEntity(world, e, modelpath, scene);
+	m_SelectedEntity = e;
 }
 
+void EditorWindow::CreateScriptFile(const std::string& die, const std::string& name)
+{
+	namespace fs = std::filesystem;
+	fs::path hpp = fs::absolute(fs::path(die)) / (name + ".hpp");
+	fs::path cpp = fs::absolute(fs::path(die)) / (name + ".cpp");
+	if (fs::exists(hpp))
+	{
+		LOG->LogWarning("スクリプトファイルが既に存在します: " + hpp.string());
+	}
+	if(fs::exists(cpp))
+	{
+		LOG->LogWarning("スクリプトファイルが既に存在します: " + cpp.string());
+	}
+
+	std::ofstream out(hpp);
+	out <<
+		"#pragma once\n"
+		"#include \"MonoBehavior.hpp\"\n"
+		"#include \"Logger.hpp\"\n"
+		"#include \"Components.hpp\"\n\n"
+		"class " << name << " : public MonoBehavior\n"
+		"{\n"
+		"public:\n"
+		"    void OnStart() override {}\n"
+		"    void OnUpdate(float dt) override\n"
+		"    {\n"
+		"        // auto& tr = transform();\n"
+		"        LOG->LogInfo(\"[" << name << "] Update\");\n"
+		"    }\n"
+		"};\n";
+
+	std::ofstream outcpp(cpp);
+	outcpp <<
+		"#include \"" << name << ".hpp\"\n"
+		"#include \"RegisterScript.hpp\"\n\n"
+		"REGISTER_SCRIPT(" << name << ");\n";
+
+	// vsproj にも追加
+	auto toProjRel = [](const fs::path& p)
+		{
+			std::string s = p.lexically_normal().string();
+			std::replace(s.begin(), s.end(), '/', '\\');
+			return s;
+		};
+	out.close();
+	outcpp.close();
+
+	// プロジェクトに追加
+	AddToProject(toProjRel(cpp), toProjRel(hpp));
+
+	LOG->LogInfo("スクリプト生成: " + hpp.string());
+}
+
+void EditorWindow::OpenInEditor(const std::string& path)
+{
+	namespace fs = std::filesystem;
+
+	// exeからソリューションを逆算して .slnを探索
+	char exePath[MAX_PATH];
+	GetModuleFileNameA(NULL, exePath, MAX_PATH);
+	fs::path slnDir = fs::path(exePath).parent_path().parent_path().parent_path();
+	fs::path sln = slnDir / "DirectX12__test.sln";
+
+	std::wstring wpath = std::filesystem::path(path).wstring();
+	std::wstring args = L"/edit \"" + wpath + L"\"";
+	ShellExecuteW(NULL, L"open", L"devenv.exe", args.c_str(), nullptr, SW_SHOWNORMAL);
+}
+
+void EditorWindow::AddToProject(const std::string cppPath, const std::string hppPath)
+{
+	namespace fs = std::filesystem;
+
+	// exe の場所から solutionDir を逆算（sln\x64\Debug\exe -> sln）
+	char exePath[MAX_PATH];
+	GetModuleFileNameA(nullptr, exePath, MAX_PATH);
+	fs::path slnDir = fs::path(exePath).parent_path().parent_path().parent_path();
+	fs::path scriptProj = slnDir / "Scripts" / "Scripts.vcxproj";
+
+	if (!fs::exists(scriptProj))
+	{
+		LOG->LogWarning("プロジェクトが見つかりません: " + scriptProj.string());
+		return;
+	}
+
+	// vcxproj 読み込み
+	std::ifstream in(scriptProj);
+	std::string xml((std::istreambuf_iterator<char>(in)), {});
+	in.close();
+
+	// 絶対パス（Windows区切り）
+	auto toWin = [](const std::string& p)
+		{
+			return fs::absolute(p).make_preferred().string();
+		};
+	const std::string cppAbs = toWin(cppPath);
+	const std::string hppAbs = toWin(hppPath);
+
+	// 既に登録済みなら何もしない（二重登録防止）
+	if (xml.find(cppAbs) != std::string::npos) return;
+
+	// 挿入する行
+	const std::string includeEntry =
+		"    <ClInclude Include=\"" + hppAbs + "\" />\r\n";
+	const std::string compileEntry =
+		"    <ClCompile Include=\"" + cppAbs + "\">\r\n"
+		"      <PrecompiledHeader>NotUsing</PrecompiledHeader>\r\n"
+		"    </ClCompile>\r\n";
+
+	// 行頭位置を求めるヘルパ
+	auto lineHead = [&](size_t pos)
+		{
+			size_t nl = xml.rfind('\n', pos);
+			return (nl == std::string::npos) ? size_t(0) : nl + 1;
+		};
+
+	// <ClInclude Include="framework.h" /> の前に hpp を挿入
+	if (size_t p = xml.find("<ClInclude Include=\"framework.h\" />"); p != std::string::npos)
+		xml.insert(lineHead(p), includeEntry);
+
+	// <ClCompile Include="cr_main.cpp" /> の前に cpp を挿入
+	if (size_t p = xml.find("<ClCompile Include=\"cr_main.cpp\" />"); p != std::string::npos)
+		xml.insert(lineHead(p), compileEntry);
+
+	// 書き戻し（BOMなし・改行そのまま）
+	std::ofstream out(scriptProj, std::ios::binary | std::ios::trunc);
+	out << xml;
+	out.close();
+
+	LOG->LogInfo("Scripts.vcxproj に追加: " + fs::path(cppPath).filename().string());
+}
+
+void EditorWindow::CreateFolder(const std::string& dir)
+{
+	namespace fs = std::filesystem;
+
+	// "New Folder", "New Folder 1", ... と重複回避
+	fs::path target = fs::path(dir) / u8("New Folder");
+	int n = 1;
+	while (fs::exists(target))
+		target = fs::path(dir) / (std::string(u8("New Folder ")) + std::to_string(n++));
+
+	std::error_code ec;
+	fs::create_directory(target, ec);
+	if (ec) LOG->LogWarning("フォルダ作成失敗: " + ec.message());
+	else    LOG->LogInfo("フォルダ作成: " + target.string());
+}

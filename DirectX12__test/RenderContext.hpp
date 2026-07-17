@@ -2,6 +2,19 @@
 
 #include "Defines.hpp"
 #include <d3d12.h>
+#include "ShaderTypes.hpp"
+
+struct ShaderPassDef
+{
+	std::wstring vsFile = L"VertexShader.hlsl";
+	std::string vsEntry = "BasicVS";
+	std::string vsProfile;
+	std::wstring psFile;
+	std::string psEntry;
+	std::string psProfile = "ps_5_0";
+	bool alphaBlend = false;
+	D3D12_CULL_MODE cullMode = D3D12_CULL_MODE_BACK;
+};
 
 enum class E_VERTEX_SHADER
 {
@@ -14,6 +27,7 @@ enum class E_PIXEL_SHADER
 	BASIC,
 	TOON,
 	EMISSIVE,
+	PBR,
 	COUNT
 };
 
@@ -23,6 +37,7 @@ struct RenderSettings
 	E_PIXEL_SHADER pixelShader = E_PIXEL_SHADER::BASIC;
 	bool wireframe = false;
 	bool meshShader = false;
+	bool deferred = false;
 
 	static RenderSettings& Get()
 	{
@@ -32,6 +47,7 @@ struct RenderSettings
 };
 
 class RenderTexture;
+class ConstantBufferAllocator;
 
 struct RenderContext
 {
@@ -51,6 +67,9 @@ struct RenderContext
 	E_VERTEX_SHADER vertexShader = E_VERTEX_SHADER::BASIC;
 	E_PIXEL_SHADER pixelShader = E_PIXEL_SHADER::BASIC;
 	UINT frameIndex = 0;
+
+	ConstantBufferAllocator* cbAllocator = nullptr;
+	LightCB lightCb;
 
 	RenderTexture* viewportRenderTexture = nullptr;
 	D3D12_VIEWPORT* viewport = nullptr;

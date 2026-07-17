@@ -7,6 +7,15 @@
 #include "Mesh.hpp"
 #include <cstdlib>
 #include <filesystem>
+#include "DirectX.hpp"
+#include "assimp/material.h"
+#include <DirectXTex.h>
+#include "PMXLoader.hpp"
+#include "Util.hpp"
+#include "Scene.hpp"
+#include "AsyncLoader.hpp"
+#include "Components.hpp"
+#include "MmdPhysics.hpp"
 
 namespace
 {
@@ -148,197 +157,642 @@ namespace
 /*
 *     ファイルからモデルをロード
 */
-ModelLoadResult ModelLoader::LoadFromFile(const ComPtr<ID3D12Device>& device, const std::string& filepath, float scale)
+ModelLoadResult ModelLoader::LoadFromFile(const ComPtr<ID3D12Device>& device,
+    const std::string& filepath, float scale)
 {
-    ModelLoadResult result{};
-
-    // デバイスがnillptrの場合は処理しない
-    if(device == nullptr)
+    if (device == nullptr)
     {
         LOG->LogError("Device is null. Cannot load model: " + filepath);
-        return result;
-	}
-    // 準備
-    std::vector<Vertex> Vertices;
-	std::vector<std::uint32_t> Indices;
+        return {};
+    }
+    return upload(ParseFile(filepath, scale));
+}
+
+ModelCpuData ModelLoader::ParseFile(const std::string& filepath, float scale)
+{
+    ModelCpuData out{};
+
+	const std::string ext = std::filesystem::path(filepath).extension().string();
+    if (_stricmp(ext.c_str(), ".pmx") == 0)
+    {
+        if (!PMXLoader::Parse(filepath, scale, out))
+            return out;   // success=false
+
+        namespace fs = std::filesystem;
+        fs::path base(filepath);
+        for (auto& entry : fs::directory_iterator(base.parent_path()))
+        {
+            if (entry.path().extension() == ".vmd")
+            {
+                AnimationClip vc = LoadVMDClip(entry.path().string(), out.skeleton);
+                if (!vc.channels.empty()) out.clips.push_back(std::move(vc));
+            }
+        }
+    }
+    else
+    {
+
+        Assimp::Importer importer;
+
+        const unsigned int flags =
+            aiProcess_Triangulate |
+            aiProcess_GenSmoothNormals |
+            aiProcess_CalcTangentSpace |
+            aiProcess_JoinIdenticalVertices |
+            aiProcess_FlipUVs |
+            aiProcess_ConvertToLeftHanded;
+
+        // モデル読み込み
+        const aiScene* scene = importer.ReadFile(filepath, flags);
+
+        // エラー判定
+        if (scene == nullptr || !scene->HasMeshes())
+        {
+            LOG->LogError("Failed to load model: " + filepath + " - " + importer.GetErrorString());
+            return out;   // success=false
+        }
+
+        // メッシュの処理
+        for (unsigned int meshIndex = 0; meshIndex < scene->mNumMeshes; ++meshIndex)
+        {
+            const aiMesh* mesh = scene->mMeshes[meshIndex];
+            const std::uint32_t baseVertex = static_cast<std::uint32_t>(out.vertices.size());
+
+            out.vertices.reserve(out.vertices.size() + mesh->mNumVertices);
+
+            for (unsigned int i = 0; i < mesh->mNumVertices; ++i)
+            {
+                Vertex v{};
+                const aiVector3D& pos = mesh->mVertices[i];
+                v.position = { pos.x * scale, pos.y * scale, pos.z * scale };
+
+                if (mesh->HasNormals())
+                {
+                    const aiVector3D& n = mesh->mNormals[i];
+                    v.normal = { n.x, n.y, n.z };
+                }
+                else
+                {
+                    v.normal = { 0.0f, 1.0f, 0.0f };
+                }
+
+                if (mesh->HasTangentsAndBitangents())
+                {
+                    const aiVector3D& t = mesh->mTangents[i];
+                    v.tangent = { t.x, t.y, t.z };
+                }
+                else
+                {
+                    v.tangent = { 1.0f, 0.0f, 0.0f };
+                }
+
+                if (mesh->HasVertexColors(0))
+                {
+                    const aiColor4D& c = mesh->mColors[0][i];
+                    v.col = { c.r, c.g, c.b, c.a };
+                }
+                else
+                {
+                    v.col = { 1.0f, 1.0f, 1.0f, 1.0f };
+                }
+
+                if (mesh->HasTextureCoords(0))
+                {
+                    const aiVector3D& uv = mesh->mTextureCoords[0][i];
+                    v.uv = { uv.x, uv.y };
+                }
+                else
+                {
+                    v.uv = { 0.0f, 0.0f };
+                }
+
+                out.vertices.push_back(v);
+            }
+
+            // スキンの影響度バッファ拡張
+            if (out.skinData.infuences.size() < out.vertices.size())
+            {
+                out.skinData.infuences.resize(out.vertices.size());
+            }
+
+            // ボーンの処理
+            for (unsigned int i = 0; i < mesh->mNumBones; ++i)
+            {
+                const aiBone* bone = mesh->mBones[i];
+                const std::uint16_t boneIndex = GetOrAddBoneIndex(bone, out.skinData);
+
+                for (unsigned int w = 0; w < bone->mNumWeights; ++w)
+                {
+                    const aiVertexWeight& weight = bone->mWeights[w];
+                    const std::uint32_t vertexID = baseVertex + weight.mVertexId;
+                    AddInfluence(out.skinData.infuences[vertexID], boneIndex, weight.mWeight);
+                }
+            }
+
+            // 面（インデックス）の処理
+            const std::uint32_t indexStart = static_cast<std::uint32_t>(out.indices.size());
+            for (unsigned int f = 0; f < mesh->mNumFaces; ++f)
+            {
+                const aiFace& face = mesh->mFaces[f];
+                if (face.mNumIndices != 3) { LOG->LogError("三角形ではない面が見つかりました: " + std::to_string(meshIndex)); continue; }
+                out.indices.push_back(baseVertex + face.mIndices[0]);
+                out.indices.push_back(baseVertex + face.mIndices[1]);
+                out.indices.push_back(baseVertex + face.mIndices[2]);
+            }
+            const std::uint32_t indexCount =
+                static_cast<std::uint32_t>(out.indices.size()) - indexStart;
+
+            // このaiMesh = 1サブメッシュ（materialIndexで後述のmaterialsを参照）
+            out.subMeshes.push_back(SubMesh{ indexStart, indexCount, mesh->mMaterialIndex });
+        }
+
+        NormalizeInfluence(out.skinData.infuences);
+        if(scene->mRootNode)
+			AddSkeletonNode(scene->mRootNode, -1, out.skeleton);
+
+        //スキン影響を頂点バッファへ転機
+        const size_t vcount = out.vertices.size();
+        if (out.skinData.infuences.size() == vcount)
+        {
+            for (size_t i = 0; i < vcount; ++i)
+            {
+                const auto& inf = out.skinData.infuences[i];
+                for (int k = 0; k < 4; ++k)
+                {
+					out.vertices[i].boneIndices[k] = inf.indices[k];
+					out.vertices[i].boneWeights[k] = inf.weights[k];
+                }
+            }
+        }
+
+        if (out.vertices.empty() && out.indices.empty())
+        {
+            LOG->LogError("No valid vertices or indices found in model: " + filepath);
+            return out;   // success=false
+        }
+
+        // --- マテリアル（テクスチャパス）処理：GPUは触らずパス/データだけ抽出 ---
+        const std::filesystem::path modelPath(filepath);
+        const std::filesystem::path baseDir = modelPath.parent_path();
+
+        // ファイル名を basename 化し textures/ or 直下から実在パスを探す（.exr→.png）
+        auto findInFolders = [&](std::filesystem::path fname) -> std::wstring
+            {
+                if (fname.extension() == ".exr") fname.replace_extension(".png");
+                for (const auto& dir : { baseDir / "textures", baseDir })
+                {
+                    std::filesystem::path cand = dir / fname;
+                    if (std::filesystem::exists(cand)) return cand.wstring();
+                }
+                return L"";
+            };
+
+        // assimpが返すパスは basename 化して解決
+        auto resolveByType = [&](const aiMaterial* mat, aiTextureType type) -> std::wstring
+            {
+                aiString p{};
+                if (mat->GetTexture(type, 0, &p) != AI_SUCCESS) return L"";
+                std::string s = p.C_Str();
+                if (s.empty() || s[0] == '*') return L"";
+                return findInFolders(std::filesystem::path(s).filename());
+            };
+
+        // diffuseパスから兄弟マップを命名規則で派生（_diff→_metal 等）。拡張子は複数試す
+        auto deriveSibling = [&](const std::wstring& diffuse,
+            const std::wstring& fromKey, const std::wstring& toKey) -> std::wstring
+            {
+                if (diffuse.empty()) return L"";
+                std::filesystem::path pd(diffuse);
+                std::wstring stem = pd.stem().wstring();           // 例: bolt_..._diff_4k
+                size_t at = stem.find(fromKey);
+                if (at == std::wstring::npos) return L"";
+                stem.replace(at, fromKey.size(), toKey);           // _diff → _metal
+                for (const wchar_t* ext : { L".png", L".jpg", L".jpeg", L".tga" })
+                {
+                    std::filesystem::path cand = pd.parent_path() / (stem + ext);
+                    if (std::filesystem::exists(cand)) return cand.wstring();
+                }
+                return L"";
+            };
+
+        // 法線マップを持つ（＝本体）マテリアルを優先して確定
+        out.materials.resize(scene->mNumMaterials);
+        for (unsigned int i = 0; i < scene->mNumMaterials; ++i)
+        {
+            const aiMaterial* material = scene->mMaterials[i];
+            std::wstring diff = resolveByType(material, aiTextureType_DIFFUSE);
+            std::wstring nor = resolveByType(material, aiTextureType_NORMALS);
+            if (nor.empty()) nor = deriveSibling(diff, L"_diff", L"_nor_gl");
+
+            out.materials[i].diffuse = diff;
+            out.materials[i].normal = nor;
+            out.materials[i].metal = deriveSibling(diff, L"_diff", L"_metal");
+            out.materials[i].rough = deriveSibling(diff, L"_diff", L"_rough");
+        }
+
+        for (unsigned int a = 0; a < scene->mNumAnimations; ++a)
+        {
+            const aiAnimation* anim = scene->mAnimations[a];
+            AnimationClip clip;
+            clip.name = anim->mName.C_Str();
+            clip.tickPerSecond = (anim->mTicksPerSecond != 0.0) ? (float)anim->mTicksPerSecond : 25.0f;
+            clip.duration = (float)(anim->mDuration / clip.tickPerSecond);
+
+            for (unsigned int c = 0; c < anim->mNumChannels; ++c)
+            {
+                const aiNodeAnim* ch = anim->mChannels[c];
+                BoneAnimationChannel channel;
+                channel.boneName = ch->mNodeName.C_Str();
+
+                const unsigned int n = ch->mNumPositionKeys;
+                for (unsigned int k = 0; k < n; ++k)
+                {
+                    KeyFrame kf;
+                    kf.time = (float)(ch->mPositionKeys[k].mTime / clip.tickPerSecond);
+                    const auto& p = ch->mPositionKeys[k].mValue;
+                    kf.position = { p.x, p.y, p.z };
+
+                    const unsigned int rk = (k < ch->mNumRotationKeys) ? k : ch->mNumRotationKeys - 1;
+                    const auto& q = ch->mRotationKeys[rk].mValue;
+                    kf.rotation = { q.x, q.y, q.z, q.w };
+
+                    const unsigned int sk = (k < ch->mNumScalingKeys) ? k : ch->mNumScalingKeys - 1;
+                    const auto& s = ch->mScalingKeys[sk].mValue;
+                    kf.scale = { s.x, s.y, s.z };
+
+                    channel.keyFrames.push_back(kf);
+                }
+                clip.channels.push_back(std::move(channel));
+            }
+            out.clips.push_back(std::move(clip));
+        }
+    }
+    // --- 各マップを RGBA8 にデコード（このParseFileはワーカースレッドで実行される）---
+    auto decode = [](const std::wstring& path) -> DecodedImage
+        {
+            DecodedImage d;
+            if (path.empty()) return d;
+
+            DirectX::TexMetadata meta{};
+            DirectX::ScratchImage img{};
+
+            const std::wstring ext = std::filesystem::path(path).extension().wstring();
+            HRESULT hr;
+            if (_wcsicmp(ext.c_str(), L".hdr") == 0)
+                hr = DirectX::LoadFromHDRFile(path.c_str(), &meta, img);
+            else if (_wcsicmp(ext.c_str(), L".tga") == 0)
+                hr = DirectX::LoadFromTGAFile(path.c_str(), &meta, img);
+            else if (_wcsicmp(ext.c_str(), L".dds") == 0)
+                hr = DirectX::LoadFromDDSFile(path.c_str(), DirectX::DDS_FLAGS_NONE, &meta, img);
+            else
+                hr = DirectX::LoadFromWICFile(path.c_str(), DirectX::WIC_FLAGS_NONE, &meta, img);
+
+            if (FAILED(hr)) return d;
+
+            const DirectX::Image* src = img.GetImage(0, 0, 0);
+            if (src == nullptr) return d;
+
+            // RGBA8 に統一（Material の CreateTextureFromRGBA が R8G8B8A8_UNORM 前提）
+            DirectX::ScratchImage converted;
+            if (meta.format != DXGI_FORMAT_R8G8B8A8_UNORM)
+            {
+                if (FAILED(DirectX::Convert(*src, DXGI_FORMAT_R8G8B8A8_UNORM,
+                    DirectX::TEX_FILTER_DEFAULT, DirectX::TEX_THRESHOLD_DEFAULT, converted)))
+                    return d;
+                src = converted.GetImage(0, 0, 0);
+            }
+
+            d.width = static_cast<UINT>(src->width);
+            d.height = static_cast<UINT>(src->height);
+            d.pixels.assign(src->pixels, src->pixels + src->rowPitch * src->height);
+            d.ok = true;
+            return d;
+        };
+
+    std::unordered_map<std::wstring, std::shared_ptr<DecodedImage>> imgCache;
+    auto decodeCached = [&](const std::wstring& path) -> std::shared_ptr<DecodedImage>
+        {
+            if (path.empty()) return nullptr;
+            auto it = imgCache.find(path);
+            if (it != imgCache.end()) return it->second;   // 既出は共有
+            auto d = std::make_shared<DecodedImage>(decode(path));
+            imgCache[path] = d;
+            return d;
+        };
+
+    for (auto& set : out.materials)
+    {
+        set.diffuseImage    = decodeCached(set.diffuse);
+        set.normalImage     = decodeCached(set.normal);
+        set.metalImage      = decodeCached(set.metal);
+        set.roughImage      = decodeCached(set.rough);
+    }
+
+    // 単一マテリアル互換：法線を持つ最初のマテリアルを従来フィールドにも入れる
+    for (auto& m : out.materials)
+        if (!m.normal.empty())
+        {
+            out.diffuseTexturePath = m.diffuse; out.normalTexturePath = m.normal;
+            out.metalTexturePath = m.metal;     out.roughTexturePath = m.rough;
+            break;
+        }
+
+    int wv = 0;
+    for (auto& v : out.vertices)
+    {
+        float s = v.boneWeights[0] + v.boneWeights[1] + v.boneWeights[2] + v.boneWeights[3];
+        if (s > 0.01f) ++wv;
+    }
+    LOG->LogInfo("verts_with_weight=" + std::to_string(wv) + "/" + std::to_string(out.vertices.size()));
+
+    int matched = 0, total = 0;
+    if (!out.clips.empty())
+    {
+        total = (int)out.clips[0].channels.size();
+        for (auto& ch : out.clips[0].channels)
+            if (out.skeleton.nameToIndex.count(ch.boneName)) ++matched;
+    }
+    LOG->LogInfo("matched_channels=" + std::to_string(matched) + "/" + std::to_string(total));
+
+	out.success = true;
+    return out;
+}
+
+ModelLoadResult ModelLoader::upload(const ModelCpuData& cpu)
+{
+	auto device = APP->GetDevice();
+    ModelLoadResult result{};
+    if (device == nullptr || !cpu.success) return result;
+
+    auto mesh = std::make_shared<Mesh>();
+    mesh->Init(device, cpu.vertices, cpu.indices,
+        cpu.subMeshes.empty() ? nullptr : &cpu.subMeshes);
+    result.mesh                 = mesh;
+	result.subMeshes            = std::move(cpu.subMeshes);
+	result.materials            = std::move(cpu.materials);
+    result.diffuseTexturePath   = std::move(cpu.diffuseTexturePath);
+	result.normalTexturePath    = std::move(cpu.normalTexturePath);
+	result.metalTexturePath     = std::move(cpu.metalTexturePath);
+	result.roughTexturePath     = std::move(cpu.roughTexturePath);
+    result.diffusetextureData   = std::move(cpu.diffuseTextureData); 
+	result.clips                = std::move(cpu.clips);
+    result.skeleton             = std::move(cpu.skeleton);
+    result.skinData             = std::move(cpu.skinData);
+	result.morphs               = std::move(cpu.morphs);
+	result.physics              = std::move(cpu.physics);
+    return result;
+}
+
+std::vector<AnimationClip> ModelLoader::LoadAnimationsOnly(const std::string& filepath)
+{
+    std::vector<AnimationClip> clips;
     Assimp::Importer importer;
+    const aiScene* scene = importer.ReadFile(filepath,
+        aiProcess_Triangulate | aiProcess_ConvertToLeftHanded);
+    if (!scene) { LOG->LogError("anim load failed: " + filepath); return clips; }
 
-    const unsigned int flags =
-        aiProcess_Triangulate |
-        aiProcess_GenSmoothNormals |
-        aiProcess_JoinIdenticalVertices |
-        aiProcess_FlipUVs |
-        aiProcess_ConvertToLeftHanded;
-
-    // モデル読み込み
-    const aiScene* scene = importer.ReadFile(filepath, flags);
-
-    // エラー処理
-    if (scene == nullptr || !scene->HasMeshes())
+    for (unsigned int a = 0; a < scene->mNumAnimations; ++a)
     {
-        LOG->LogError("Failed to load model: " + filepath + " - " + importer.GetErrorString());
-        return result;
+        const aiAnimation* anim = scene->mAnimations[a];
+        AnimationClip clip;
+        clip.name = std::filesystem::path(filepath).stem().string();  // ファイル名をクリップ名に
+        clip.tickPerSecond = (anim->mTicksPerSecond != 0.0) ? (float)anim->mTicksPerSecond : 30.0f;
+        clip.duration = (float)(anim->mDuration / clip.tickPerSecond);
+
+        for (unsigned int c = 0; c < anim->mNumChannels; ++c)
+        {
+            const aiNodeAnim* ch = anim->mChannels[c];
+            BoneAnimationChannel channel;
+            channel.boneName = ch->mNodeName.C_Str();
+            for (unsigned int k = 0; k < ch->mNumPositionKeys; ++k)
+            {
+                KeyFrame kf;
+                kf.time = (float)(ch->mPositionKeys[k].mTime / clip.tickPerSecond);
+                const auto& p = ch->mPositionKeys[k].mValue; kf.position = { p.x,p.y,p.z };
+                const unsigned int rk = (k < ch->mNumRotationKeys) ? k : ch->mNumRotationKeys - 1;
+                const auto& q = ch->mRotationKeys[rk].mValue; kf.rotation = { q.x,q.y,q.z,q.w };
+                const unsigned int sk = (k < ch->mNumScalingKeys) ? k : ch->mNumScalingKeys - 1;
+                const auto& s = ch->mScalingKeys[sk].mValue; kf.scale = { s.x,s.y,s.z };
+                channel.keyFrames.push_back(kf);
+            }
+            clip.channels.push_back(std::move(channel));
+        }
+        clips.push_back(std::move(clip));
+    }
+    LOG->LogInfo("anim loaded: " + filepath + " clips=" + std::to_string(clips.size()));
+    return clips;
+}
+
+AnimationClip ModelLoader::LoadVMDClip(const std::string& path, const Skeleton& skeleton)
+{
+    AnimationClip clip;
+    std::ifstream ifs(path, std::ios::binary);
+    if (!ifs) { LOG->LogError("VMD open failed: " + path); return clip; }
+    std::vector<char> buf((std::istreambuf_iterator<char>(ifs)), {});
+    const char* d = buf.data();
+    if (buf.size() < 54) return clip;
+
+    size_t o = 50;   // 30(signature)+20(model name)
+    std::uint32_t count; std::memcpy(&count, d + o, 4); o += 4;
+
+    std::unordered_map<std::string, BoneAnimationChannel> channels;
+    float maxTime = 0.0f;
+
+    for (std::uint32_t i = 0; i < count; ++i)
+    {
+        char nameBuf[16] = {};
+        std::memcpy(nameBuf, d + o, 15); o += 15;
+        const std::string name = ShiftJisUtf8(std::string(nameBuf));
+
+        std::uint32_t frame; std::memcpy(&frame, d + o, 4); o += 4;
+        float pos[3];  std::memcpy(pos, d + o, 12); o += 12;
+        float quat[4]; std::memcpy(quat, d + o, 16); o += 16;  // x,y,z,w
+        o += 64;   // 補間パラメータ(今回は線形/slerp)
+
+        auto it = skeleton.nameToIndex.find(name);
+        if (it == skeleton.nameToIndex.end()) continue;   // モデルに無いボーンはスキップ
+        const auto& node = skeleton.nodes[it->second];
+
+        // バインドオフセット = ローカル変換の平行移動成分
+        const float3 bindOff = { node.localTransform._41, node.localTransform._42, node.localTransform._43 };
+
+        KeyFrame kf;
+        kf.time = frame / 30.0f;
+        kf.position = { bindOff.x + pos[0], bindOff.y + pos[1], bindOff.z + pos[2] };
+        kf.rotation = { quat[0], quat[1], quat[2], quat[3] };
+        kf.scale = { 1,1,1 };
+
+        auto& ch = channels[name];
+        ch.boneName = name;
+        ch.keyFrames.push_back(kf);
+        maxTime = std::max(maxTime, kf.time);
     }
 
-    // メッシュの処理
-    for (unsigned int meshIndex = 0; meshIndex < scene->mNumMeshes; ++meshIndex)
+    for (auto& [name, ch] : channels)
     {
-        // メッシュの取得
-        const aiMesh* mesh = scene->mMeshes[meshIndex];
-
-        // メッシュの頂点を取得
-        const std::uint32_t baseVertex = static_cast<std::uint32_t>(Vertices.size());
-
-        // 頂点の追加
-        Vertices.reserve(Vertices.size() + mesh->mNumVertices);
-
-        for (unsigned int i = 0; i < mesh->mNumVertices; ++i)
-        {
-            // Vertexに変換
-            Vertex v{};
-            const aiVector3D& pos = mesh->mVertices[i];
-            v.position = { pos.x * scale, pos.y * scale, pos.z * scale };
-
-            // 法線の追加
-            if (mesh->HasNormals())
-            {
-                const aiVector3D& n = mesh->mNormals[i];
-				v.normal = { n.x, n.y, n.z };
-            }
-            else
-            {
-                // 法線がない場合は上向きの法線を設定
-                v.normal = { 0.0f, 1.0f, 0.0f };
-            }
-
-            // colorの追加
-            if (mesh->HasVertexColors(0))
-            {
-                const aiColor4D& c = mesh->mColors[0][i];
-                v.col = { c.r, c.g, c.b, c.a };
-            }
-            else
-            {
-                // 頂点カラーがない場合は白色を設定
-                v.col = { 1.0f, 1.0f, 1.0f, 1.0f };
-            }
-
-            // UVの追加
-            if (mesh->HasTextureCoords(0))
-            {
-                const aiVector3D& uv = mesh->mTextureCoords[0][i];
-                v.uv = { uv.x, uv.y };
-            }
-            else
-            {
-                // UVがない場合は0を設定
-                v.uv = { 0.0f,0.0f };
-            }
-
-            // 頂点の追加
-            Vertices.push_back(v);
-        }
-
-        // スキンメッシュの追加
-        if (result.skinData.infuences.size() < Vertices.size())
-        {
-            result.skinData.infuences.resize(Vertices.size());
-        }
-
-        // ボーンの追加
-        for (unsigned int i = 0; i < mesh->mNumBones; ++i)
-        {
-            // メッシュからボーンの取得
-            const aiBone* bone = mesh->mBones[i];
-			const std::uint16_t boneIndex = GetOrAddBoneIndex(bone, result.skinData);
-
-			// ボーンの影響を頂点に追加
-            for (unsigned int w = 0; w < bone->mNumWeights; ++w)
-            {
-				const aiVertexWeight& weight = bone->mWeights[w];
-                const std::uint32_t vertexID = baseVertex + weight.mVertexId;
-                AddInfluence(result.skinData.infuences[vertexID], boneIndex, weight.mWeight);
-            }
-        }
-
-        // faceの追加
-        for (unsigned int f = 0; f < mesh->mNumFaces; ++f)
-        {
-            const aiFace& face = mesh->mFaces[f];
-
-            // 三角形以外の面があった場合はエラー
-            if (face.mNumIndices != 3)
-            {
-                LOG->LogError("Non-triangulated face found in mesh: " + std::to_string(meshIndex));
-                continue;
-            }
-
-            // インデックスの追加
-            Indices.push_back(baseVertex + face.mIndices[0]);
-            Indices.push_back(baseVertex + face.mIndices[1]);
-            Indices.push_back(baseVertex + face.mIndices[2]);
-        }
+        std::sort(ch.keyFrames.begin(), ch.keyFrames.end(),
+            [](const KeyFrame& a, const KeyFrame& b) { return a.time < b.time; });
+        clip.channels.push_back(std::move(ch));
     }
+    clip.name = std::filesystem::path(path).stem().string();
+    clip.tickPerSecond = 30.0f;
+    clip.duration = maxTime;
+    LOG->LogInfo("VMD loaded: " + path + " ch=" + std::to_string(clip.channels.size())
+        + " dur=" + std::to_string(clip.duration));
+    return clip;
+}
 
-	NormalizeInfluence(result.skinData.infuences);
-
-    if (Vertices.empty() && Indices.empty())
+CameraClip ModelLoader::LoadVMDCameraClip(const std::string& path)
+{
+    CameraClip clip;
+    std::ifstream ifs(path, std::ios::binary);
+    if (!ifs)
     {
-        LOG->LogError("No valid vertices or indices found in model: " + filepath);
-		return result;
+        LOG->LogError("VMD camera open failed: " + path);
+		return clip;
     }
+    std::vector<char> buf((std::istreambuf_iterator<char>(ifs)), {});
+    const char* d = buf.data();
+    const size_t size = buf.size();
+    if (size < 54) return clip;
 
-	auto mesh = std::make_shared<Mesh>();
-	mesh->Init(device, Vertices, Indices, nullptr);
-	result.mesh = mesh;
+	size_t o = 50;   // 30(signature)+20(model name)
 
-    const std::filesystem::path modelPath(filepath);
-	const std::filesystem::path baseDir = modelPath.parent_path();
+    // ボーンフレームを読み飛ばす
+    std::uint32_t boneCount;
+	std::memcpy(&boneCount, d + o, 4); o += 4;
+    o += (size_t)boneCount * 111;
 
-	// マテリアルの処理
-    for (unsigned int i = 0; i < scene->mNumMaterials; ++i)
+    // モーフフレームも読み飛ばす
+    if (o + 4 > size) return clip;
+    std::uint32_t morphCount;
+	std::memcpy(&morphCount, d + o, 4); o += 4;
+    o += (size_t)morphCount * 23;
+
+    // カメラフレームを読み込む
+    if (o + 4 > size) return clip;
+	std::uint32_t cameraCount;
+    std::memcpy(&cameraCount, d + 0, 4); o += 4;
+
+    for (std::uint32_t i = 0; i < cameraCount; ++i)
     {
-		// マテリアルの取得
-        const aiMaterial* material = scene->mMaterials[i];
-        aiString texPath{};
+        if (o + 61 > size) break;
+        CameraKeyFrame kf{};
+        std::uint32_t frame; std::memcpy(&frame, d + o, 4);  o += 4;
+        std::memcpy(&kf.distance, d + o, 4);                 o += 4;
+        std::memcpy(&kf.target, d + o, 12);                  o += 12;
+        std::memcpy(&kf.rotation, d + o, 12);                o += 12;
+        o += 24;                                             // 補間ベジェ(まずは線形)
+        std::uint32_t fov; std::memcpy(&fov, d + o, 4);      o += 4;
+        o += 1;                                              // パースペクティブフラグ
+        kf.time = frame / 30.0f;
+        kf.fovY = (float)fov;
+        clip.keys.push_back(kf);
+        clip.duration = std::max(clip.duration, kf.time);
+    }
+    std::sort(clip.keys.begin(),clip.keys.end(),
+        [](const CameraKeyFrame& a, const CameraKeyFrame& b) {return a.time < b.time; });
+    LOG->LogInfo("VMD camera loaded: " + path + " keys=" + std::to_string(clip.keys.size()));
+    return clip;
+}
 
-		// ディフューズテクスチャの取得
-        if (material->GetTexture(aiTextureType_DIFFUSE, 0, &texPath) == AI_SUCCESS)
+void ModelLoader::PopulateModelEntity(
+    World& world, std::uint32_t entity,
+    const std::string& modelpath, Scene* scene,
+    int restoreClip, bool restorePlaying,
+    const std::vector<std::string>& extraVmds,
+    bool applyDefaultTransformScale)
+{
+    AsyncLoader::Get().LoadModelAsync(modelpath, 1.0f,
+        [&world, entity, modelpath, scene, restoreClip, restorePlaying, extraVmds, applyDefaultTransformScale]
+        (ModelLoadResult result)
         {
-			const std::string texStr = texPath.C_Str();
+            if (!world.IsEntityAlive(entity) || !result.mesh) return;
 
-			// テクスチャパスが空でなく、かつ '*' で始まらない場合はファイルパスとみなす
-            if (!texStr.empty() && texStr[0] != '*')
+            // Transformスケール(新規スポーン時のみ設定。復元時は保存値を尊重)
+            if (applyDefaultTransformScale && world.HasComponent<TransformComponent>(entity))
             {
-                const int index = std::atoi(texStr.c_str() + 1);
-                if (index >= 0 && index < static_cast<int>(scene->mNumTextures))
+                auto& tr = world.GetComponent<TransformComponent>(entity);
+                if (modelpath.ends_with(".fbx"))      tr.scale = float3(0.01f, 0.01f, 0.01f);
+                else if (modelpath.ends_with(".pmx"))  tr.scale = float3(0.1f, 0.1f, 0.1f);
+                tr.RebuildWorld();
+            }
+
+            // Mesh(★FilePathを確実に保存できるよう構築してから追加)
+            MeshComponent meshc{ result.mesh };
+            meshc.FilePath = modelpath;
+            world.AddComponent<MeshComponent>(entity, meshc);
+
+            MaterialComponent mc{};
+
+            // --- アニメーション/物理/モーフ ---
+            if (!result.clips.empty() || !result.skinData.boneNames.empty())
+            {
+                AnimatorComponent an;
+                an.skeleton = std::move(result.skeleton);
+                an.skinData = std::move(result.skinData);
+                an.clips = std::move(result.clips);   // フォルダVMDはParseFileで既に格納済み
+                an.morphs = std::move(result.morphs);
+                an.morphWeights.assign(an.morphs.morphs.size(), 0.0f);
+
+                if (world.HasComponent<AnimatorComponent>(entity))
                 {
-                    const aiTexture* tex = scene->mTextures[index];
-                    if (tex->mHeight == 0 && tex->mWidth > 0)
+					const auto& old = world.GetComponent<AnimatorComponent>(entity);
+					an.clipPathsStr = old.clipPathsStr;
+                    an.clipsRestored = false;
+					an.time = old.time;
+                    an.playing = old.playing;
+                }
+
+                // 物理
+                if (scene)
+                {
+                    auto& physicsWorld = scene->EnsurePhysicsWorld();
+                    if (physicsWorld.GetPhysics() == nullptr) physicsWorld.Init();
+                    if (physicsWorld.GetPhysics())
                     {
-                        const auto* data = reinterpret_cast<const std::uint8_t*>(tex->pcData);
-                        result.diffusetextureData.assign(data, data + tex->mWidth);
-                        break;
-                    }
-                    else
-                    {
-						LOG->LogWarning("Unsupported embedded texture format in model: " + filepath);
+                        auto physComp = MmdPhysicsComponent{};
+                        physComp.impl = std::make_shared<MmdPhysics>();
+                        physComp.impl->Init(physicsWorld.GetPhysics(), result.physics, an.skeleton);
+                        world.AddComponent<MmdPhysicsComponent>(entity, physComp);
                     }
                 }
-            }
-            else if (!texStr.empty())
-            {
-                std::filesystem::path texFile(texStr);
-                if (texFile.is_relative())
+
+                // 兄弟FBXアニメ("stem_..."形式)を追加
+                namespace fs = std::filesystem;
+                fs::path base(modelpath);
+                std::string stem = base.stem().string();
+                for (auto& entry : fs::directory_iterator(base.parent_path()))
                 {
-					texFile = baseDir / texFile;
+                    std::string fn = entry.path().stem().string();
+                    if (entry.path().extension() == ".fbx" && fn != stem &&
+                        fn.rfind(stem + "_", 0) == 0)
+                    {
+                        auto extra = ModelLoader::LoadAnimationsOnly(entry.path().string());
+                        for (auto& c : extra) an.clips.push_back(std::move(c));
+                    }
                 }
 
-				result.diffuseTexturePath = texFile.wstring();
-                break;
-            }
-        }
-    }
+                // --- シーン復元: 手動追加VMDの再ロード＋再生状態 ---
+                an.extraClipNames = extraVmds;
+                for (const auto& vmd : extraVmds)
+                {
+                    AnimationClip vc = ModelLoader::LoadVMDClip(vmd, an.skeleton);
+                    if (!vc.channels.empty()) an.clips.push_back(std::move(vc));
+                }
+                if (restoreClip >= 0 && restoreClip < (int)an.clips.size())
+                    an.currentClip = restoreClip;
+                an.playing = restorePlaying;
 
-	return result;
+                world.AddComponent<AnimatorComponent>(entity, std::move(an));
+                mc.shaderName = "SkinnedToon";
+            }
+
+            // マテリアル
+            mc.materials = BuildMaterials(result, "PBR");
+            for (size_t i = 0; i < mc.materials.size(); ++i)
+                mc.materialnames.push_back(result.materials[i].name);
+            if (!mc.materials.empty()) mc.material = mc.materials[0];
+            world.AddComponent<MaterialComponent>(entity, mc);
+        });
 }

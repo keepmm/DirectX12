@@ -12,10 +12,19 @@
 #include "Scene.hpp"
 #include "RenderContext.hpp"
 #include "Engine/ThreadPool.hpp"
+#include "AsyncLoader.hpp"
 #include <mutex>
 #include <unordered_map>
 #include <string>
 #include <memory>
+#include <functional>
+
+enum class TransitionPhase
+{
+	None,
+	FadeOut,
+	FadeIn
+};
 
 class MenuScene;
 
@@ -24,6 +33,17 @@ class SceneManager
 public:
 	SceneManager();
 	~SceneManager() = default;
+
+	using SceneFactory = std::function<std::unique_ptr<Scene>(const std::string& jsonPath)>;
+
+	static std::string ScenePathFromName(const std::string& name)
+	{
+		return "Assets/Scenes/" + name + ".json";
+	}
+
+	void SetSceneFactory(SceneFactory factory) { m_SceneFactory = std::move(factory); }
+
+	bool RegisterScene(_In_ const std::string& name);
 
 	/// @brief シーンの登録
 	void RegisterScene(_In_ const std::string& name, _In_ std::unique_ptr<Scene> scene);
@@ -53,6 +73,7 @@ public:
 	void Update(_In_ float deltatime);
 	void FixedUpdate(_In_ float fixedDeltatime);
 	void LateUpdate(_In_ float deltatime);
+	void UpdateFade(_In_ float deltatime);
 
 	/// @brief シーンの描画処理
 	void Draw(_In_ const RenderContext& renderContext);
@@ -60,6 +81,12 @@ public:
 	/// @brief ThreadPoolの取得
 	ThreadPool& GetThreadPool() { return m_ThreadPool; }
 
+	/// @brief フェードインアウト用のシーン切り替え要求
+	void RequestSceneChangeWithFade(const std::string& name);
+
+	void RequestSceneChangeWithString(const std::string& name);
+
+	float GetFadeAlpha() const { return m_FadeAlpha; }
 private:
 	struct SceneEntry
 	{
@@ -72,6 +99,7 @@ private:
 	Scene* m_ActiveScene = nullptr;
 	std::string m_NextSceneName;
 	bool m_SceneChangeRequested = false;
+	SceneFactory m_SceneFactory;
 
 	std::queue<std::string> m_LoadQueue;
 	std::queue<std::string> m_UnloadQueue;
@@ -85,4 +113,12 @@ private:
 	void UpdateLoadedScenes(_In_ float deltatime);
 	void DrawLoadedScenes(_In_ const RenderContext& renderContext);
 	Scene* FindLoadedScene(_In_ const std::string& name) const;
+
+	// 遷移演出
+	TransitionPhase m_Transition;
+	float m_FadeAlpha = 0.0f;	//0 透明 : 1 真っ黒
+	float m_FadeSpeed = 2.0f;	//1秒で 0 -> 1になる 2.0なら0.5秒
+	std::string m_PendingSceneName;
+	std::string m_PendingScenePath;
 };
+

@@ -24,6 +24,7 @@ void Mesh::Init(
 
 	const UINT vertexBufferSize = static_cast<UINT>(vertices.size() * sizeof(Vertex));
 	const UINT indexBufferSize = static_cast<UINT>(indices.size() * sizeof(std::uint32_t));
+	m_VertexCount = static_cast<UINT>(vertices.size());
 
 	// 頂点バッファの作成
 		CD3DX12_HEAP_PROPERTIES uploadHeap(D3D12_HEAP_TYPE_UPLOAD);

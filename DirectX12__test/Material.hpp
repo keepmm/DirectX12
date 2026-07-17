@@ -4,19 +4,29 @@
 #include "Defines.hpp"
 #include <cstdint>
 #include "RenderContext.hpp"
-#include "DirectXTex/DirectXTex.h"
+#include <DirectXTex.h>
+#include "ShaderTypes.hpp"
+
+class ConstantBufferAllocator;
 
 class Material
 {
 public:
+	/// @brief 初期化
 	void Init();
 
+	/*
+	*	テクスチャの設定
+	*/
 	bool SetTextureFromFile(_In_ const std::wstring& filePath);
+
+	/** 
+	*	メモリからテクスチャを設定
+	*/
 	bool SetTextureFromMemory(_In_ const std::uint8_t* data, size_t size);
 
-	void SetLightDir(_In_ const float3& dir) { m_LightDir = dir; }
-	void SetLightColor(_In_ const float4& color) { m_LightColor = color; }
-	void SetAmbientColor(_In_ const float4& color) { m_AmbientColor = color; }
+	/// @brief トゥーンラップテクスチャの設定
+	bool SetToonRampTexture(_In_ const std::wstring& filepath);
 
 	void Apply(
 		_In_ ID3D12GraphicsCommandList* commandList,
@@ -24,33 +34,53 @@ public:
 		_In_ const float4x4& view,
 		_In_ const float4x4& projection,
 		bool wireframe,
-		E_VERTEX_SHADER vsType = E_VERTEX_SHADER::BASIC,
-		E_PIXEL_SHADER psType = E_PIXEL_SHADER::BASIC,
-		_In_opt_ ID3D12PipelineState* overridePso = nullptr,
-		UINT frameIndex = 0);
+		UINT frameIndex = 0,
+		_In_ ConstantBufferAllocator* cbAlloc = nullptr,
+		_In_ std::string shaderName = "",
+		_In_opt_ ID3D12PipelineState* overridePso = nullptr);
+		
+	void UpdateTextureIfNeeded(_In_ ID3D12GraphicsCommandList* commandList);
 
+	bool CreateTextureFromRGBA(
+		_In_ UINT Width,
+		_In_ UINT Height,
+		_In_ const std::uint8_t* data
+	);
+
+	bool CreateMapFromRGBA(
+		UINT srvSlot,
+		_In_ UINT Width,
+		_In_ UINT Height,
+		_In_ const std::uint8_t* data,
+		_Inout_ ComPtr<ID3D12Resource>& outTexture,
+		_Inout_ ComPtr<ID3D12Resource>& outUpload,
+		_Out_ D3D12_PLACED_SUBRESOURCE_FOOTPRINT& outFootPrint,
+		_Out_ bool& outPending
+	);
+	bool CreateNormalFromRGBA(UINT w, UINT h, const std::uint8_t* p);
+	bool CreateMetalFromRGBA(UINT w, UINT h, const std::uint8_t* p);
+	bool CreateRoughFromRGBA(UINT w, UINT h, const std::uint8_t* p);
+public:
+	float roughness = 0.5f;
+	float metallic = 0.0f;
+	float4 rimColor = { 1.0f,1.0f,1.0f,1.0f };
+	bool isFace = false;
+	float outlineWidth = 1.0f;
+
+	bool SetNormalTexture(_In_ const std::wstring& path);
+	bool SetMetalTexture(_In_ const std::wstring& path);
+	bool SetRoughTexture(_In_ const std::wstring& path);
+
+	// SRVヒープを5枚で確保＋全slotをデフォルト充填（重複コード集約）
+	bool EnsureSrvHeap();
 private:
-	struct alignas(256) TransformBuffer
-	{
-		float4x4 worldViewProj;
-		float4x4 world;
-		float4 lightDir;
-		float4 lightColor;
-		float4 ambientColor;
-	};
-
-	static constexpr UINT FRAME_COUNT = DirectXApp::RTV_NUM;
+	static constexpr UINT FRAME_COUNT = RTV_NUM;
 	static constexpr UINT MAX_ENTITY_PER_FRAME = 1024;
-	static constexpr UINT CB_SIZE = (sizeof(TransformBuffer) + 255u) & ~255u;
 
-	void BuildBufferData(
-		_In_ const float4x4& world,
-		_In_ const float4x4& view,
-		_In_ const float4x4& projection,
-		_Out_ TransformBuffer* outData) const;
+	void BuildPerFrame(const float4x4& view, const float4x4& projection, _Out_ FrameCB* out) const;
+	void BuildPerObject(const float4x4& world, _Out_ ObjectCB* out) const;
 
 	void CreateCheckerTexture(_In_ const ComPtr<ID3D12Device>& device);
-	void UpdateTextureIfNeeded(_In_ ID3D12GraphicsCommandList* commandList);
 
 	ComPtr<ID3D12Resource> m_ConstantBuffer[FRAME_COUNT];
 	std::uint8_t* m_MappedData[FRAME_COUNT] = {};
@@ -68,12 +98,40 @@ private:
 	UINT m_EntityCountPerFrame[FRAME_COUNT] = {};
 	UINT m_LastFrameIndex = UINT_MAX;
 
-	float3 m_LightDir{ 0.0f,0.0f,-1.0f };
-	float4 m_LightColor{ 1.0f,1.0f,1.0f,1.0f };
-	float4 m_AmbientColor{ 0.2f,0.2f,0.2f,1.0f };
-
 	bool UploadTextureData(
 		_In_ const DirectX::Image* srcImage,
 		_In_ const DirectX::TexMetadata& metadata
 	);
+
+	bool UploadTextureTo(
+		_In_ const DirectX::Image* srcImage,
+		_In_ const DirectX::TexMetadata& metadata,
+		UINT srvSlot,
+		_Inout_ ComPtr<ID3D12Resource>& outTexture,
+		_Inout_ ComPtr<ID3D12Resource>& outUpload,
+		_Out_ D3D12_PLACED_SUBRESOURCE_FOOTPRINT& outFootPrint,
+		_Out_ bool& outPending
+	);
+
+	ComPtr<ID3D12Resource> m_RampTexture;
+	ComPtr<ID3D12Resource> m_RampUpload;
+	D3D12_PLACED_SUBRESOURCE_FOOTPRINT m_RampFootprint = {};
+	bool m_RampUploadPending = false;
+
+	void CreateDefaultRampTexture();
+
+	ComPtr<ID3D12Resource> m_NormalTexture, m_NormalUpload;
+	ComPtr<ID3D12Resource> m_MetalTexture, m_MetalUpload;
+	ComPtr<ID3D12Resource> m_RoughTexture, m_RoughUpload;
+	D3D12_PLACED_SUBRESOURCE_FOOTPRINT m_NormalFootprint = {}, m_MetalFootprint = {}, m_RoughFootprint = {};
+	bool m_NormalPending = false, m_MetalPending = false, m_RoughPending = false;
+	bool m_HasNormal = false, m_HasMetal = false, m_HasRough = false;
+
+	UINT m_UploadFenceValue = 0;
+
+	bool m_EnvBound = false;
+	float m_EnvMaxMip = 0.0f;
+	void BindEnvironmentIfNeeded();
+	void BindShadowMapIfNeeded();
+	bool m_ShadowBound = false;
 };

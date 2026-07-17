@@ -5,6 +5,10 @@
 #include "PrefabLibrary.hpp"
 #include "Components.hpp"
 #include "ModelLoader.hpp"
+#include "PlayState.hpp"
+#include "ScriptHost.hpp"
+#include "AudioEngine.hpp"
+#include "FontAtlas.hpp"
 
 Application::Application()
 {
@@ -19,17 +23,26 @@ Application* Application::GetInstance()
 HRESULT Application::OnInit()
 {
 	// ---- 各ウィンドウの初期化 ---- //
-	m_EditorWindow = std::make_unique<EditorWindow>(*m_DirectX);
+	if (m_GameMode)
+	{
+		PLAY.SetMode(EngineMode::Play);
+	}
+	else
+	{
+		m_EditorWindow = std::make_unique<EditorWindow>(*m_DirectX,m_SceneManager);
+	}
 
+	// シーンの生成方法を登録(名前→ Assets/Scenes/<名前>.json)
+	m_SceneManager.SetSceneFactory([this](const std::string& jsonPath)
+		{
+			return MakeUnique<RuntimeScene>(jsonPath,
+				m_DirectX->GetDevice(),
+				m_DirectX->GetLinePso());
+		});
 
-	// RuntimeSceneの登録
-	auto runtimeScene = MakeUnique<RuntimeScene>("Assets/Scenes/SampleScene.json",
-		m_DirectX->GetDevice(),
-		m_DirectX->GetLinePso());
-	m_SceneManager.RegisterScene("RuntimeScene", std::move(runtimeScene));
-
-	// RuntimeSceneから開始
-	m_SceneManager.LoadScene("RuntimeScene");
+	// 開始シーンを登録してロード
+	m_SceneManager.RegisterScene(m_StartScene);
+	m_SceneManager.LoadScene(m_StartScene);
 
 	// プレハブの初期化
 	OnInitPrefabs();
@@ -41,6 +54,12 @@ HRESULT Application::OnInit()
 		m_DirectX->GetPipelineState(E_VERTEX_SHADER::BASIC, E_PIXEL_SHADER::BASIC),
 		m_DirectX->GetPipelineStateWireFrame());
 	Polygon::CreatePolygon();
+
+	// スクリプトホストの初期化
+	ScriptHost::Open(&m_SceneManager.GetActiveScene()->GetWorld());
+
+	// オーディオエンジンの初期化
+	AudioEngine::Get().Init();
 
 	return S_OK;
 }
@@ -55,6 +74,15 @@ void Application::OnUpdate()
 
 void Application::OnShutDown()
 {
+	AsyncLoader::Get().Shutdown();
+	AudioEngine::Get().Shutdown();
+
+	FontLibrary::Clear();
+
+	if (m_EditorWindow)
+	{
+		m_EditorWindow->ReleaseRenderTextures();
+	}
 }
 
 void Application::OnInitPrefabs()

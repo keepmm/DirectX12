@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../Defines.hpp"
+#include <thread>
 
 class ThreadPool
 {

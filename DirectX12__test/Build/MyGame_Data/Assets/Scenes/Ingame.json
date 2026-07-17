@@ -1,0 +1,156 @@
+{
+  "entities": [
+    {
+      "camera": {
+        "cameraType": 0,
+        "farZ": 100.0,
+        "fovY": 60.0,
+        "isActive": true,
+        "nearZ": 0.10000000149011612,
+        "orhoSize": 10.0,
+        "projection": 0
+      },
+      "freelook": {
+        "enabled": true,
+        "moveSpeed": 5.0,
+        "pitch": 0.15999998152256012,
+        "rotateSpeed": 0.0024999999441206455,
+        "yaw": -2.3650014400482178
+      },
+      "name": "MainCamera",
+      "transform": {
+        "position": [
+          3.131173610687256,
+          1.001009225845337,
+          2.4961352348327637
+        ],
+        "rotation": [
+          0.030256612226366997,
+          -0.9225955605506897,
+          0.07396548986434937,
+          0.37740054726600647
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    },
+    {
+      "light": {
+        "ambientColor": [
+          0.20000000298023224,
+          0.20000000298023224,
+          0.20000000298023224,
+          1.0
+        ],
+        "castShadows": false,
+        "color": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "direction": [
+          0.0,
+          0.0,
+          1.0
+        ],
+        "intensity": 13.0,
+        "isActive": true,
+        "range": 1.7999999523162842,
+        "spotAngle": 45.0,
+        "type": 1
+      },
+      "name": "MainLight",
+      "transform": {
+        "position": [
+          0.0,
+          1.2568424940109253,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          -0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    },
+    {
+      "camera": {
+        "cameraType": 1,
+        "farZ": 100.0,
+        "fovY": 60.0,
+        "isActive": true,
+        "nearZ": 0.10000000149011612,
+        "orhoSize": 10.0,
+        "projection": 0
+      },
+      "freelook": {
+        "enabled": true,
+        "moveSpeed": 5.0,
+        "pitch": 0.15999998152256012,
+        "rotateSpeed": 0.0024999999441206455,
+        "yaw": -2.3650014400482178
+      },
+      "name": "EditorCamera",
+      "transform": {
+        "position": [
+          3.131173610687256,
+          1.001009225845337,
+          2.4961352348327637
+        ],
+        "rotation": [
+          0.030256612226366997,
+          -0.9225955605506897,
+          0.07396548986434937,
+          0.37740054726600647
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    },
+    {
+      "material": {
+        "filePath": "Assets\\Model\\spot\\spot_texture.png",
+        "pixelShader": 0,
+        "rampFilePath": "",
+        "usePixelShader": false
+      },
+      "mesh": {
+        "filePath": "Assets\\Model\\spot\\spot.fbx",
+        "scale": 1.0
+      },
+      "name": "w",
+      "transform": {
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    }
+  ],
+  "sceneName": "ingame"
+}

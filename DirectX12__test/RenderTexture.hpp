@@ -11,8 +11,6 @@
 #include "d3dx12.h"
 #include "Defines.hpp"
 
-class DirectXApp;
-
 class RenderTexture
 {
 public:
@@ -28,7 +26,6 @@ public:
 	/// @param height テクスチャの高さ
 	/// @param format テクスチャフォーマット(デフォルト適用済み)
 	HRESULT Init(
-		_In_ DirectXApp& app,
 		_In_ UINT width,
 		_In_ UINT height,
 		_In_ DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM);
@@ -59,8 +56,10 @@ public:
 
 	inline UINT GetWidth() const { return m_Width; }
 	inline UINT GetHeight() const { return m_Height; }
+
+	inline D3D12_CPU_DESCRIPTOR_HANDLE GetSRVCpu() const { return m_SRVHandleCpu; }
 private:
-	DirectXApp* m_App = nullptr;
+	D3D12_CPU_DESCRIPTOR_HANDLE m_SRVHandleCpu{};
 
 	ComPtr<ID3D12Resource> m_Resource;
 

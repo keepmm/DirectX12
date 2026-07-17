@@ -8,12 +8,16 @@
  * *********************************************************************/
 #pragma once
 
+#pragma warning(push)
+#pragma warning(disable: 4251)
+
 #include <Windows.h>
 #include <fstream>
 #include <sstream>
 #include <iomanip>
 #include <ctime>
 #include <deque>
+#include "EngineAPI.hpp"
 
 #define LOG Logger::GetInstance()
 
@@ -25,7 +29,7 @@ enum class LogLevel : uint8_t
 	Debug	// デバッグ
 };
 
-class Logger
+class ENGINE_API Logger
 {
 public:
 	static Logger* GetInstance();
@@ -61,7 +65,7 @@ public:
 	void LogError(const std::string& message);
 	void LogDebug(const std::string& message);
 
-	const std::deque<std::string>& GetRecentLogs() const { return m_RecentLogs; }
+	const std::deque<std::string>& GetRecentLogs() const;
 
 private:
 	Logger();
@@ -80,6 +84,11 @@ private:
 
 	std::deque<std::string> m_RecentLogs;
 	size_t m_MaxRecentLogs = 200;
+
+	// 直前のログの重複検出用
+	LogLevel m_LastLogLevel = LogLevel::Info;
+	std::string m_LastRawMessage;
+	int m_LastCount = 0;
 };
 
 // マクロ
@@ -89,3 +98,4 @@ private:
 #define LOG_DEBUG(msg) LOG->Debug() << msg
 #define LOG_HR(hr, context) LOG->LogHRESULT(hr, context)
 
+#pragma warning(pop)

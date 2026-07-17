@@ -39,3 +39,9 @@ protected:
 	void CreateGameWindow(int width, int height);
 };
 
+// crに渡すエンジン側コンテスト
+struct ScriptContext
+{
+	World* world;
+	std::vector<std::pair<Entity, std::string>> savedScripts;
+};

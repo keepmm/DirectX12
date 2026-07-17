@@ -9,8 +9,7 @@
 #include "Polygon.hpp"
 #include "d3dx12.h"
 #include "Vertex.hpp"
-#include "DirectXTex/TextureLoad.h"
-#include "DirectXTex/DirectXTex.h"
+#include <DirectXTex.h>
 
 constexpr float _Color = 0.6f;
 constexpr float4 PolygonColor = { _Color,_Color,_Color, 1.0f };

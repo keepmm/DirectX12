@@ -1,4 +1,5 @@
 #include "ThreadPool.hpp"
+#include <objbase.h>
 
 ThreadPool::ThreadPool(size_t numThreads)
 {
@@ -6,6 +7,7 @@ ThreadPool::ThreadPool(size_t numThreads)
 	{
 		m_Workers.emplace_back([this]()
 			{
+				CoInitializeEx(nullptr, COINIT_MULTITHREADED);
 				for (;;)
 				{
 					std::function<void()> task;

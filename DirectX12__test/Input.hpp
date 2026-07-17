@@ -8,12 +8,13 @@
  * *********************************************************************/
 #pragma once
 #include <Windows.h>
+#include "EngineAPI.hpp"
 
  // 前方宣言
 class Input;
 
 // キー入力用ヘルパークラス
-class KeyState
+class ENGINE_API KeyState
 {
 public:
 	KeyState(const Input* input, int vkCode) : m_Input(input), m_VKCode(vkCode) {}
@@ -34,7 +35,7 @@ private:
 };
 
 // マウスボタン用ヘルパークラス
-class MouseButton
+class ENGINE_API MouseButton
 {
 public:
 	MouseButton(const Input* input, int button) : m_Input(input), m_Button(button) {}
@@ -58,7 +59,7 @@ private:
 };
 
 // マウス情報用クラス
-class Mouse
+class ENGINE_API Mouse
 {
 public:
 	Mouse(const Input* input) : m_Input(input) {}
@@ -100,7 +101,7 @@ private:
 
 #include <cstdint>
 
-class Input
+class ENGINE_API Input
 {
 public:
 	enum class MouseButtonType : uint8_t
@@ -178,7 +179,20 @@ public:
 	void ShowCursor(bool show);
 	void SetCursorLock(bool lock);
 
+	void SetImGuiCapture(bool keyboard, bool mouse, bool text)
+	{
+		m_ImGuiWantKeyboard = keyboard;
+		m_ImGuiWantMouse = mouse;
+		m_ImGuiWantText = text;
+	}
+
+	bool IsKeyboardCaptured() const { return  m_ImGuiWantText; }
+	bool IsMouseCaptured() const { return m_ImGuiWantMouse; }
+
+	void SetViewportHovered(bool v) { m_ViewportHovered = v; }
+	bool IsViewportHovered() const { return m_ViewportHovered; }
 private:
+	bool m_ViewportHovered = false;
 	Input();
 	~Input() = default;
 	Input(const Input&) = delete;
@@ -205,4 +219,8 @@ private:
 	friend class Mouse;
 	friend LRESULT CALLBACK WndProc(HWND, UINT, WPARAM, LPARAM);
 	void OnMouseWheel(int delta) { m_MouseWheel = delta; }
+
+	bool m_ImGuiWantKeyboard = false;
+	bool m_ImGuiWantMouse = false;
+	bool m_ImGuiWantText = false;
 };

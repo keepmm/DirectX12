@@ -11,7 +11,6 @@
 #include "Logger.hpp"
 
 HRESULT RenderTexture::Init(
-	_In_ DirectXApp& app,
 	_In_ UINT width,
 	_In_ UINT height,
 	_In_ DXGI_FORMAT format)
@@ -29,12 +28,11 @@ HRESULT RenderTexture::Init(
 	// 作り直し対応
 	Release();
 	
-	m_App = &app;
 	m_Width = width;
 	m_Height = height;
 	m_Format = format;
 
-	ID3D12Device& device = *app.GetDevice().Get();
+	auto device = APP->GetDevice();
 
 	// -----------------------//
 	//		リソースの記述	  //
@@ -62,7 +60,7 @@ HRESULT RenderTexture::Init(
 	// リソースの生成
 	CD3DX12_HEAP_PROPERTIES heapProperties(D3D12_HEAP_TYPE_DEFAULT);
 
-	HRESULT hr = device.CreateCommittedResource(
+	HRESULT hr = device->CreateCommittedResource(
 		&heapProperties,
 		D3D12_HEAP_FLAG_NONE,
 		&resourceDesc,
@@ -77,35 +75,36 @@ HRESULT RenderTexture::Init(
 	// ------------------------------ //
 	// RTV専用ヒープからスロット確保  //
 	// ------------------------------ //
-	if(!app.GetRtvAllocator().Allocate(m_RTVIndex))
+	if(!APP->GetRtvAllocator().Allocate(m_RTVIndex))
 	{
 		// 確保できなかった場合はリソースを解放して終了
 		Release();
 		return E_OUTOFMEMORY;
 	}
 	// RTV ハンドルの取得
-	m_RTVHandle = app.GetRtvAllocator().Cpu(m_RTVIndex);
+	m_RTVHandle = APP->GetRtvAllocator().Cpu(m_RTVIndex);
 	// RTV の生成
-	device.CreateRenderTargetView(m_Resource.Get(), nullptr, m_RTVHandle);
+	device->CreateRenderTargetView(m_Resource.Get(), nullptr, m_RTVHandle);
 
 	// ------------------------------ //
 	// SRV専用ヒープからスロット確保  //
 	// ------------------------------ //
-	if(!app.GetSrvAllocator().Allocate(m_SRVIndex))
+	if(!APP->GetSrvAllocator().Allocate(m_SRVIndex))
 	{
 		// 確保できなかった場合はリソースを解放して終了
 		Release();
 		return E_OUTOFMEMORY;
 	}
+	m_SRVHandleCpu = APP->GetSrvAllocator().Cpu(m_SRVIndex);
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc{};
 	srvDesc.Format = format;
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	srvDesc.Texture2D.MipLevels = 1;
 
-	device.CreateShaderResourceView(
-		m_Resource.Get(),&srvDesc,app.GetSrvAllocator().Cpu(m_SRVIndex));
-	m_SRVHandle = app.GetSrvAllocator().Gpu(m_SRVIndex);
+	device->CreateShaderResourceView(
+		m_Resource.Get(),&srvDesc,APP->GetSrvAllocator().Cpu(m_SRVIndex));
+	m_SRVHandle = APP->GetSrvAllocator().Gpu(m_SRVIndex);
 
 	// -------------------------------------//
 	// ビューポートの設定・シザー矩形の設定 //
@@ -146,19 +145,9 @@ void RenderTexture::Clear(
 
 void RenderTexture::Release()
 {
-	// 確保済みスロットをアロケータへ返す(GPUアイドル前提で呼ばれる)
-	if (m_App)
-	{
-		if (m_RTVIndex != UINT_MAX)
-		{
-			m_App->GetRtvAllocator().Free(m_RTVIndex);
-		}
-		if (m_SRVIndex != UINT_MAX)
-		{
-			m_App->GetSrvAllocator().Free(m_SRVIndex);
-		}
-	}
-
+	APP->WaitForGPUIdle();
+		if (m_RTVIndex != UINT_MAX) APP->GetRtvAllocator().Free(m_RTVIndex);
+		if (m_SRVIndex != UINT_MAX) APP->GetSrvAllocator().Free(m_SRVIndex);
 	m_RTVIndex = UINT_MAX;
 	m_SRVIndex = UINT_MAX;
 	m_SRVHandle = {};
