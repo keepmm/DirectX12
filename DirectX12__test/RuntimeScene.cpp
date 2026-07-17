@@ -153,32 +153,32 @@ void RuntimeScene::Update(float deltatime)
 	m_AnimatorSystem.Update(m_World, deltatime);
 	m_FireworkSystem.Update(deltatime);
 
-	// --- ワールド各所へ花火を打ち上げる ---
-	static float acc = 0.0f; acc += deltatime;
-	if (acc > 0.7f) {                       // 0.7秒ごとに一発
-		acc = 0.0f;
+	//// --- ワールド各所へ花火を打ち上げる ---
+	//static float acc = 0.0f; acc += deltatime;
+	//if (acc > 0.7f) {                       // 0.7秒ごとに一発
+	//	acc = 0.0f;
 
-		const FireworkSystem::Shape shapes[] = {
-			FireworkSystem::Shape::Peony,  FireworkSystem::Shape::Willow,
-			FireworkSystem::Shape::Ring,   FireworkSystem::Shape::Heart,
-			FireworkSystem::Shape::Senrin, FireworkSystem::Shape::Text };
+	//	const FireworkSystem::Shape shapes[] = {
+	//		FireworkSystem::Shape::Peony,  FireworkSystem::Shape::Willow,
+	//		FireworkSystem::Shape::Ring,   FireworkSystem::Shape::Heart,
+	//		FireworkSystem::Shape::Senrin, FireworkSystem::Shape::Text };
 
-		// 発射位置をワールドに散らす(半径 R の円内、地面 y=0 から）
-		const float R = 10.0f;
-		const float px = ((rand() % 2000) / 1000.0f - 1.0f) * R; // -R..R
-		const float pz = ((rand() % 2000) / 1000.0f - 1.0f) * R;
-		const float3 launchPos{ px, 0.0f, pz };
+	//	// 発射位置をワールドに散らす(半径 R の円内、地面 y=0 から）
+	//	const float R = 10.0f;
+	//	const float px = ((rand() % 2000) / 1000.0f - 1.0f) * R; // -R..R
+	//	const float pz = ((rand() % 2000) / 1000.0f - 1.0f) * R;
+	//	const float3 launchPos{ px, 0.0f, pz };
 
-		// 鮮やかな色に寄せる(彩度低い暗色を避ける)
-		static const float3 palette[] = {
-			{1.0f, 0.25f, 0.25f}, {0.25f, 0.6f, 1.0f}, {1.0f, 0.85f, 0.2f},
-			{0.4f, 1.0f, 0.4f},   {1.0f, 0.4f, 1.0f},  {0.3f, 1.0f, 1.0f} };
-		const float3 color = palette[rand() % 6];
+	//	// 鮮やかな色に寄せる(彩度低い暗色を避ける)
+	//	static const float3 palette[] = {
+	//		{1.0f, 0.25f, 0.25f}, {0.25f, 0.6f, 1.0f}, {1.0f, 0.85f, 0.2f},
+	//		{0.4f, 1.0f, 0.4f},   {1.0f, 0.4f, 1.0f},  {0.3f, 1.0f, 1.0f} };
+	//	const float3 color = palette[rand() % 6];
 
-		const auto shape = shapes[rand() % 6];
-		m_FireworkSystem.Launch(launchPos, shape, color,
-			shape == FireworkSystem::Shape::Text ? "HALO" : "");
-	}
+	//	const auto shape = shapes[rand() % 6];
+	//	m_FireworkSystem.Launch(launchPos, shape, color,
+	//		shape == FireworkSystem::Shape::Text ? "HALO" : "");
+	//}
 }
 
 void RuntimeScene::FixedUpdate(float fixedDeltatime)
@@ -344,17 +344,17 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 			m_RenderSystem.Draw(m_World, context);   // 従来通り全部
 		}
 
-		{
-			DirectX::XMVECTOR det;
-			const auto iv = DirectX::XMMatrixInverse(&det, DirectX::XMLoadFloat4x4(&context.view));
-			float3 camRight, camUp;
-			DirectX::XMStoreFloat3(&camRight, iv.r[0]);
-			DirectX::XMStoreFloat3(&camUp, iv.r[1]);
+		//{
+		//	DirectX::XMVECTOR det;
+		//	const auto iv = DirectX::XMMatrixInverse(&det, DirectX::XMLoadFloat4x4(&context.view));
+		//	float3 camRight, camUp;
+		//	DirectX::XMStoreFloat3(&camRight, iv.r[0]);
+		//	DirectX::XMStoreFloat3(&camUp, iv.r[1]);
 
-			m_FireworkBeamRenderer.Begin();
-			m_FireworkSystem.Emit(m_FireworkBeamRenderer, camRight, camUp);
-			m_FireworkBeamRenderer.Draw(context);   // Init時のBeamPso(深度なし)
-		}
+		//	m_FireworkBeamRenderer.Begin();
+		//	m_FireworkSystem.Emit(m_FireworkBeamRenderer, camRight, camUp);
+		//	m_FireworkBeamRenderer.Draw(context);   // Init時のBeamPso(深度なし)
+		//}
 
 		// ===== デバッグライン / ビーム / UI（両モード共通・現在バインド中のRTへ）=====
 		m_DebugLineRenderer.Begin();
@@ -401,17 +401,17 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 			m_DebugLineRenderer.AddLine(line.start, line.end, line.color);
 		}
 		m_DebugLineRenderer.Draw(context);
-		{
-			DirectX::XMVECTOR det;
-			const auto iv = DirectX::XMMatrixInverse(&det, DirectX::XMLoadFloat4x4(&context.view));
-			float3 camRight, camUp;
-			DirectX::XMStoreFloat3(&camRight, iv.r[0]);
-			DirectX::XMStoreFloat3(&camUp, iv.r[1]);
+		//{
+		//	DirectX::XMVECTOR det;
+		//	const auto iv = DirectX::XMMatrixInverse(&det, DirectX::XMLoadFloat4x4(&context.view));
+		//	float3 camRight, camUp;
+		//	DirectX::XMStoreFloat3(&camRight, iv.r[0]);
+		//	DirectX::XMStoreFloat3(&camUp, iv.r[1]);
 
-			m_FireworkBeamRenderer.Begin();
-			m_FireworkSystem.Emit(m_FireworkBeamRenderer, camRight, camUp);
-			m_FireworkBeamRenderer.Draw(context);
-		}
+		//	m_FireworkBeamRenderer.Begin();
+		//	m_FireworkSystem.Emit(m_FireworkBeamRenderer, camRight, camUp);
+		//	m_FireworkBeamRenderer.Draw(context);
+		//}
 		m_BeamRenderer.Draw(context);
 		DrawLaserBeams(context);
 

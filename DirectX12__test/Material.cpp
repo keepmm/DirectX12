@@ -307,8 +307,11 @@ void Material::Apply(
 	mdata.mapFlags = { m_HasNormal ? 1.f : 0.f, m_HasMetal ? 1.f : 0.f,
 					   m_HasRough ? 1.f : 0.f, m_EnvMaxMip };   // w>0 なら環境あり
 	mdata.roughness = roughness;
+	mdata.faceParam.y = baseAlpha;
 	mdata.metallic = metallic;
 	mdata.rimColor = rimColor;
+	mdata.sssParams = { sssStrength, sssWrap, sssTrans,sheen };
+	mdata.sssColor = sssColor;
 	const D3D12_GPU_VIRTUAL_ADDRESS b3 = cbAlloc->Allocate(frameSlot, &mdata, sizeof(MaterialCB));
 
 
@@ -331,6 +334,24 @@ void Material::Apply(
 	if (!pso)                         pso = APP->GetPipelineStateByName(name); // 安全網
 	if (!pso) return;
 	commandList->SetPipelineState(pso);
+}
+
+void Material::ShareDiffuseTexture(const Material& src)
+{
+	if (!src.m_Texture || !EnsureSrvHeap()) return;
+
+	m_Texture = src.m_Texture;   // リソース共有(ComPtrなので参照カウント)
+	m_TextureUploadPending = false;   // アップロードは共有元が実施済み
+
+	const auto desc = m_Texture->GetDesc();
+	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+	srvDesc.Format = desc.Format;
+	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srvDesc.Texture2D.MipLevels = desc.MipLevels;
+	APP->GetDevice()->CreateShaderResourceView(
+		m_Texture.Get(), &srvDesc,
+		m_TextureSrvHeap->GetCPUDescriptorHandleForHeapStart());
 }
 
 void Material::BuildPerFrame(const float4x4& view, const float4x4& projection, FrameCB* out) const

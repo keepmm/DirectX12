@@ -136,6 +136,19 @@ struct MeshComponent
 	}
 };
 
+struct SubMaterialRestore
+{
+	std::string shaderName;
+	float roughness = 0.5f;
+	float metallic = 0.0f;
+	float sssStrength = 0.0f;
+	float sssWrap = 0.4f;
+	float sssTrans = 0.0f;
+	float sheen = 0.0f;
+	COLOR sssColor = { 0.9f,0.35f,0.25f,1.0f };
+	float baseAlpha = 1.0f;
+};
+
 struct MaterialComponent
 {
 	std::shared_ptr<Material> material;	// ’Pˆê
@@ -146,6 +159,7 @@ struct MaterialComponent
 	std::string FilePath;
 	std::string RampFilePath;
 	std::string shaderName = "Basic";
+	std::vector<SubMaterialRestore> pendingSubs;
 
 	void Reflect(FieldList& f)
 	{
@@ -337,7 +351,7 @@ struct LightComponent
 
 		f.Add("Color", color);
 		f.Add("AmbientColor", ambientColor);
-		f.AddRange("Intensity", intensity, 0.0f, 100.0f);
+		f.AddRange("Intensity", intensity, 0.0f, 10.0f);
 		f.AddRange("Range", range, 0.0f, 100.0f);
 		f.Add("Direction", direction);
 		f.AddRange("SpotAngle", spotAngle, 1.0f, 179.0f);

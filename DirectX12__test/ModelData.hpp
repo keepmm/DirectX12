@@ -40,6 +40,8 @@ struct MaterialTextureSet
 	std::shared_ptr<DecodedImage> normalImage;
 	std::shared_ptr<DecodedImage> metalImage;
 	std::shared_ptr<DecodedImage> roughImage;
+
+	COLOR diffuseColor{ 1.0f,1.0f,1.0f,1.0f };
 };
 
 /*

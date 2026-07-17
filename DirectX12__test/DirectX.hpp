@@ -19,6 +19,8 @@
 #pragma comment(lib, "dxguid.lib")
 #pragma comment(lib, "d3dcompiler.lib")
 
+#define _FRAMEPIPELINE
+
 struct DescriptorAllocator
 {
 	ComPtr<ID3D12DescriptorHeap> heap;
@@ -134,10 +136,16 @@ public:
 
 	~DirectXApp();
 
-	HRESULT BeginRender();
 	void BeginGeometryPass();
 	void DeferredLightingPass(const RenderContext& ctx);
+#ifdef _FRAMEPIPELINE
+	HRESULT BeginFrameRecord(UINT64 frameNumber);
+	HRESULT CloseFrameRecord();
+	HRESULT ExecuteAndPresent();
+#else
+	HRESULT BeginRender();
 	HRESULT EndRender();
+#endif
 	void Present();
 
 	bool ReloadShader();
@@ -178,9 +186,31 @@ public:
 	// ---------------------------------------------------//
 	//						Getter						  //
 	// ---------------------------------------------------//
+	inline UINT GetFrameSlot() const noexcept
+	{
+#ifdef _FRAMEPIPELINE
+		return m_RecordSlot;
+#else
+		return m_FrameIndex;
+#endif
+	}
 	inline ComPtr<ID3D12Device> GetDevice() const noexcept { return m_Device; }
-	inline ComPtr<ID3D12GraphicsCommandList> GetCommandList() const noexcept { return m_CommandList; }
-	inline ID3D12GraphicsCommandList6* GetCommandList6() const noexcept { return m_CommandList6.Get(); }
+	inline ComPtr<ID3D12GraphicsCommandList> GetCommandList() const noexcept 
+	{ 
+#ifdef _FRAMEPIPELINE
+		return m_CommandList[m_RecordSlot];
+#else
+		return m_CommandList; 
+#endif
+	}
+	inline ID3D12GraphicsCommandList6* GetCommandList6() const noexcept
+	{
+#ifdef _FRAMEPIPELINE
+		return m_CommandList6[m_RecordSlot].Get();
+#else
+		return m_CommandList6.Get();
+#endif
+	}
 	inline ComPtr<ID3D12RootSignature> GetRootSignature() const noexcept { return m_rootSignature; }
 	inline ComPtr<ID3D12PipelineState> GetPipelineStateWireFrame() const noexcept { return m_pipelineStateWireFrame; }
 	inline ComPtr<ID3D12PipelineState> GetLinePso() const noexcept { return m_LinePso; }
@@ -198,6 +228,15 @@ public:
 	inline ID3D12PipelineState* GetVolumetricPso() const noexcept { return m_VolumetricPso.Get(); }
 	inline ID3D12PipelineState* GetVolumetricAddPso() const noexcept {return m_VolumetricAddPso.Get(); }
 	inline ID3D12PipelineState* GetFireworkPso() const noexcept { return m_FireworkPso.Get(); }
+
+	template<class T>
+	void DederredRelease(T&& r)
+	{
+		if (r)
+		{
+			m_DeferredReleases[RecordSlot()].push_back(std::move(r));
+		}
+	}
 
 	inline bool IsMeshShaderSupported() const noexcept { return m_MeshShaderSupported; }
 	inline ComPtr<ID3D12CommandQueue> GetCommandQueue() const noexcept { return m_CommandQueue; }
@@ -253,8 +292,18 @@ private:
 	ComPtr<ID3D12Device> m_Device;
 	ComPtr<ID3D12Device2> m_Device2;
 	ComPtr<ID3D12CommandQueue> m_CommandQueue;
-	ComPtr<ID3D12CommandAllocator> m_CommandAllocator[RTV_NUM];
-	ComPtr<ID3D12GraphicsCommandList> m_CommandList;
+	ComPtr<ID3D12CommandAllocator>		m_CommandAllocator[RTV_NUM];
+#ifdef _FRAMEPIPELINE
+	ComPtr<ID3D12GraphicsCommandList>	m_CommandList[RTV_NUM];
+
+	UINT64  m_RecordFrameNumber = 0;
+	UINT	m_RecordSlot = 0;
+	UINT	m_RecordBackbuffer = 0;
+	UINT	m_SyncBackBuffer = 0;
+	UINT64  m_SyncFrameNumber = 0;   
+#else
+	ComPtr<ID3D12GraphicsCommandList>	m_CommandList;
+#endif
 	ComPtr<IDXGISwapChain3> m_SwapChain;
 	ComPtr<ID3D12Fence> m_Fence;
 	ComPtr<IDXGIFactory3> m_Factory;
@@ -296,7 +345,12 @@ private:
 
 	ComPtr<ID3D12PipelineState> m_FireworkPso;
 
+#ifdef _FRAMEPIPELINE
+
+	ComPtr<ID3D12GraphicsCommandList6> m_CommandList6[RTV_NUM];
+#else
 	ComPtr<ID3D12GraphicsCommandList6> m_CommandList6;
+#endif
 	ComPtr<ID3D12PipelineState> m_MeshPso;
 	bool m_MeshShaderSupported = false;
 
@@ -363,4 +417,33 @@ private:
 	void PostPass(ID3D12PipelineState* pso, D3D12_GPU_DESCRIPTOR_HANDLE srvTable,
 		D3D12_GPU_VIRTUAL_ADDRESS cb, D3D12_CPU_DESCRIPTOR_HANDLE dstRtv,
 		UINT w, UINT h);
+
+	/// @brief 現在記録対象のコマンドリスト
+	ID3D12GraphicsCommandList* Cmd() const noexcept
+	{
+#ifdef _FRAMEPIPELINE
+		return m_CommandList[m_RecordSlot].Get();
+#else
+		return m_CommandList.Get();
+#endif
+	}
+
+	/// @brief CBアロケータ/DeferredReleaseのスロットキー
+	UINT RecordSlot() const noexcept
+	{
+#ifdef _FRAMEPIPELINE
+		return m_RecordSlot;
+#else
+		return m_FrameIndex;
+#endif
+	}
+
+	UINT BackbufferIndex() const noexcept
+	{
+#ifdef _FRAMEPIPELINE
+		return m_RecordBackbuffer;
+#else
+		return m_FrameIndex;
+#endif
+	}
 };

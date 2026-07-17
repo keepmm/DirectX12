@@ -72,4 +72,36 @@ float3 BlinnPhongSpec(float3 N, float3 L, float3 V, float3 lightColor, float shi
     return lightColor * s;
 }
 
+// ---- Cloth Charlie分布 ---- //
+float D_Charlie(float ndoth,float rough)
+{
+    float invR = 1.0f / max(rough, 1e-3f);
+    float sin2h = max(1.0f - ndoth * ndoth, 1e-4f);
+    return (2.0f + invR) * pow(sin2h, invR * 0.5f) / (2.0f * PI);
+}
+
+float V_Ashikhman(float ndotl,float ndotv)
+{
+    return 1.0f / (4.0f * (ndotl + ndotv - ndotl * ndotv) + 1e-4f);
+}
+
+float3 ClothBRDF(float3 albedo,float3 sheenColor,float rougth,
+float3 N,float3 V,float3 L,float3 lightColor)
+{
+    float3 H = normalize(V + L);
+    float ndotl = saturate(dot(N, L));
+    float ndotv = saturate(dot(N, V)) + 1e-5f;
+    float ndoth = saturate(dot(N, H));
+    
+    // 繊維のシーンローブ
+    float spec = sheenColor * D_Charlie(ndoth, rougth) * V_Ashikhman(ndotl, ndotv);
+    
+    // 布の拡散
+    float wrap = saturate((dot(N, L) + 0.5f) / 1.5f);
+    float3 diff = albedo * wrap / PI;
+    
+    return (diff + spec) * lightColor * ndotl;
+
+}
+
 #endif

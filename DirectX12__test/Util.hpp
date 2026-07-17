@@ -5,6 +5,7 @@
 #pragma comment(lib, "Comdlg32.lib")
 #include "Material.hpp"
 #include "ModelData.hpp"
+#include "Debug.hpp"
 
 // ---- UTF-8 <-> wide 変換 ---- //
 inline std::wstring Utf8ToWide(const std::string& s)
@@ -39,31 +40,45 @@ inline bool OpenFileDialog(std::wstring& out, const wchar_t* filter)
     return false;
 }
 
-// --- マテリアル構築ヘルパ --- // 
 inline std::vector<std::shared_ptr<Material>> BuildMaterials(
     const ModelLoadResult& model, const std::string& shaderName)
 {
     std::vector<std::shared_ptr<Material>> out;
-    std::unordered_map<std::wstring, std::shared_ptr<Material>> matCache;
+    // テクスチャの共有元Material(リソースの実体を持つ)をパスごとに記録
+    std::unordered_map<std::wstring, Material*> texOwner;
 
     for (const auto& set : model.materials)
     {
-        // 同じdiffuseパスなら既存Materialを再利用(GPUテクスチャの重複生成を回避)
-        if (!set.diffuse.empty())
-        {
-            auto it = matCache.find(set.diffuse);
-            if (it != matCache.end()) { out.push_back(it->second); continue; }
-        }
-
         auto m = std::make_shared<Material>();
         m->Init();
-        if (set.diffuseImage && set.diffuseImage->ok) m->CreateTextureFromRGBA(set.diffuseImage->width, set.diffuseImage->height, set.diffuseImage->pixels.data());
-        if (set.normalImage && set.normalImage->ok)  m->CreateNormalFromRGBA(set.normalImage->width, set.normalImage->height, set.normalImage->pixels.data());
+		m->baseAlpha = set.diffuseColor.w;
+
+        if (!set.diffuse.empty())
+        {
+            auto it = texOwner.find(set.diffuse);
+            if (it != texOwner.end())
+            {
+                m->ShareDiffuseTexture(*it->second);   // GPUリソースだけ共有
+            }
+            else if (set.diffuseImage && set.diffuseImage->ok)
+            {
+                m->CreateTextureFromRGBA(set.diffuseImage->width,
+                    set.diffuseImage->height, set.diffuseImage->pixels.data());
+                texOwner[set.diffuse] = m.get();
+            }
+        }
+        else if (set.diffuseImage && set.diffuseImage->ok)
+        {
+            m->CreateTextureFromRGBA(set.diffuseImage->width,
+                set.diffuseImage->height, set.diffuseImage->pixels.data());
+        }
+
+        if (set.normalImage && set.normalImage->ok) m->CreateNormalFromRGBA(set.normalImage->width, set.normalImage->height, set.normalImage->pixels.data());
         if (set.metalImage && set.metalImage->ok)   m->CreateMetalFromRGBA(set.metalImage->width, set.metalImage->height, set.metalImage->pixels.data());
         if (set.roughImage && set.roughImage->ok)   m->CreateRoughFromRGBA(set.roughImage->width, set.roughImage->height, set.roughImage->pixels.data());
 
-        if (!set.diffuse.empty()) matCache[set.diffuse] = m;
         out.push_back(m);
+        LOG->LogInfo("SubMat: " + set.name + " alpha=" + std::to_string(set.diffuseColor.w));
     }
     return out;
 }

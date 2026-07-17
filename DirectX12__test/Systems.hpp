@@ -173,14 +173,18 @@ public:
 						auto& mat = material.materials[mi];
 						if (!mat) continue;
 
-						const bool isTransparent = APP->IsShaderAlphaBlend(material.shaderName);
+						// サブマテリアル側が空ならコンポーネントの値を継承
+						const std::string& sn = mat->shaderName.empty()
+							? material.shaderName : mat->shaderName;
+
+						const bool isTransparent = APP->IsShaderAlphaBlend(sn);
 						if (filter == DrawFilter::OPAQUEONLY && isTransparent)		 continue; // このエンティティskip
 						if (filter == DrawFilter::TRANSPARENTONLY && !isTransparent) continue;
 
 						mat->Apply(renderContext.CommandList, transform.world,
 							renderContext.view, renderContext.projection,
 							renderContext.wireframe, renderContext.frameIndex,
-							renderContext.cbAllocator, material.shaderName);
+							renderContext.cbAllocator, sn);
 						mesh.mesh->DrawSubMesh(renderContext.CommandList, s);
 					}
 				}

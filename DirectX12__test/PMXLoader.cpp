@@ -164,7 +164,12 @@ bool PMXLoader::Parse(const std::string& filepath, float scale, ModelCpuData& ou
 	{
 		std::wstring name = r.ReadText(encoding);            // name JP
 		r.ReadText(encoding);            // name EN
-		r.Skip(sizeof(float) * 4);       // diffuse
+		float diffuse[4];
+		const float dr = r.Read<float>();
+		const float dg = r.Read<float>();
+		const float db = r.Read<float>();
+		const float da = r.Read<float>();
+		out.materials[i].diffuseColor = { dr, dg, db, da };
 		r.Skip(sizeof(float) * 3);       // specular
 		r.Skip(sizeof(float));           // specularity
 		r.Skip(sizeof(float) * 3);       // ambient

@@ -1,12 +1,24 @@
 #include "Common.hlsli"
 #include "Lighting.hlsli"
 
+cbuffer Material : register(b3)
+{
+    float roughness;
+    float metallic;
+    float2 _pad;
+    float4 rimColor;
+    float4 mapFlags;
+    float4 faceParam; // y = baseAlpha
+    float4 sssParams;
+    float4 sssColor;
+}
 Texture2D g_Texture : register(t0);
 SamplerState g_Sampler : register(s0);
 
 float4 BasicPS(PSInput input) : SV_TARGET
 {
     float4 texcolor = g_Texture.Sample(g_Sampler, input.uv);
+    clip(faceParam.y * input.col.a - 0.05f);
     float3 n = normalize(input.normal);
     float3 baseColor = input.col.rgb * texcolor.rgb;
 
@@ -28,8 +40,10 @@ float4 WireFramePS(PSInput input) : SV_Target
     return float4(0, 0, 0, 1);
 }
 
+
 float4 unlitPS(PSInput input) : SV_Target
 {
     float4 texcolor = g_Texture.Sample(g_Sampler, input.uv);
-    return float4(texcolor.rgb, texcolor.a * input.col.a);
+    clip(faceParam.y * input.col.a - 0.05f);
+    return float4(texcolor.rgb, texcolor.a * input.col.a * faceParam.y);
 }

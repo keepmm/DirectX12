@@ -109,6 +109,9 @@ void Engine::Run()
 	MSG msg = {};
 	constexpr float FIXED_TIMESTEP = 1.0f / 60.0f;
 	float accumulatedTime = 0.0f;
+#ifdef _FRAMEPIPELINE
+	UINT64 frameNumber = 0;
+#endif
 	while (msg.message != WM_QUIT)
 	{
 		if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
@@ -125,11 +128,19 @@ void Engine::Run()
 
 
 			m_DirectX->ReloadShader();
+#ifdef _FRAMEPIPELINE
+			if(FAILED(m_DirectX->BeginFrameRecord(frameNumber)))
+			{
+				// 失敗時は次フレームへ
+				return;
+			}
+#else
 			if (FAILED(m_DirectX->BeginRender()))
 			{
 				// 失敗時は次フレームへ
 				return;
 			}
+#endif
 			IMGUI::BeginFrame();
 			IconLibrary::Get()->BeginFrame();
 			ImGuiIO& io = ImGui::GetIO();
@@ -157,7 +168,7 @@ void Engine::Run()
 			// 描画コンテキスト作成
 			RenderContext renderContext{};
 			renderContext.CommandList = m_DirectX->GetCommandList().Get();
-			renderContext.frameIndex = m_DirectX->GetFrameIndex();
+			renderContext.frameIndex = m_DirectX->GetFrameSlot();
 			renderContext.cbAllocator = &m_DirectX->GetConstantBufferAllocator();
 
 			const auto& settings = RenderSettings::Get();
@@ -175,11 +186,23 @@ void Engine::Run()
 			m_DirectX->Present();
 
 			IMGUI::EndFrame(renderContext.CommandList);
+#ifdef _FRAMEPIPELINE
+			if (FAILED(m_DirectX->CloseFrameRecord()))
+			{
+				return;
+			}
+			if (FAILED(m_DirectX->ExecuteAndPresent()))
+			{
+				return;
+			}
+			++frameNumber;
+#else
 			if(FAILED(m_DirectX->EndRender()))
 			{
 				// 失敗時は次フレームへ
 				return;
 			}	
+#endif
 		}
 	}
 }

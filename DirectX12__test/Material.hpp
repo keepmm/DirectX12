@@ -28,6 +28,8 @@ public:
 	/// @brief トゥーンラップテクスチャの設定
 	bool SetToonRampTexture(_In_ const std::wstring& filepath);
 
+	void ShareDiffuseTexture(_In_ const Material& src);
+
 	void Apply(
 		_In_ ID3D12GraphicsCommandList* commandList,
 		_In_ const float4x4& world,
@@ -66,6 +68,13 @@ public:
 	float4 rimColor = { 1.0f,1.0f,1.0f,1.0f };
 	bool isFace = false;
 	float outlineWidth = 1.0f;
+	float sssStrength = 0.0f;	// 肌 : 0.5 ~ 0.7
+	float sssWrap = 0.4f;		// 明暗境界のなだらかさ
+	float sssTrans = 0.0f;		// 耳・指の逆光透過
+	float sheen = 0.0f;			// 布 : 0.5 ~ 1.0
+	COLOR sssColor = {0.9f,0.35f,0.25f,1.0f};
+	float baseAlpha = 1.0f;
+	std::string shaderName;
 
 	bool SetNormalTexture(_In_ const std::wstring& path);
 	bool SetMetalTexture(_In_ const std::wstring& path);
@@ -134,4 +143,5 @@ private:
 	void BindEnvironmentIfNeeded();
 	void BindShadowMapIfNeeded();
 	bool m_ShadowBound = false;
+
 };

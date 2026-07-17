@@ -345,43 +345,78 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 					target = materialComp.materials[selectedSub].get();
 			}
 
+			// 選択中サブマテリアルシェーダ(個別)
+			if (target && !materialComp.materials.empty())
+			{
+				const char* cur = target->shaderName.empty()
+					? u8("(全体設定を継承)") : target->shaderName.c_str();
+				if (ImGui::BeginCombo(u8("Shader(個別)##SUBmat"), cur))
+				{
+					// 継承に戻す選択肢
+					if (ImGui::Selectable("use default", target->shaderName.empty()))
+						target->shaderName.clear();
+
+					for (const auto& n : names)
+					{
+						bool selected = (target->shaderName == n);
+						if (ImGui::Selectable(n.c_str(), selected))
+							target->shaderName = n;
+						if (selected) ImGui::SetItemDefaultFocus();
+					}
+					ImGui::EndCombo();
+				}
+			}
+
 			// --- マテリアル質感パラメータ ---
 			if (target)
 			{
+				const std::string& effShader = 
+					(target && !target->shaderName.empty()) ? target->shaderName : materialComp.shaderName;
 				ImGui::Separator();
 				ImGui::Text(u8("マテリアル質感パラメータ"));
 
-				if (materialComp.shaderName == "PBR" || materialComp.shaderName == "SkinnedPBR")
+				// サブマテリアルの表示/非表示(材質モーフで隠す衣装パーツ用)
+				bool visible = target->baseAlpha > 0.5f;
+				if (ImGui::Checkbox(u8("表示##SubMatVisible"), &visible))
+					target->baseAlpha = visible ? 1.0f : 0.0f;
+
+				if (effShader == "PBR" || effShader == "SkinnedPBR")
 				{
 					ImGui::SliderFloat(u8("Roughness##Mat"), &target->roughness, 0.0f, 1.0f);
 					ImGui::SliderFloat(u8("Metallic##Mat"), &target->metallic, 0.0f, 1.0f);
 					ImGui::ColorEdit4(u8("RimColor##Mat"), &target->rimColor.x);
+					ImGui::SeparatorText(u8("肌 / 布"));
+					ImGui::SliderFloat(u8("SSS強度##Mat"), &target->sssStrength, 0.0f, 1.0f);
+					ImGui::SliderFloat(u8("SSSラップ##Mat"), &target->sssWrap, 0.0f, 1.0f);
+					ImGui::SliderFloat(u8("逆光透過##Mat"), &target->sssTrans, 0.0f, 2.0f);
+					ImGui::ColorEdit3(u8("散乱色##Mat"), &target->sssColor.x);
+					ImGui::SliderFloat(u8("布シーン##Mat"), &target->sheen, 0.0f, 2.0f);
 				}
-				if (materialComp.shaderName == "Rim" || materialComp.shaderName == "SkinnedRim")
+				if (effShader == "Rim" || effShader == "SkinnedRim")
 				{
 					ImGui::ColorEdit4(u8("RimColor##Mat"), &target->rimColor.x);
 				}
 
-				if (materialComp.shaderName == "Fresnel" || materialComp.shaderName == "SkinnedFresnel")
+				if (effShader == "Fresnel" || effShader == "SkinnedFresnel")
 				{
 					ImGui::SliderFloat(u8("Roughness##Mat"), &target->roughness, 0.0f, 1.0f);
 					ImGui::ColorEdit4(u8("RimColor##Mat"), &target->rimColor.x);
 				}
 
-				if (materialComp.shaderName == "Dissolve" || materialComp.shaderName == "SkinnedDissolve")
+				if (effShader == "Dissolve" || effShader == "SkinnedDissolve")
 				{
 					ImGui::SliderFloat(u8("ノイズの細かさ##Mat"), &target->roughness, 0.0f, 1.0f);
 					ImGui::SliderFloat(u8("Dissolve具合##Mat"), &target->metallic, 0.0f, 1.0f);
 					ImGui::ColorEdit4(u8("解け際の発行色##Mat"), &target->rimColor.x);
 				}
 
-				if (materialComp.shaderName == "BlinnPhong" || materialComp.shaderName == "SkinnedBlinnPhong")
+				if (effShader == "BlinnPhong" || effShader == "SkinnedBlinnPhong")
 				{
 					ImGui::SliderFloat(u8("Roughness##Mat"), &target->roughness, 0.0f, 1.0f);
 					ImGui::SliderFloat(u8("Metallic##Mat"), &target->metallic, 0.0f, 1.0f);
 				}
 
-				if (materialComp.shaderName == "Genshin_Toon")
+				if (effShader == "Genshin_Toon")
 				{
 					ImGui::SliderFloat(u8("ハイライトの広さ##Mat"), &target->roughness, 0.0f, 1.0f);
 					ImGui::SliderFloat(u8("ハイライトの強さ##Mat"), &target->metallic, 0.0f, 1.0f);

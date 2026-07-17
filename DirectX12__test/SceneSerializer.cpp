@@ -165,12 +165,28 @@ std::string SceneSerializer::SaveToString(Scene& scene)
         if (world.HasComponent<MaterialComponent>(entity))
         {
             const auto& matComp = world.GetComponent<MaterialComponent>(entity);
-            entry["material"]["filePath"] = matComp.FilePath;
-            entry["material"]["rampFilePath"] = matComp.RampFilePath;
             entry["material"]["shaderName"] = matComp.shaderName;
-			entry["material"]["roughness"] = matComp.material->roughness;
-            entry["material"]["metallic"] = matComp.material->metallic;
-			entry["material"]["rimColor"] = { matComp.material->rimColor.x, matComp.material->rimColor.y, matComp.material->rimColor.z, matComp.material->rimColor.w };
+            entry["material"]["filePath"] = matComp.FilePath;
+            entry["material"]["rampPath"] = matComp.RampFilePath;
+
+            auto& subs = entry["material"]["subMaterials"] = nlohmann::json::array();
+            for (auto& sm : matComp.materials)
+            {
+                nlohmann::json sj;
+                if (sm)
+                {
+                    sj["shaderName"] = sm->shaderName;
+                    sj["roughness"] = sm->roughness;
+                    sj["metallic"] = sm->metallic;
+                    sj["sssStrength"] = sm->sssStrength;
+                    sj["sssWrap"] = sm->sssWrap;
+                    sj["sssTrans"] = sm->sssTrans;
+                    sj["sheen"] = sm->sheen;
+                    sj["sssColor"] = { sm->sssColor.x, sm->sssColor.y, sm->sssColor.z };
+					sj["baseAlpha"] = sm->baseAlpha;
+                }
+                subs.push_back(sj);
+            }
         }
 
         // ---- それ以外の汎用コンポーネント ---- //
@@ -379,9 +395,26 @@ bool SceneSerializer::LoadFromString(Scene& scene, const std::string& data)
 
                 mat.material = std::make_shared<Material>();
                 mat.material->Init();
-				mat.material->roughness = mj.value("roughness", 0.5f);
-				mat.material->metallic = mj.value("metallic", 0.0f);
-				mat.material->rimColor = ToFloat4(mj.value("rimColor", json::array({ 0.0f,0.0f,0.0f,1.0f })), float4(0, 0, 0, 1));
+                if (mj.contains("subMaterials"))
+                {
+                    for (const auto& sj : mj["subMaterials"])
+                    {
+                        SubMaterialRestore r;
+                        if (!sj.is_null())
+                        {
+                            r.shaderName = sj.value("shaderName", std::string(""));
+                            r.roughness = sj.value("roughness", 0.5f);
+                            r.metallic = sj.value("metallic", 0.0f);
+							r.sssStrength = sj.value("sssStrength", 0.0f);
+							r.sssWrap = sj.value("sssWrap", 0.4f);
+							r.sssTrans = sj.value("sssTrans", 0.0f);
+							r.sheen = sj.value("sheen", 0.0f);
+							r.sssColor = ToFloat4(sj.value("sssColor", json::array({ 0.9f,0.35f,0.25f,1.0f })), float4(0.9f, 0.35f, 0.25f, 1.0f));
+							r.baseAlpha = sj.value("baseAlpha", 1.0f);
+                        }
+                        mat.pendingSubs.push_back(r);
+                    }
+                }
                 if (!mat.FilePath.empty())
                     mat.material->SetTextureFromFile(std::filesystem::path(mat.FilePath).wstring());
                 if (!mat.RampFilePath.empty())

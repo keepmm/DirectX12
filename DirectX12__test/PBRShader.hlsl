@@ -48,11 +48,16 @@ cbuffer Material : register(b3)
     float2 _pad;
     float4 rimColor;
     float4 mapFlags; // x=hasNormal, y=hasMetal, z=hasRough
+    float4 faceParam; // レイアウト合わせ(未使用)
+    float4 sssParams; // x=SSS強度 y=ラップ z=透過 w=布シーン
+    float4 sssColor;
 }
 
 float4 PbrPS(PSInput input) : SV_TARGET
 {
-    float3 albedo = input.col.rgb * g_Texture.Sample(g_Sampler, input.uv).rgb;
+    float4 texSample = g_Texture.Sample(g_Sampler, input.uv);
+    clip(faceParam.y  - 0.05f);
+    float3 albedo = input.col.rgb * texSample.rgb;
 
     // 法線マップ（あれば適用）
     float3 N = normalize(input.normal);
@@ -78,8 +83,51 @@ float4 PbrPS(PSInput input) : SV_TARGET
         float3 L;
         float atten;
         ComputeLight(lights[i], input.worldPos, L, atten);
-        float s = (i == 0) ? shadow : 1.0f; // directional(0番)にだけ影を適用
-        color += CookTorrance(albedo, m, r, N, V, L, lights[i].color.rgb) * atten * s;
+        float s = (i == 0) ? shadow : 1.0f;
+
+        float3 direct;
+        
+        // ---- 布 ---- //
+        if(sssParams.w > 0.0f)
+        {
+            float3 sheenCol = sssParams.w * float3(1.0f, 1.0f, 1.0f);
+            direct = ClothBRDF(albedo, sheenCol, r, N, V, L, lights[i].color.rgb);
+        }
+        else
+        {
+            direct = CookTorrance(albedo, m, r, N, V, L, lights[i].color.rgb);
+        }
+
+        // --- 肌: ラップライティングによる疑似SSS ---
+        if (sssParams.x > 0.0f)
+        {
+            float w = sssParams.y;
+            float wrap = saturate((dot(N, L) + w) / (1.0f + w));
+            // 明暗境界だけ散乱色に染める
+            float scatter = wrap * (1.0f - wrap) * 4.0f;
+            float3 sssDiff = albedo * lights[i].color.rgb
+                           * (wrap + scatter * sssColor.rgb);
+
+            // 逆光透過(耳・指先が赤く抜ける)
+            float3 backL = normalize(-L + N * 0.3f);
+            float trans = pow(saturate(dot(V, backL)), 4.0f) * sssParams.z;
+
+            direct = lerp(direct, sssDiff, sssParams.x)
+                   + albedo * sssColor.rgb * trans * lights[i].color.rgb;
+        }
+
+        // --- 布(靴下): Charlie近似シーン(起毛のハイライト) ---
+        if (sssParams.w > 0.0f)
+        {
+            float2 fuv = input.uv * 400.0f; // 繊維の細かさ
+            float n1 = frac(sin(dot(floor(fuv), float2(12.9898f, 78.233f))) * 43758.5453f);
+            float n2 = frac(sin(dot(floor(fuv.yx), float2(39.3468f, 11.135f))) * 24634.6345f);
+            float3 T2 = normalize(input.tangent - N * dot(N, input.tangent));
+            float3 B2 = cross(N, T2);
+            N = normalize(N + (T2 * (n1 - 0.5f) + B2 * (n2 - 0.5f)) * 0.15f); // 0.15=繊維の粗さ
+        }
+
+        color += direct * atten * s;
     }
     
         // ---- IBL（環境あり＝mapFlags.w>0）----

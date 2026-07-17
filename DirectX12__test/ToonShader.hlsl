@@ -9,15 +9,20 @@ SamplerState g_RampSampler : register(s1);
 
 cbuffer Material : register(b3)
 {
-    float roughness;    // ハイライトの大きさ（大=広い）
-    float metallic;     // ハイライトの強さ
+    float roughness;
+    float metallic;
     float2 _pad;
-    float4 rimColor;    // rgb: リム色 / a: リム強さ
+    float4 rimColor;
+    float4 mapFlags;
+    float4 faceParam; // y = baseAlpha
+    float4 sssParams;
+    float4 sssColor;
 }
 
 float4 ToonPS(PSInput input) : SV_TARGET
 {
     float4 texColor = g_Texture.Sample(g_Sampler, input.uv);
+    clip(faceParam.y * input.col.a - 0.05f); // 非表示マテリアルを消す
     float3 baseColor = input.col.rgb * texColor.rgb;
     float3 N = normalize(input.normal);
     float3 V = normalize(cameraPos.xyz - input.worldPos);

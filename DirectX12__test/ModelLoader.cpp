@@ -718,7 +718,7 @@ void ModelLoader::PopulateModelEntity(
                 tr.RebuildWorld();
             }
 
-            // Mesh(★FilePathを確実に保存できるよう構築してから追加)
+            // Mesh
             MeshComponent meshc{ result.mesh };
             meshc.FilePath = modelpath;
             world.AddComponent<MeshComponent>(entity, meshc);
@@ -788,11 +788,40 @@ void ModelLoader::PopulateModelEntity(
                 mc.shaderName = "SkinnedToon";
             }
 
+            // --- シーン復元値の引き継ぎ---
+            std::vector<SubMaterialRestore> pending;
+            if (world.HasComponent<MaterialComponent>(entity))
+            {
+                const auto& old = world.GetComponent<MaterialComponent>(entity);
+                if (!old.shaderName.empty() && old.shaderName != "Basic")
+                    mc.shaderName = old.shaderName;         // 復元値を優先
+                mc.FilePath = old.FilePath;
+                mc.RampFilePath = old.RampFilePath;
+                pending = old.pendingSubs;
+            }
+
             // マテリアル
             mc.materials = BuildMaterials(result, "PBR");
             for (size_t i = 0; i < mc.materials.size(); ++i)
                 mc.materialnames.push_back(result.materials[i].name);
             if (!mc.materials.empty()) mc.material = mc.materials[0];
+
+            // --- 保留していたサブマテリアル復元値を適用 ---
+            for (size_t i = 0; i < pending.size() && i < mc.materials.size(); ++i)
+            {
+                auto& sm = mc.materials[i];
+                if (!sm) continue;
+                sm->shaderName = pending[i].shaderName;
+                sm->roughness = pending[i].roughness;
+                sm->metallic = pending[i].metallic;
+                sm->sssStrength = pending[i].sssStrength;
+                sm->sssWrap = pending[i].sssWrap;
+                sm->sssTrans = pending[i].sssTrans;
+                sm->sheen = pending[i].sheen;
+                sm->sssColor = pending[i].sssColor;
+				sm->baseAlpha = pending[i].baseAlpha;
+            }
+
             world.AddComponent<MaterialComponent>(entity, mc);
         });
 }

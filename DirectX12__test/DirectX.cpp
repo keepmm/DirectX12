@@ -158,6 +158,26 @@ DirectXApp::DirectXApp(HWND hWnd, int Window_Width, int Window_Height) :
 		m_FenceValue[i] = 0;
 	}
 
+#ifdef _FRAMEPIPELINE
+	m_SyncFrameNumber = 0;
+	m_SyncBackBuffer = m_SwapChain->GetCurrentBackBufferIndex();
+
+	for (int i = 0; i < RTV_NUM; ++i)
+	{
+		hr = m_Device->CreateCommandList(
+			0,D3D12_COMMAND_LIST_TYPE_DIRECT,
+			m_CommandAllocator[i].Get(),nullptr,
+			IID_PPV_ARGS(m_CommandList[i].GetAddressOf())
+		);
+		if (FAILED(hr))return;
+
+		m_CommandList[i].As(&m_CommandList6[i]);
+
+		hr = m_CommandList[i]->Close();
+		if (FAILED(hr))return;
+	}
+#else
+
 	hr = m_Device->CreateCommandList(
 		0,
 		D3D12_COMMAND_LIST_TYPE_DIRECT,
@@ -175,6 +195,7 @@ DirectXApp::DirectXApp(HWND hWnd, int Window_Width, int Window_Height) :
 	if (FAILED(hr)) {
 		return;
 	}
+#endif
 
 	// ディスクリプタヒープの作成
 	// RenderTargetView を3つ
@@ -321,8 +342,8 @@ void DirectXApp::DeferredLightingPass(const RenderContext& ctx,
 	D3D12_CPU_DESCRIPTOR_HANDLE targetRtv,
 	const D3D12_VIEWPORT& vp, const D3D12_RECT& sc)
 {
-	auto* cmd = m_CommandList.Get();
-	const UINT slot = m_FrameIndex % RTV_NUM;
+	auto* cmd = Cmd();
+	const UINT slot = RecordSlot();
 
 	// G-Buffer + 深度を SRV へ
 	m_GBuffer.TransitionToRead(cmd);
@@ -425,7 +446,7 @@ void DirectXApp::PostProcessCopy(RenderTexture& src,
 	D3D12_CPU_DESCRIPTOR_HANDLE dstRtv,
 	const D3D12_VIEWPORT& vp, const D3D12_RECT& sc)
 {
-	auto* cmd = m_CommandList.Get();
+	auto* cmd = Cmd();
 
 	// src(HDR) を SRV へ遷移
 	src.Transition(cmd, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -450,8 +471,8 @@ void DirectXApp::PostProcessCopy(RenderTexture& src,
 
 void DirectXApp::PostProcessBloom(D3D12_CPU_DESCRIPTOR_HANDLE dstRtv, const D3D12_VIEWPORT& vp, const D3D12_RECT& sc)
 {
-	auto* cmd = m_CommandList.Get();
-	const UINT slot = m_FrameIndex % RTV_NUM;
+	auto* cmd = Cmd();
+	const UINT slot = RecordSlot();
 	const UINT bw = m_Window_Width / 2, bh = m_Window_Height / 2;
 
 	PostCB pcb{};
@@ -1252,7 +1273,7 @@ void DirectXApp::BuildCompositeSrvTable()
 
 void DirectXApp::PostPass(ID3D12PipelineState* pso, D3D12_GPU_DESCRIPTOR_HANDLE srvTable, D3D12_GPU_VIRTUAL_ADDRESS cb, D3D12_CPU_DESCRIPTOR_HANDLE dstRtv, UINT w, UINT h)
 {
-	auto* cmd = m_CommandList.Get();
+	auto* cmd = Cmd();
 	ID3D12DescriptorHeap* heaps[] = { m_SrvAllocator.heap.Get() };
 	cmd->SetDescriptorHeaps(1, heaps);
 	cmd->OMSetRenderTargets(1, &dstRtv, FALSE, nullptr);
@@ -1280,7 +1301,7 @@ DirectXApp::~DirectXApp()
 	}
 }
 
-
+#ifndef _FRAMEPIPELINE
 HRESULT DirectXApp::BeginRender()
 {
 	const UINT targetIndex = m_FrameIndex;
@@ -1357,9 +1378,49 @@ HRESULT DirectXApp::BeginRender()
 	return S_OK;
 }
 
+HRESULT DirectXApp::EndRender()
+{
+	const UINT targetIndex = m_FrameIndex;
+
+	SetResourceBarrier(
+		m_CommandList.Get(),
+		m_RenderTargets[targetIndex].Get(),
+		D3D12_RESOURCE_STATE_RENDER_TARGET,
+		D3D12_RESOURCE_STATE_PRESENT
+	);
+
+	HRESULT hr = m_CommandList->Close();
+	if (FAILED(hr)) {
+		return hr;
+	}
+
+	ID3D12CommandList* pCommandList = m_CommandList.Get();
+	m_CommandQueue->ExecuteCommandLists(1, &pCommandList);
+
+	const UINT64 singnalFenceValue = ++m_NextFenceValue;
+	hr = m_CommandQueue->Signal(m_Fence.Get(), singnalFenceValue);
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+
+	m_FenceValue[targetIndex] = singnalFenceValue;
+
+	hr = m_SwapChain->Present(1, 0);
+	if (FAILED(hr))
+	{
+		return hr;
+	}
+
+	m_FrameIndex = m_SwapChain->GetCurrentBackBufferIndex();
+
+	return S_OK;
+}
+
+#endif
 void DirectXApp::BeginGeometryPass()
 {
-	auto* cmd = m_CommandList.Get();
+	auto* cmd = Cmd();
 
 	// 深度を書き込み状態へ
 	m_GBuffer.TransitionToWrite(cmd);
@@ -1384,8 +1445,8 @@ void DirectXApp::BeginGeometryPass()
 
 void DirectXApp::DeferredLightingPass(const RenderContext& ctx)
 {
-	auto* cmd = m_CommandList.Get();
-	const UINT slot = m_FrameIndex % RTV_NUM;
+	auto* cmd = Cmd();
+	const UINT slot = RecordSlot();
 
 	// --- G-Buffer + 深度を SRV へ ---
 	m_GBuffer.TransitionToRead(cmd);
@@ -1443,54 +1504,17 @@ void DirectXApp::DeferredLightingPass(const RenderContext& ctx)
 		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 }
 
-HRESULT DirectXApp::EndRender()
-{
-	const UINT targetIndex = m_FrameIndex;
-
-	SetResourceBarrier(
-		m_CommandList.Get(),
-		m_RenderTargets[targetIndex].Get(),
-		D3D12_RESOURCE_STATE_RENDER_TARGET,
-		D3D12_RESOURCE_STATE_PRESENT
-	);
-
-	HRESULT hr = m_CommandList->Close();
-	if (FAILED(hr)) {
-		return hr;
-	}
-
-	ID3D12CommandList* pCommandList = m_CommandList.Get();
-	m_CommandQueue->ExecuteCommandLists(1, &pCommandList);
-
-	const UINT64 singnalFenceValue = ++m_NextFenceValue;
-	hr = m_CommandQueue->Signal(m_Fence.Get(), singnalFenceValue);
-	if (FAILED(hr))
-	{
-		return hr;
-	} 
-	
-	m_FenceValue[targetIndex] = singnalFenceValue; 
-
-	hr = m_SwapChain->Present(1, 0);
-	if (FAILED(hr))
-	{
-		return hr;
-	}
-
-	m_FrameIndex = m_SwapChain->GetCurrentBackBufferIndex();
-
-	return S_OK;
-}
-
 void DirectXApp::Present()
 {
+	auto* cmd = Cmd();
+
 	const UINT targetIndex = m_FrameIndex;
 
 	auto dsvhandle = m_DsvAllocator.heap->GetCPUDescriptorHandleForHeapStart();
-	m_CommandList->OMSetRenderTargets(1, &m_RTV_Handle[targetIndex], FALSE, &dsvhandle);
+	cmd->OMSetRenderTargets(1, &m_RTV_Handle[targetIndex], FALSE, &dsvhandle);
 
 	D3D12_RECT scissorRect = { 0, 0, (LONG)m_Window_Width, (LONG)m_Window_Height };
-	m_CommandList->RSSetScissorRects(1, &scissorRect);
+	cmd->RSSetScissorRects(1, &scissorRect);
 
 	D3D12_VIEWPORT vp;
 	vp.TopLeftX = 0.0f;
@@ -1500,8 +1524,111 @@ void DirectXApp::Present()
 	vp.MinDepth = 0.0f;
 	vp.MaxDepth = 1.0f;
 
-	m_CommandList->RSSetViewports(1, &vp);
+	cmd->RSSetViewports(1, &vp);
 }
+
+#ifdef _FRAMEPIPELINE
+
+HRESULT DirectXApp::BeginFrameRecord(UINT64 frameNumber)
+{
+	m_RecordFrameNumber = frameNumber;
+	m_RecordSlot = static_cast<UINT>(frameNumber % RTV_NUM);
+	m_RecordBackbuffer = static_cast<UINT>((m_SyncBackBuffer + (frameNumber - m_SyncFrameNumber)) % RTV_NUM);
+
+	// 子のスロットを最後に使ったフレームのGPU完了を待つ
+	const UINT64 fenceToWait = m_FenceValue[m_RecordSlot];
+	if (m_Fence->GetCompletedValue() < fenceToWait)
+	{
+		m_Fence->SetEventOnCompletion(fenceToWait, m_Fence_Event);
+		WaitForSingleObject(m_Fence_Event, INFINITE);
+	}
+	m_DeferredReleases[m_RecordSlot].clear();	// 前フレームの解放予約をクリア
+
+	HRESULT hr = m_CommandAllocator[m_RecordSlot]->Reset();
+	if (FAILED(hr)) {
+		return hr;
+	}
+
+	auto* cmd = m_CommandList[m_RecordSlot].Get();
+	hr = cmd->Reset(m_CommandAllocator[m_RecordSlot].Get(), nullptr);
+	if (FAILED(hr)) { return hr; }
+
+	SetResourceBarrier(cmd,
+		m_RenderTargets[m_RecordBackbuffer].Get(),
+		D3D12_RESOURCE_STATE_PRESENT,
+		D3D12_RESOURCE_STATE_RENDER_TARGET
+	);
+
+	if (m_SrvAllocator.heap)
+	{
+		ID3D12DescriptorHeap* heaps[] = { m_SrvAllocator.heap.Get() };
+		cmd->SetDescriptorHeaps(_countof(heaps), heaps);
+	}
+
+	m_CBAllocator.Reset(m_RecordSlot);	// 定数バッファアロケータをリセット
+
+	cmd->SetGraphicsRootSignature(m_rootSignature.Get());
+
+	D3D12_RECT scissorRect = {0,0,(LONG)m_Window_Width,(LONG)m_Window_Height};
+	cmd->RSSetScissorRects(1, &scissorRect);
+
+	D3D12_VIEWPORT vp{ 0.0f,0.0f,(FLOAT)m_Window_Width,(FLOAT)m_Window_Height,0.0f,1.0f };
+
+	auto dsvHandle = m_DSV_Handle;
+	cmd->OMSetRenderTargets(1, &m_RTV_Handle[m_RecordBackbuffer], FALSE, &dsvHandle);
+	cmd->RSSetViewports(1, &vp);
+	cmd->ClearRenderTargetView(m_RTV_Handle[m_RecordBackbuffer], ClearColor, 0, nullptr);
+	cmd->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+
+	return S_OK;
+}
+
+HRESULT DirectXApp::CloseFrameRecord()
+{
+	auto* cmd = m_CommandList[m_RecordSlot].Get();
+
+	SetResourceBarrier(cmd,
+		m_RenderTargets[m_RecordBackbuffer].Get(),
+		D3D12_RESOURCE_STATE_RENDER_TARGET,
+		D3D12_RESOURCE_STATE_PRESENT
+	);
+
+	return cmd->Close();
+}
+
+HRESULT DirectXApp::ExecuteAndPresent()
+{
+	const UINT slot = m_RecordSlot;
+
+	ID3D12CommandList* lists[] = { m_CommandList[slot].Get() };
+	m_CommandQueue->ExecuteCommandLists(1, lists);
+
+	const UINT64 signalValue = ++m_NextFenceValue;
+	HRESULT hr = m_CommandQueue->Signal(m_Fence.Get(), signalValue);
+	if (FAILED(hr)) { return hr; }
+	m_FenceValue[slot] = signalValue;
+
+	hr = m_SwapChain->Present(1, 0);
+	if (FAILED(hr)) { return hr; }
+
+	m_FrameIndex = m_SwapChain->GetCurrentBackBufferIndex();
+
+	const UINT expected = static_cast<UINT>(
+		(m_SyncBackBuffer + (m_RecordFrameNumber - m_SyncFrameNumber) + 1) % RTV_NUM);
+	if (m_FrameIndex != expected)
+	{
+		LOG->LogError("BackBuffer prediction miss: expected=" + std::to_string(expected)
+			+ " actual=" + std::to_string(m_FrameIndex)
+			+ " frame=" + std::to_string(m_RecordFrameNumber));
+	}
+
+	m_SyncFrameNumber = m_RecordFrameNumber + 1;   // 次にPresentされるフレーム
+	m_SyncBackBuffer = m_FrameIndex;              // その描き先(実測)
+
+	return S_OK;
+}
+
+#endif
 
 bool DirectXApp::LoadEnvironment(const std::wstring& hdrpath)
 {

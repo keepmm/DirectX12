@@ -1,0 +1,922 @@
+{
+  "entities": [
+    {
+      "Camera": {
+        "CameraType": 0,
+        "FarZ": 100.0,
+        "FovY": 60.0,
+        "IsActive": true,
+        "NearZ": 0.10000000149011612,
+        "OrthoSize": 10.0,
+        "Projection": 0
+      },
+      "Free Look": {
+        "Enabled": true,
+        "MoveSpeed": 5.0,
+        "Pitch": 0.0,
+        "RotateSpeed": 0.0024999999441206455,
+        "Yaw": 0.0
+      },
+      "id": 1,
+      "name": "MainCamera",
+      "transform": {
+        "parent": 0,
+        "position": [
+          0.0,
+          0.5,
+          -1.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    },
+    {
+      "Light": {
+        "AmbientColor": [
+          0.20000000298023224,
+          0.20000000298023224,
+          0.20000000298023224,
+          1.0
+        ],
+        "BeamColorEnd": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "BeamWidth": 0.05000000074505806,
+        "Color": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "Direction": [
+          0.0,
+          0.0,
+          1.0
+        ],
+        "GlowIntensity": 3.0,
+        "GlowPower": 6.0,
+        "Intensity": 1.0,
+        "IsActive": true,
+        "IsShow": false,
+        "Range": 10.0,
+        "ShowBeam": false,
+        "SpotAngle": 45.0,
+        "SwingAngle": 30.0,
+        "SwingAxis": 13421568,
+        "SwingEnabled": false,
+        "SwingSpeed": 45.0,
+        "Type": 0,
+        "VolumetricIntensity": 1.0
+      },
+      "id": 2,
+      "name": "MainLight",
+      "transform": {
+        "parent": 0,
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    },
+    {
+      "Camera": {
+        "CameraType": 1,
+        "FarZ": 100.0,
+        "FovY": 60.0,
+        "IsActive": true,
+        "NearZ": 0.10000000149011612,
+        "OrthoSize": 10.0,
+        "Projection": 0
+      },
+      "Free Look": {
+        "Enabled": true,
+        "MoveSpeed": 5.0,
+        "Pitch": 0.3500002324581146,
+        "RotateSpeed": 0.0024999999441206455,
+        "Yaw": 0.05250025540590286
+      },
+      "id": 3,
+      "name": "EditorCamera",
+      "transform": {
+        "parent": 0,
+        "position": [
+          -0.2318774163722992,
+          2.3958685398101807,
+          -2.263607978820801
+        ],
+        "rotation": [
+          0.1740482747554779,
+          0.025846228003501892,
+          -0.004569838754832745,
+          0.9843872785568237
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    },
+    {
+      "Animator": {
+        "ClipPaths": "Assets/Model/VMDMotion/raymotion.vmd",
+        "Playing": true,
+        "Time": 0.0
+      },
+      "animator": {
+        "currentClip": 0,
+        "extraClips": [],
+        "playing": true
+      },
+      "id": 4,
+      "material": {
+        "filePath": "",
+        "rampPath": "",
+        "shaderName": "SkinnedToon",
+        "subMaterials": [
+          {
+            "baseAlpha": 0.0,
+            "metallic": 0.38100001215934753,
+            "roughness": 0.07500000298023224,
+            "shaderName": "PBR",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.8230000138282776,
+            "sssTrans": 0.0,
+            "sssWrap": 1.0
+          },
+          {
+            "baseAlpha": 0.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "Unlit",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 0.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 0.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 0.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 0.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 0.0,
+            "metallic": 0.38100001215934753,
+            "roughness": 0.07500000298023224,
+            "shaderName": "PBR",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.8230000138282776,
+            "sssTrans": 0.0,
+            "sssWrap": 1.0
+          },
+          {
+            "baseAlpha": 0.0,
+            "metallic": 0.38100001215934753,
+            "roughness": 0.07500000298023224,
+            "shaderName": "PBR",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.8230000138282776,
+            "sssTrans": 0.0,
+            "sssWrap": 1.0
+          },
+          {
+            "baseAlpha": 0.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 0.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.38100001215934753,
+            "roughness": 0.07500000298023224,
+            "shaderName": "PBR",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.8230000138282776,
+            "sssTrans": 0.0,
+            "sssWrap": 1.0
+          },
+          {
+            "baseAlpha": 0.0,
+            "metallic": 0.38100001215934753,
+            "roughness": 0.07500000298023224,
+            "shaderName": "PBR",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.8230000138282776,
+            "sssTrans": 0.0,
+            "sssWrap": 1.0
+          },
+          {
+            "baseAlpha": 0.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 0.0,
+            "metallic": 1.0,
+            "roughness": 0.25200000405311584,
+            "shaderName": "PBR",
+            "sheen": 2.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 0.0,
+            "metallic": 1.0,
+            "roughness": 0.25200000405311584,
+            "shaderName": "PBR",
+            "sheen": 2.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 0.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 0.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 0.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 0.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 0.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 0.0,
+            "metallic": 1.0,
+            "roughness": 0.25200000405311584,
+            "shaderName": "PBR",
+            "sheen": 2.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 0.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 0.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 0.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "Unlit",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 0.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          }
+        ]
+      },
+      "mesh": {
+        "filePath": "Assets\\Model\\Sour_Rin\\Black.pmx",
+        "scale": 1.0
+      },
+      "name": "Rin",
+      "transform": {
+        "parent": 0,
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          0.10000000149011612,
+          0.10000000149011612,
+          0.10000000149011612
+        ]
+      }
+    },
+    {
+      "Animator": {
+        "ClipPaths": "",
+        "Playing": false,
+        "Time": 0.0
+      },
+      "animator": {
+        "currentClip": 0,
+        "extraClips": [],
+        "playing": false
+      },
+      "id": 5,
+      "material": {
+        "filePath": "",
+        "rampPath": "",
+        "shaderName": "SkinnedToon",
+        "subMaterials": [
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          }
+        ]
+      },
+      "mesh": {
+        "filePath": "Assets\\Model\\Livestage\\pmx\\01_Main.pmx",
+        "scale": 1.0
+      },
+      "name": "Model_5",
+      "transform": {
+        "parent": 0,
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          0.10000000149011612,
+          0.10000000149011612,
+          0.10000000149011612
+        ]
+      }
+    },
+    {
+      "Animator": {
+        "ClipPaths": "",
+        "Playing": false,
+        "Time": 0.0
+      },
+      "animator": {
+        "currentClip": 0,
+        "extraClips": [],
+        "playing": false
+      },
+      "id": 6,
+      "material": {
+        "filePath": "",
+        "rampPath": "",
+        "shaderName": "SkinnedToon",
+        "subMaterials": [
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          }
+        ]
+      },
+      "mesh": {
+        "filePath": "Assets\\Model\\Livestage\\pmx\\02_StickLight.pmx",
+        "scale": 1.0
+      },
+      "name": "Model_6",
+      "transform": {
+        "parent": 0,
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          0.10000000149011612,
+          0.10000000149011612,
+          0.10000000149011612
+        ]
+      }
+    },
+    {
+      "Animator": {
+        "ClipPaths": "",
+        "Playing": false,
+        "Time": 0.0
+      },
+      "animator": {
+        "currentClip": 0,
+        "extraClips": [],
+        "playing": false
+      },
+      "id": 7,
+      "material": {
+        "filePath": "",
+        "rampPath": "",
+        "shaderName": "SkinnedToon",
+        "subMaterials": [
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          }
+        ]
+      },
+      "mesh": {
+        "filePath": "Assets\\Model\\Livestage\\pmx\\03_Screen.pmx",
+        "scale": 1.0
+      },
+      "name": "Model_7",
+      "transform": {
+        "parent": 0,
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          0.10000000149011612,
+          0.10000000149011612,
+          0.10000000149011612
+        ]
+      }
+    },
+    {
+      "Animator": {
+        "ClipPaths": "",
+        "Playing": false,
+        "Time": 0.0
+      },
+      "animator": {
+        "currentClip": 0,
+        "extraClips": [],
+        "playing": false
+      },
+      "id": 8,
+      "material": {
+        "filePath": "",
+        "rampPath": "",
+        "shaderName": "SkinnedToon",
+        "subMaterials": [
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          }
+        ]
+      },
+      "mesh": {
+        "filePath": "Assets\\Model\\Livestage\\pmx\\04_Emit.pmx",
+        "scale": 1.0
+      },
+      "name": "Model_8",
+      "transform": {
+        "parent": 0,
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          0.10000000149011612,
+          0.10000000149011612,
+          0.10000000149011612
+        ]
+      }
+    }
+  ],
+  "sceneName": "MMDSample",
+  "skybox": "Assets/Texture/sky.hdr"
+}
