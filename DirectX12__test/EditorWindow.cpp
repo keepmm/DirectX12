@@ -477,20 +477,6 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 								tr.SyncEulerFromQuaternion();
 								tr.RebuildWorld();
 							}
-
-							//// 行列を位置、回転、サイズに分解
-							//float t[3], r[3], s[3];
-							//ImGuizmo::DecomposeMatrixToComponents(&world._11, t, r, s);
-
-							//tr.position = float3(t[0], t[1], t[2]);
-							//const auto q = DirectX::XMQuaternionRotationRollPitchYaw(
-							//	DirectX::XMConvertToRadians(r[0]),
-							//	DirectX::XMConvertToRadians(r[1]),
-							//	DirectX::XMConvertToRadians(r[2]));
-							//DirectX::XMStoreFloat4(&tr.rotation, q);
-							//tr.scale = float3(s[0], s[1], s[2]);
-							//tr.ApplyEuler(); // Euler角を更新
-							//tr.RebuildWorld(); // ワールド行列を更新
 						}
 					}
 				}
@@ -557,21 +543,14 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 				}
 				ImGui::EndTabItem();
 			}
-
-			if (ImGui::BeginTabBar(u8("メモリ消費量")))
-			{
-				if (m_ShowMemory)
-				{
-					DrawMemoryPanel();
-				}
-				ImGui::EndTabBar();
-			}
 			ImGui::EndTabBar();
 		}
 	}
 	ImGui::End();
 
 	DrawStyleSetting();
+
+	DrawMemoryPanel();
 }
 
 void EditorWindow::ReleaseRenderTextures()
@@ -814,25 +793,33 @@ SIZE_T GetPrivateWorkingSetBytes(HANDLE process)
 
 void EditorWindow::DrawMemoryPanel()
 {
-	const HANDLE process = GetCurrentProcess();
+	// ---- メモリ消費量表示 ---- //
+	if (!m_ShowMemory) return;
 
-	// メモリ使用量の表示
-	PROCESS_MEMORY_COUNTERS_EX pmc = {};
-	if (GetProcessMemoryInfo(
-		process,
-		reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&pmc),
-		sizeof(pmc)))
-	{
-		const double workingSetMB = static_cast<double>(pmc.WorkingSetSize) * BYTES_TO_MB;
-		const double privateCommitMB = static_cast<double>(pmc.PrivateUsage) * BYTES_TO_MB;
+	if (ImGui::Begin(u8("メモリ消費量"), &m_ShowMemory)) {
 
-		const SIZE_T privateWsBytes = GetPrivateWorkingSetBytes(process);
-		const double privateWorkingSetMB = static_cast<double>(privateWsBytes) * BYTES_TO_MB;
 
-		ImGui::Text(u8("メモリ(Private Working Set): %.1f MB"), privateWorkingSetMB);
-		ImGui::Text(u8("Working Set(共有含む): %.1f MB"), workingSetMB);
-		ImGui::Text(u8("Commit Size(PrivateUsage): %.1f MB"), privateCommitMB);
+		const HANDLE process = GetCurrentProcess();
+
+		// メモリ使用量の表示
+		PROCESS_MEMORY_COUNTERS_EX pmc = {};
+		if (GetProcessMemoryInfo(
+			process,
+			reinterpret_cast<PROCESS_MEMORY_COUNTERS*>(&pmc),
+			sizeof(pmc)))
+		{
+			const double workingSetMB = static_cast<double>(pmc.WorkingSetSize) * BYTES_TO_MB;
+			const double privateCommitMB = static_cast<double>(pmc.PrivateUsage) * BYTES_TO_MB;
+
+			const SIZE_T privateWsBytes = GetPrivateWorkingSetBytes(process);
+			const double privateWorkingSetMB = static_cast<double>(privateWsBytes) * BYTES_TO_MB;
+
+			ImGui::Text(u8("メモリ(Private Working Set): %.1f MB"), privateWorkingSetMB);
+			ImGui::Text(u8("Working Set(共有含む): %.1f MB"), workingSetMB);
+			ImGui::Text(u8("Commit Size(PrivateUsage): %.1f MB"), privateCommitMB);
+		}
 	}
+	ImGui::End();
 }
 
 void EditorWindow::DrawConsole()
