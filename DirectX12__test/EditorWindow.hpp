@@ -23,7 +23,9 @@
 class EditorWindow
 {
 public:
-	EditorWindow(_In_ DirectXApp& app);
+	EditorWindow(
+		_In_ DirectXApp& app,
+		_In_ SceneManager& sceneManager);
 
 	/// @brief 描画処理
 	/// @param sceneManager 描画に必要なシーンマネージャーの参照 
@@ -185,4 +187,10 @@ private:
 	bool m_FocusAddCompSearch = false;
 
 	bool m_ShowStyleSetting = false;
+
+	// ビルド設定
+	std::array<char, 256> m_BuildOutputDir = { "Build" };
+	std::array<char, 128> m_BuildGameName = { "MyGame" };
+	std::array<char, 256> m_BuildStartScene = { "Assets/Scenes/SampleScene.json" };
+	float m_BuildOverlayTimer = 0.0f;
 };

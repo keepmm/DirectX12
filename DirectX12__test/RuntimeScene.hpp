@@ -11,6 +11,9 @@
 #include "Scene.hpp"
 #include "Systems.hpp"
 #include "DebugLineRenderer.hpp"
+#include "BeamRenderer.hpp"
+#include "FireworkSystem.hpp"
+#include "SePlayer.hpp"
 
 class Mesh;
 class Material;
@@ -51,6 +54,21 @@ public:
 		m_DebugLines.clear();
 	}
 	void EditorUpdate(float dt);
+
+	/// @brief スカイボックスを差し替えて即反映
+	void SetSkybox(_In_ const std::string& path)
+	{
+		SetSkyboxPath(path);
+		ApplySkybox();
+	}
+
+	/// @brief スクリプトから花火を打ち上げるための橋渡し
+	void LaunchFirework(const float3& pos, int shape, const float3& color, const char* text)
+	{
+		m_FireworkSystem.Launch(pos,
+			static_cast<FireworkSystem::Shape>(shape), color, text ? text : "");
+	}
+	static RuntimeScene* Current() { return s_Current; }
 private:
 	void DrawGizmos(const RenderContext& renderContext);
 
@@ -59,6 +77,11 @@ private:
 	void DrawLight();
 
 	void DrawColliders();
+
+	void DrawLaserBeams(const RenderContext& renderContext, ID3D12PipelineState* psoOverride = nullptr,bool emitFirework = false);
+
+	/// @brief 現在のスカイボックスパスでマテリアルを(再)生成
+	void ApplySkybox();
 
 
 	struct DebugLine
@@ -85,6 +108,14 @@ private:
 	TransformSystem m_TransformSystem;
 	ShadowSystem m_ShadowSystem;
 	AnimatorSystem m_AnimatorSystem;
+	ParticleSystem m_ParticleSystem;
+	BeamRenderer m_BeamRenderer;
+	CameraAnimationSystem m_CameraAnimationSystem;
+	MusicSyncSystem m_MusicSyncSystem;
+	SePlayer m_SePlayer;
+
+	BeamRenderer m_FireworkBeamRenderer;
+	FireworkSystem m_FireworkSystem;
 
 	bool m_ScriptSystemStarted = false;
 
@@ -103,5 +134,6 @@ private:
 	bool m_Initialized = false;
 
 	std::string m_SceneName = "";
+	static inline RuntimeScene* s_Current = nullptr;
 };
 

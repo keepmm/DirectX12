@@ -1,9 +1,9 @@
 #include "Material.hpp"
 #include "d3dx12.h"
-#include "DirectXTex/DirectXTex.h"
-#pragma comment(lib, "DirectXTex.lib")
+#include <DirectXTex.h>
 #include "Logger.hpp"
 #include "ConstantBufferAllocator.hpp"
+#include "Util.hpp"
 
 /// @brief テクスチャの読み込み(拡張子に応じて自動判別)
 /// @param filePath ファイルのパス
@@ -17,13 +17,7 @@ static HRESULT LoadImgAny(
 {
 	HRESULT hr;
 
-	std::filesystem::path resolved = filePath;
-	if (resolved.is_relative())
-	{
-		wchar_t exePath[MAX_PATH] = {};
-		GetModuleFileNameW(nullptr, exePath, MAX_PATH);
-		resolved = std::filesystem::path(exePath).parent_path() / resolved;
-	}
+	std::filesystem::path resolved = ResolveAssetPath(filePath);
 
 	if (!std::filesystem::exists(resolved))
 	{
@@ -212,13 +206,7 @@ bool Material::SetToonRampTexture(const std::wstring& filepath)
 	if (APP->GetDevice() == nullptr) return false;
 	if (m_TextureSrvHeap == nullptr) return false;
 
-	std::filesystem::path resolved = filepath;
-	if (resolved.is_relative())
-	{
-		wchar_t exepath[MAX_PATH] = {};
-		GetModuleFileNameW(nullptr, exepath, MAX_PATH);
-		resolved = std::filesystem::path(exepath).parent_path() / resolved;
-	}
+	std::filesystem::path resolved = ResolveAssetPath(filepath);
 
 	if (!std::filesystem::exists(resolved))
 	{
@@ -604,7 +592,6 @@ bool Material::CreateTextureFromRGBA(
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MipLevels = 1;
 	auto cpu = m_TextureSrvHeap->GetCPUDescriptorHandleForHeapStart();
-	//cpu.ptr += device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);  // 既存と同じ＋1
 	device->CreateShaderResourceView(m_Texture.Get(), &srvDesc, cpu);
 	return true;
 }

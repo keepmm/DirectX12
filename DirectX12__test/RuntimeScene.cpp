@@ -21,9 +21,12 @@ void RuntimeScene::OnLoad()
 		return;
 	}
 
+	s_Current = this;
+
 	LOG->LogInfo("RuntimeScene : Loading...");
 
 	m_DebugLineRenderer.Init(m_Device, m_LinePso);
+	m_BeamRenderer.Init(m_Device, APP->GetBeamPso());
 
 	if (!m_SceneFilePath.empty())
 	{
@@ -105,10 +108,19 @@ void RuntimeScene::OnLoad()
 	//      スカイボックスの用意     //
 	// -----------------------------//
 	m_SkyboxCube.CreateCube(APP->GetDevice());
-	m_SkyBox = std::make_shared<Material>();
-	m_SkyBox->Init();
-	m_SkyBox->SetTextureFromFile(L"Assets/Texture/sky.hdr");
-	APP->LoadEnvironment(L"Assets/Texture/sky.hdr");
+	ApplySkybox();
+
+	// -----------------------------//
+	// 花火のシステムの初期化		// 
+	// -----------------------------//
+	m_FireworkSystem.Init();
+	m_FireworkSystem.SetSoundCallback(
+		[this](const float3& pos, int type)
+		{
+			(void)pos;
+			//m_SePlayer.Play("Assets/Audio/FireworkBurst.wav", 0.6f);
+		});
+	m_FireworkBeamRenderer.Init(m_Device, APP->GetFireworkPso());
 
 	m_Initialized = true;
 	LOG->LogInfo("RuntimeScene : Loaded");
@@ -132,11 +144,41 @@ void RuntimeScene::Update(float deltatime)
 	m_ScriptSystem.Update(m_World, deltatime);
 	m_SpinSystem.Update(m_World, deltatime);
 	m_LightSystem.Apply(m_World);
-	m_FreeLookSystem.Update(m_World, deltatime, CameraComponent::CameraType::Secondary);
-	m_CameraSystem.Update(m_World, 16.0f / 9.0f);
 	m_AudioSystem.Update(m_World, PLAY.isPlaying());
+	m_MusicSyncSystem.Update(m_World, PLAY.isPlaying());
+	m_FreeLookSystem.Update(m_World, deltatime, CameraComponent::CameraType::Secondary);
+	m_CameraAnimationSystem.Update(m_World, deltatime,PLAY.isPlaying());
 	m_TransformSystem.Update(m_World);
+	m_CameraSystem.Update(m_World, 16.0f / 9.0f);
 	m_AnimatorSystem.Update(m_World, deltatime);
+	m_FireworkSystem.Update(deltatime);
+
+	// --- ワールド各所へ花火を打ち上げる ---
+	static float acc = 0.0f; acc += deltatime;
+	if (acc > 0.7f) {                       // 0.7秒ごとに一発
+		acc = 0.0f;
+
+		const FireworkSystem::Shape shapes[] = {
+			FireworkSystem::Shape::Peony,  FireworkSystem::Shape::Willow,
+			FireworkSystem::Shape::Ring,   FireworkSystem::Shape::Heart,
+			FireworkSystem::Shape::Senrin, FireworkSystem::Shape::Text };
+
+		// 発射位置をワールドに散らす(半径 R の円内、地面 y=0 から）
+		const float R = 10.0f;
+		const float px = ((rand() % 2000) / 1000.0f - 1.0f) * R; // -R..R
+		const float pz = ((rand() % 2000) / 1000.0f - 1.0f) * R;
+		const float3 launchPos{ px, 0.0f, pz };
+
+		// 鮮やかな色に寄せる(彩度低い暗色を避ける)
+		static const float3 palette[] = {
+			{1.0f, 0.25f, 0.25f}, {0.25f, 0.6f, 1.0f}, {1.0f, 0.85f, 0.2f},
+			{0.4f, 1.0f, 0.4f},   {1.0f, 0.4f, 1.0f},  {0.3f, 1.0f, 1.0f} };
+		const float3 color = palette[rand() % 6];
+
+		const auto shape = shapes[rand() % 6];
+		m_FireworkSystem.Launch(launchPos, shape, color,
+			shape == FireworkSystem::Shape::Text ? "HALO" : "");
+	}
 }
 
 void RuntimeScene::FixedUpdate(float fixedDeltatime)
@@ -166,10 +208,10 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 	m_World.Each<CameraComponent>([&](Entity, CameraComponent& camera)
 		{
 			if (camera.cameraType == wantType) cam = &camera;
-			else                               fallback = &camera;  // 望む種別が無い時の保険
+			else                               fallback = &camera;
 		});
 
-	if (!cam) cam = fallback;   // 該当が無ければ何でも使う（黒画面防止）
+	if (!cam) cam = fallback;
 
 	if (cam)
 	{
@@ -184,35 +226,23 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 		auto renderTexture = renderContext.viewportRenderTexture;
 		auto* commandList = context.CommandList;
 
-		// リソースバリア: ピクセルシェーダーリソース → レンダーターゲット
+		// ピクセルシェーダーリソース → レンダーターゲット
 		renderTexture->Transition(commandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
 		// シャドウマップの描画
 		if (context.lightCb.shadowParams.y > 0.5f)
 		{
 			APP->GetShadowMap().BeginRender(commandList);
-			m_ShadowSystem.Draw(m_World, context,APP->GetShadowPso());
+			m_ShadowSystem.Draw(m_World, context, APP->GetShadowPso());
 			APP->GetShadowMap().EndRender(commandList);
 		}
 
-		// RTV を設定
 		auto rtvHandle = renderTexture->GetRTV();
 		auto dsvHandle = renderContext.depthStencilView;
 
-		commandList->OMSetRenderTargets(1, &rtvHandle, FALSE,&dsvHandle);
-		commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+		commandList->SetGraphicsRootSignature(APP->GetRootSignature().Get());
 
-		// ビューポートとシザー矩形を設定
-		if (renderContext.viewport)
-		{
-			commandList->RSSetViewports(1, renderContext.viewport);
-		}
-		if (renderContext.scissorRect)
-		{
-			commandList->RSSetScissorRects(1, renderContext.scissorRect);
-		}
-
-		// --- ボーン行列パレット(b4)を単位行列でバインド
+		// --- ボーン行列パレット(b4)を単位行列でバインド（両モード共通）---
 		if (renderContext.cbAllocator)
 		{
 			static BoneCB s_IdentityBones = [] {
@@ -225,53 +255,119 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 
 			const UINT slot = renderContext.frameIndex % RTV_NUM;
 			auto b4 = renderContext.cbAllocator->Allocate(slot, &s_IdentityBones, sizeof(BoneCB));
-			if (b4) renderContext.CommandList->SetGraphicsRootConstantBufferView(5, b4);
+			if (b4) commandList->SetGraphicsRootConstantBufferView(5, b4);
 		}
 
-		// クリア
-		renderTexture->Clear(commandList, { 0.2f, 0.2f, 0.2f, 1.0f });
+		const bool deferred = RenderSettings::Get().deferred;
 
-		// skybox描画
-		if (m_SkyBox)
+		if (deferred)
 		{
-			float4x4 identity;
-			DirectX::XMStoreFloat4x4(&identity, DirectX::XMMatrixIdentity());
-			m_SkyBox->Apply(
-				context.CommandList, identity, context.view, context.projection,
-				false, context.frameIndex, context.cbAllocator, "",
-				APP->GetSkyPso());
-			m_SkyboxCube.Draw(context.CommandList);
+			// ---- 不透明 -> G-Buffer ----
+			const UINT fw = APP->GetHdrScene().GetWidth();
+			const UINT fh = APP->GetHdrScene().GetHeight();
+			D3D12_VIEWPORT fullvp{ 0.0f,0.0f, (float)fw, (float)fh, 0.0f, 1.0f };
+			D3D12_RECT fullsc{ 0,0, (LONG)fw, (LONG)fh };
+
+			APP->GetHdrScene().Transition(commandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
+			auto hdrRtv = APP->GetHdrScene().GetRTV();
+
+			APP->BeginGeometryPass();
+			commandList->RSSetViewports(1, &fullvp);
+			commandList->RSSetScissorRects(1, &fullsc);
+			m_RenderSystem.Draw(m_World, context, APP->GetGBufferPso(), DrawFilter::OPAQUEONLY);
+
+			// ---- ライティング -> HDR(R16F) ----
+			APP->DeferredLightingPass(context, hdrRtv, fullvp, fullsc);
+
+			commandList->OMSetRenderTargets(1, &hdrRtv, FALSE, nullptr);
+			if (renderContext.viewport)    commandList->RSSetViewports(1, &fullvp);
+			if (renderContext.scissorRect) commandList->RSSetScissorRects(1, &fullsc);
+			commandList->SetGraphicsRootSignature(APP->GetRootSignature().Get());
+			DrawLaserBeams(context, APP->GetBeamHdrPso());
+
+			// ---- Bloom + トーンマップ合成 -> renderTexture(R8) ----
+			APP->PostProcessBloom(rtvHandle,
+				*renderContext.viewport, *renderContext.scissorRect);
+
+			commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
+			if (renderContext.viewport)    commandList->RSSetViewports(1, renderContext.viewport);
+			if (renderContext.scissorRect) commandList->RSSetScissorRects(1, renderContext.scissorRect);
+			commandList->SetGraphicsRootSignature(APP->GetRootSignature().Get());
+
+			// b4 再バインド
+			if (renderContext.cbAllocator)
+			{
+				static BoneCB s_IdentityBones = [] {
+					BoneCB cb{};
+					DirectX::XMFLOAT4X4 id;
+					DirectX::XMStoreFloat4x4(&id, DirectX::XMMatrixIdentity());
+					for (auto& m : cb.boneMatrices) m = id;
+					return cb;
+					}();
+				const UINT slot = renderContext.frameIndex % RTV_NUM;
+				auto b4 = renderContext.cbAllocator->Allocate(slot, &s_IdentityBones, sizeof(BoneCB));
+				if (b4) commandList->SetGraphicsRootConstantBufferView(5, b4);
+			}
+
+			// skybox（深度==1の背景へ。深度は不透明ジオメトリのものが入っている）
+			if (m_SkyBox)
+			{
+				float4x4 identity;
+				DirectX::XMStoreFloat4x4(&identity, DirectX::XMMatrixIdentity());
+				m_SkyBox->Apply(context.CommandList, identity, context.view, context.projection,
+					false, context.frameIndex, context.cbAllocator, "", APP->GetSkyPso());
+				m_SkyboxCube.Draw(context.CommandList);
+			}
+
+			// 半透明
+			m_RenderSystem.Draw(m_World, context, nullptr, DrawFilter::TRANSPARENTONLY);
+		}
+		else
+		{
+			// ===== フォワード（従来）=====
+			commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
+			commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+			if (renderContext.viewport)    commandList->RSSetViewports(1, renderContext.viewport);
+			if (renderContext.scissorRect) commandList->RSSetScissorRects(1, renderContext.scissorRect);
+
+			renderTexture->Clear(commandList, { 0.2f, 0.2f, 0.2f, 1.0f });
+
+			if (m_SkyBox)
+			{
+				float4x4 identity;
+				DirectX::XMStoreFloat4x4(&identity, DirectX::XMMatrixIdentity());
+				m_SkyBox->Apply(context.CommandList, identity, context.view, context.projection,
+					false, context.frameIndex, context.cbAllocator, "", APP->GetSkyPso());
+				m_SkyboxCube.Draw(context.CommandList);
+			}
+
+			m_RenderSystem.Draw(m_World, context);   // 従来通り全部
 		}
 
-		// ---------------------//
-		// デバッグラインの描画 //
-		// ---------------------//
+		{
+			DirectX::XMVECTOR det;
+			const auto iv = DirectX::XMMatrixInverse(&det, DirectX::XMLoadFloat4x4(&context.view));
+			float3 camRight, camUp;
+			DirectX::XMStoreFloat3(&camRight, iv.r[0]);
+			DirectX::XMStoreFloat3(&camUp, iv.r[1]);
+
+			m_FireworkBeamRenderer.Begin();
+			m_FireworkSystem.Emit(m_FireworkBeamRenderer, camRight, camUp);
+			m_FireworkBeamRenderer.Draw(context);   // Init時のBeamPso(深度なし)
+		}
+
+		// ===== デバッグライン / ビーム / UI（両モード共通・現在バインド中のRTへ）=====
 		m_DebugLineRenderer.Begin();
-		if (context.isSceneView) {
-			DrawGrid();
-			DrawLight();
-			DrawGizmos(context);
-			DrawColliders();
-		}
-
-		// デバッグラインを追加
+		if (context.isSceneView) { DrawGrid(); DrawLight(); DrawGizmos(context); DrawColliders(); }
 		for (const auto& line : m_DebugLines)
-		{
 			m_DebugLineRenderer.AddLine(line.start, line.end, line.color);
-		}
 		m_DebugLineRenderer.Draw(context);
-
-		// デバッグラインをクリア
+		DrawLaserBeams(context);
 		m_DebugLines.clear();
-
-		// シーン描画
-		m_RenderSystem.Draw(m_World, context);
-
 		m_CanvasRenderSystem.Draw(m_World, context, m_UIQuad, APP->GetUIPso(),
 			(float)WINDOW_WIDTH, (float)WINDOW_HEIGHT);
 
-		// リソースバリア: レンダーターゲット → ピクセルシェーダーリソース
-		// imguiでimageをサンプルするため
+		// renderTexture → PIXEL_SHADER_RESOURCE（ImGui表示用）
 		renderTexture->Transition(commandList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	}
 	else
@@ -288,6 +384,9 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 			m_SkyboxCube.Draw(context.CommandList);
 		}
 
+		// 通常描画（メインレンダーターゲット）
+		m_RenderSystem.Draw(m_World, context,nullptr);
+
 		// デバッグラインの描画
 		m_DebugLineRenderer.Begin();
 		if (context.isSceneView) {
@@ -297,21 +396,29 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 			DrawColliders();
 		}
 
-		// デバッグラインを追加
 		for (const auto& line : m_DebugLines)
 		{
 			m_DebugLineRenderer.AddLine(line.start, line.end, line.color);
 		}
 		m_DebugLineRenderer.Draw(context);
+		{
+			DirectX::XMVECTOR det;
+			const auto iv = DirectX::XMMatrixInverse(&det, DirectX::XMLoadFloat4x4(&context.view));
+			float3 camRight, camUp;
+			DirectX::XMStoreFloat3(&camRight, iv.r[0]);
+			DirectX::XMStoreFloat3(&camUp, iv.r[1]);
 
-		// デバッグラインをクリア
+			m_FireworkBeamRenderer.Begin();
+			m_FireworkSystem.Emit(m_FireworkBeamRenderer, camRight, camUp);
+			m_FireworkBeamRenderer.Draw(context);
+		}
+		m_BeamRenderer.Draw(context);
+		DrawLaserBeams(context);
+
 		m_DebugLines.clear();
 
-		// 通常描画（メインレンダーターゲット）
-		m_RenderSystem.Draw(m_World, context);
-
-		m_CanvasRenderSystem.Draw(m_World, context,m_UIQuad,APP->GetUIPso(),
-			(float)WINDOW_WIDTH,(float)WINDOW_HEIGHT);
+		m_CanvasRenderSystem.Draw(m_World, context, m_UIQuad, APP->GetUIPso(),
+			(float)WINDOW_WIDTH, (float)WINDOW_HEIGHT);
 	}
 }
 
@@ -504,6 +611,32 @@ void RuntimeScene::DrawLight()
 						m_DebugLines.push_back({ apex,rim,color });	// 頂点から底面への線
 					prev = rim;
 				}
+			}
+				break;
+			case LightComponent::LightType::Laser:
+			{
+				const float len = light.range;
+				const float r = std::max(light.beamWidth, 0.01f);
+				const float4 laserColor = { 1.0f, 0.15f, 0.15f, 1.0f }; // 目立つ赤系
+				const float3 tip = pos + dir * len;
+
+				// 中心の1本
+				m_DebugLines.push_back({ pos, tip, laserColor });
+
+				// 太さを表現する細い円柱アウトライン
+				float3 up = (fabsf(dir.y) > 0.99f) ? float3{ 1,0,0 } : float3{ 0,1,0 };
+				vector rV = DirectX::XMVector3Normalize(DirectX::XMVector3Cross(V, DirectX::XMLoadFloat3(&up)));
+				vector uV = DirectX::XMVector3Normalize(DirectX::XMVector3Cross(V, rV));
+				float3 r_, u_;
+				DirectX::XMStoreFloat3(&r_, rV);
+				DirectX::XMStoreFloat3(&u_, uV);
+
+				for (int i = 0; i < 4; ++i)
+				{
+					float a = (float)i / 4 * 2 * pi;
+					float3 offset = r_ * (cosf(a) * r) + u_ * (sinf(a) * r);
+					m_DebugLines.push_back({ pos + offset, tip + offset, laserColor });
+				}
 				break;
 			}
 			}
@@ -615,11 +748,103 @@ void RuntimeScene::DrawColliders()
 		});
 }
 
+void RuntimeScene::DrawLaserBeams(const RenderContext& context, ID3D12PipelineState* psoOverride, bool emitFirework)
+{
+	// カメラワールド位置をview行列から復元（ビルボード計算用）
+	const auto viewMat = DirectX::XMLoadFloat4x4(&context.view);
+	DirectX::XMVECTOR det;
+	const auto invView = DirectX::XMMatrixInverse(&det, viewMat);
+	float3 camPos;
+	DirectX::XMStoreFloat3(&camPos, invView.r[3]);
+
+	m_BeamRenderer.Begin();
+
+	constexpr int kColumns = 6; // ビーム断面の分割数（芯のグローを滑らかにするため）
+
+	m_World.Each<TransformComponent, LightComponent>(
+		[&](Entity, TransformComponent& tr, LightComponent& light)
+		{
+			const bool isLaser = (light.type == LightComponent::LightType::Laser);
+			const bool isSpotBeam = (light.type == LightComponent::LightType::Spot && light.ShowBeam);
+			if ((!isLaser && !isSpotBeam) || !light.isActive)
+				return;
+
+			const float3 origin = tr.position;
+			const float3 dir = light.direction; // LightSystemで正規化・首振り済み
+			const float3 tip = origin + dir * light.range;
+
+			// ビーム軸・カメラ方向に直交する「幅方向」ベクトル(既存のまま)
+			DirectX::XMVECTOR dV = DirectX::XMLoadFloat3(&dir);
+			DirectX::XMVECTOR toCamV = DirectX::XMVector3Normalize(
+				DirectX::XMVectorSubtract(DirectX::XMLoadFloat3(&camPos), DirectX::XMLoadFloat3(&origin)));
+			DirectX::XMVECTOR widthV = DirectX::XMVector3Cross(dV, toCamV);
+			if (DirectX::XMVectorGetX(DirectX::XMVector3Length(widthV)) < 1e-4f)
+			{
+				DirectX::XMVECTOR up = (fabsf(dir.y) > 0.99f)
+					? DirectX::XMVectorSet(1, 0, 0, 0)
+					: DirectX::XMVectorSet(0, 1, 0, 0);
+				widthV = DirectX::XMVector3Cross(dV, up);
+			}
+			widthV = DirectX::XMVector3Normalize(widthV);
+			float3 widthAxis;
+			DirectX::XMStoreFloat3(&widthAxis, widthV);
+
+			// 半幅: レーザーは一定、スポットは円錐に沿って開く
+			const float hwStart = std::max(light.beamWidth, 0.001f) * 0.5f;
+			float hwEnd = hwStart;
+			float tipAlpha = 1.0f;
+			if (isSpotBeam)
+			{
+				const float half = DirectX::XMConvertToRadians(light.spotAngle * 0.5f);
+				hwEnd = tanf(half) * light.range;   // 円錐の底面半径
+				tipAlpha = light.beamColorEnd.w;    // 先端の残り具合(0で空中に消える)
+			}
+
+			const float g = std::max(light.glowIntensity, 1.0f);
+
+			for (int c = 0; c < kColumns; ++c)
+			{
+				const float x0 = -1.0f + 2.0f * c / kColumns;
+				const float x1 = -1.0f + 2.0f * (c + 1) / kColumns;
+				const float core0 = 1.0f - fabsf(x0);
+				const float core1 = 1.0f - fabsf(x1);
+
+				const float3 o0 = origin + widthAxis * (x0 * hwStart);
+				const float3 o1 = origin + widthAxis * (x1 * hwStart);
+				const float3 t0 = tip + widthAxis * (x0 * hwEnd);
+				const float3 t1 = tip + widthAxis * (x1 * hwEnd);
+
+				const float4 cO0 = { light.color.x * g, light.color.y * g, light.color.z * g, core0 };
+				const float4 cO1 = { light.color.x * g, light.color.y * g, light.color.z * g, core1 };
+				const float4 cT0 = { light.beamColorEnd.x * g, light.beamColorEnd.y * g, light.beamColorEnd.z * g, core0 * tipAlpha };
+				const float4 cT1 = { light.beamColorEnd.x * g, light.beamColorEnd.y * g, light.beamColorEnd.z * g, core1 * tipAlpha };
+
+				m_BeamRenderer.AddTriangle(o0, cO0, o1, cO1, t1, cT1);
+				m_BeamRenderer.AddTriangle(o0, cO0, t1, cT1, t0, cT0);
+			}
+		});
+	m_BeamRenderer.Draw(context, psoOverride);
+}
+
 void RuntimeScene::EditorUpdate(float dt)
 {
 	m_LightSystem.Apply(m_World);
 	m_FreeLookSystem.Update(m_World, dt,CameraComponent::CameraType::Secondary);   // エディタカメラ操作
 	m_CameraSystem.Update(m_World, 16.0f / 9.0f);
 	m_TransformSystem.Update(m_World);
-	m_AnimatorSystem.Update(m_World, dt);
+	m_AudioSystem.Update(m_World, false);
+	// m_AnimatorSystem.Update(m_World, dt);
+}
+
+void RuntimeScene::ApplySkybox()
+{
+	const std::string& path = GetSkyboxPath();
+	if (path.empty())
+	{
+		m_SkyBox.reset();   // 空パス=スカイボックスなし(描画側はnullチェック済み)
+		return;
+	}
+	m_SkyBox = std::make_shared<Material>();
+	m_SkyBox->Init();
+	m_SkyBox->SetTextureFromFile(std::wstring(path.begin(), path.end()));
 }

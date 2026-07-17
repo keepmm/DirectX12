@@ -61,7 +61,7 @@ bool PMXLoader::Parse(const std::string& filepath, float scale, ModelCpuData& ou
 	// pmxファイルは最初の4バイトが固定
 	std::vector<std::uint8_t> buf((std::istreambuf_iterator<char>(ifs)), {});
 
-	// 層じゃない場合pmxファイルではないので失敗
+	// そうじゃない場合pmxファイルではないので失敗
 	if (buf.size() < 4) return false;
 
 	Reader r{ buf.data(), buf.data() + buf.size() };
@@ -156,7 +156,7 @@ bool PMXLoader::Parse(const std::string& filepath, float scale, ModelCpuData& ou
 		texPaths[i] = (baseDir / rel).wstring();
 	}
 
-	// --- マテリアル → サブメッシュ ---
+	// --- マテリアル -> サブメッシュ ---
 	const std::int32_t matCount = r.Read<std::int32_t>();
 	out.materials.resize(matCount);
 	std::uint32_t indexOffset = 0;
@@ -321,7 +321,7 @@ bool PMXLoader::Parse(const std::string& filepath, float scale, ModelCpuData& ou
 			}
 			break;
 		case 1: // 頂点
-			for(int k = 0; k < offsetCount; ++k)
+			for(uint32_t k = 0; k < offsetCount; ++k)
 			{
 				VertexMorphOffset vo{};
 				vo.vertexIndex = (std::uint32_t)r.ReadIndex(vIdxSize, false);
@@ -341,14 +341,14 @@ bool PMXLoader::Parse(const std::string& filepath, float scale, ModelCpuData& ou
 		case 5:
 		case 6:
 		case 7:	// UV
-			for (int k = 0; k < offsetCount; ++k)
+			for (uint32_t k = 0; k < offsetCount; ++k)
 			{
 				r.ReadIndex(vIdxSize, false);
 				r.Skip(sizeof(float) * 4);
 			}
 			break;
 		case 8: // マテリアル
-			for (int k = 0; k < offsetCount; ++k)
+			for (uint32_t k = 0; k < offsetCount; ++k)
 			{
 				r.ReadIndex(matIdxSize, true);
 				r.Read<std::uint8_t>();     // 演算方式
@@ -391,7 +391,7 @@ bool PMXLoader::Parse(const std::string& filepath, float scale, ModelCpuData& ou
 	const int rbIdxSize = g[7];
 	const std::int32_t rbCount = r.Read<std::int32_t>();
 	out.physics.rigidBodies.resize(rbCount);
-	for (uint32_t i = 0; i < rbCount; ++i)
+	for (int32_t i = 0; i < rbCount; ++i)
 	{
 		PmxRigidBody& rb = out.physics.rigidBodies[i];
 		rb.name = WideToUtf8(r.ReadText(encoding));

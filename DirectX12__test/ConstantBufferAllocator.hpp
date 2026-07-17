@@ -17,7 +17,7 @@ public:
 
 private:
 	static constexpr UINT FRAME_COUNT = RTV_NUM;
-	static constexpr UINT RING_BYTES = 4 * 1024 * 1024; // 4MB
+	static constexpr UINT RING_BYTES = 32 * 1024 * 1024; // 32MB
 	ComPtr<ID3D12Resource> m_Buffer[FRAME_COUNT];
 	uint8_t* m_MappedData[FRAME_COUNT] = {};
 	UINT m_Offset[FRAME_COUNT] = {};

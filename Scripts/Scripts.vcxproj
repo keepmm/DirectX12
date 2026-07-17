@@ -152,6 +152,8 @@
     <ClInclude Include="$(SolutionDir)DirectX12__test\Assets\Scripts\kawaguchi.hpp" />
     <ClInclude Include="C:\HAL\study\DirectX12__test\DirectX12__test\Assets\Scripts\Player.hpp" />
     <ClInclude Include="C:\HAL\study\DirectX12__test\DirectX12__test\Assets\Scripts\Testtext.hpp" />
+    <ClInclude Include="C:\HAL\study\DirectX12__test\DirectX12__test\Assets\Scripts\NewScript.hpp" />
+    <ClInclude Include="C:\HAL\study\DirectX12__test\DirectX12__test\Assets\Scripts\Kongan.hpp" />
     <ClInclude Include="framework.h" />
     <ClInclude Include="pch.h" />
   </ItemGroup>
@@ -161,6 +163,12 @@
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="C:\HAL\study\DirectX12__test\DirectX12__test\Assets\Scripts\Testtext.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="C:\HAL\study\DirectX12__test\DirectX12__test\Assets\Scripts\NewScript.cpp">
+      <PrecompiledHeader>NotUsing</PrecompiledHeader>
+    </ClCompile>
+    <ClCompile Include="C:\HAL\study\DirectX12__test\DirectX12__test\Assets\Scripts\Kongan.cpp">
       <PrecompiledHeader>NotUsing</PrecompiledHeader>
     </ClCompile>
     <ClCompile Include="cr_main.cpp" />

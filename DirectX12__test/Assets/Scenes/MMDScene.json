@@ -13,21 +13,21 @@
       "id": 1,
       "name": "MainCamera",
       "transform": {
-        "parent": 0,
+        "parent": 5,
         "position": [
-          -0.21349027752876282,
-          1.2827775478363037,
-          2.6335761547088623
+          -0.38615575432777405,
+          0.2534368634223938,
+          -1.1414673328399658
         ],
         "rotation": [
-          0.010430448688566685,
-          -0.9880324602127075,
-          0.13294298946857452,
-          0.07751910388469696
+          0.0,
+          0.0,
+          0.0,
+          1.0
         ],
         "scale": [
           1.0,
-          1.0,
+          0.9999989867210388,
           1.0
         ]
       }
@@ -68,24 +68,24 @@
       "Free Look": {
         "Enabled": true,
         "MoveSpeed": 5.0,
-        "Pitch": 0.28000056743621826,
+        "Pitch": 0.5875006318092346,
         "RotateSpeed": 0.0024999999441206455,
-        "Yaw": -0.08749957382678986
+        "Yaw": -0.27750009298324585
       },
       "id": 3,
       "name": "EditorCamera",
       "transform": {
         "parent": 0,
         "position": [
-          0.2283301204442978,
-          2.0614380836486816,
-          -1.6330196857452393
+          0.5826888084411621,
+          2.3078324794769287,
+          -1.4975855350494385
         ],
         "rotation": [
-          0.1394098848104477,
-          -0.04330792278051376,
-          0.006103047169744968,
-          0.9892684817314148
+          0.2867613136768341,
+          -0.13238093256950378,
+          0.04004545137286186,
+          0.9479660391807556
         ],
         "scale": [
           1.0,
@@ -102,6 +102,13 @@
           0.20000000298023224,
           1.0
         ],
+        "BeamColorEnd": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "BeamWidth": 0.05000000074505806,
         "Color": [
           1.0,
           1.0,
@@ -113,14 +120,22 @@
           -0.8571673631668091,
           -0.5143321752548218
         ],
+        "GlowIntensity": 3.0,
+        "GlowPower": 6.0,
         "Intensity": 1.0,
         "IsActive": true,
         "IsShow": true,
         "Range": 10.0,
+        "ShowBeam": false,
         "SpotAngle": 45.0,
-        "Type": 0
+        "SwingAngle": 30.0,
+        "SwingAxis": 0,
+        "SwingEnabled": false,
+        "SwingSpeed": 45.0,
+        "Type": 0,
+        "VolumetricIntensity": 1.0
       },
-      "id": 5,
+      "id": 4,
       "name": "DirectinalLight",
       "transform": {
         "parent": 0,
@@ -143,11 +158,7 @@
       }
     },
     {
-      "Animator": {
-        "Playing": true,
-        "Time": 18.21199607849121
-      },
-      "id": 6,
+      "id": 5,
       "material": {
         "filePath": "",
         "metallic": 0.0,
@@ -159,33 +170,42 @@
           1.0
         ],
         "roughness": 0.5,
-        "shaderName": "Genshin_Toon"
+        "shaderName": "Basic"
       },
       "mesh": {
-        "filePath": "",
+        "filePath": "Assets\\Model\\spot\\spot.fbx",
         "scale": 1.0
       },
-      "name": "Model_6",
+      "name": "Model_5",
+      "scripts": [
+        {
+          "name": "Player",
+          "values": {
+            "Speed": 1.0
+          }
+        }
+      ],
       "transform": {
         "parent": 0,
         "position": [
-          0.0,
+          2.1213626861572266,
           0.0,
           0.0
         ],
         "rotation": [
+          -0.0,
           0.0,
-          0.0,
-          0.0,
+          -0.0,
           1.0
         ],
         "scale": [
-          0.10000000149011612,
-          0.10000000149011612,
-          0.10000000149011612
+          1.0,
+          1.0,
+          1.0
         ]
       }
     }
   ],
-  "sceneName": "MMDScene"
+  "sceneName": "MMDScene",
+  "skybox": "Assets/Texture/sky.hdr"
 }

@@ -72,6 +72,14 @@ struct FieldList
 	{
 		fields.push_back({ n, FieldType::Float, &v, min, max });
 	}
+	void AddRange(const std::string& n, int& v, int min, int max)
+	{
+		fields.push_back({ n, FieldType::Int, &v, (float)min, (float)max });
+	}
+	void AddRange(const std::string& n, int& v, float min, float max)
+	{
+		fields.push_back({ n, FieldType::Float2, &v, min, max });
+	}
 
 	// テクスチャ（material等のreset用にptr2を持つ）
 	template <typename TRes>

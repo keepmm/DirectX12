@@ -1,7 +1,7 @@
 #include "IconLibrary.hpp"
 #include "DirectX.hpp"
 #include "d3dx12.h"
-#include "DirectXTex/DirectXTex.h"
+#include <DirectXTex.h>
 #include "Logger.hpp"
 #include <filesystem>
 #include <wincodec.h>

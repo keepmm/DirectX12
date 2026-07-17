@@ -9,6 +9,17 @@ SceneManager::SceneManager()
 {
 }
 
+bool SceneManager::RegisterScene(const std::string& name)
+{
+	if(!m_SceneFactory) return false;
+
+	{
+		std::lock_guard<std::mutex> lk(m_SceneMutex);
+		if (m_Scenes.count(name)) return true;
+	}
+	RegisterScene(name, m_SceneFactory(ScenePathFromName(name)));
+}
+
 void SceneManager::RegisterScene(const std::string& name, std::unique_ptr<Scene> scene)
 {
 	// ”ñ“¯Šúˆ—‚ğƒƒbƒN

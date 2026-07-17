@@ -3,7 +3,10 @@
 #include <algorithm>
 #include "d3dx12.h"
 #include "Shader.hpp"
-#include "DirectXTex/DirectXTex.h"
+#include <DirectXTex.h>
+#include "Logger.hpp"
+#include <dxgidebug.h>
+#include "ShaderTypes.hpp"
 
 using ushort = unsigned short;
 
@@ -24,6 +27,12 @@ DirectXApp::DirectXApp(HWND hWnd, int Window_Width, int Window_Height) :
 	ID3D12Debug* debug = nullptr;
 	HRESULT hr;
 #if _DEBUG
+	ComPtr<ID3D12DeviceRemovedExtendedDataSettings> dred;
+	if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&dred))))
+	{
+		dred->SetAutoBreadcrumbsEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+		dred->SetPageFaultEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+	}
 	D3D12GetDebugInterface(IID_PPV_ARGS(&debug));
 	if (debug) {
 		debug->EnableDebugLayer();
@@ -172,7 +181,7 @@ DirectXApp::DirectXApp(HWND hWnd, int Window_Width, int Window_Height) :
 	m_RtvAllocator.Init(
 		m_Device.Get(),
 		D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
-		16,
+		64,
 		false);
 
 	UINT strideHandleBytes = m_Device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_RTV);
@@ -204,8 +213,11 @@ DirectXApp::DirectXApp(HWND hWnd, int Window_Width, int Window_Height) :
 		false);
 
 	CD3DX12_RESOURCE_DESC depthResDesc = CD3DX12_RESOURCE_DESC::Tex2D(
-		DXGI_FORMAT_D32_FLOAT, m_Window_Width, m_Window_Height,
+		DXGI_FORMAT_R32_TYPELESS, 
+		m_Window_Width, m_Window_Height,
 		1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
+
+	// ClearValueは実フォーマットで指定
 	CD3DX12_CLEAR_VALUE DepthClearValue(DXGI_FORMAT_D32_FLOAT, 1.0f, 0);
 
 	CD3DX12_HEAP_PROPERTIES depthHeapProp(D3D12_HEAP_TYPE_DEFAULT);
@@ -243,7 +255,25 @@ DirectXApp::DirectXApp(HWND hWnd, int Window_Width, int Window_Height) :
 		true
 	);
 
+	// 深度SRV
+	UINT depthdsvIndex = 0;
+	m_SrvAllocator.Allocate(depthdsvIndex);
+	m_DepthSrvHandleCpu = m_SrvAllocator.Cpu(depthdsvIndex);
+	m_DepthSrvHandleGpu = m_SrvAllocator.Gpu(depthdsvIndex);
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC depthSrvDesc = {};
+	depthSrvDesc.Format = DXGI_FORMAT_R32_FLOAT;
+	depthSrvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	depthSrvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	depthSrvDesc.Texture2D.MipLevels = 1;
+	m_Device->CreateShaderResourceView(
+		m_Depthbuffer.Get(),
+		&depthSrvDesc,
+		m_DepthSrvHandleCpu
+	);
+
 	CreateRootSignature();
+	CreateDeferredRootSignature();
 	CreatePipelineStateObject();
 
 	m_ShadowMap.Init();
@@ -285,6 +315,180 @@ bool DirectXApp::CreateShadeFromSource(const std::string& name, const std::strin
 	def.psEntry = psEntry;
 	def.alphaBlend = alphaBlend;
 
+}
+
+void DirectXApp::DeferredLightingPass(const RenderContext& ctx,
+	D3D12_CPU_DESCRIPTOR_HANDLE targetRtv,
+	const D3D12_VIEWPORT& vp, const D3D12_RECT& sc)
+{
+	auto* cmd = m_CommandList.Get();
+	const UINT slot = m_FrameIndex % RTV_NUM;
+
+	// G-Buffer + 深度を SRV へ
+	m_GBuffer.TransitionToRead(cmd);
+	SetResourceBarrier(cmd, m_Depthbuffer.Get(),
+		D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+	ID3D12DescriptorHeap* heaps[] = { m_SrvAllocator.heap.Get() };
+	cmd->SetDescriptorHeaps(_countof(heaps), heaps);
+
+	// 出力先（ビューポートRT, DSVなし）
+	cmd->OMSetRenderTargets(1, &targetRtv, FALSE, nullptr);
+	cmd->RSSetViewports(1, &vp);
+	cmd->RSSetScissorRects(1, &sc);
+
+	const float clr[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+	cmd->ClearRenderTargetView(targetRtv, clr, 0, nullptr);
+
+	cmd->SetGraphicsRootSignature(m_DeferredRootSignature.Get());
+	cmd->SetPipelineState(m_DeferredPso.Get());
+
+	// b0 Frame
+	FrameCB fdata{};
+	{
+		const auto v = XMLoadFloat4x4(&ctx.view);
+		const auto p = XMLoadFloat4x4(&ctx.projection);
+		XMStoreFloat4x4(&fdata.viewProj, XMMatrixTranspose(v * p));
+		const auto invV = XMMatrixInverse(nullptr, v);
+		float4x4 iv; XMStoreFloat4x4(&iv, invV);
+		fdata.cameraPos = { iv._41, iv._42, iv._43, 1.0f };
+	}
+	const auto b0 = m_CBAllocator.Allocate(slot, &fdata, sizeof(fdata));
+
+	// b2 Light
+	const auto b2 = m_CBAllocator.Allocate(slot, &ctx.lightCb, sizeof(LightCB));
+
+	// b3 invViewProj
+	DeferredCB dcb{};
+	{
+		const auto v = XMLoadFloat4x4(&ctx.view);
+		const auto p = XMLoadFloat4x4(&ctx.projection);
+		const auto inv = XMMatrixInverse(nullptr, v * p);
+		XMStoreFloat4x4(&dcb.invViewProj, XMMatrixTranspose(inv));
+		dcb.envParam = { HasEnvironment() ? (float)(m_EnvMipLevels - 1) : 0.0f, 0.5f, 0.15f, 1.0f };
+	}
+	const auto b3 = m_CBAllocator.Allocate(slot, &dcb, sizeof(dcb));
+
+	if (b0 == 0 || b2 == 0 || b3 == 0) return;
+
+	cmd->SetGraphicsRootConstantBufferView(0, b0);
+	cmd->SetGraphicsRootConstantBufferView(1, b2);
+	cmd->SetGraphicsRootConstantBufferView(2, b3);
+	cmd->SetGraphicsRootDescriptorTable(3, m_GBuffer.GetSrvTableStart());
+
+	cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST); 
+	cmd->DrawInstanced(3, 1, 0, 0);
+
+	bool hasVolumetric = false;
+	for (int i = 0; i < (int)ctx.lightCb.lightCount.x; ++i)
+	{
+		const auto& l = ctx.lightCb.lights[i];
+		if ((int)l.param.x >= 2 && l.param.w > 0.0f)
+		{
+			hasVolumetric = true;
+			break;
+		}
+	}
+
+
+	if(hasVolumetric)
+	{
+		// ---- ボリュームライト: ハーフ解像度で描いて加算アップサンプル ----
+		const UINT hw = m_Window_Width / 2, hh = m_Window_Height / 2;
+
+		m_VolumetricHalf.Transition(cmd, D3D12_RESOURCE_STATE_RENDER_TARGET);
+		auto volRtv = m_VolumetricHalf.GetRTV();
+		const float zero[4] = { 0,0,0,0 };
+		cmd->ClearRenderTargetView(volRtv, zero, 0, nullptr);
+		cmd->OMSetRenderTargets(1, &volRtv, FALSE, nullptr);
+		D3D12_VIEWPORT hvp{ 0,0,(float)hw,(float)hh,0,1 };
+		D3D12_RECT     hsc{ 0,0,(LONG)hw,(LONG)hh };
+		cmd->RSSetViewports(1, &hvp);
+		cmd->RSSetScissorRects(1, &hsc);
+		cmd->SetPipelineState(m_VolumetricPso.Get());   // 既存のレイマーチPSO(加算→0クリア上なので実質上書き)
+		cmd->DrawInstanced(3, 1, 0, 0);
+
+		// ハーフRT → HDR へ加算アップサンプル(バイリニアで滑らかに拡大)
+		m_VolumetricHalf.Transition(cmd, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+		FrameCB dummy{};
+		auto cbDummy = m_CBAllocator.Allocate(slot, &dummy, sizeof(dummy));
+		PostPass(m_VolumetricAddPso.Get(), m_VolumetricHalf.GetSRV(), cbDummy,
+			targetRtv, (UINT)vp.Width, (UINT)vp.Height);
+	}
+
+	// 深度を書き戻し
+	SetResourceBarrier(cmd, m_Depthbuffer.Get(),
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+}
+
+void DirectXApp::PostProcessCopy(RenderTexture& src,
+	D3D12_CPU_DESCRIPTOR_HANDLE dstRtv,
+	const D3D12_VIEWPORT& vp, const D3D12_RECT& sc)
+{
+	auto* cmd = m_CommandList.Get();
+
+	// src(HDR) を SRV へ遷移
+	src.Transition(cmd, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+	// 直前パスでマテリアル自前ヒープが束縛されている可能性があるのでグローバルへ戻す
+	ID3D12DescriptorHeap* heaps[] = { m_SrvAllocator.heap.Get() };
+	cmd->SetDescriptorHeaps(_countof(heaps), heaps);
+
+	// 出力先（DSVなし）
+	cmd->OMSetRenderTargets(1, &dstRtv, FALSE, nullptr);
+	cmd->RSSetViewports(1, &vp);
+	cmd->RSSetScissorRects(1, &sc);
+
+	cmd->SetGraphicsRootSignature(m_PostRootSignature.Get());
+	cmd->SetPipelineState(m_CopyPso.Get());
+
+	cmd->SetGraphicsRootDescriptorTable(0, src.GetSRV());
+
+	cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	cmd->DrawInstanced(3, 1, 0, 0);
+}
+
+void DirectXApp::PostProcessBloom(D3D12_CPU_DESCRIPTOR_HANDLE dstRtv, const D3D12_VIEWPORT& vp, const D3D12_RECT& sc)
+{
+	auto* cmd = m_CommandList.Get();
+	const UINT slot = m_FrameIndex % RTV_NUM;
+	const UINT bw = m_Window_Width / 2, bh = m_Window_Height / 2;
+
+	PostCB pcb{};
+	pcb.threshold = 1.0f;   // 1.0超（＝HDR高輝度）を抽出
+	pcb.intensity = 1.0f;
+
+	m_HdrScene.Transition(cmd, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	m_BloomA.Transition(cmd, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	auto cb1 = m_CBAllocator.Allocate(slot, &pcb, sizeof(pcb));
+	PostPass(m_BrightPso.Get(), m_HdrScene.GetSRV(), cb1, m_BloomA.GetRTV(), bw, bh);
+
+	m_BloomA.Transition(cmd, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	m_BloomB.Transition(cmd, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	pcb.texelSize = { 1.0f / bw, 0.0f };
+	auto cb2 = m_CBAllocator.Allocate(slot, &pcb, sizeof(pcb));
+	PostPass(m_BlurPso.Get(), m_BloomA.GetSRV(), cb2, m_BloomB.GetRTV(), bw, bh);
+
+	m_BloomB.Transition(cmd, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	m_BloomA.Transition(cmd, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	pcb.texelSize = { 0.0f, 1.0f / bh };
+	auto cb3 = m_CBAllocator.Allocate(slot, &pcb, sizeof(pcb));
+	PostPass(m_BlurPso.Get(), m_BloomB.GetSRV(), cb3, m_BloomA.GetRTV(), bw, bh);
+
+	m_HdrScene.Transition(cmd, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	m_BloomA.Transition(cmd, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	auto cb4 = m_CBAllocator.Allocate(slot, &pcb, sizeof(pcb));
+	ID3D12DescriptorHeap* heaps[] = { m_SrvAllocator.heap.Get() };
+	cmd->SetDescriptorHeaps(1, heaps);
+	cmd->OMSetRenderTargets(1, &dstRtv, FALSE, nullptr);
+	cmd->RSSetViewports(1, &vp);
+	cmd->RSSetScissorRects(1, &sc);
+	cmd->SetGraphicsRootSignature(m_PostRootSignature.Get());
+	cmd->SetPipelineState(m_CompositePso.Get());
+	cmd->SetGraphicsRootDescriptorTable(0, m_CompositeSrvStart);
+	cmd->SetGraphicsRootConstantBufferView(1, cb4);
+	cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	cmd->DrawInstanced(3, 1, 0, 0);
 }
 
 ID3D12PipelineState* DirectXApp::RegisterShaderPass(const std::string& name, const ShaderPassDef& def)
@@ -338,6 +542,92 @@ std::vector<std::string> DirectXApp::GetShaderNames() const
 		names.push_back(name);
 	}
 	return names;
+}
+
+
+
+void DirectXApp::CreateDeferredRootSignature()
+{
+	CD3DX12_DESCRIPTOR_RANGE srvRange = {};
+	srvRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 7, 0);
+
+	CD3DX12_ROOT_PARAMETER rootParameters[4] = {};
+	rootParameters[0].InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_ALL); // b0
+	rootParameters[1].InitAsConstantBufferView(2, 0, D3D12_SHADER_VISIBILITY_PIXEL);	// b2
+	rootParameters[2].InitAsConstantBufferView(3, 0, D3D12_SHADER_VISIBILITY_PIXEL);	// b3
+	rootParameters[3].InitAsDescriptorTable(1, &srvRange, D3D12_SHADER_VISIBILITY_PIXEL); // t0~t6
+
+	CD3DX12_STATIC_SAMPLER_DESC staticSamplerDesc[3] = {
+	CD3DX12_STATIC_SAMPLER_DESC(
+	0,	// shaderRegister : s0
+	D3D12_FILTER_MIN_MAG_MIP_LINEAR,
+	D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+	D3D12_TEXTURE_ADDRESS_MODE_WRAP,
+	D3D12_TEXTURE_ADDRESS_MODE_WRAP
+	),
+
+CD3DX12_STATIC_SAMPLER_DESC(
+	1,	// shaderRegister : s1
+	D3D12_FILTER_MIN_MAG_MIP_POINT,
+	D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+	D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+	D3D12_TEXTURE_ADDRESS_MODE_CLAMP
+	),
+
+	[] {
+		CD3DX12_STATIC_SAMPLER_DESC shadowSampler(
+			2,
+			D3D12_FILTER_COMPARISON_MIN_MAG_LINEAR_MIP_POINT,
+			D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+			D3D12_TEXTURE_ADDRESS_MODE_BORDER,
+			D3D12_TEXTURE_ADDRESS_MODE_BORDER);
+		shadowSampler.ComparisonFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+		shadowSampler.BorderColor = D3D12_STATIC_BORDER_COLOR_OPAQUE_WHITE;
+		return shadowSampler;
+	}()
+	};
+
+	CD3DX12_ROOT_SIGNATURE_DESC desc;
+	desc.Init(
+		_countof(rootParameters),rootParameters,
+		_countof(staticSamplerDesc),staticSamplerDesc,
+		D3D12_ROOT_SIGNATURE_FLAG_NONE
+	);
+
+	ComPtr<ID3DBlob> sig, err;
+	if(FAILED(D3D12SerializeRootSignature(&desc,D3D_ROOT_SIGNATURE_VERSION_1,&sig,&err)))
+	{
+		return;
+	}
+
+	m_Device->CreateRootSignature(
+		0, sig->GetBufferPointer(), sig->GetBufferSize(),
+		IID_PPV_ARGS(m_DeferredRootSignature.GetAddressOf())
+	);
+}
+
+void DirectXApp::CreatePostRootSignature()
+{
+	CD3DX12_DESCRIPTOR_RANGE srv;
+	srv.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 0);	// t0
+	CD3DX12_ROOT_PARAMETER rp[2];
+	rp[0].InitAsDescriptorTable(1, &srv, D3D12_SHADER_VISIBILITY_PIXEL);
+	rp[1].InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_PIXEL);	// b0
+
+	CD3DX12_STATIC_SAMPLER_DESC samp(0,
+		D3D12_FILTER_MIN_MAG_MIP_LINEAR,
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP,
+		D3D12_TEXTURE_ADDRESS_MODE_CLAMP
+	);
+
+	CD3DX12_ROOT_SIGNATURE_DESC desc;
+	desc.Init(_countof(rp), rp, 1, &samp, D3D12_ROOT_SIGNATURE_FLAG_NONE);
+
+	ComPtr<ID3DBlob> sig, err;
+	    D3D12SerializeRootSignature(&desc, D3D_ROOT_SIGNATURE_VERSION_1, &sig, &err);
+    m_Device->CreateRootSignature(0, sig->GetBufferPointer(), sig->GetBufferSize(),
+        IID_PPV_ARGS(m_PostRootSignature.GetAddressOf()));
 }
 
 void DirectXApp::CreateRootSignature()
@@ -447,10 +737,12 @@ void DirectXApp::CreatePipelineStateObject()
 	const Shader* skyVS = m_ShaderLibrary.Load(L"SkyBoxShader.hlsl", "SkyboxVS", "vs_5_0");
 	const Shader* skyPS = m_ShaderLibrary.Load(L"SkyBoxShader.hlsl", "SkyboxPS", "ps_5_0");
 	const Shader* shadowVS = m_ShaderLibrary.Load(L"ShadowShader.hlsl", "ShadowVS", "vs_5_0");
+	const Shader* BeamVS = m_ShaderLibrary.Load(L"LaserBeamShader.hlsl", "LaserVS", "vs_5_0");
+	const Shader* BeamPS = m_ShaderLibrary.Load(L"LaserBeamShader.hlsl", "LaserPS", "ps_5_0");
 
 	if (vs == nullptr || ps == nullptr || toon == nullptr || 
 		wirePs == nullptr || lineVS == nullptr || linePS == nullptr || 
-		skyPS == nullptr || skyVS == nullptr || shadowVS == nullptr)
+		skyPS == nullptr || skyVS == nullptr || shadowVS == nullptr || BeamVS == nullptr || BeamPS == nullptr)
 	{
 		assert(false);
 		return;
@@ -514,6 +806,57 @@ void DirectXApp::CreatePipelineStateObject()
 		assert(false);
 	}
 
+	auto BeamDesc = lineDesc;
+	BeamDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+	BeamDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+
+	auto& brt = BeamDesc.BlendState.RenderTarget[0];
+	// アルファブレンド有効
+	brt.BlendEnable				= TRUE;
+	brt.SrcBlend				= D3D12_BLEND_SRC_ALPHA;
+	brt.DestBlend				= D3D12_BLEND_ONE;
+	brt.BlendOp					= D3D12_BLEND_OP_ADD;
+	brt.SrcBlendAlpha			= D3D12_BLEND_ONE;
+	brt.DestBlendAlpha			= D3D12_BLEND_ZERO;
+	brt.BlendOpAlpha			= D3D12_BLEND_OP_ADD;
+	brt.RenderTargetWriteMask	= D3D12_COLOR_WRITE_ENABLE_ALL;
+
+	BeamDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+	BeamDesc.DepthStencilState.DepthEnable = FALSE;
+
+	BeamDesc.VS = BeamVS->GetByteCode();
+	BeamDesc.PS = BeamPS->GetByteCode();
+
+	// --- R8用（forward経路 / BeamRenderer.Init に渡すPSO）---
+	m_BeamPso = m_PsoCache.GetOrCreate("BeamVS_BeamPS",
+		m_Device.Get(),
+		BeamDesc
+	);
+	if (m_BeamPso == nullptr) {
+		assert(false);
+	}
+
+	// --- HDR用（deferredのBloom前描画）---
+	auto BeamHdrDesc = BeamDesc;
+	BeamHdrDesc.RTVFormats[0] = DXGI_FORMAT_R16G16B16A16_FLOAT;
+	m_BeamHdrPso = m_PsoCache.GetOrCreate("BeamVS_BeamPS_HDR",
+		m_Device.Get(),
+		BeamHdrDesc
+	);
+	if (m_BeamHdrPso == nullptr) {
+		assert(false);
+	}
+	const Shader* FireworkPS = m_ShaderLibrary.Load(L"LaserBeamShader.hlsl", "FireworkPS", "ps_5_0");
+	auto FireworkDesc = BeamDesc;
+	FireworkDesc.PS = FireworkPS->GetByteCode();
+	auto& frt = FireworkDesc.BlendState.RenderTarget[0];
+	frt.SrcBlend = D3D12_BLEND_ONE;   // PS側でαを乗算済み(pre-multiplied)
+	frt.DestBlend = D3D12_BLEND_ONE;
+	m_FireworkPso = m_PsoCache.GetOrCreate("BeamVS_FireworkPS",
+		m_Device.Get(), FireworkDesc);
+	if (m_FireworkPso == nullptr) { assert(false); }
+
+
 	auto iconDesc = psoDesc;                 // BASICベース
 	iconDesc.PS = iconPS->GetByteCode();
 
@@ -575,8 +918,33 @@ void DirectXApp::CreatePipelineStateObject()
 	sd.RasterizerState.SlopeScaledDepthBias = 1.5f;
 	m_ShadowPso = m_PsoCache.GetOrCreate("ShadowPSO", m_Device.Get(), sd);
 
-	//CreateMeshShaderPipelineState();
+	CreatePostRootSignature();
+
+	CreateGbufferPSO();
+	CreateDeferredPSO();
+	CreatePostPSO();
+	CreateCopyPSO();
 	m_CBAllocator.Init();
+
+	m_GBuffer.Init(
+		m_Window_Width, m_Window_Height,
+		m_Depthbuffer.Get(),          // 深度リソース
+		m_EnvTexture.Get(),           // null可
+		m_ShadowMap.GetResource(),
+		m_EnvMipLevels);   // シャドウリソース
+
+	m_HdrScene.Init(m_Window_Width, m_Window_Height, DXGI_FORMAT_R16G16B16A16_FLOAT);
+	UINT bw = m_Window_Width, bh = m_Window_Height;
+	m_BloomA.Init(bw, bh, DXGI_FORMAT_R16G16B16A16_FLOAT);
+	m_BloomB.Init(bw, bh, DXGI_FORMAT_R16G16B16A16_FLOAT);
+	m_VolumetricHalf.Init(m_Window_Width / 2, m_Window_Height / 2, DXGI_FORMAT_R16G16B16A16_FLOAT);
+	m_HdrScene.GetResource()->SetName(L"HDRScene");
+	m_BloomA.GetResource()->SetName(L"BloomA");
+	m_BloomB.GetResource()->SetName(L"BloomB");
+
+	CreateBloomPSOs();
+	CreateVolumetricPSO();
+	BuildCompositeSrvTable();
 }
 
 void DirectXApp::RegisterBuiltinShaders()
@@ -635,6 +1003,269 @@ D3D12_GRAPHICS_PIPELINE_STATE_DESC DirectXApp::MakeBasePsoDesc() const
 	desc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 	desc.SampleDesc.Count = 1;
 	return desc;
+}
+
+void DirectXApp::CreateGbufferPSO()
+{
+	auto desc = MakeBasePsoDesc();
+
+	const Shader* vs = m_ShaderLibrary.Load(L"SkinnedShader.hlsl", "SkinnedVS", "vs_5_0");
+	const Shader* ps = m_ShaderLibrary.Load(L"GBufferShader.hlsl", "GBufferPS", "ps_5_0");
+	desc.VS = vs->GetByteCode();
+	desc.PS = ps->GetByteCode();
+
+	if (!vs || !ps) { OutputDebugStringA("GBuffer shader load failed\n"); assert(false); return; }
+
+	desc.NumRenderTargets = 3;
+	desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;     // Albedo
+	desc.RTVFormats[1] = DXGI_FORMAT_R10G10B10A2_UNORM;  // Normal
+	desc.RTVFormats[2] = DXGI_FORMAT_R8G8B8A8_UNORM;     // ORM
+	desc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
+
+	// 深度は「書き込みあり・テストあり」（不透明を前から手前判定）
+	desc.DepthStencilState.DepthEnable = TRUE;
+	desc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
+
+	m_Device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(m_GBufferPso.GetAddressOf()));
+}
+
+void DirectXApp::CreateDeferredPSO()
+{
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
+	desc.pRootSignature = m_DeferredRootSignature.Get();
+
+	const Shader* vs = m_ShaderLibrary.Load(L"DeferredLighting.hlsl", "FullScreenVS", "vs_5_0");
+	const Shader* ps = m_ShaderLibrary.Load(L"DeferredLighting.hlsl", "DeferredPS", "ps_5_0");
+
+	if (!vs || !ps) { OutputDebugStringA("Deferred shader load failed\n"); assert(false); return; }
+
+	desc.PS = ps->GetByteCode();
+	desc.VS = vs->GetByteCode();
+
+	desc.InputLayout = { nullptr, 0 };
+	desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+	desc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+	desc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+	desc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+
+	desc.DepthStencilState.DepthEnable = FALSE;
+	desc.DepthStencilState.StencilEnable = FALSE;
+	desc.DSVFormat = DXGI_FORMAT_UNKNOWN;
+
+	desc.SampleMask = UINT_MAX;
+	desc.SampleDesc.Count = 1;
+	desc.NumRenderTargets = 1;
+	desc.RTVFormats[0] = DXGI_FORMAT_R16G16B16A16_FLOAT;
+
+	m_Device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(m_DeferredPso.GetAddressOf()));
+}
+
+void DirectXApp::CreatePostPSO()
+{
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
+	desc.pRootSignature = m_PostRootSignature.Get();
+	const Shader* vs = m_ShaderLibrary.Load(L"PostProcess.hlsl", "FullScreenVS", "vs_5_0");
+	const Shader* ps = m_ShaderLibrary.Load(L"PostProcess.hlsl", "CopyPS", "ps_5_0");
+	if (!vs || !ps) { OutputDebugStringA("PostProcess shader load failed\n"); assert(false); return; }
+	desc.PS = ps->GetByteCode();
+	desc.VS = vs->GetByteCode();
+	desc.InputLayout = { nullptr, 0 };
+	desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+	desc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+	desc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+	desc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+	desc.DepthStencilState.DepthEnable = FALSE;
+	desc.DepthStencilState.StencilEnable = FALSE;
+	desc.DSVFormat = DXGI_FORMAT_UNKNOWN;
+	desc.SampleMask = UINT_MAX;
+	desc.SampleDesc.Count = 1;
+	desc.NumRenderTargets = 1;
+	desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+	m_Device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(m_PostPso.GetAddressOf()));
+}
+
+void DirectXApp::CreateCopyPSO()
+{
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
+	desc.pRootSignature = m_PostRootSignature.Get();
+
+	const Shader* vs = m_ShaderLibrary.Load(L"PostProcess.hlsl", "FullScreenVS", "vs_5_0");
+	const Shader* ps = m_ShaderLibrary.Load(L"PostProcess.hlsl", "CopyPS", "ps_5_0");
+
+	if (!vs || !ps) { OutputDebugStringA("PostProcess shader load failed\n"); assert(false); return; }
+
+	desc.PS = ps->GetByteCode();
+	desc.VS = vs->GetByteCode();
+
+	desc.InputLayout = { nullptr, 0 };
+	desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+	desc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+	desc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+	desc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+
+	desc.DepthStencilState.DepthEnable = FALSE;
+	desc.DepthStencilState.StencilEnable = FALSE;
+	desc.DSVFormat = DXGI_FORMAT_UNKNOWN;
+
+	desc.SampleMask = UINT_MAX;
+	desc.SampleDesc.Count = 1;
+	desc.NumRenderTargets = 1;
+	desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;
+
+	m_Device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(m_CopyPso.GetAddressOf()));
+
+	//ボリューム加算
+	{
+		D3D12_GRAPHICS_PIPELINE_STATE_DESC ad = desc;
+		ad.pRootSignature = m_PostRootSignature.Get();
+		ad.RTVFormats[0] = DXGI_FORMAT_R16G16B16A16_FLOAT;
+		auto& rt = ad.BlendState.RenderTarget[0];
+		rt.BlendEnable = TRUE;
+		rt.SrcBlend = D3D12_BLEND_ONE;
+		rt.DestBlend = D3D12_BLEND_ONE;
+		rt.BlendOp = D3D12_BLEND_OP_ADD;
+		rt.SrcBlendAlpha = D3D12_BLEND_ONE;
+		rt.DestBlendAlpha = D3D12_BLEND_ONE;
+		rt.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+		rt.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+
+		HRESULT hr = m_Device->CreateGraphicsPipelineState(&ad, IID_PPV_ARGS(m_VolumetricAddPso.GetAddressOf()));
+		assert(SUCCEEDED(hr) && m_VolumetricAddPso);
+	}
+}
+
+void DirectXApp::CreateVolumetricPSO()
+{
+	D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
+	desc.pRootSignature = m_DeferredRootSignature.Get();
+
+	const Shader* vs = m_ShaderLibrary.Load(L"DeferredLighting.hlsl", "FullScreenVS", "vs_5_0");
+	const Shader* ps = m_ShaderLibrary.Load(L"DeferredLighting.hlsl", "VolumetricPS", "ps_5_0");
+
+	if (!vs || !ps) { OutputDebugStringA("Volumetrics shader load failed\n"); assert(false); return; }
+
+	desc.PS = ps->GetByteCode();
+	desc.VS = vs->GetByteCode();
+
+	desc.InputLayout = { nullptr, 0 };
+	desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+	desc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+	desc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+	desc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+
+	desc.DepthStencilState.DepthEnable = FALSE;
+	desc.DepthStencilState.StencilEnable = FALSE;
+	desc.DSVFormat = DXGI_FORMAT_UNKNOWN;
+
+	desc.SampleMask = UINT_MAX;
+	desc.SampleDesc.Count = 1;
+	desc.NumRenderTargets = 1;
+	desc.RTVFormats[0] = DXGI_FORMAT_R16G16B16A16_FLOAT;
+
+	D3D12_RENDER_TARGET_BLEND_DESC& rt = desc.BlendState.RenderTarget[0];
+	rt.BlendEnable = TRUE;
+	rt.SrcBlend = D3D12_BLEND_ONE;   // 加算合成
+	rt.DestBlend = D3D12_BLEND_ONE;
+	rt.BlendOp = D3D12_BLEND_OP_ADD;
+	rt.SrcBlendAlpha = D3D12_BLEND_ONE;
+	rt.DestBlendAlpha = D3D12_BLEND_ONE;
+	rt.BlendOpAlpha = D3D12_BLEND_OP_ADD;
+	rt.RenderTargetWriteMask = D3D12_COLOR_WRITE_ENABLE_ALL;
+
+	m_Device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(m_VolumetricPso.GetAddressOf()));
+}
+
+void DirectXApp::CreateShadowSrv()
+{
+	auto* sm = m_ShadowMap.GetResource();
+	if (!sm)return;
+
+	m_SrvAllocator.Allocate(m_ShadowSrvIndex);
+	m_ShadowSrvCpu = m_SrvAllocator.Cpu(m_ShadowSrvIndex);
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC srv = {};
+	srv.Format = DXGI_FORMAT_R32_FLOAT;
+	srv.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srv.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srv.Texture2D.MipLevels = 1;
+	m_Device->CreateShaderResourceView(sm, &srv, m_ShadowSrvCpu);
+}
+
+void DirectXApp::CreateEnvSrv()
+{
+	if (!m_EnvTexture) return;
+
+	m_SrvAllocator.Allocate(m_EnvSrvIndex);
+	m_EnvSrvCpu = m_SrvAllocator.Cpu(m_EnvSrvIndex);
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC srv = {};
+	srv.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+	srv.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srv.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srv.Texture2D.MipLevels = m_EnvMipLevels;
+	m_Device->CreateShaderResourceView(m_EnvTexture.Get(), &srv, m_EnvSrvCpu);
+}
+
+void DirectXApp::CreateBloomPSOs()
+{
+	auto make = [&](const char* psEntry, DXGI_FORMAT rtv, ComPtr<ID3D12PipelineState>& out)
+		{
+			D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
+			desc.pRootSignature = m_PostRootSignature.Get();
+			const Shader* vs = m_ShaderLibrary.Load(L"PostProcess.hlsl", "FullScreenVS", "vs_5_0");
+			const Shader* ps = m_ShaderLibrary.Load(L"PostProcess.hlsl", psEntry, "ps_5_0");
+			if (!vs || !ps) { OutputDebugStringA("Bloom shader load failed\n"); assert(false); return; }
+			desc.VS = vs->GetByteCode();
+			desc.PS = ps->GetByteCode();
+			desc.InputLayout = { nullptr, 0 };
+			desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+			desc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+			desc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+			desc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+			desc.DepthStencilState.DepthEnable = FALSE;
+			desc.DepthStencilState.StencilEnable = FALSE;
+			desc.DSVFormat = DXGI_FORMAT_UNKNOWN;
+			desc.SampleMask = UINT_MAX;
+			desc.SampleDesc.Count = 1;
+			desc.NumRenderTargets = 1;
+			desc.RTVFormats[0] = rtv;
+			m_Device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(out.GetAddressOf()));
+		};
+	make("BrightPS", DXGI_FORMAT_R16G16B16A16_FLOAT, m_BrightPso);
+	make("BlurPS", DXGI_FORMAT_R16G16B16A16_FLOAT, m_BlurPso);
+	make("CompositePS", DXGI_FORMAT_R8G8B8A8_UNORM, m_CompositePso);
+}
+
+void DirectXApp::BuildCompositeSrvTable()
+{
+	UINT base = m_SrvAllocator.AllocateRange(2);
+	m_CompositeSrvStart = m_SrvAllocator.Gpu(base);
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC d = {};
+	d.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	d.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	d.Texture2D.MipLevels = 1;
+	d.Format = DXGI_FORMAT_R16G16B16A16_FLOAT;
+	m_Device->CreateShaderResourceView(m_HdrScene.GetResource().Get(), &d, m_SrvAllocator.Cpu(base + 0));
+	m_Device->CreateShaderResourceView(m_BloomA.GetResource().Get(), &d, m_SrvAllocator.Cpu(base + 1));
+}
+
+void DirectXApp::PostPass(ID3D12PipelineState* pso, D3D12_GPU_DESCRIPTOR_HANDLE srvTable, D3D12_GPU_VIRTUAL_ADDRESS cb, D3D12_CPU_DESCRIPTOR_HANDLE dstRtv, UINT w, UINT h)
+{
+	auto* cmd = m_CommandList.Get();
+	ID3D12DescriptorHeap* heaps[] = { m_SrvAllocator.heap.Get() };
+	cmd->SetDescriptorHeaps(1, heaps);
+	cmd->OMSetRenderTargets(1, &dstRtv, FALSE, nullptr);
+	D3D12_VIEWPORT vp{ 0,0,(float)w,(float)h,0,1 };
+	D3D12_RECT sc{ 0,0,(LONG)w,(LONG)h };
+	cmd->RSSetViewports(1, &vp);
+	cmd->RSSetScissorRects(1, &sc);
+	cmd->SetGraphicsRootSignature(m_PostRootSignature.Get());
+	cmd->SetPipelineState(pso);
+	cmd->SetGraphicsRootDescriptorTable(0, srvTable);
+	cmd->SetGraphicsRootConstantBufferView(1, cb);
+	cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	cmd->DrawInstanced(3, 1, 0, 0);
 }
 
 DirectXApp::~DirectXApp()
@@ -726,6 +1357,92 @@ HRESULT DirectXApp::BeginRender()
 	return S_OK;
 }
 
+void DirectXApp::BeginGeometryPass()
+{
+	auto* cmd = m_CommandList.Get();
+
+	// 深度を書き込み状態へ
+	m_GBuffer.TransitionToWrite(cmd);
+
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvs[3] =
+	{
+		m_GBuffer.GetRTV(0),
+		m_GBuffer.GetRTV(1),
+		m_GBuffer.GetRTV(2)
+	};
+
+	for (int i = 0; i < 3; ++i)
+	{
+		cmd->ClearRenderTargetView(rtvs[i], ClearColor, 0, nullptr);
+	}
+	cmd->ClearDepthStencilView(m_DSV_Handle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+
+	cmd->OMSetRenderTargets(3, rtvs, FALSE, &m_DSV_Handle);
+
+	cmd->SetGraphicsRootSignature(m_rootSignature.Get());
+}
+
+void DirectXApp::DeferredLightingPass(const RenderContext& ctx)
+{
+	auto* cmd = m_CommandList.Get();
+	const UINT slot = m_FrameIndex % RTV_NUM;
+
+	// --- G-Buffer + 深度を SRV へ ---
+	m_GBuffer.TransitionToRead(cmd);
+	SetResourceBarrier(cmd, m_Depthbuffer.Get(),
+		D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+	// --- 出力先: バックバッファ（DSV無し）---
+	cmd->OMSetRenderTargets(1, &m_RTV_Handle[m_FrameIndex], FALSE, nullptr);
+	cmd->ClearRenderTargetView(m_RTV_Handle[m_FrameIndex], ClearColor, 0, nullptr);
+
+	cmd->SetGraphicsRootSignature(m_DeferredRootSignature.Get());
+	cmd->SetPipelineState(m_DeferredPso.Get());
+
+	// ===== b0 Frame（viewProj/cameraPos）=====
+	FrameCB fdata{};
+	{
+		const auto v = XMLoadFloat4x4(&ctx.view);
+		const auto p = XMLoadFloat4x4(&ctx.projection);
+		XMStoreFloat4x4(&fdata.viewProj, XMMatrixTranspose(v * p));
+		const auto invV = XMMatrixInverse(nullptr, v);
+		float4x4 iv; XMStoreFloat4x4(&iv, invV);
+		fdata.cameraPos = { iv._41, iv._42, iv._43, 1.0f };
+	}
+	const auto b0 = m_CBAllocator.Allocate(slot, &fdata, sizeof(fdata));
+
+	// ===== b2 Light =====
+	const auto b2 = m_CBAllocator.Allocate(slot, &ctx.lightCb, sizeof(LightCB));
+
+	// ===== b3 invViewProj（深度→ワールド復元用）=====
+	DeferredCB dcb{};
+	{
+		const auto v = XMLoadFloat4x4(&ctx.view);
+		const auto p = XMLoadFloat4x4(&ctx.projection);
+		const auto inv = XMMatrixInverse(nullptr, v * p);
+		// シェーダで mul(clip, invViewProj) と行ベクトル運用なので転置して格納
+		XMStoreFloat4x4(&dcb.invViewProj, XMMatrixTranspose(inv));
+	}
+	const auto b3 = m_CBAllocator.Allocate(slot, &dcb, sizeof(dcb));
+
+	if (b0 == 0 || b2 == 0 || b3 == 0) return; // リング枯渇ガード
+
+	// ルートパラメータ: 0=b0, 1=b2, 2=b3, 3=SRVテーブル
+	cmd->SetGraphicsRootConstantBufferView(0, b0);
+	cmd->SetGraphicsRootConstantBufferView(1, b2);
+	cmd->SetGraphicsRootConstantBufferView(2, b3);
+	cmd->SetGraphicsRootDescriptorTable(3, m_GBuffer.GetSrvTableStart());
+
+	cmd->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+	cmd->DrawInstanced(3, 1, 0, 0);
+	cmd->SetPipelineState(m_VolumetricPso.Get()); // 加算ブレンドPSO（下記で作成）
+	cmd->DrawInstanced(3, 1, 0, 0);
+
+	// 深度を書き戻し（スカイ/半透明で使うなら）
+	SetResourceBarrier(cmd, m_Depthbuffer.Get(),
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+}
+
 HRESULT DirectXApp::EndRender()
 {
 	const UINT targetIndex = m_FrameIndex;
@@ -789,10 +1506,10 @@ void DirectXApp::Present()
 bool DirectXApp::LoadEnvironment(const std::wstring& hdrpath)
 {
 	std::filesystem::path resolved = hdrpath;
-	if (resolved.is_relative())
+	if (resolved.is_relative() && !std::filesystem::exists(resolved))
 	{
 		wchar_t exe[MAX_PATH]{}; GetModuleFileNameW(nullptr, exe, MAX_PATH);
-		resolved = std::filesystem::path(exe).parent_path() / resolved;
+		resolved = std::filesystem::path(exe).parent_path() / hdrpath;
 	}
 
 	DirectX::TexMetadata meta{}; DirectX::ScratchImage img{};
@@ -816,12 +1533,25 @@ bool DirectXApp::LoadEnvironment(const std::wstring& hdrpath)
 		}
 	}
 
+	CreateEnvSrv();
+
 	return true;
 }
 
 void DirectXApp::WaitForGPUIdle()
 {
 	if (!m_CommandQueue || !m_Fence || !m_Fence_Event) return;
+
+	ComPtr<ID3D12DeviceRemovedExtendedData> dredData;
+	auto device = m_Device.Get();
+	if (SUCCEEDED(device->QueryInterface(IID_PPV_ARGS(&dredData))))
+	{
+		D3D12_DRED_AUTO_BREADCRUMBS_OUTPUT breadcrumbs{};
+		D3D12_DRED_PAGE_FAULT_OUTPUT pageFault{};
+		dredData->GetAutoBreadcrumbsOutput(&breadcrumbs);
+		dredData->GetPageFaultAllocationOutput(&pageFault);
+		LOG->LogError("DRED PageFault VA = " + std::to_string(pageFault.PageFaultVA));
+	}
 
 	const UINT64 fenceToWait = ++m_NextFenceValue;
 	if(FAILED(m_CommandQueue->Signal(m_Fence.Get(), fenceToWait)))

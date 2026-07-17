@@ -113,6 +113,7 @@
       <PrecompiledHeaderFile>
       </PrecompiledHeaderFile>
       <ForcedIncludeFiles>pch.h</ForcedIncludeFiles>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -137,6 +138,7 @@
       <ConformanceMode>true</ConformanceMode>
       <LanguageStandard>stdcpp20</LanguageStandard>
       <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
       <SubSystem>Windows</SubSystem>
@@ -152,6 +154,8 @@
     <ClCompile Include="AssetWindow.cpp" />
     <ClCompile Include="AsyncLoader.cpp" />
     <ClCompile Include="AudioEngine.cpp" />
+    <ClCompile Include="BeamRenderer.cpp" />
+    <ClCompile Include="BuildSystem.cpp" />
     <ClCompile Include="ComponentRegistry.cpp" />
     <ClCompile Include="ConstantBufferAllocator.cpp" />
     <ClCompile Include="DebugLineRenderer.cpp" />
@@ -162,7 +166,9 @@
       <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
       </ForcedIncludeFiles>
     </ClCompile>
+    <ClCompile Include="FireworkSystem.cpp" />
     <ClCompile Include="FontAtlas.cpp" />
+    <ClCompile Include="GBuffer.cpp" />
     <ClCompile Include="IconLibrary.cpp" />
     <ClCompile Include="imgui.cpp" />
     <ClCompile Include="imguiinit.cpp" />
@@ -188,6 +194,7 @@
     <ClCompile Include="PMXLoader.cpp" />
     <ClCompile Include="Polygon.cpp" />
     <ClCompile Include="PrefabLibrary.cpp" />
+    <ClCompile Include="PsoRegistry.cpp" />
     <ClCompile Include="RegisterScript.cpp" />
     <ClCompile Include="RenderTexture.cpp" />
     <ClCompile Include="RuntimeScene.cpp" />
@@ -212,6 +219,8 @@
     <ClInclude Include="Application.hpp" />
     <ClInclude Include="AsyncLoader.hpp" />
     <ClInclude Include="AudioEngine.hpp" />
+    <ClInclude Include="BeamRenderer.hpp" />
+    <ClInclude Include="BuildSystem.hpp" />
     <ClInclude Include="ComponentRegistry.hpp" />
     <ClInclude Include="Components.hpp" />
     <ClInclude Include="ConstantBufferAllocator.hpp" />
@@ -223,7 +232,10 @@
     <ClInclude Include="EditorWindow.hpp" />
     <ClInclude Include="Engine/Engine.hpp" />
     <ClInclude Include="EngineAPI.hpp" />
+    <ClInclude Include="FireworkSystem.hpp" />
     <ClInclude Include="FontAtlas.hpp" />
+    <ClInclude Include="GameAPI.hpp" />
+    <ClInclude Include="GBuffer.hpp" />
     <ClInclude Include="IconLibrary.hpp" />
     <ClInclude Include="imconfig.h" />
     <ClInclude Include="imgui.h" />
@@ -250,6 +262,7 @@
     <ClInclude Include="PMXLoader.hpp" />
     <ClInclude Include="Polygon.hpp" />
     <ClInclude Include="PrefabLibrary.hpp" />
+    <ClInclude Include="PsoRegistry.hpp" />
     <ClInclude Include="RegisterScript.hpp" />
     <ClInclude Include="RenderContext.hpp" />
     <ClInclude Include="RenderTexture.hpp" />
@@ -261,9 +274,11 @@
     <ClInclude Include="ScriptContext.hpp" />
     <ClInclude Include="ScriptField.hpp" />
     <ClInclude Include="ScriptHost.hpp" />
+    <ClInclude Include="SePlayer.hpp" />
     <ClInclude Include="Shader.hpp" />
     <ClInclude Include="ShaderLibrary.hpp" />
     <ClInclude Include="ShaderTemplates.hpp" />
+    <ClInclude Include="ShaderTypes.hpp" />
     <ClInclude Include="ShadowMap.hpp" />
     <ClInclude Include="Systems.hpp" />
     <ClInclude Include="Engine/ThreadPool.hpp" />
@@ -274,6 +289,7 @@
     <ClInclude Include="World.hpp" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="GBufferShader.hlsl" />
     <None Include="PBRShader.hlsl" />
     <None Include="PixelShader.hlsl" />
     <None Include="PS_LineShader.hlsl">
@@ -285,7 +301,6 @@
   <ItemGroup>
     <None Include="BRDF.hlsli" />
     <None Include="Common.hlsli" />
-    <None Include="imgui.ini" />
     <None Include="Lighting.hlsli" />
     <None Include="packages.config" />
   </ItemGroup>
@@ -452,12 +467,43 @@
       <FileType>Document</FileType>
     </None>
   </ItemGroup>
+  <ItemGroup>
+    <None Include="LaserBeamShader.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <FileType>Document</FileType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="DeferredLighting.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="PostProcess.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Vertex</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
     <Import Project="..\packages\assimp_native.redist.4.0.1\build\native\assimp_native.redist.targets" Condition="Exists('..\packages\assimp_native.redist.4.0.1\build\native\assimp_native.redist.targets')" />
     <Import Project="..\packages\assimp_native.4.0.1\build\native\assimp_native.targets" Condition="Exists('..\packages\assimp_native.4.0.1\build\native\assimp_native.targets')" />
     <Import Project="..\packages\Assimp_native_4.1_v142.4.1.0\build\native\Assimp_native_4.1_v142.targets" Condition="Exists('..\packages\Assimp_native_4.1_v142.4.1.0\build\native\Assimp_native_4.1_v142.targets')" />
     <Import Project="..\packages\NVIDIA.PhysX.4.1.229882250\build\native\NVIDIA.PhysX.targets" Condition="Exists('..\packages\NVIDIA.PhysX.4.1.229882250\build\native\NVIDIA.PhysX.targets')" />
+    <Import Project="..\packages\directxtex_desktop_win10.2026.5.8.1\build\native\directxtex_desktop_win10.targets" Condition="Exists('..\packages\directxtex_desktop_win10.2026.5.8.1\build\native\directxtex_desktop_win10.targets')" />
   </ImportGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
@@ -469,5 +515,6 @@
     <Error Condition="!Exists('..\packages\BulletSharp.x64.0.12.0\build\BulletSharp.x64.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\BulletSharp.x64.0.12.0\build\BulletSharp.x64.props'))" />
     <Error Condition="!Exists('..\packages\NVIDIA.PhysX.4.1.229882250\build\native\NVIDIA.PhysX.props')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\NVIDIA.PhysX.4.1.229882250\build\native\NVIDIA.PhysX.props'))" />
     <Error Condition="!Exists('..\packages\NVIDIA.PhysX.4.1.229882250\build\native\NVIDIA.PhysX.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\NVIDIA.PhysX.4.1.229882250\build\native\NVIDIA.PhysX.targets'))" />
+    <Error Condition="!Exists('..\packages\directxtex_desktop_win10.2026.5.8.1\build\native\directxtex_desktop_win10.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\directxtex_desktop_win10.2026.5.8.1\build\native\directxtex_desktop_win10.targets'))" />
   </Target>
 </Project>

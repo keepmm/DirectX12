@@ -17,6 +17,7 @@
 #include <unordered_map>
 #include <string>
 #include <memory>
+#include <functional>
 
 enum class TransitionPhase
 {
@@ -32,6 +33,17 @@ class SceneManager
 public:
 	SceneManager();
 	~SceneManager() = default;
+
+	using SceneFactory = std::function<std::unique_ptr<Scene>(const std::string& jsonPath)>;
+
+	static std::string ScenePathFromName(const std::string& name)
+	{
+		return "Assets/Scenes/" + name + ".json";
+	}
+
+	void SetSceneFactory(SceneFactory factory) { m_SceneFactory = std::move(factory); }
+
+	bool RegisterScene(_In_ const std::string& name);
 
 	/// @brief ÉVÅ[ÉìÇÃìoò^
 	void RegisterScene(_In_ const std::string& name, _In_ std::unique_ptr<Scene> scene);
@@ -87,6 +99,7 @@ private:
 	Scene* m_ActiveScene = nullptr;
 	std::string m_NextSceneName;
 	bool m_SceneChangeRequested = false;
+	SceneFactory m_SceneFactory;
 
 	std::queue<std::string> m_LoadQueue;
 	std::queue<std::string> m_UnloadQueue;

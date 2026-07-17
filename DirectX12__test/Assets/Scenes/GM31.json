@@ -1,0 +1,197 @@
+{
+  "entities": [
+    {
+      "Camera": {
+        "CameraType": 0,
+        "FarZ": 100.0,
+        "FovY": 60.0,
+        "IsActive": true,
+        "NearZ": 0.10000000149011612,
+        "OrthoSize": 10.0,
+        "Projection": 0
+      },
+      "Free Look": {
+        "Enabled": true,
+        "MoveSpeed": 5.0,
+        "Pitch": 0.0,
+        "RotateSpeed": 0.0024999999441206455,
+        "Yaw": 0.0
+      },
+      "id": 1,
+      "name": "MainCamera",
+      "transform": {
+        "parent": 0,
+        "position": [
+          0.0,
+          2.0,
+          -2.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    },
+    {
+      "Light": {
+        "AmbientColor": [
+          0.20000000298023224,
+          0.20000000298023224,
+          0.20000000298023224,
+          1.0
+        ],
+        "BeamColorEnd": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "BeamWidth": 0.05000000074505806,
+        "Color": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "Direction": [
+          0.0,
+          0.0,
+          1.0
+        ],
+        "GlowIntensity": 3.0,
+        "GlowPower": 6.0,
+        "Intensity": 1.0,
+        "IsActive": true,
+        "IsShow": false,
+        "Range": 10.0,
+        "ShowBeam": false,
+        "SpotAngle": 45.0,
+        "SwingAngle": 30.0,
+        "SwingAxis": 0,
+        "SwingEnabled": false,
+        "SwingSpeed": 45.0,
+        "Type": 0,
+        "VolumetricIntensity": 1.0
+      },
+      "id": 2,
+      "name": "MainLight",
+      "transform": {
+        "parent": 0,
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    },
+    {
+      "Camera": {
+        "CameraType": 1,
+        "FarZ": 100.0,
+        "FovY": 60.0,
+        "IsActive": true,
+        "NearZ": 0.10000000149011612,
+        "OrthoSize": 10.0,
+        "Projection": 0
+      },
+      "Free Look": {
+        "Enabled": true,
+        "MoveSpeed": 5.0,
+        "Pitch": 0.24250036478042603,
+        "RotateSpeed": 0.0024999999441206455,
+        "Yaw": -0.022500814869999886
+      },
+      "id": 3,
+      "name": "EditorCamera",
+      "transform": {
+        "parent": 0,
+        "position": [
+          0.6399042010307312,
+          2.31990647315979,
+          -4.464376926422119
+        ],
+        "rotation": [
+          0.12094564735889435,
+          -0.011167573742568493,
+          0.0013607452856376767,
+          0.992595374584198
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    },
+    {
+      "Animator": {
+        "ClipPaths": "Assets/Model/VMDMotion/FightingMyWay/FightingMyWay.vmd",
+        "Playing": true,
+        "Time": 0.0
+      },
+      "animator": {
+        "currentClip": 0,
+        "extraClips": [],
+        "playing": true
+      },
+      "id": 4,
+      "material": {
+        "filePath": "",
+        "metallic": 0.0,
+        "rampFilePath": "",
+        "rimColor": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "roughness": 0.5,
+        "shaderName": "SkinnedToon"
+      },
+      "mesh": {
+        "filePath": "Assets\\Model\\Sour_Rin\\Black.pmx",
+        "scale": 1.0
+      },
+      "name": "Model_4",
+      "transform": {
+        "parent": 0,
+        "position": [
+          0.0,
+          0.0,
+          1.6662269830703735
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          0.10000000149011612,
+          0.10000000149011612,
+          0.10000000149011612
+        ]
+      }
+    }
+  ],
+  "sceneName": "GM31",
+  "skybox": "Assets/Texture/sky.hdr"
+}

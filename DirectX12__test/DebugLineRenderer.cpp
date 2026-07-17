@@ -1,5 +1,6 @@
 #include "DebugLineRenderer.hpp"
 #include "d3dx12.h"
+#include "BeamRenderer.hpp"
 
 void DebugLineRenderer::Init(
 	const ComPtr<ID3D12Device>& device,

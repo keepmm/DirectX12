@@ -4,7 +4,8 @@
 #include "Defines.hpp"
 #include <cstdint>
 #include "RenderContext.hpp"
-#include "DirectXTex/DirectXTex.h"
+#include <DirectXTex.h>
+#include "ShaderTypes.hpp"
 
 class ConstantBufferAllocator;
 
@@ -73,27 +74,6 @@ public:
 	// SRVヒープを5枚で確保＋全slotをデフォルト充填（重複コード集約）
 	bool EnsureSrvHeap();
 private:
-	struct alignas(256) FrameCB
-	{
-		float4x4 viewProj;
-		float4 cameraPos;
-	};
-
-	struct alignas(256) ObjectCB
-	{
-		float4x4 world;
-	};
-
-	struct alignas(256) MaterialCB
-	{
-		float roughness;
-		float metallic;
-		float2 _pad;
-		float4 rimColor;
-		float4 mapFlags; // x: hasNormal, y: hasMetal, z: hasRough
-		float4 faceParam; // x isFace w Outline
-	};
-
 	static constexpr UINT FRAME_COUNT = RTV_NUM;
 	static constexpr UINT MAX_ENTITY_PER_FRAME = 1024;
 

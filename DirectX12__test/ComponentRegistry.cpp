@@ -5,8 +5,40 @@
 #include "Util.hpp"
 #include "ModelLoader.hpp"
 #include "Debug.hpp"
+#include "AsyncLoader.hpp"
 
 using json = nlohmann::json;
+
+// 外部ファイルなら Assets/Motions/ へコピーして取り込み、Assets相対パスを返す。
+// 既にプロジェクト配下なら相対化だけ行う
+static std::string ImportToAssets(const std::string& path)
+{
+    namespace fs = std::filesystem;
+    std::error_code ec;
+
+    const fs::path abs = fs::absolute(path, ec);
+    const fs::path rel = fs::relative(abs, fs::current_path(), ec);
+
+    // プロジェクト配下 → 相対化のみ
+    if (!ec && !rel.empty() && rel.native().rfind(L"..", 0) != 0)
+    {
+        return rel.generic_string();
+    }
+
+    // プロジェクト外 → Assets/Motions/ にコピーして取り込む
+    const fs::path destDir = "Assets/Motions";
+    fs::create_directories(destDir, ec);
+    const fs::path dest = destDir / abs.filename();
+
+    fs::copy_file(abs, dest, fs::copy_options::update_existing, ec);
+    if (ec)
+    {
+        LOG->LogError(u8("VMDの取り込みに失敗: ") + path + " (" + ec.message() + ")");
+        return path;
+    }
+    LOG->LogInfo(u8("VMDをAssetsに取り込みました: ") + dest.generic_string());
+    return dest.generic_string();
+}
 
 template <typename T>
 static void DrawExtraUI(World&, Entity, T&) {}
@@ -20,32 +52,33 @@ void DrawExtraUI<AudioSourceComponent>(World&, Entity, AudioSourceComponent& src
 }
 
 template<>
-void DrawExtraUI<AnimatorComponent>(World&, Entity, AnimatorComponent& an)
+void DrawExtraUI<CameraAnimationComponent>(World&, Entity, CameraAnimationComponent& ca)
 {
-    // --- VMD読み込みボタン (クリップが無くても押せるように先頭に置く) ---
-    if (ImGui::Button(u8("VMD読み込み...")))
+    auto load = [&ca](const std::string& path)
+        {
+            CameraClip clip = ModelLoader::LoadVMDCameraClip(path);
+            if (clip.keys.empty())
+            {
+                LOG->LogError(u8("カメラVMDにカメラキーがありません: ") + path);
+                return;
+            }
+            ca.vmdPath = path;
+            ca.clip = std::move(clip);
+            ca.loaded = true;
+            ca.time = 0.0f;
+        };
+
+    // --- ファイルダイアログ ---
+    if (ImGui::Button(u8("カメラVMD読み込み...")))
     {
         std::wstring picked;
-        // フィルタはダブルNUL終端
         if (OpenFileDialog(picked, L"VMD Motion\0*.vmd\0All\0*.*\0"))
         {
-            const std::string path = WideToUtf8(picked);
-            AnimationClip vc = ModelLoader::LoadVMDClip(path, an.skeleton);
-            if (!vc.channels.empty())
-            {
-                an.clips.push_back(std::move(vc));
-                an.currentClip = (int)an.clips.size() - 1;   // 追加したクリップを選択
-                an.time = 0.0f;
-                an.playing = true;
-            }
-            else
-            {
-                LOG->LogWarning(u8("VMD読み込み失敗またはボーン不一致: ") + path);
-            }
+            load(ImportToAssets(WideToUtf8(picked)));
         }
     }
 
-    // Assetsからのドラッグ&ドロップでもVMDを受け取る
+    // --- Assetsからのドラッグ&ドロップ ---
     if (ImGui::BeginDragDropTarget())
     {
         if (const ImGuiPayload* p = ImGui::AcceptDragDropPayload("ASSET_PATH"))
@@ -54,47 +87,101 @@ void DrawExtraUI<AnimatorComponent>(World&, Entity, AnimatorComponent& an)
             if (path.size() > 4 &&
                 _stricmp(path.c_str() + path.size() - 4, ".vmd") == 0)
             {
-                AnimationClip vc = ModelLoader::LoadVMDClip(path, an.skeleton);
-                if (!vc.channels.empty())
-                {
-                    an.clips.push_back(std::move(vc));
-                    an.currentClip = (int)an.clips.size() - 1;
-                    an.time = 0.0f;
-                    an.playing = true;
-                }
+                load(path);
             }
         }
         ImGui::EndDragDropTarget();
     }
 
-    ImGui::Separator();
-
-    if (an.clips.empty())
+    // --- 状態表示 ---
+    if (ca.loaded && !ca.clip.keys.empty())
     {
-        ImGui::TextDisabled(u8("クリップなし"));
+        ImGui::Text(u8("%s  キー数:%d  長さ:%.1f秒"),
+            std::filesystem::path(ca.vmdPath).filename().string().c_str(),
+            (int)ca.clip.keys.size(), ca.clip.duration);
+    }
+    else
+    {
+        ImGui::TextDisabled(u8("カメラVMD未読み込み"));
         return;
     }
 
-    // --- クリップ選択ドロップダウン ---
-    const char* preview = (an.currentClip >= 0 && an.currentClip < (int)an.clips.size())
-        ? an.clips[an.currentClip].name.c_str() : "(none)";
+    // --- 再生コントロール ---
+    if (ImGui::Button(ca.playing ? u8("一時停止") : u8("再生")))
+        ca.playing = !ca.playing;
+    ImGui::SameLine();
+    if (ImGui::Button(u8("最初から")))
+        ca.time = 0.0f;
 
-    if (ImGui::BeginCombo(u8("Clip"), preview))
-    {
-        for (int i = 0; i < (int)an.clips.size(); ++i)
+    if (ca.clip.duration > 0.0f)
+        ImGui::ProgressBar(ca.time / ca.clip.duration, ImVec2(-1, 0));
+}
+
+template<>
+void DrawExtraUI<AnimatorComponent>(World& world, Entity e, AnimatorComponent& an)
+{
+    auto onLoaded = [&world, e](AnimationClip vc)
         {
-            const bool selected = (an.currentClip == i);
-            std::string label = an.clips[i].name
-                + " (" + std::to_string((int)an.clips[i].duration) + "s)";
-            if (ImGui::Selectable(label.c_str(), selected))
-            {
-                an.currentClip = i;
-                an.time = 0.0f;
-            }
-            if (selected) ImGui::SetItemDefaultFocus();
+            if (vc.channels.empty()) return;
+            if (!world.IsEntityAlive(e) || !world.HasComponent<AnimatorComponent>(e)) return;
+            auto& a = world.GetComponent<AnimatorComponent>(e);
+            a.clips.push_back(std::move(vc));
+            a.currentClip   = (int)a.clips.size() - 1;
+            a.time          = 0.0f;
+            a.playing       = true;
+        };
+
+    // 読み込み開始時にパスを記録する(成功/失敗に関わらず記録でOK。失敗はログに出る)
+    auto loadAndRecord = [&an, &onLoaded](const std::string& rawPath)
+        {
+            const std::string path = ImportToAssets(rawPath);
+            AsyncLoader::Get().LoadVMDAsync(path, an.skeleton, onLoaded);
+
+            if (!an.clipPathsStr.empty()) an.clipPathsStr += "|";
+            an.clipPathsStr += path;
+            an.clipsRestored = true;   // いま手で読んだ分を復元処理が二重ロードしないように
+        };
+
+    // --- VMD読み込みボタン(非同期) ---
+    if (ImGui::Button(u8("VMD読み込み...")))
+    {
+        std::wstring picked;
+        if (OpenFileDialog(picked, L"VMD Motion\0*.vmd\0All\0*.*\0"))
+        {
+            loadAndRecord(WideToUtf8(picked));
         }
-        ImGui::EndCombo();
     }
+
+    // Assetsからのドラッグ&ドロップ(非同期)
+    if (ImGui::BeginDragDropTarget())
+    {
+        if (const ImGuiPayload* p = ImGui::AcceptDragDropPayload("ASSET_PATH"))
+        {
+            std::string path((const char*)p->Data, p->DataSize - 1);
+            if (path.size() > 4 &&
+                _stricmp(path.c_str() + path.size() - 4, ".vmd") == 0)
+            {
+                loadAndRecord(path);
+            }
+        }
+        ImGui::EndDragDropTarget();
+    }
+
+    // vmd一覧表示
+    if (!an.clips.empty())
+    {
+        if (an.clips.empty())
+        {
+            ImGui::TextDisabled(u8("クリップ読み込み中..."));
+            return;
+        }
+        if (an.currentClip < 0 || an.currentClip >= (int)an.clips.size())
+            an.currentClip = 0;   // クランプ
+
+        std::vector<const char*> names;
+        for (const auto& c : an.clips) names.push_back(c.name.c_str());
+        ImGui::Combo(u8("Clip"), &an.currentClip, names.data(), (int)names.size());
+	}
 
     // --- 再生コントロール ---
     if (ImGui::Button(an.playing ? u8("一時停止") : u8("再生")))
@@ -102,6 +189,14 @@ void DrawExtraUI<AnimatorComponent>(World&, Entity, AnimatorComponent& an)
     ImGui::SameLine();
     if (ImGui::Button(u8("最初から")))
         an.time = 0.0f;
+
+    if (an.clips.empty())
+    {
+        ImGui::TextDisabled(u8("クリップ読み込み中..."));
+        return;
+    }
+    if (an.currentClip < 0 || an.currentClip >= (int)an.clips.size())
+        an.currentClip = 0;   // クランプ
 
     const auto& clip = an.clips[an.currentClip];
     if (clip.duration > 0.0f)
@@ -312,19 +407,22 @@ static ComponentMeta MakeMeta(const std::string& name)
 //   （Inspector・AddComponent・シーンSave/Load全部に自動反映）
 static const std::vector<ComponentMeta> g_Components =
 {
-    MakeMeta<LightComponent>("Light"),
-    MakeMeta<FreeLookComponent>("Free Look"),
-    MakeMeta<SpinComponent>("Spin"),
-    MakeMeta<CanvasComponent>("Canvas"),
-    MakeMeta<RectTransformComponent>("Rect Transform"),
-    MakeMeta<UIImageComponent>("UI Image"),
-    MakeMeta<UITextComponent>("UI Text"),
+	MakeMeta<AnimatorComponent>("Animator"),
 	MakeMeta<AudioSourceComponent>("Audio Source"),
 	MakeMeta<AudioListenerComponent>("Audio Listener"),
 	MakeMeta<CameraComponent>("Camera"),
-	MakeMeta<RigidBodyComponent>("Rigid Body"),
+	MakeMeta<CameraAnimationComponent>("Camera Animation"),
+    MakeMeta<CanvasComponent>("Canvas"),
 	MakeMeta<ColliderComponent>("Collider"),
-	MakeMeta<AnimatorComponent>("Animator"),
+    MakeMeta<LightComponent>("Light"),
+    MakeMeta<FreeLookComponent>("Free Look"),
+    MakeMeta<SpinComponent>("Spin"),
+    MakeMeta<RectTransformComponent>("Rect Transform"),
+    MakeMeta<UIImageComponent>("UI Image"),
+    MakeMeta<UITextComponent>("UI Text"),
+	MakeMeta<MusicSyncComponent>("Music Sync"),
+	MakeMeta<RigidBodyComponent>("Rigid Body"),
+	MakeMeta<ParticleEmitterComponent>("Particle Emitter"),
 };
 
 const std::vector<ComponentMeta>& ComponentRegistry::All()

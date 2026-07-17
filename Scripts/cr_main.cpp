@@ -7,6 +7,7 @@
 #include <DirectXMath.h>
 #include "RegisterScript.hpp"
 #include "Debug.hpp"
+#include "GameAPI.hpp"
 
 static void BuildOne(World* w, Entity e, ScriptComponent& sc, const std::string& name)
 {
@@ -53,6 +54,8 @@ CR_EXPORT int cr_main(cr_plugin* ctx, cr_op operation)
 		Debug::g_LogInfo	= host->logInfo;
 		Debug::g_LogWarning = host->logWarning;
 		Debug::g_LogError	= host->logError;
+		GameAPI::g_LaunchFirework = host->launchFirework;
+
 		break;
 	case CR_STEP:
 		if (host->world)

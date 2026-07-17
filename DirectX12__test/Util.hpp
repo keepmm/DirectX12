@@ -44,14 +44,25 @@ inline std::vector<std::shared_ptr<Material>> BuildMaterials(
     const ModelLoadResult& model, const std::string& shaderName)
 {
     std::vector<std::shared_ptr<Material>> out;
+    std::unordered_map<std::wstring, std::shared_ptr<Material>> matCache;
+
     for (const auto& set : model.materials)
     {
+        // 同じdiffuseパスなら既存Materialを再利用(GPUテクスチャの重複生成を回避)
+        if (!set.diffuse.empty())
+        {
+            auto it = matCache.find(set.diffuse);
+            if (it != matCache.end()) { out.push_back(it->second); continue; }
+        }
+
         auto m = std::make_shared<Material>();
         m->Init();
-        if (set.diffuseImage.ok) m->CreateTextureFromRGBA(set.diffuseImage.width, set.diffuseImage.height, set.diffuseImage.pixels.data());
-        if (set.normalImage.ok)  m->CreateNormalFromRGBA(set.normalImage.width, set.normalImage.height, set.normalImage.pixels.data());
-        if (set.metalImage.ok)   m->CreateMetalFromRGBA(set.metalImage.width, set.metalImage.height, set.metalImage.pixels.data());
-        if (set.roughImage.ok)   m->CreateRoughFromRGBA(set.roughImage.width, set.roughImage.height, set.roughImage.pixels.data());
+        if (set.diffuseImage && set.diffuseImage->ok) m->CreateTextureFromRGBA(set.diffuseImage->width, set.diffuseImage->height, set.diffuseImage->pixels.data());
+        if (set.normalImage && set.normalImage->ok)  m->CreateNormalFromRGBA(set.normalImage->width, set.normalImage->height, set.normalImage->pixels.data());
+        if (set.metalImage && set.metalImage->ok)   m->CreateMetalFromRGBA(set.metalImage->width, set.metalImage->height, set.metalImage->pixels.data());
+        if (set.roughImage && set.roughImage->ok)   m->CreateRoughFromRGBA(set.roughImage->width, set.roughImage->height, set.roughImage->pixels.data());
+
+        if (!set.diffuse.empty()) matCache[set.diffuse] = m;
         out.push_back(m);
     }
     return out;
@@ -63,4 +74,17 @@ inline std::string ShiftJisUtf8(const std::string& sjis)
 	std::wstring w(wlen, L'\0');
 	MultiByteToWideChar(932, 0, sjis.c_str(), (int)sjis.size(), w.data(), wlen);
 	return WideToUtf8(w);
+}
+
+inline std::filesystem::path ResolveAssetPath(const std::filesystem::path& path)
+{
+	// 絶対パスまたは存在するパスならそのまま返す
+    if (path.is_absolute() || std::filesystem::exists(path))
+    {
+        return path;
+    }
+
+    wchar_t exe[MAX_PATH]{};
+	GetModuleFileNameW(nullptr, exe, MAX_PATH);
+    return std::filesystem::path(exe).parent_path() / path;
 }

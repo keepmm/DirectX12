@@ -35,12 +35,20 @@ bool Shader::LoadFromFile(
 	m_Blob.Reset();
 	m_DxcBlob.Reset();
 
-	if (UseDxcProfile(profile))
+	std::wstring resolved = filepath;
+	if (!std::filesystem::exists(resolved))
 	{
-		return CompileWithDxc(filepath, entryPoint, profile, compileFlags);
+		std::wstring alt = L"Shaders/" +
+			std::wstring(std::filesystem::path(filepath).filename());
+		if (std::filesystem::exists(alt)) resolved = alt;
 	}
 
-	return CompileWithD3DCompile(filepath, entryPoint, profile, compileFlags);
+	if (UseDxcProfile(profile))
+	{
+		return CompileWithDxc(resolved, entryPoint, profile, compileFlags);
+	}
+
+	return CompileWithD3DCompile(resolved, entryPoint, profile, compileFlags);
 }
 
 bool Shader::CompileWithDxc(const std::wstring& filepath, const std::string& entryPoint, const std::string& profile, UINT compileFlags)

@@ -64,6 +64,9 @@
     <Filter Include="Shader\HLSL\PixelShader">
       <UniqueIdentifier>{6556a47a-d3bc-44db-8fb8-f9363da8d3f4}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Build">
+      <UniqueIdentifier>{d52573d3-46d2-478c-8c4e-89f610cb717a}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Application.cpp">
@@ -210,11 +213,26 @@
     <ClCompile Include="PMXLoader.cpp">
       <Filter>Mesh_Model</Filter>
     </ClCompile>
-    <ClCompile Include="ComponentRegistry.cpp">
-      <Filter>Input_Audio_Physics</Filter>
-    </ClCompile>
     <ClCompile Include="MmdPhysics.cpp">
       <Filter>Input_Audio_Physics</Filter>
+    </ClCompile>
+    <ClCompile Include="ComponentRegistry.cpp">
+      <Filter>ECS</Filter>
+    </ClCompile>
+    <ClCompile Include="GBuffer.cpp">
+      <Filter>Rendering</Filter>
+    </ClCompile>
+    <ClCompile Include="BeamRenderer.cpp">
+      <Filter>Rendering</Filter>
+    </ClCompile>
+    <ClCompile Include="FireworkSystem.cpp">
+      <Filter>Rendering</Filter>
+    </ClCompile>
+    <ClCompile Include="BuildSystem.cpp">
+      <Filter>Build</Filter>
+    </ClCompile>
+    <ClCompile Include="PsoRegistry.cpp">
+      <Filter>Core</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -410,6 +428,30 @@
     <ClInclude Include="MmdPhysics.hpp">
       <Filter>Input_Audio_Physics</Filter>
     </ClInclude>
+    <ClInclude Include="GBuffer.hpp">
+      <Filter>Rendering</Filter>
+    </ClInclude>
+    <ClInclude Include="ShaderTypes.hpp">
+      <Filter>Shader</Filter>
+    </ClInclude>
+    <ClInclude Include="SePlayer.hpp">
+      <Filter>Input_Audio_Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="GameAPI.hpp">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="BeamRenderer.hpp">
+      <Filter>Rendering</Filter>
+    </ClInclude>
+    <ClInclude Include="FireworkSystem.hpp">
+      <Filter>Rendering</Filter>
+    </ClInclude>
+    <ClInclude Include="BuildSystem.hpp">
+      <Filter>Build</Filter>
+    </ClInclude>
+    <ClInclude Include="PsoRegistry.hpp">
+      <Filter>Core</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="BRDF.hlsli">
@@ -420,9 +462,6 @@
     </None>
     <None Include="Lighting.hlsli">
       <Filter>Shader\Include</Filter>
-    </None>
-    <None Include="imgui.ini">
-      <Filter>Config</Filter>
     </None>
     <None Include="packages.config">
       <Filter>Config</Filter>
@@ -539,6 +578,18 @@
       <Filter>Shader\HLSL\PixelShader</Filter>
     </None>
     <None Include="GenshinOutline.hlsl">
+      <Filter>Shader\HLSL\VertexShader</Filter>
+    </None>
+    <None Include="LaserBeamShader.hlsl">
+      <Filter>Shader\HLSL\VertexShader</Filter>
+    </None>
+    <None Include="DeferredLighting.hlsl">
+      <Filter>Shader\HLSL\VertexShader</Filter>
+    </None>
+    <None Include="GBufferShader.hlsl">
+      <Filter>Shader\HLSL\VertexShader</Filter>
+    </None>
+    <None Include="PostProcess.hlsl">
       <Filter>Shader\HLSL\VertexShader</Filter>
     </None>
   </ItemGroup>

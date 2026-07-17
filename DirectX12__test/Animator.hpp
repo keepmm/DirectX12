@@ -4,6 +4,10 @@
 #include <DirectXMath.h>
 #include "MmdPhysics.hpp"
 
+#define NOMINMAX
+#undef min
+#undef max
+
 inline void RebuildMorphOffsets(
 	const MorphSet& morphSet,const std::vector<float>& weights,
 	size_t vertexCount, std::vector<float3>& out
@@ -163,6 +167,40 @@ inline void ComputePalette(
 		// IKの反復回数だけループ
 		for (int loop = 0; loop < ik.loopCount; ++loop)
 		{
+			// このIKで再計算が必要なボーン列を構築
+			std::vector<int> ikChains;
+			{
+				std::vector<int> linkBones;
+				for (const auto& lk: ik.links)
+				{
+					if (lk.boneIndex >= 0)
+						linkBones.push_back(lk.boneIndex);
+				}
+
+				int remaining = (int)linkBones.size();
+				int cur = ik.targetIndex;
+				while (cur >= 0)
+				{
+					ikChains.push_back(cur);
+					for (int lb : linkBones) 
+						if (lb == cur) 
+						{ 
+							--remaining; break; 
+						}
+					if (remaining <= 0) break;
+					cur = skel.nodes[cur].parentIndex;
+				}
+				std::reverse(ikChains.begin(), ikChains.end());	//親 -> 子順
+			}
+			auto ComputeChain = [&]()
+				{
+					for (int c : ikChains)
+					{
+						int p = skel.nodes[c].parentIndex;
+						global[c] = (p >= 0) ? local[c] * global[p] : local[c];
+					}
+				};
+
 			for (const auto& link : ik.links)
 			{
 				// リンクボーンが有効でなければスキップ
@@ -235,7 +273,7 @@ inline void ComputePalette(
 				}
 
 				buildlocal(li);	// ローカル行列を更新
-				ComputeGlobal();	// グローバル行列を更新
+				ComputeChain();	// グローバル行列を更新
 			}
 		}
 	}
@@ -281,7 +319,8 @@ inline void ComputePalette(
 	// ---- 物理適用 ---- //
 	if (physics && physics->IsValid())
 	{
-		physics->Step(global, dt);
+		physics->StepFetch(global);
+		physics->StepBegin(global, dt);
 	}
 
 	// パレット
@@ -297,5 +336,15 @@ inline void ComputePalette(
 		}
 		XMMATRIX offset = XMLoadFloat4x4(&skin.offsetMatrices[b]);
 		XMStoreFloat4x4(&outPalette[b], XMMatrixTranspose(offset * g));
+
+		// 異常検出
+		const float m30 = outPalette[b].m[3][0], m31 = outPalette[b].m[3][1], m32 = outPalette[b].m[3][2];
+		if (!std::isfinite(m30) || fabsf(m30) > 1e4f || fabsf(m31) > 1e4f || fabsf(m32) > 1e4f)
+		{
+			static int logged = 0;
+			if (logged++ < 20)
+				LOG->LogError("bad palette bone[" + std::to_string(b) + "]='" + skin.boneNames[b]
+					+ "' t=(" + std::to_string(m30) + "," + std::to_string(m31) + "," + std::to_string(m32) + ")");
+		}
 	}
 }

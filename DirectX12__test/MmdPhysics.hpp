@@ -22,6 +22,12 @@ public:
     //   “ü—Í: FK/IK/•t—^Œã‚Ì global, o—Í: •¨—”½‰fŒã‚Ì global
     void Step(std::vector<DirectX::XMMATRIX>& global, float dt);
 
+    // ’Ç]İ’è + simulate
+	void StepBegin(std::vector<DirectX::XMMATRIX>& global,float dt);
+
+    // ‘O‰ñŒ‹‰Ê‚ğ‰ñû‚µ‚Ä‘‚«–ß‚µ
+	void StepFetch(std::vector<DirectX::XMMATRIX>& global);
+
     bool IsValid() const { return m_Scene != nullptr; }
     ~MmdPhysics() { Destroy(); }
 
@@ -31,8 +37,8 @@ private:
         physx::PxRigidActor* actor = nullptr;
         int boneIndex = -1;
 		uint8_t physicsType = 0;
-        matrix offset;
-        matrix invOffset;
+        matrix offset{};
+        matrix invOffset{};
     };
 
     physx::PxScene* m_Scene                     = nullptr;
@@ -42,5 +48,6 @@ private:
     std::vector<physx::PxJoint*> m_Joints;
     bool m_FirstStep = true;
     float m_Accum = 0.0f;
+    bool m_SimPending = false;
 };
 

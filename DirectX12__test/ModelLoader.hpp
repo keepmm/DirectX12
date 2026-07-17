@@ -10,7 +10,9 @@
 #pragma once
 
 #include "ModelData.hpp"
+#include "World.hpp"
 
+class Scene;
 class Mesh;
 
 class ModelLoader
@@ -33,4 +35,14 @@ public:
 	static std::vector<AnimationClip> LoadAnimationsOnly(_In_ const std::string& filepath);
 
 	static AnimationClip LoadVMDClip(const std::string& path,const Skeleton& skeleton);
+
+	static CameraClip LoadVMDCameraClip(_In_ const std::string& path);
+
+	static void PopulateModelEntity(
+		World& world, std::uint32_t entity,
+		const std::string& modelpath, Scene* scene,
+		int  restoreClip = -1,
+		bool restorePlaying = false,
+		const std::vector<std::string>& extraVmds = {},
+		bool applyDefaultTransformScale = true);
 };

@@ -304,7 +304,7 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 				{
 					bool selected = (materialComp.shaderName == n);
 					if (ImGui::Selectable(n.c_str(), selected))
-						materialComp.shaderName = n;   // shaderNameはコンポーネント共通なので配列側の変更は不要
+						materialComp.shaderName = n;
 					if (selected) ImGui::SetItemDefaultFocus();
 				}
 				ImGui::EndCombo();
@@ -364,15 +364,15 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 
 				if (materialComp.shaderName == "Fresnel" || materialComp.shaderName == "SkinnedFresnel")
 				{
-					ImGui::ColorEdit4(u8("RimColor##Mat"), &target->rimColor.x);
 					ImGui::SliderFloat(u8("Roughness##Mat"), &target->roughness, 0.0f, 1.0f);
+					ImGui::ColorEdit4(u8("RimColor##Mat"), &target->rimColor.x);
 				}
 
 				if (materialComp.shaderName == "Dissolve" || materialComp.shaderName == "SkinnedDissolve")
 				{
-					ImGui::ColorEdit4(u8("RimColor##Mat"), &target->rimColor.x);
-					ImGui::SliderFloat(u8("Roughness##Mat"), &target->roughness, 0.0f, 1.0f);
-					ImGui::SliderFloat(u8("Metallic##Mat"), &target->metallic, 0.0f, 1.0f);
+					ImGui::SliderFloat(u8("ノイズの細かさ##Mat"), &target->roughness, 0.0f, 1.0f);
+					ImGui::SliderFloat(u8("Dissolve具合##Mat"), &target->metallic, 0.0f, 1.0f);
+					ImGui::ColorEdit4(u8("解け際の発行色##Mat"), &target->rimColor.x);
 				}
 
 				if (materialComp.shaderName == "BlinnPhong" || materialComp.shaderName == "SkinnedBlinnPhong")

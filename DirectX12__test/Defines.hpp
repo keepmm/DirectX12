@@ -91,6 +91,31 @@ inline float3 operator*(const float3& a,float b)
 	return float3(a.x * b, a.y * b, a.z *b);
 }
 
+inline float3 operator-=(float3& a, const float3& b)
+{
+	a.x -= b.x;
+	a.y -= b.y;
+	a.z -= b.z;
+	return a;
+}
+
+inline float3 operator+=(float3& a, const float3& b)
+{
+	a.x += b.x;
+	a.y += b.y;
+	a.z += b.z;
+	return a;
+}
+
+inline float3 operator*=(float3& a, const float3& b)
+{
+	a.x *= b.x;
+	a.y *= b.y;
+	a.z *= b.z;
+	return a;
+}
+
+
 inline vector operator+(const vector& a, const vector& b)
 {
 	return DirectX::XMVectorAdd(a, b);
@@ -110,6 +135,17 @@ inline vector operator*(const vector& a, const vector& b)
 inline vector operator*(const vector& a, const float& b)
 {
 	return DirectX::XMVectorScale(a, b);
+}
+
+inline vector operator/(const vector& a, const float& b)
+{
+	return DirectX::XMVectorScale(a, 1.0f / b);
+}
+
+inline vector& operator+=(vector& a, const vector& b)
+{
+	a = DirectX::XMVectorAdd(a, b);
+	return a;
 }
 
 #include <tchar.h>

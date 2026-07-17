@@ -11,6 +11,7 @@
 #include <sstream>
 #include "PlayState.hpp"
 #include "imguiinit.hpp"
+#include "RuntimeScene.hpp"
 
 
 static cr_plugin s_plugin;
@@ -76,9 +77,15 @@ static void LaunchBuild()
     if (s_building.exchange(true)) return;
 
     std::thread([] {
+        // エンジン自身のビルド構成と必ず一致させる(Debug/Release混在はABI不一致で即クラッシュ)
+#ifdef _DEBUG
+        constexpr const char* kConfig = "Debug";
+#else
+        constexpr const char* kConfig = "Release";
+#endif
         std::string cmd =
             "\"" + s_msbuild + "\" \"" + s_ProjPath.string() + "\""
-            " /p:Configuration=Debug /p:Platform=x64"
+            " /p:Configuration=" + std::string(kConfig) + " /p:Platform=x64"
             " /p:SolutionDir=" + s_SlnDir.string() + "\\"
             " /nologo /clp:NoSummary /v:minimal";
 
@@ -182,12 +189,20 @@ void ScriptHost::Open(World* world)
     s_ctx.logInfo = [](const char* m) { LOG->LogInfo(m); };
     s_ctx.logWarning = [](const char* m) { LOG->LogWarning(m); };
     s_ctx.logError = [](const char* m) { LOG->LogError(m); };
+    s_ctx.launchFirework = [](float x, float y, float z, int shape,
+        float r, float g, float b, const char* text)
+        {
+            if (auto* rs = RuntimeScene::Current())
+                rs->LaunchFirework(float3{ x,y,z }, shape, float3{ r,g,b }, text);
+        };
 
 	// DLLのパスをexeの位置から逆算
     char exePath[MAX_PATH];
     GetModuleFileNameA(nullptr, exePath, MAX_PATH);
     auto exeDir = std::filesystem::path(exePath).parent_path();
-    std::filesystem::path dll = exeDir/ "Scripts.dll";
+    std::filesystem::path dll = exeDir/ "Bin" / "Scripts.dll";
+    if(!std::filesystem::exists(dll))
+		dll = exeDir / "Scripts.dll";   // Binにない場合はexe直下も見る
 
     // ソース / プロジェクトパスをexeの位置から逆算
     s_SlnDir = exeDir.parent_path().parent_path();
@@ -211,13 +226,15 @@ void ScriptHost::Update(float dt, World* world)
     {
         char exePath[MAX_PATH];
         GetModuleFileNameA(nullptr, exePath, MAX_PATH);
-        std::filesystem::path dll =
-            std::filesystem::path(exePath).parent_path() / "Scripts.dll";
+        auto exeDir = std::filesystem::path(exePath).parent_path();
+        std::filesystem::path dll = exeDir / "Bin" / "Scripts.dll";
+        if (!std::filesystem::exists(dll))
+            dll = exeDir / "Scripts.dll";
         if (std::filesystem::exists(dll) &&
             cr_plugin_open(s_plugin, dll.string().c_str()))
         {
             s_isOpen = true;
-            OutputDebugStringA("[ScriptHost] 後追いopen成功\n");
+			OutputDebugStringA("[ScriptHost] cr_plugin_open 後追い成功\n");
         }
     }
 

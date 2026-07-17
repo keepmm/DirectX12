@@ -15,4 +15,6 @@ struct ScriptContext
 	void (*logInfo)(const char* msg) = nullptr;
 	void (*logWarning)(const char* msg) = nullptr;
 	void (*logError)(const char* msg) = nullptr;
+	void (*launchFirework)(float x, float y, float z, int shape,
+		float r, float g, float b, const char* text) = nullptr;
 };

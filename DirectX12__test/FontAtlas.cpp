@@ -4,6 +4,10 @@
 #include "FontAtlas.hpp"
 #include "Util.hpp"
 
+#define NOMINMAX
+#undef min
+#undef max
+
 bool FontAtlas::Build(const std::string& fontPathUtf8)
 {
     // フォントファイル読み込み

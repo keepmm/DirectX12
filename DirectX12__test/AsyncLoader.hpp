@@ -55,6 +55,23 @@ public:
 		m_Pending.push_back(std::move(p));
 	}
 
+	void LoadVMDAsync(
+		_In_ const std::string& filePath,
+		_In_ const Skeleton& skeleton,
+		std::function<void(AnimationClip)> onDone
+	)
+	{
+		if (m_Pool == nullptr) return;
+
+		PendingClip p;
+		Skeleton skelCopy = skeleton; // スケルトンをコピーしてラムダに渡す
+		p.future = m_Pool->Enqueue([filePath, skelCopy]() {
+			return ModelLoader::LoadVMDClip(filePath, skelCopy);
+			});
+		p.onDone = std::move(onDone);
+		m_PendingClips.push_back(std::move(p));
+	}
+
 	void ProcessCompletedTasks()
 	{
 		for (auto it = m_Pending.begin(); it != m_Pending.end(); )
@@ -65,9 +82,21 @@ public:
 				continue;
 			}
 			ModelCpuData cpu = it->future.get();
-			ModelLoadResult result = ModelLoader::upload(cpu);
+			ModelLoadResult result = ModelLoader::upload(std::move(cpu));
 			if (it->onDone) it->onDone(std::move(result));
 			it = m_Pending.erase(it);
+		}
+
+		for (auto it = m_PendingClips.begin(); it != m_PendingClips.end(); )
+		{
+			if (it->future.wait_for(std::chrono::seconds(0)) != std::future_status::ready)
+			{
+				++it;
+				continue;
+			}
+			AnimationClip clip = it->future.get();
+			if (it->onDone) it->onDone(std::move(clip));   // メインスレッドで実行
+			it = m_PendingClips.erase(it);
 		}
 	}
 
@@ -83,6 +112,13 @@ private:
 		std::future<ModelCpuData> future;
 		std::function<void(ModelLoadResult)> onDone;
 	};
+
+	struct PendingClip
+	{
+		std::future<AnimationClip> future;
+		std::function<void(AnimationClip)> onDone;
+	};
+	std::vector<PendingClip> m_PendingClips;
 
 	ThreadPool* m_Pool = nullptr;                  // 参照→ポインタ（後から差せる）
 	ComPtr<ID3D12Device> m_Device;

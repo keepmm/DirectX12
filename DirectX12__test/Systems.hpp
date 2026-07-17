@@ -12,6 +12,13 @@
 #include "Debug.hpp"
 #include "imguiinit.hpp"
 #include "Animator.hpp"
+#include <chrono>
+#include "DirectX.hpp"
+#include "d3dx12.h"
+#include "Time.hpp"
+#include "ModelLoader.hpp"
+#include <sstream>
+#include "AsyncLoader.hpp"
 
 class SpinSystem
 {
@@ -29,13 +36,21 @@ public:
 	}
 };
 
+enum class DrawFilter : uint8_t
+{
+	ALL,
+	OPAQUEONLY,
+	TRANSPARENTONLY,
+};
+
 class RenderSystem
 {
 public:
-
 	void Draw(
 		_In_ World& world,
-		_In_ const RenderContext& renderContext)
+		_In_ const RenderContext& renderContext,
+		_In_ ID3D12PipelineState* overidePso = nullptr,
+		_In_ DrawFilter filter = DrawFilter::ALL)
 	{
 		if (renderContext.CommandList == nullptr)
 		{
@@ -67,8 +82,25 @@ public:
 			}
 		}
 
+		static ComPtr<ID3D12Resource> s_zeroMorph;
+		static D3D12_GPU_VIRTUAL_ADDRESS s_zeroMorphVA = 0;
+		if (!s_zeroMorph)
+		{
+			const UINT ZERO_VERTS = 300000;                  // 最大メッシュ頂点数を余裕でカバー
+			const UINT bytes = ZERO_VERTS * sizeof(DirectX::XMFLOAT3);
+			CD3DX12_HEAP_PROPERTIES hp(D3D12_HEAP_TYPE_UPLOAD);
+			CD3DX12_RESOURCE_DESC rd = CD3DX12_RESOURCE_DESC::Buffer(bytes);
+			APP->GetDevice()->CreateCommittedResource(&hp, D3D12_HEAP_FLAG_NONE, &rd,
+				D3D12_RESOURCE_STATE_GENERIC_READ, nullptr, IID_PPV_ARGS(&s_zeroMorph));
+			void* p = nullptr; CD3DX12_RANGE rr(0, 0);
+			s_zeroMorph->Map(0, &rr, &p);
+			memset(p, 0, bytes);
+			s_zeroMorph->Unmap(0, nullptr);
+			s_zeroMorphVA = s_zeroMorph->GetGPUVirtualAddress();
+		}
+
 		world.Each<TransformComponent, MeshComponent, MaterialComponent>(
-			[&world, &renderContext](
+			[&world, &renderContext,filter](
 				Entity entity,
 				TransformComponent& transform,
 				MeshComponent& mesh,
@@ -80,57 +112,51 @@ public:
 					return;
 				}
 
+				// --- b4(root 5): ボーン行列パレット + morphActiveフラグ ---
 				if (renderContext.cbAllocator)
 				{
 					const UINT slot = renderContext.frameIndex % RTV_NUM;
-					BoneCB cb{};   // 既定で0埋め
-					if (world.HasComponent<AnimatorComponent>(entity))
-					{
-						auto& an = world.GetComponent<AnimatorComponent>(entity);
-						const size_t n = std::min<size_t>(an.palette.size(), MAX_BONES);
-						for (size_t i = 0; i < n; ++i) cb.boneMatrices[i] = an.palette[i];
-						for (size_t i = n; i < MAX_BONES; ++i) DirectX::XMStoreFloat4x4(&cb.boneMatrices[i], DirectX::XMMatrixIdentity());
-					}
+					BoneCB cb{};   // 全ゼロ初期化(morph=0含む)
 
+					bool anyMorph = false;
 					if (world.HasComponent<AnimatorComponent>(entity))
 					{
 						auto& an = world.GetComponent<AnimatorComponent>(entity);
 						const size_t n = std::min<size_t>(an.palette.size(), MAX_BONES);
 						for (size_t i = 0; i < n; ++i) cb.boneMatrices[i] = an.palette[i];
+						for (size_t i = n; i < MAX_BONES; ++i)
+							DirectX::XMStoreFloat4x4(&cb.boneMatrices[i], DirectX::XMMatrixIdentity());
+
+						for (float w : an.morphWeights)
+							if (fabsf(w) > 1e-6f) { anyMorph = true; break; }
 					}
+					else
+					{
+						// アニメ無し: 全ボーンidentity(スキンされても原点維持)
+						for (size_t i = 0; i < MAX_BONES; ++i)
+							DirectX::XMStoreFloat4x4(&cb.boneMatrices[i], DirectX::XMMatrixIdentity());
+					}
+					cb.morph = anyMorph ? 1.0f : 0.0f;
 
 					auto b4 = renderContext.cbAllocator->Allocate(slot, &cb, sizeof(BoneCB));
 					if (b4) renderContext.CommandList->SetGraphicsRootConstantBufferView(5, b4);
-				}
 
-				// --- b4: ボーン行列パレット（Animatorがあれば実姿勢、無ければ単位）---
-				if (renderContext.cbAllocator)
-				{
-					const UINT slot = renderContext.frameIndex % RTV_NUM;
-					const size_t vcount = mesh.mesh->GetVertexCount();
+					// --- t7(root 6): 頂点モーフ (アニメあり かつ モーフがアクティブな時だけ) ---
+					D3D12_GPU_VIRTUAL_ADDRESS morphVA = s_zeroMorphVA;   // 既定はゼロバッファ
 
-					static thread_local std::vector<DirectX::XMFLOAT3> zeroBuf;
-					const std::vector<DirectX::XMFLOAT3>* offsets = nullptr;
-
-					if (world.HasComponent<AnimatorComponent>(entity))
+					if (anyMorph && world.HasComponent<AnimatorComponent>(entity))
 					{
 						auto& an = world.GetComponent<AnimatorComponent>(entity);
-						if (an.morphDirty)
+						const size_t vcount = mesh.mesh->GetVertexCount();
+						if (an.morphDirty) { RebuildMorphOffsets(an.morphs, an.morphWeights, vcount, an.morphoffsets); an.morphDirty = false; }
+						if (an.morphoffsets.size() == vcount)
 						{
-							RebuildMorphOffsets(an.morphs, an.morphWeights, vcount, an.morphoffsets);
-							an.morphDirty = false;
+							auto va = renderContext.cbAllocator->Allocate(slot, an.morphoffsets.data(),
+								an.morphoffsets.size() * sizeof(DirectX::XMFLOAT3));
+							if (va) morphVA = va;   // モーフありなら実データで上書き
 						}
-						if (an.morphoffsets.size() == vcount) offsets = &an.morphoffsets;
 					}
-					if (!offsets)
-					{
-						if (zeroBuf.size() != vcount) zeroBuf.assign(vcount, DirectX::XMFLOAT3{ 0,0,0 });
-						offsets = &zeroBuf;
-					}
-
-					auto morphVA = renderContext.cbAllocator->Allocate(
-						slot, offsets->data(), offsets->size() * sizeof(DirectX::XMFLOAT3));
-					if (morphVA) renderContext.CommandList->SetGraphicsRootShaderResourceView(6, morphVA);
+					renderContext.CommandList->SetGraphicsRootShaderResourceView(6, morphVA);
 				}
 
 				const bool multi =
@@ -146,6 +172,10 @@ public:
 						if (mi >= material.materials.size()) mi = 0;
 						auto& mat = material.materials[mi];
 						if (!mat) continue;
+
+						const bool isTransparent = APP->IsShaderAlphaBlend(material.shaderName);
+						if (filter == DrawFilter::OPAQUEONLY && isTransparent)		 continue; // このエンティティskip
+						if (filter == DrawFilter::TRANSPARENTONLY && !isTransparent) continue;
 
 						mat->Apply(renderContext.CommandList, transform.world,
 							renderContext.view, renderContext.projection,
@@ -179,6 +209,10 @@ public:
 								if (mi >= material.materials.size()) mi = 0;
 								auto& mat = material.materials[mi];
 								if (!mat) continue;
+
+								const bool isTransparent = APP->IsShaderAlphaBlend(material.shaderName);
+								if (filter == DrawFilter::OPAQUEONLY && isTransparent)		 continue; // このエンティティskip
+								if (filter == DrawFilter::TRANSPARENTONLY && !isTransparent) continue;
 
 								mat->Apply(renderContext.CommandList, transform.world,
 									renderContext.view, renderContext.projection,
@@ -237,12 +271,45 @@ public:
 						light.range);
 
 					const auto rot = DirectX::XMQuaternionNormalize(DirectX::XMLoadFloat4(&tr.rotation));
-					const auto fwd = DirectX::XMVector3Rotate(
+					auto fwd = DirectX::XMVector3Rotate(
 						DirectX::XMVectorSet(0.0f, 0.0f, 1.0f, 0.0f), rot);
-					DirectX::XMStoreFloat4(&dst.dir, DirectX::XMVector3Normalize(fwd));
+					//DirectX::XMStoreFloat4(&dst.dir, DirectX::XMVector3Normalize(fwd));
+
+					if (light.swingEnable)
+					{
+						const float dt = TIME->GetTotalTime();
+						const float panRad = DirectX::XMConvertToRadians(light.swingAngle) * 
+							sinf(DirectX::XMConvertToRadians(light.swingSpeed) * dt);
+
+						if (light.type != LightComponent::LightType::Point)
+						{
+							if (light.swingAxis == LightComponent::SwingAxis::Tilt)
+							{
+								const auto right = DirectX::XMVector3Rotate(
+									DirectX::XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f), rot);
+								fwd = DirectX::XMVectorReciprocal(DirectX::XMVector3Rotate(fwd, DirectX::XMQuaternionRotationAxis(right, panRad)));
+							}
+							else
+							{
+								const auto up = DirectX::XMVector3Rotate(DirectX::XMVectorSet(0, 1, 0, 0), rot);
+								fwd = DirectX::XMVectorReciprocal(DirectX::XMVector3Rotate(fwd, DirectX::XMQuaternionRotationAxis(up, panRad)));
+
+								if (light.swingAxis == LightComponent::SwingAxis::PanTilt)
+								{
+									const auto right = DirectX::XMVector3Rotate(DirectX::XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f), rot);
+									const float tiltRad = DirectX::XMConvertToRadians(light.swingAngle * 0.5f) * 
+										sinf(DirectX::XMConvertToRadians(light.swingSpeed) * 0.7f * dt + 1.5f);
+									fwd = DirectX::XMVectorReciprocal(DirectX::XMVector3Rotate(fwd, DirectX::XMQuaternionRotationAxis(right,tiltRad)));
+								}
+							}
+						}
+					}
+
+					fwd = DirectX::XMVector3Normalize(fwd);
+					DirectX::XMStoreFloat4(&dst.dir, fwd);
 
 					// ギズモ表示用に書き戻す
-					DirectX::XMStoreFloat3(&light.direction, DirectX::XMVector3Normalize(fwd));
+					DirectX::XMStoreFloat3(&light.direction, fwd);
 				}
 				else
 				{
@@ -255,6 +322,8 @@ public:
 				// タイプとスポット角
 				dst.param.x = static_cast<float>(light.type);
 				dst.param.y = cosf(DirectX::XMConvertToRadians(light.spotAngle * 0.5f));
+				dst.param.z = light.beamWidth;
+				dst.param.w = light.volumetricIntensity;
 
 				// 環境光は最初のライトのものを採用
 				if (count == 0)
@@ -513,16 +582,81 @@ public:
 				return;
 			}
 
-			vector pos = XMLoadFloat3(&tr.position);
-			vector q = XMLoadFloat4(&tr.rotation);
+			DirectX::XMMATRIX w = DirectX::XMLoadFloat4x4(&tr.world);
+
+			// スケール除去
+			DirectX::XMVECTOR s, q, t;
+			if(!DirectX::XMMatrixDecompose(&s, &q, &t, w))
+			{
+				// 失敗時はローカル値へ
+				q = DirectX::XMVector4Normalize(DirectX::XMLoadFloat4(&tr.rotation));
+				t = DirectX::XMLoadFloat3(&tr.position);
+			}
+
 			vector forward = DirectX::XMVector3Rotate(DirectX::XMVectorSet(0, 0, 1, 0), q);
 			vector up = DirectX::XMVector3Rotate(DirectX::XMVectorSet(0, 1, 0, 0), q);
-			DirectX::XMStoreFloat4x4(&camera.view, DirectX::XMMatrixLookToLH(pos, forward, up));
+			DirectX::XMStoreFloat4x4(&camera.view, DirectX::XMMatrixLookToLH(t, forward, up));
 
 			matrix p = (camera.projection == CameraComponent::Projection::Perspective)
 				? DirectX::XMMatrixPerspectiveFovLH(DirectX::XMConvertToRadians(camera.fovY), aspect, camera.nearZ, camera.farZ)
 				: DirectX::XMMatrixOrthographicLH(camera.orhoSize * aspect, camera.orhoSize, camera.nearZ, camera.farZ);
 			DirectX::XMStoreFloat4x4(&camera.proj, p);
+			});
+	}
+};
+
+class CameraAnimationSystem
+{
+public:
+	void Update(World& world, float deltatime, bool isPlaying)
+	{
+		world.Each<TransformComponent, CameraComponent, CameraAnimationComponent>(
+			[&](Entity, TransformComponent& tr, CameraComponent& cam, CameraAnimationComponent& anim)
+			{
+				if (!anim.loaded && !anim.vmdPath.empty())
+				{
+					anim.clip = ModelLoader::LoadVMDCameraClip(anim.vmdPath);
+					anim.loaded = true;
+				}
+				if (!anim.playing || !isPlaying || anim.clip.keys.empty()) return;
+
+				anim.time += deltatime;
+				if (anim.time > anim.clip.duration)
+					anim.time = anim.loop ? std::fmod(anim.time, anim.clip.duration) : anim.clip.duration;
+
+				// 前後キーを検索して線形補間
+				const auto& keys = anim.clip.keys;
+				auto it = std::lower_bound(keys.begin(), keys.end(), anim.time,
+					[](const CameraKeyFrame& k, float t) { return k.time < t; });
+				CameraKeyFrame k;
+				if (it == keys.begin())      k = keys.front();
+				else if (it == keys.end())   k = keys.back();
+				else
+				{
+					const auto& k1 = *it; const auto& k0 = *(it - 1);
+					// MMDのカット切替(同フレーム or 1フレーム差)は補間しない
+					const float span = k1.time - k0.time;
+					float t = (span <= 1.0f / 30.0f + 1e-4f) ? 0.0f
+						: (anim.time - k0.time) / span;
+					k.distance = std::lerp(k0.distance, k1.distance, t);
+					k.target = { std::lerp(k0.target.x, k1.target.x, t),
+								   std::lerp(k0.target.y, k1.target.y, t),
+								   std::lerp(k0.target.z, k1.target.z, t) };
+					k.rotation = { std::lerp(k0.rotation.x, k1.rotation.x, t),
+								   std::lerp(k0.rotation.y, k1.rotation.y, t),
+								   std::lerp(k0.rotation.z, k1.rotation.z, t) };
+					k.fovY = std::lerp(k0.fovY, k1.fovY, t);
+				}
+
+				using namespace DirectX;
+				XMVECTOR q = XMQuaternionRotationRollPitchYaw(-k.rotation.x, k.rotation.y, k.rotation.z);
+				XMVECTOR fwd = XMVector3Rotate(XMVectorSet(0, 0, 1, 0), q);
+				XMVECTOR eye = XMVectorAdd(XMLoadFloat3((XMFLOAT3*)&k.target),
+					XMVectorScale(fwd, k.distance));
+
+				XMStoreFloat3((XMFLOAT3*)&tr.position, eye);
+				XMStoreFloat4((XMFLOAT4*)&tr.rotation, q);   // Transformの回転がクォータニオンの場合
+				cam.fovY = k.fovY;
 			});
 	}
 };
@@ -667,20 +801,21 @@ class AudioSystem
 public:
 	void Update(World& world, bool isPlaying)
 	{
-		static int f = 0;
-		if ((f++ % 60) == 0)
-		{
-			int srcCount = 0, listenerCount = 0;
-			world.Each<AudioSourceComponent>([&](Entity, AudioSourceComponent&) { srcCount++; });
-			world.Each<AudioListenerComponent>([&](Entity, AudioListenerComponent&) { listenerCount++; });
+		//static int f = 0;
+		//if ((f++ % 60) == 0)
+		//{
+		//	int srcCount = 0, listenerCount = 0;
+		//	world.Each<AudioSourceComponent>([&](Entity, AudioSourceComponent&) { srcCount++; });
+		//	world.Each<AudioListenerComponent>([&](Entity, AudioListenerComponent&) { listenerCount++; });
 
-			char b[256];
-			sprintf_s(b, "[Audio] Update playing=%d sources=%d listeners=%d\n",
-				(int)isPlaying, srcCount, listenerCount);
-			OutputDebugStringA(b);
-		}
+		//	char b[256];
+		//	sprintf_s(b, "[Audio] Update playing=%d sources=%d listeners=%d\n",
+		//		(int)isPlaying, srcCount, listenerCount);
+		//	OutputDebugStringA(b);
+		//}
 
 		const bool justStarted = (isPlaying && !m_PrevPlaying);
+		const bool justStopped = (!isPlaying && m_PrevPlaying);
 		m_PrevPlaying = isPlaying;
 
 		// ---- リスナー（耳）を1つ探す ---- //
@@ -718,6 +853,7 @@ public:
 
 				// ---- playOnStart / 再生・停止（前回と同じ） ---- //
 				if (justStarted && src.playOnStart) src.playRequested = true;
+				if (justStopped) src.stopRequested = true;
 
 				if (src.playRequested)
 				{
@@ -857,13 +993,33 @@ class AnimatorSystem
 public:
 	void Update(World& world, float dt)
 	{
-		int n = 0;
-		world.Each<AnimatorComponent>([&](Entity, AnimatorComponent&) { ++n; });
-		//static int c = 0;
-		//if ((c++ % 60) == 0)
-		//	LOG->LogInfo("AnimatorSystem: animators=" + std::to_string(n) + " dt=" + std::to_string(dt));
 		world.Each<AnimatorComponent>([&](Entity e, AnimatorComponent& an)
 			{
+				using clk = std::chrono::high_resolution_clock;
+				auto t0 = clk::now();
+
+				// 保存されたVMDパスからクリップを復元(スケルトン準備後に1回だけ)
+				if (!an.clipsRestored && !an.clipPathsStr.empty() &&
+					!an.skeleton.nodes.empty())
+				{
+					an.clipsRestored = true;
+					std::stringstream ss(an.clipPathsStr);
+					std::string path;
+					while (std::getline(ss, path, '|'))
+					{
+						if (path.empty()) continue;
+						AsyncLoader::Get().LoadVMDAsync(path, an.skeleton,
+							[&world, e](AnimationClip vc)
+							{
+								if (vc.channels.empty()) return;
+								if (!world.IsEntityAlive(e) ||
+									!world.HasComponent<AnimatorComponent>(e)) return;
+								auto& a = world.GetComponent<AnimatorComponent>(e);
+								a.clips.push_back(std::move(vc));
+							});
+					}
+				}
+
 				if (an.clips.empty()) return;
 				if (an.currentClip < 0 || an.currentClip >= (int)an.clips.size()) return;
 				const AnimationClip& clip = an.clips[an.currentClip];
@@ -874,6 +1030,163 @@ public:
 					phys = world.GetComponent<MmdPhysicsComponent>(e).impl.get();
 
 				ComputePalette(an.skeleton, an.skinData, clip, an.time, an.palette, phys, dt);
+
+				auto t1 = clk::now();
+				static int c = 0;
+				if ((c++ % 60) == 0) {
+					double ms = std::chrono::duration<double, std::milli>(t1 - t0).count();
+					LOG->LogInfo("Anim+Physics: " + std::to_string(ms) + " ms");
+				}
+			});
+	}
+};
+
+class ParticleSystem
+{
+public:
+	void Update(World& world, float dt)
+	{
+		world.Each<TransformComponent, ParticleEmitterComponent>(
+			[&](Entity e, TransformComponent& tr, ParticleEmitterComponent& pe)
+			{
+				float coneLen = 3.0f, coneRad = 0.3f;
+				float3 origin = tr.position;
+				DirectX::XMVECTOR dirV = DirectX::XMVector3Rotate(
+					DirectX::XMVectorSet(0, 0, 1, 0),
+					DirectX::XMQuaternionNormalize(DirectX::XMLoadFloat4(&tr.rotation)));
+
+				if (pe.followLight && world.HasComponent<LightComponent>(e))
+				{
+					const auto& light = world.GetComponent<LightComponent>(e);
+					coneLen = light.range;
+					if (light.type == LightComponent::LightType::Laser)
+						coneRad = light.beamWidth;
+					else
+						coneRad = tanf(DirectX::XMConvertToRadians(light.spotAngle * 0.5f)) * coneLen;
+
+					dirV = DirectX::XMVector3Normalize(DirectX::XMLoadFloat3(&light.direction));
+				}
+
+				float3 dir;
+				DirectX::XMStoreFloat3(&dir, dirV);
+
+				// --- 既存パーティクルの更新 ---
+				for (auto& p : pe.particles)
+				{
+					p.age += dt;
+					p.pos = p.pos + p.velocity * dt + pe.gravity * dt;
+				}
+				// 寿命切れを削除（swap-and-pop、再アロケーションなし）
+				pe.particles.erase(
+					std::remove_if(pe.particles.begin(), pe.particles.end(),
+						[](const ParticleEmitterComponent::Particle& p) { return p.age >= p.life; }),
+					pe.particles.end());
+
+				// --- 新規発生 ---
+				if (pe.emitting && pe.emitRate > 0.0f)
+				{
+					pe.spawnAccumulator += dt * pe.emitRate;
+					while (pe.spawnAccumulator >= 1.0f &&
+						static_cast<int>(pe.particles.size()) < pe.maxParticles)
+					{
+						pe.spawnAccumulator -= 1.0f;
+						SpawnInCone(pe, origin, dir, coneLen, coneRad);
+					}
+				}
+			});
+	}
+
+private:
+	void SpawnInCone(ParticleEmitterComponent& pe, const float3& origin,
+		const float3& dir, float len, float radius)
+	{
+		auto rnd = []() { return (float)rand() / RAND_MAX; };
+
+		const float t = rnd();        
+		const float rimR = radius * t;
+		const float ang = rnd() * DirectX::XM_2PI;
+		const float rr = sqrtf(rnd()) * rimR;
+
+		DirectX::XMVECTOR dV = DirectX::XMLoadFloat3(&dir);
+		float3 up = (fabsf(dir.y) > 0.99f) ? float3{ 1,0,0 } : float3{ 0,1,0 };
+		DirectX::XMVECTOR rV = DirectX::XMVector3Normalize(
+			DirectX::XMVector3Cross(dV, DirectX::XMLoadFloat3(&up)));
+		DirectX::XMVECTOR uV = DirectX::XMVector3Normalize(DirectX::XMVector3Cross(dV, rV));
+
+		float3 r_, u_;
+		DirectX::XMStoreFloat3(&r_, rV);
+		DirectX::XMStoreFloat3(&u_, uV);
+
+		ParticleEmitterComponent::Particle np{};
+		np.pos = origin
+			+ float3{ dir.x * len * t, dir.y * len * t, dir.z * len * t }
+		+ r_ * (cosf(ang) * rr) + u_ * (sinf(ang) * rr);
+
+		const float spd = pe.speed + (rnd() * 2.0f - 1.0f) * pe.speedVariance;
+
+		np.velocity = float3{ dir.x * spd, dir.y * spd, dir.z * spd }
+			+ r_ * ((rnd() * 2.0f - 1.0f) * pe.drift)
+			+ u_ * ((rnd() * 2.0f - 1.0f) * pe.drift);
+
+		np.life = pe.lifeTime + (rnd() * 2.0f - 1.0f) * pe.lifeTimeVariance;
+		np.age = 0.0f;
+
+		pe.particles.push_back(np);
+	}
+};
+
+class MusicSyncSystem
+{
+public:
+	void Update(World& world, bool isPlaying)
+	{
+		if (!isPlaying) return;
+
+		world.Each<AudioSourceComponent, MusicSyncComponent>(
+			[&](Entity, AudioSourceComponent& src, MusicSyncComponent& sync)
+			{
+				if (!src.voice || !src.clip)
+				{
+					sync.started = false;
+					return;
+				}
+
+				XAUDIO2_VOICE_STATE st{};
+				src.voice->GetState(&st);
+
+				// 再生開始の瞬間のSamplesPlayedを基準として記録
+				// (voiceは過去の再生分もカウントし続けるため)
+				if (!sync.started)
+				{
+					if (st.BuffersQueued == 0) return;  // まだ再生が始まっていない
+					sync.startSamples = st.SamplesPlayed;
+					sync.started = true;
+				}
+				if (st.BuffersQueued == 0) return;      // 再生終了
+
+				const float rate = (float)src.clip->format.nSamplesPerSec;
+				const float musicTime =
+					(float)(st.SamplesPlayed - sync.startSamples) / rate + sync.offset;
+
+				sync.musicTime = musicTime;
+
+				// 曲位置を正として時刻を上書き
+				if (sync.syncAnimators)
+				{
+					world.Each<AnimatorComponent>(
+						[&](Entity, AnimatorComponent& an)
+						{
+							if (an.playing) an.time = musicTime;
+						});
+				}
+				if (sync.syncCamera)
+				{
+					world.Each<CameraAnimationComponent>(
+						[&](Entity, CameraAnimationComponent& ca)
+						{
+							if (ca.playing) ca.time = musicTime;
+						});
+				}
 			});
 	}
 };

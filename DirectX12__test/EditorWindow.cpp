@@ -15,8 +15,21 @@
 #include "PlayState.hpp"
 #include <shellapi.h>
 #include "Util.hpp"
+#include "BuildSystem.hpp"
+#include <ShObjIdl.h>
 
 #pragma comment(lib, "psapi.lib")
+
+// ワイド文字列 → UTF-8(フォルダ選択ダイアログの結果用)
+static std::string WideToUTF8(const wchar_t* w)
+{
+	if (!w) return {};
+	int len = WideCharToMultiByte(CP_UTF8, 0, w, -1, nullptr, 0, nullptr, nullptr);
+	if (len <= 1) return {};
+	std::string result(len - 1, '\0');   // len は終端NUL込み
+	WideCharToMultiByte(CP_UTF8, 0, w, -1, result.data(), len, nullptr, nullptr);
+	return result;
+}
 
 static Entity GetParent(World& world, Entity e)
 {
@@ -74,17 +87,21 @@ static bool IsAncestor(World& world, Entity maybeAncestor, Entity child)
 	return false;
 }
 
-EditorWindow::EditorWindow(DirectXApp& app)
+EditorWindow::EditorWindow(DirectXApp& app, SceneManager& sceneManager)
 	: m_App(app)
 {
 	// ファイルパスの初期値を設定
-	std::snprintf(m_SceneNameInput.data(), m_SceneNameInput.size(), "Assets/Scenes/SampleScene.json");
-	std::snprintf(m_SceneRegisterName.data(), m_SceneRegisterName.size(), "SampleScene");
-	std::snprintf(m_SceneRegisterPath.data(), m_SceneRegisterName.size(), "Assets/Scenes/SampleScene.json");
+	if (Scene* s = sceneManager.GetActiveScene())
+	{
+		std::snprintf(m_SceneRegisterName.data(), m_SceneRegisterName.size(),
+			"%s", s->GetSceneName().c_str());
+		std::snprintf(m_SceneRegisterPath.data(), m_SceneRegisterPath.size(),
+			"%s", s->GetSceneName().c_str());   // Sceneがパスを持っていなければ追加
+	}
 
 	// ゲーム画面用のレンダーテクスチャ初期化
 	m_GameRenderTexture = std::make_unique<RenderTexture>();
-	if (FAILED(m_GameRenderTexture->Init(m_App, 1280, 720)))
+	if (FAILED(m_GameRenderTexture->Init(1280, 720)))
 	{
 		m_GameRenderTexture = nullptr;
 		m_GameTextureHandleValid = false;
@@ -96,7 +113,7 @@ EditorWindow::EditorWindow(DirectXApp& app)
 
 	// エディタ用のレンダーテクスチャ初期化
 	m_EditorRenderTexture = std::make_unique<RenderTexture>();
-	if (FAILED(m_EditorRenderTexture->Init(m_App, 1280, 720)))
+	if (FAILED(m_EditorRenderTexture->Init(1280, 720)))
 	{
 		m_EditorRenderTexture = nullptr;
 		m_EditorTextureHandleValid = false;
@@ -109,6 +126,34 @@ EditorWindow::EditorWindow(DirectXApp& app)
 
 void EditorWindow::Draw(SceneManager& sceneManager)
 {
+	BuildSystem::Update();
+	// ビルド中は右下に進捗オーバーレイを表示
+	if (BuildSystem::IsBuilding() || (BuildSystem::GetProgress() >= 1.0f && m_BuildOverlayTimer > 0.0f))
+	{
+		if (BuildSystem::IsBuilding()) m_BuildOverlayTimer = 2.0f;      // 完了後2秒だけ残す
+		else                           m_BuildOverlayTimer -= ImGui::GetIO().DeltaTime;
+
+		ImGuiViewport* vp = ImGui::GetMainViewport();
+		ImGui::SetNextWindowPos(
+			ImVec2(vp->WorkPos.x + vp->WorkSize.x - 10.0f,
+				vp->WorkPos.y + vp->WorkSize.y - 10.0f),
+			ImGuiCond_Always, ImVec2(1.0f, 1.0f));   // 右下基準
+		ImGui::SetNextWindowBgAlpha(0.85f);
+		ImGui::Begin(u8("ビルド進捗"), nullptr,
+			ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize |
+			ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing |
+			ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoDocking);
+
+		float p = BuildSystem::GetProgress();
+		// MSBuild 区間(進捗が動かない)はバーを流れるアニメーションにする
+		if (BuildSystem::IsBuilding() && p <= 0.05f)
+			ImGui::ProgressBar(-1.0f * (float)ImGui::GetTime(), ImVec2(260, 0), u8("MSBuild..."));
+		else
+			ImGui::ProgressBar(p, ImVec2(260, 0));
+
+		ImGui::TextUnformatted(BuildSystem::GetStage().c_str());
+		ImGui::End();
+	}
 	ImGuizmo::BeginFrame();
 
 	// アクティブなシーンを取得
@@ -123,7 +168,8 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 			{
 				if (activeScene)
 				{
-					SceneSerializer::Save(*activeScene, m_SceneRegisterPath.data());
+					SceneSerializer::Save(*activeScene,
+					SceneManager::ScenePathFromName(activeScene->GetSceneName()));
 				}
 			}
 			ImGui::EndMenu();
@@ -140,6 +186,80 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 			ImGui::Checkbox(u8("スタイル設定を表示"), &m_ShowStyleSetting);
 			ImGui::EndMenu();
 		}
+
+		if (ImGui::BeginMenu(u8("ビルド")))
+		{
+			ImGui::InputText(u8("出力先"), m_BuildOutputDir.data(), m_BuildOutputDir.size());
+			ImGui::SameLine();
+			if (ImGui::Button(u8("参照...###BuildOutputDir")))
+			{
+				ComPtr<IFileOpenDialog> dialog;
+				if (SUCCEEDED(CoCreateInstance(CLSID_FileOpenDialog, nullptr,
+					CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&dialog))))
+				{
+					DWORD opts = 0;
+					dialog->GetOptions(&opts);
+					dialog->SetOptions(opts | FOS_PICKFOLDERS);
+					if (SUCCEEDED(dialog->Show(nullptr)))
+					{
+						ComPtr<IShellItem> item;
+						PWSTR pathW = nullptr;
+						if (SUCCEEDED(dialog->GetResult(&item)) &&
+							SUCCEEDED(item->GetDisplayName(SIGDN_FILESYSPATH, &pathW)))
+						{
+							std::string utf8 = WideToUTF8(pathW);
+							std::snprintf(m_BuildOutputDir.data(), m_BuildOutputDir.size(), "%s", utf8.c_str());
+							CoTaskMemFree(pathW);
+						}
+					}
+				}
+			}
+			static int configIndex = 0;
+			ImGui::Combo(u8("構成"), &configIndex, "Release\0Debug\0");
+			ImGui::InputText(u8("ゲーム名"), m_BuildGameName.data(), m_BuildGameName.size());
+			ImGui::InputText(u8("開始シーン"), m_BuildStartScene.data(), m_BuildStartScene.size());
+			ImGui::SameLine();
+			if(ImGui::Button(u8("参照...###BuildStartScene")))
+			{
+				ComPtr<IFileOpenDialog> dialog;
+				if (SUCCEEDED(CoCreateInstance(CLSID_FileOpenDialog, nullptr,
+					CLSCTX_INPROC_SERVER, IID_PPV_ARGS(&dialog))))
+				{
+					DWORD opts = 0;
+					dialog->GetOptions(&opts);
+					dialog->SetOptions(opts | FOS_FILEMUSTEXIST);
+					if (SUCCEEDED(dialog->Show(nullptr)))
+					{
+						ComPtr<IShellItem> item;
+						PWSTR pathW = nullptr;
+						if (SUCCEEDED(dialog->GetResult(&item)) &&
+							SUCCEEDED(item->GetDisplayName(SIGDN_FILESYSPATH, &pathW)))
+						{
+							std::string utf8 = WideToUTF8(pathW);
+							std::snprintf(m_BuildStartScene.data(), m_BuildStartScene.size(), "%s", utf8.c_str());
+							CoTaskMemFree(pathW);
+						}
+					}
+				}
+			}
+
+			ImGui::BeginDisabled(BuildSystem::IsBuilding());
+			if (ImGui::MenuItem(u8("ゲームをビルド")))
+			{
+				BuildSetting s;
+				s.outputDir = m_BuildOutputDir.data();
+				s.gameName = m_BuildGameName.data();
+				s.startScene = m_BuildStartScene.data();
+				s.configuration = (configIndex == 0) ? "Release" : "Debug";
+				BuildSystem::Build(s);
+			}
+			ImGui::EndDisabled();
+
+			if (BuildSystem::IsBuilding())
+				ImGui::TextUnformatted(u8("ビルド中..."));
+			ImGui::EndMenu();
+		}
+
 		ImGui::EndMainMenuBar();
 	}
 
@@ -185,9 +305,9 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 		ImGui::DockBuilderSetNodeSize(dockspaceID, viewport->WorkSize);
 
 		ImGuiID dockMainID = dockspaceID;
-		ImGuiID dockLeftID = ImGui::DockBuilderSplitNode(dockMainID, ImGuiDir_Left, 0.15f, nullptr, &dockMainID);
-		ImGuiID dockRightID = ImGui::DockBuilderSplitNode(dockMainID, ImGuiDir_Right, 0.18f, nullptr, &dockMainID);
-		ImGuiID dockBottomID = ImGui::DockBuilderSplitNode(dockMainID, ImGuiDir_Down, 0.30f, nullptr, &dockMainID);
+		ImGuiID dockLeftID = ImGui::DockBuilderSplitNode(dockMainID, ImGuiDir_Left, 0.12f, nullptr, &dockMainID);
+		ImGuiID dockRightID = ImGui::DockBuilderSplitNode(dockMainID, ImGuiDir_Right, 0.15f, nullptr, &dockMainID);
+		ImGuiID dockBottomID = ImGui::DockBuilderSplitNode(dockMainID, ImGuiDir_Down, 0.20f, nullptr, &dockMainID);
 
 		ImGui::DockBuilderDockWindow(u8("アウトライナー"), dockLeftID);
 		ImGui::DockBuilderDockWindow(u8("ゲーム画面"), dockMainID);
@@ -225,17 +345,16 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 		if (ImGui::IsWindowHovered())
 			INPUT->SetViewportHovered(true);
 
-		// --------------------------------------------------------------------//
-		//	ビューポートのサイズが変更された場合、レンダーテクスチャもリサイズ //
-		// --------------------------------------------------------------------//
+		// -------------------------------------------------------------------- //
+		//	ビューポートのサイズが変更された場合、レンダーテクスチャもリサイズ  //
+		// -------------------------------------------------------------------- //
 		const UINT newWidth = static_cast<UINT>(availableSize.x);
 		const UINT newHeight = static_cast<UINT>(availableSize.y);
 		if (m_GameRenderTexture && newWidth > 0 && newHeight > 0 &&
-			newWidth != m_GameRenderTexture->GetWidth() || newHeight != m_GameRenderTexture->GetHeight())
+			(newWidth != m_GameRenderTexture->GetWidth() || newHeight != m_GameRenderTexture->GetHeight()))
 		{
-			// 古いレンダーテクスチャを解放
-			m_App.WaitForGPUIdle();	// GPUが待機状態になるのを待つ
-			m_GameRenderTexture->Init(m_App, newWidth, newHeight);
+			m_App.WaitForGPUIdle();
+			m_GameRenderTexture->Init(newWidth, newHeight);
 		}
 
 		m_ViewportPos = ImGui::GetCursorScreenPos();
@@ -334,19 +453,44 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 							ImGuizmo::LOCAL,
 							&world._11))
 						{
-							// 行列を位置、回転、サイズに分解
-							float t[3], r[3], s[3];
-							ImGuizmo::DecomposeMatrixToComponents(&world._11, t, r, s);
+							DirectX::XMMATRIX newLocal = DirectX::XMLoadFloat4x4(&world);
 
-							tr.position = float3(t[0], t[1], t[2]);
-							const auto q = DirectX::XMQuaternionRotationRollPitchYaw(
-								DirectX::XMConvertToRadians(r[0]),
-								DirectX::XMConvertToRadians(r[1]),
-								DirectX::XMConvertToRadians(r[2]));
-							DirectX::XMStoreFloat4(&tr.rotation, q);
-							tr.scale = float3(s[0], s[1], s[2]);
-							tr.ApplyEuler(); // Euler角を更新
-							tr.RebuildWorld(); // ワールド行列を更新
+							// 親がいる場合は親空間へ戻す
+							if (tr.parent != INVALID_ENTITY && tr.parent != m_SelectedEntity &&
+								gw.HasComponent<TransformComponent>(tr.parent))
+							{
+								const auto& pt = gw.GetComponent<TransformComponent>(tr.parent);
+								DirectX::XMVECTOR det;
+								DirectX::XMMATRIX inv = DirectX::XMMatrixInverse(&det, DirectX::XMLoadFloat4x4(&pt.world));
+								if (!DirectX::XMVectorGetX(DirectX::XMVectorEqual(det, DirectX::XMVectorZero())))
+								{
+									newLocal = newLocal * inv;
+								}
+							}
+
+							vector s, q, t;
+							if (DirectX::XMMatrixDecompose(&s, &q, &t, newLocal))
+							{
+								DirectX::XMStoreFloat3(&tr.position,t);
+								DirectX::XMStoreFloat4(&tr.rotation,q);
+								DirectX::XMStoreFloat3(&tr.scale,s);
+								tr.SyncEulerFromQuaternion();
+								tr.RebuildWorld();
+							}
+
+							//// 行列を位置、回転、サイズに分解
+							//float t[3], r[3], s[3];
+							//ImGuizmo::DecomposeMatrixToComponents(&world._11, t, r, s);
+
+							//tr.position = float3(t[0], t[1], t[2]);
+							//const auto q = DirectX::XMQuaternionRotationRollPitchYaw(
+							//	DirectX::XMConvertToRadians(r[0]),
+							//	DirectX::XMConvertToRadians(r[1]),
+							//	DirectX::XMConvertToRadians(r[2]));
+							//DirectX::XMStoreFloat4(&tr.rotation, q);
+							//tr.scale = float3(s[0], s[1], s[2]);
+							//tr.ApplyEuler(); // Euler角を更新
+							//tr.RebuildWorld(); // ワールド行列を更新
 						}
 					}
 				}
@@ -439,6 +583,8 @@ void EditorWindow::ReleaseRenderTextures()
 void EditorWindow::DrawSceneInfo(Scene& scene)
 {
 	ImGui::Text(u8("シーン: %s"), scene.GetSceneName().c_str());
+	ImGui::Separator();
+	ImGui::Checkbox("Deferred Rendering", &RenderSettings::Get().deferred);
 	ImGui::Separator();
 }
 
@@ -766,36 +912,58 @@ void EditorWindow::DrawScenePanel(SceneManager& sceneManager)
 
 	if (ImGui::InputText(u8("シーン名##SceneName"), m_SceneRegisterName.data(), m_SceneRegisterName.size()))
 	{
-		sceneManager.GetActiveScene()->SetSceneName(m_SceneRegisterName.data());
+
 	}
-	ImGui::InputText(u8("シーンパス##ScenePath"), m_SceneRegisterPath.data(), m_SceneRegisterPath.size());
 
 	if (ImGui::Button(u8("登録##RegisterScene")))
 	{
 		std::string name = m_SceneRegisterName.data();
-		std::string path = m_SceneRegisterPath.data();
-
 		if (!name.empty())
 		{
-			auto scene = std::make_unique<RuntimeScene>(path, m_App.GetDevice(), m_App.GetLinePso());
-			sceneManager.RegisterScene(name, std::move(scene));
+			sceneManager.RegisterScene(name);   // パスは規約から自動
 		}
 	}
-
 	ImGui::SameLine();
 	if (ImGui::Button(u8("ロード##LoadScene")))
 	{
 		std::string name = m_SceneRegisterName.data();
 		if (!name.empty())
 		{
+			sceneManager.RegisterScene(name);   // 未登録なら登録してから
 			sceneManager.LoadScene(name);
 		}
 	}
-
 	ImGui::SameLine();
 	if (ImGui::Button(u8("保存##SaveScene")))
 	{
-		SceneSerializer::Save(*activeScene, m_SceneRegisterPath.data());
+		if (activeScene)
+		{
+			SceneSerializer::Save(*activeScene,
+				SceneManager::ScenePathFromName(activeScene->GetSceneName()));
+		}
+	}
+
+	ImGui::Separator();
+	if (activeScene)
+	{
+		ImGui::Text(u8("スカイボックス: %s"), activeScene->GetSkyboxPath().c_str());
+		ImGui::SameLine();
+		if (ImGui::Button(u8("参照...##PickSkybox")))
+		{
+			std::wstring picked;
+			if (OpenFileDialog(picked, L"HDR/Sky Texture\0*.hdr;*.dds;*.png;*.jpg\0All\0*.*\0"))
+			{
+				std::string p = WideToUtf8(picked);
+				const size_t pos = p.find("Assets\\");
+				if (pos != std::string::npos)
+				{
+					p = p.substr(pos);
+					for (auto& c : p) if (c == '\\') c = '/';   // JSONでの見た目統一
+				}
+				if (auto* rs = dynamic_cast<RuntimeScene*>(activeScene))
+					rs->SetSkybox(p);
+			}
+		}
 	}
 
 	ImGui::Separator();
@@ -1053,96 +1221,7 @@ void EditorWindow::SpawnModelFromFile(World& world, const std::string& modelpath
 	world.AddComponent<TransformComponent>(e, tr);
 	world.AddComponent<NameComponent>(e, NameComponent{ "Model_" + std::to_string(e) });
 
-	// 非同期ロード（SceneManager経由でAsyncLoaderを取得）
-	AsyncLoader::Get().LoadModelAsync(modelpath, 1.0f,
-		[&world, e,modelpath,scene](ModelLoadResult result)
-		{
-			LOG->LogInfo("callback: mesh=" + std::to_string(result.mesh != nullptr)
-				+ " clips=" + std::to_string(result.clips.size())
-				+ " bones=" + std::to_string(result.skinData.boneNames.size()));
-
-			if (!world.IsEntityAlive(e) || !result.mesh) return;
-
-			if (world.HasComponent<TransformComponent>(e))
-			{
-				auto& tr = world.GetComponent<TransformComponent>(e);
-
-				// fbxの場合は0.01 pmxは0.1
-				if(modelpath.ends_with(".fbx"))
-					tr.scale = float3(0.01f, 0.01f, 0.01f);
-				else if(modelpath.ends_with(".pmx"))
-					tr.scale = float3(0.1f, 0.1f, 0.1f);
-
-				tr.RebuildWorld();
-			}
-
-			world.AddComponent<MeshComponent>(e, MeshComponent{ result.mesh });
-
-			MaterialComponent mc{};
-
-			// --------------------------------	//
-			//		アニメーション読み込み		//
-			// --------------------------------	//
-			if (!result.clips.empty() || !result.skinData.boneNames.empty())
-			{
-				AnimatorComponent an;
-				an.skeleton = result.skeleton;
-				an.skinData = result.skinData;
-				an.clips = result.clips;
-				an.morphs = result.morphs;
-				an.morphWeights.assign(result.morphs.morphs.size(), 0.0f);
-			
-				auto physComp = MmdPhysicsComponent{};
-				physComp.impl = std::make_shared<MmdPhysics>();
-
-				// PhysXが未初期化ならここで初期化してからMMD物理を構築
-				auto& physicsWorld = scene->EnsurePhysicsWorld();
-				if (physicsWorld.GetPhysics() == nullptr)
-				{
-					physicsWorld.Init();
-				}
-
-				if (physicsWorld.GetPhysics())
-				{
-					physComp.impl->Init(physicsWorld.GetPhysics(), result.physics, an.skeleton);
-					world.AddComponent<MmdPhysicsComponent>(e, physComp);
-				}
-
-				namespace fs = std::filesystem;
-				fs::path base = fs::path(modelpath);
-				std::string stem = base.stem().string();   // "Akai"
-				for (auto& entry : fs::directory_iterator(base.parent_path()))
-				{
-					std::string fn = entry.path().stem().string();
-					if (entry.path().extension() == ".fbx" && fn != stem &&
-						fn.rfind(stem + "_", 0) == 0)   // "Akai_..." で始まる
-					{
-						auto extra = ModelLoader::LoadAnimationsOnly(entry.path().string());
-						for (auto& c : extra) an.clips.push_back(std::move(c));
-					}
-				}
-				for (auto& entry : fs::directory_iterator(base.parent_path()))
-				{
-					if (entry.path().extension() == ".vmd")
-					{
-						AnimationClip vc = ModelLoader::LoadVMDClip(entry.path().string(), an.skeleton);
-						if (!vc.channels.empty()) an.clips.push_back(std::move(vc));
-					}
-				}
-
-				world.AddComponent<AnimatorComponent>(e, an);
-				mc.shaderName = "SkinnedToon";
-			}
-			mc.materials = BuildMaterials(result, "PBR");
-
-			for (int i = 0; i < mc.materials.size(); ++i)
-			{
-				mc.materialnames.push_back(result.materials[i].name);
-			}
-
-			if (!mc.materials.empty()) mc.material = mc.materials[0];
-			world.AddComponent<MaterialComponent>(e, mc);
-		});
+	ModelLoader::PopulateModelEntity(world, e, modelpath, scene);
 	m_SelectedEntity = e;
 }
 
@@ -1201,10 +1280,6 @@ void EditorWindow::CreateScriptFile(const std::string& die, const std::string& n
 
 void EditorWindow::OpenInEditor(const std::string& path)
 {
-	//std::wstring wpath = std::filesystem::path(path).wstring();
-	//std::wstring args = L"\"" + wpath + L"\"";
-	//ShellExecuteW(NULL, L"open", L"devenv.exe", args.c_str(), nullptr, SW_SHOWNORMAL);
-
 	namespace fs = std::filesystem;
 
 	// exeからソリューションを逆算して .slnを探索

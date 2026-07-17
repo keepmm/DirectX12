@@ -2,8 +2,7 @@
 
 #include "Defines.hpp"
 #include <d3d12.h>
-
-constexpr UINT MAX_LIGHTS = 10;
+#include "ShaderTypes.hpp"
 
 struct ShaderPassDef
 {
@@ -15,30 +14,6 @@ struct ShaderPassDef
 	std::string psProfile = "ps_5_0";
 	bool alphaBlend = false;
 	D3D12_CULL_MODE cullMode = D3D12_CULL_MODE_BACK;
-};
-
-struct LightData
-{
-	float4 dir{ 0.0f, -1.0f, 0.0f, 0.0f };		// xyz: 方向（正規化済み）
-	float4 color{ 1.0f, 1.0f, 1.0f, 1.0f };	// rgb: 色 × 強度
-	float4 posRange{ 0.0f, 0.0f, 0.0f, 10.0f };	// xyz: 位置, w: 範囲
-	float4 param{ 0.0f, 0.0f, 0.0f, 0.0f };	// x: タイプ, y: cos(スポット半角)
-};
-
-struct alignas(256) LightCB
-{
-	float4 ambientColor{ 0.1f, 0.1f, 0.1f, 1.0f };
-	float4 lightCount{ 0.0f, 0.0f, 0.0f, 0.0f };	// x: 有効ライト数
-	float4x4 lightviewproj{};
-	float4 shadowParams{ 0.002f, 0.0f, 2048.0f, 0.0f };
-	LightData lights[MAX_LIGHTS];
-};
-
-constexpr UINT MAX_BONES = 512;
-
-struct alignas(256) BoneCB
-{
-	float4x4 boneMatrices[MAX_BONES];
 };
 
 enum class E_VERTEX_SHADER
@@ -62,6 +37,7 @@ struct RenderSettings
 	E_PIXEL_SHADER pixelShader = E_PIXEL_SHADER::BASIC;
 	bool wireframe = false;
 	bool meshShader = false;
+	bool deferred = false;
 
 	static RenderSettings& Get()
 	{

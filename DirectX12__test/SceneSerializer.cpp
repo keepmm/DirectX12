@@ -92,6 +92,7 @@ std::string SceneSerializer::SaveToString(Scene& scene)
     json root;
     root["sceneName"] = scene.GetSceneName();
     root["entities"] = json::array();
+    root["skybox"] = scene.GetSkyboxPath();
 
     World& world = scene.GetWorld();
     for (Entity entity : world.GetEntities())
@@ -150,6 +151,14 @@ std::string SceneSerializer::SaveToString(Scene& scene)
             const auto& meshComp = world.GetComponent<MeshComponent>(entity);
             entry["mesh"]["filePath"] = meshComp.FilePath;
             entry["mesh"]["scale"] = meshComp.scale;
+        }
+
+        if (world.HasComponent<AnimatorComponent>(entity))
+        {
+            const auto& an = world.GetComponent<AnimatorComponent>(entity);
+            entry["animator"]["currentClip"] = an.currentClip;
+            entry["animator"]["playing"] = an.playing;
+            entry["animator"]["extraClips"] = an.extraClipNames;
         }
 
         // ---- Material ---- //
@@ -232,6 +241,8 @@ bool SceneSerializer::LoadFromString(Scene& scene, const std::string& data)
 
     if (root.contains("sceneName") && root["sceneName"].is_string())
         scene.SetSceneName(root["sceneName"].get<std::string>());
+    if (root.contains("skybox") && root["skybox"].is_string())
+        scene.SetSkyboxPath(root["skybox"].get<std::string>());
 
     for (const auto& entry : root["entities"])
     {
@@ -283,6 +294,7 @@ bool SceneSerializer::LoadFromString(Scene& scene, const std::string& data)
                 t.rotation = ToFloat4(tj.value("rotation", json::array()), float4(0, 0, 0, 1));
                 t.scale = ToFloat3(tj.value("scale", json::array()), float3(1, 1, 1));
                 t.parent = (Entity)tj.value("parent", 0u);
+                t.SyncEulerFromQuaternion();
                 t.RebuildWorld();
 
                 if (world.HasComponent<TransformComponent>(entity))
@@ -388,25 +400,23 @@ bool SceneSerializer::LoadFromString(Scene& scene, const std::string& data)
                 MeshComponent meshComp{};
                 meshComp.FilePath = meshJson.value("filePath", "");
                 meshComp.scale = meshJson.value("scale", 1.0f);
+                world.AddComponent<MeshComponent>(entity, meshComp);   // FilePathだけ先に確保
 
                 if (!meshComp.FilePath.empty())
                 {
-                    auto result = ModelLoader::LoadFromFile(APP->GetDevice(), meshComp.FilePath, meshComp.scale);
-                    meshComp.mesh = result.mesh;
-
-                    // マルチマテリアル復元（FBX由来のテクスチャセットから再構築）
-                    if (!result.materials.empty() && world.HasComponent<MaterialComponent>(entity))
+                    int  clip = 0; bool playing = false;
+                    std::vector<std::string> extras;
+                    if (entry.contains("animator"))
                     {
-                        auto& mc = world.GetComponent<MaterialComponent>(entity);
-                        mc.materials = BuildMaterials(result, mc.shaderName);
-                        if (!mc.materials.empty()) mc.material = mc.materials[0];
+                        clip = entry["animator"].value("currentClip", 0);
+                        playing = entry["animator"].value("playing", false);
+                        if (entry["animator"].contains("extraClips"))
+                            extras = entry["animator"]["extraClips"].get<std::vector<std::string>>();
                     }
-                }
 
-                if (world.HasComponent<MeshComponent>(entity))
-                    world.GetComponent<MeshComponent>(entity) = meshComp;
-                else
-                    world.AddComponent<MeshComponent>(entity, meshComp);
+                    ModelLoader::PopulateModelEntity(world, entity, meshComp.FilePath, &scene,
+                        clip, playing, extras, false);
+                }
             }
 
             // ---- それ以外の汎用コンポーネント（Reflect経由で自動） ---- //

@@ -9,9 +9,13 @@
 #include <filesystem>
 #include "DirectX.hpp"
 #include "assimp/material.h"
-#include "DirectXTex/DirectXTex.h"
+#include <DirectXTex.h>
 #include "PMXLoader.hpp"
 #include "Util.hpp"
+#include "Scene.hpp"
+#include "AsyncLoader.hpp"
+#include "Components.hpp"
+#include "MmdPhysics.hpp"
 
 namespace
 {
@@ -173,6 +177,17 @@ ModelCpuData ModelLoader::ParseFile(const std::string& filepath, float scale)
     {
         if (!PMXLoader::Parse(filepath, scale, out))
             return out;   // success=false
+
+        namespace fs = std::filesystem;
+        fs::path base(filepath);
+        for (auto& entry : fs::directory_iterator(base.parent_path()))
+        {
+            if (entry.path().extension() == ".vmd")
+            {
+                AnimationClip vc = LoadVMDClip(entry.path().string(), out.skeleton);
+                if (!vc.channels.empty()) out.clips.push_back(std::move(vc));
+            }
+        }
     }
     else
     {
@@ -454,12 +469,23 @@ ModelCpuData ModelLoader::ParseFile(const std::string& filepath, float scale)
             return d;
         };
 
+    std::unordered_map<std::wstring, std::shared_ptr<DecodedImage>> imgCache;
+    auto decodeCached = [&](const std::wstring& path) -> std::shared_ptr<DecodedImage>
+        {
+            if (path.empty()) return nullptr;
+            auto it = imgCache.find(path);
+            if (it != imgCache.end()) return it->second;   // 既出は共有
+            auto d = std::make_shared<DecodedImage>(decode(path));
+            imgCache[path] = d;
+            return d;
+        };
+
     for (auto& set : out.materials)
     {
-        set.diffuseImage = decode(set.diffuse);
-        set.normalImage = decode(set.normal);
-        set.metalImage = decode(set.metal);
-        set.roughImage = decode(set.rough);
+        set.diffuseImage    = decodeCached(set.diffuse);
+        set.normalImage     = decodeCached(set.normal);
+        set.metalImage      = decodeCached(set.metal);
+        set.roughImage      = decodeCached(set.rough);
     }
 
     // 単一マテリアル互換：法線を持つ最初のマテリアルを従来フィールドにも入れる
@@ -501,20 +527,19 @@ ModelLoadResult ModelLoader::upload(const ModelCpuData& cpu)
     auto mesh = std::make_shared<Mesh>();
     mesh->Init(device, cpu.vertices, cpu.indices,
         cpu.subMeshes.empty() ? nullptr : &cpu.subMeshes);
-    result.mesh = mesh;
-	result.subMeshes = cpu.subMeshes;
-	result.materials = cpu.materials;
-
-    result.diffuseTexturePath = cpu.diffuseTexturePath;
-	result.normalTexturePath = cpu.normalTexturePath;
-	result.metalTexturePath = cpu.metalTexturePath;
-	result.roughTexturePath = cpu.roughTexturePath;
-    result.diffusetextureData = cpu.diffuseTextureData; 
-	result.clips = cpu.clips;
-    result.skeleton = cpu.skeleton;
-    result.skinData = cpu.skinData;
-	result.morphs = cpu.morphs;
-	result.physics = cpu.physics;
+    result.mesh                 = mesh;
+	result.subMeshes            = std::move(cpu.subMeshes);
+	result.materials            = std::move(cpu.materials);
+    result.diffuseTexturePath   = std::move(cpu.diffuseTexturePath);
+	result.normalTexturePath    = std::move(cpu.normalTexturePath);
+	result.metalTexturePath     = std::move(cpu.metalTexturePath);
+	result.roughTexturePath     = std::move(cpu.roughTexturePath);
+    result.diffusetextureData   = std::move(cpu.diffuseTextureData); 
+	result.clips                = std::move(cpu.clips);
+    result.skeleton             = std::move(cpu.skeleton);
+    result.skinData             = std::move(cpu.skinData);
+	result.morphs               = std::move(cpu.morphs);
+	result.physics              = std::move(cpu.physics);
     return result;
 }
 
@@ -615,4 +640,159 @@ AnimationClip ModelLoader::LoadVMDClip(const std::string& path, const Skeleton& 
     LOG->LogInfo("VMD loaded: " + path + " ch=" + std::to_string(clip.channels.size())
         + " dur=" + std::to_string(clip.duration));
     return clip;
+}
+
+CameraClip ModelLoader::LoadVMDCameraClip(const std::string& path)
+{
+    CameraClip clip;
+    std::ifstream ifs(path, std::ios::binary);
+    if (!ifs)
+    {
+        LOG->LogError("VMD camera open failed: " + path);
+		return clip;
+    }
+    std::vector<char> buf((std::istreambuf_iterator<char>(ifs)), {});
+    const char* d = buf.data();
+    const size_t size = buf.size();
+    if (size < 54) return clip;
+
+	size_t o = 50;   // 30(signature)+20(model name)
+
+    // ボーンフレームを読み飛ばす
+    std::uint32_t boneCount;
+	std::memcpy(&boneCount, d + o, 4); o += 4;
+    o += (size_t)boneCount * 111;
+
+    // モーフフレームも読み飛ばす
+    if (o + 4 > size) return clip;
+    std::uint32_t morphCount;
+	std::memcpy(&morphCount, d + o, 4); o += 4;
+    o += (size_t)morphCount * 23;
+
+    // カメラフレームを読み込む
+    if (o + 4 > size) return clip;
+	std::uint32_t cameraCount;
+    std::memcpy(&cameraCount, d + 0, 4); o += 4;
+
+    for (std::uint32_t i = 0; i < cameraCount; ++i)
+    {
+        if (o + 61 > size) break;
+        CameraKeyFrame kf{};
+        std::uint32_t frame; std::memcpy(&frame, d + o, 4);  o += 4;
+        std::memcpy(&kf.distance, d + o, 4);                 o += 4;
+        std::memcpy(&kf.target, d + o, 12);                  o += 12;
+        std::memcpy(&kf.rotation, d + o, 12);                o += 12;
+        o += 24;                                             // 補間ベジェ(まずは線形)
+        std::uint32_t fov; std::memcpy(&fov, d + o, 4);      o += 4;
+        o += 1;                                              // パースペクティブフラグ
+        kf.time = frame / 30.0f;
+        kf.fovY = (float)fov;
+        clip.keys.push_back(kf);
+        clip.duration = std::max(clip.duration, kf.time);
+    }
+    std::sort(clip.keys.begin(),clip.keys.end(),
+        [](const CameraKeyFrame& a, const CameraKeyFrame& b) {return a.time < b.time; });
+    LOG->LogInfo("VMD camera loaded: " + path + " keys=" + std::to_string(clip.keys.size()));
+    return clip;
+}
+
+void ModelLoader::PopulateModelEntity(
+    World& world, std::uint32_t entity,
+    const std::string& modelpath, Scene* scene,
+    int restoreClip, bool restorePlaying,
+    const std::vector<std::string>& extraVmds,
+    bool applyDefaultTransformScale)
+{
+    AsyncLoader::Get().LoadModelAsync(modelpath, 1.0f,
+        [&world, entity, modelpath, scene, restoreClip, restorePlaying, extraVmds, applyDefaultTransformScale]
+        (ModelLoadResult result)
+        {
+            if (!world.IsEntityAlive(entity) || !result.mesh) return;
+
+            // Transformスケール(新規スポーン時のみ設定。復元時は保存値を尊重)
+            if (applyDefaultTransformScale && world.HasComponent<TransformComponent>(entity))
+            {
+                auto& tr = world.GetComponent<TransformComponent>(entity);
+                if (modelpath.ends_with(".fbx"))      tr.scale = float3(0.01f, 0.01f, 0.01f);
+                else if (modelpath.ends_with(".pmx"))  tr.scale = float3(0.1f, 0.1f, 0.1f);
+                tr.RebuildWorld();
+            }
+
+            // Mesh(★FilePathを確実に保存できるよう構築してから追加)
+            MeshComponent meshc{ result.mesh };
+            meshc.FilePath = modelpath;
+            world.AddComponent<MeshComponent>(entity, meshc);
+
+            MaterialComponent mc{};
+
+            // --- アニメーション/物理/モーフ ---
+            if (!result.clips.empty() || !result.skinData.boneNames.empty())
+            {
+                AnimatorComponent an;
+                an.skeleton = std::move(result.skeleton);
+                an.skinData = std::move(result.skinData);
+                an.clips = std::move(result.clips);   // フォルダVMDはParseFileで既に格納済み
+                an.morphs = std::move(result.morphs);
+                an.morphWeights.assign(an.morphs.morphs.size(), 0.0f);
+
+                if (world.HasComponent<AnimatorComponent>(entity))
+                {
+					const auto& old = world.GetComponent<AnimatorComponent>(entity);
+					an.clipPathsStr = old.clipPathsStr;
+                    an.clipsRestored = false;
+					an.time = old.time;
+                    an.playing = old.playing;
+                }
+
+                // 物理
+                if (scene)
+                {
+                    auto& physicsWorld = scene->EnsurePhysicsWorld();
+                    if (physicsWorld.GetPhysics() == nullptr) physicsWorld.Init();
+                    if (physicsWorld.GetPhysics())
+                    {
+                        auto physComp = MmdPhysicsComponent{};
+                        physComp.impl = std::make_shared<MmdPhysics>();
+                        physComp.impl->Init(physicsWorld.GetPhysics(), result.physics, an.skeleton);
+                        world.AddComponent<MmdPhysicsComponent>(entity, physComp);
+                    }
+                }
+
+                // 兄弟FBXアニメ("stem_..."形式)を追加
+                namespace fs = std::filesystem;
+                fs::path base(modelpath);
+                std::string stem = base.stem().string();
+                for (auto& entry : fs::directory_iterator(base.parent_path()))
+                {
+                    std::string fn = entry.path().stem().string();
+                    if (entry.path().extension() == ".fbx" && fn != stem &&
+                        fn.rfind(stem + "_", 0) == 0)
+                    {
+                        auto extra = ModelLoader::LoadAnimationsOnly(entry.path().string());
+                        for (auto& c : extra) an.clips.push_back(std::move(c));
+                    }
+                }
+
+                // --- シーン復元: 手動追加VMDの再ロード＋再生状態 ---
+                an.extraClipNames = extraVmds;
+                for (const auto& vmd : extraVmds)
+                {
+                    AnimationClip vc = ModelLoader::LoadVMDClip(vmd, an.skeleton);
+                    if (!vc.channels.empty()) an.clips.push_back(std::move(vc));
+                }
+                if (restoreClip >= 0 && restoreClip < (int)an.clips.size())
+                    an.currentClip = restoreClip;
+                an.playing = restorePlaying;
+
+                world.AddComponent<AnimatorComponent>(entity, std::move(an));
+                mc.shaderName = "SkinnedToon";
+            }
+
+            // マテリアル
+            mc.materials = BuildMaterials(result, "PBR");
+            for (size_t i = 0; i < mc.materials.size(); ++i)
+                mc.materialnames.push_back(result.materials[i].name);
+            if (!mc.materials.empty()) mc.material = mc.materials[0];
+            world.AddComponent<MaterialComponent>(entity, mc);
+        });
 }

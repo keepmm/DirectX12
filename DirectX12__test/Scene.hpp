@@ -88,10 +88,14 @@ public:
 
 	/// @brief PhysicsWorld‚Ì”jŠü
 	void ResetPhysicsWorld();
+
+	const std::string& GetSkyboxPath() const { return m_SkyboxPath; }
+	void SetSkyboxPath(_In_ const std::string& path) { m_SkyboxPath = path; }
 protected:
 	World m_World;
 	std::unique_ptr<PhysicsWorld> m_PhysicsWorld;
 	SceneState m_State = SceneState::Unloaded;
 	std::string m_SceneName;
+	std::string m_SkyboxPath = "Assets/Texture/sky.hdr";
 };
 

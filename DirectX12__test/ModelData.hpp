@@ -36,10 +36,10 @@ struct MaterialTextureSet
 	std::wstring metal;
 	std::wstring rough;
 
-	DecodedImage diffuseImage;
-	DecodedImage normalImage;
-	DecodedImage metalImage;
-	DecodedImage roughImage;
+	std::shared_ptr<DecodedImage> diffuseImage;
+	std::shared_ptr<DecodedImage> normalImage;
+	std::shared_ptr<DecodedImage> metalImage;
+	std::shared_ptr<DecodedImage> roughImage;
 };
 
 /*
@@ -174,6 +174,21 @@ struct AnimationClip
 	float duration = 0.0f;	// アニメーションの長さ(秒)
 	float tickPerSecond = 0.0f;	// 1秒あたりのティック数
 	std::vector<BoneAnimationChannel> channels;
+};
+
+struct CameraKeyFrame
+{
+	float time;			// 秒(frame/30)
+	float distance;		// 注意視点からの距離(前方にあるとき負値)
+	float3 target;		// 注視点
+	float3 rotation;	// オイラー角(rad)
+	float fovY;			// 度
+};
+
+struct CameraClip
+{
+	std::vector<CameraKeyFrame> keys;
+	float duration = 0.0f;
 };
 
 #pragma endregion

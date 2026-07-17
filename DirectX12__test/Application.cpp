@@ -29,18 +29,20 @@ HRESULT Application::OnInit()
 	}
 	else
 	{
-		m_EditorWindow = std::make_unique<EditorWindow>(*m_DirectX);
+		m_EditorWindow = std::make_unique<EditorWindow>(*m_DirectX,m_SceneManager);
 	}
 
+	// シーンの生成方法を登録(名前→ Assets/Scenes/<名前>.json)
+	m_SceneManager.SetSceneFactory([this](const std::string& jsonPath)
+		{
+			return MakeUnique<RuntimeScene>(jsonPath,
+				m_DirectX->GetDevice(),
+				m_DirectX->GetLinePso());
+		});
 
-	// RuntimeSceneの登録
-	auto runtimeScene = MakeUnique<RuntimeScene>("Assets/Scenes/SampleScene.json",
-		m_DirectX->GetDevice(),
-		m_DirectX->GetLinePso());
-	m_SceneManager.RegisterScene("RuntimeScene", std::move(runtimeScene));
-
-	// RuntimeSceneから開始
-	m_SceneManager.LoadScene("RuntimeScene");
+	// 開始シーンを登録してロード
+	m_SceneManager.RegisterScene(m_StartScene);
+	m_SceneManager.LoadScene(m_StartScene);
 
 	// プレハブの初期化
 	OnInitPrefabs();

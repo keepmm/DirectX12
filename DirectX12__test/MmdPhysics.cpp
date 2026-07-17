@@ -44,7 +44,7 @@ void MmdPhysics::Init(PxPhysics* physics, const PmxPhysics& phys, const Skeleton
     // --- 専用シーン(ゲームプレイ物理と分離) ---
     PxSceneDesc desc(physics->getTolerancesScale());
     desc.gravity = PxVec3(0.0f, -9.8f, 0.0f);
-    m_Dispatcher = PxDefaultCpuDispatcherCreate(1);
+    m_Dispatcher = PxDefaultCpuDispatcherCreate(8);
     desc.cpuDispatcher = m_Dispatcher;
     desc.filterShader = MmdFilter;
 
@@ -52,7 +52,7 @@ void MmdPhysics::Init(PxPhysics* physics, const PmxPhysics& phys, const Skeleton
     desc.flags |= PxSceneFlag::eENABLE_STABILIZATION;
 
     m_Scene = physics->createScene(desc);
-    m_Material = physics->createMaterial(0.5f, 0.5f, 0.3f);
+    m_Material = physics->createMaterial(0.5f, 0.5f, 0.0f);
 
     // --- 各ボーンのバインドワールド(平行移動のみ) ---
     const size_t nodeCount = skel.nodes.size();
@@ -127,7 +127,7 @@ void MmdPhysics::Init(PxPhysics* physics, const PmxPhysics& phys, const Skeleton
             PxRigidDynamic* dyn = physics->createRigidDynamic(pose);
             dyn->attachShape(*shape);
             PxRigidBodyExt::updateMassAndInertia(*dyn, std::max(rb.mass, 0.01f));
-            dyn->setSolverIterationCounts(6, 1);   // TGSなら6,1で十分(16は過剰)
+            dyn->setSolverIterationCounts(4, 2);
             dyn->setLinearDamping(std::max(rb.linearDamping, 0.3f));
             dyn->setAngularDamping(std::max(rb.angularDamping, 0.4f));   // 角減衰を強めてパタパタ抑制
             dyn->setMaxLinearVelocity(40.0f);
@@ -204,6 +204,8 @@ void MmdPhysics::Init(PxPhysics* physics, const PmxPhysics& phys, const Skeleton
             if (m > 1e-4f)
                 joint->setLinearLimit(PxJointLinearLimit(physics->getTolerancesScale(), m));
         }
+
+
 
         // ジョイントで繋がった剛体同士は衝突させない
         joint->setConstraintFlag(PxConstraintFlag::eCOLLISION_ENABLED, false);
@@ -285,8 +287,98 @@ void MmdPhysics::Step(std::vector<XMMATRIX>& global, float dt)
     writeback();
 }
 
+void MmdPhysics::StepBegin(std::vector<DirectX::XMMATRIX>& global, float dt)
+{
+    if (!m_Scene)return;
+    // 全剛体を現在のボーン姿勢へ揃える(初期化・ヒッチ復帰用)
+    auto resyncAll = [&]()
+        {
+            for (Body& b : m_Bodies)
+            {
+                if (!b.actor || b.boneIndex < 0) continue;
+                PxTransform pose = ToPx(b.offset * global[b.boneIndex]);
+                if (auto* dyn = b.actor->is<PxRigidDynamic>())
+                {
+                    dyn->setGlobalPose(pose);
+                    if (!(dyn->getRigidBodyFlags() & PxRigidBodyFlag::eKINEMATIC))
+                    {
+                        dyn->setLinearVelocity(PxVec3(0));
+                        dyn->setAngularVelocity(PxVec3(0));
+                    }
+                }
+            }
+        };
+    // 物理剛体のglobalを現在の剛体姿勢で更新(ヒッチ時にメッシュを合わせる)
+    auto writeback = [&]()
+        {
+            for (Body& b : m_Bodies)
+            {
+                if (!b.actor || b.physicsType == 0 || b.boneIndex < 0) continue;
+                global[b.boneIndex] = b.invOffset * FromPx(b.actor->getGlobalPose());
+            }
+        };
+
+    const float step = 1.0f / 60.0f;
+
+    // 初回: 全剛体を現在姿勢で初期化(simulateは投げない)
+    if (m_FirstStep)
+    {
+        resyncAll();
+        m_FirstStep = false;
+        m_Accum = 0.0f;
+        return;
+    }
+
+    // ヒッチ防御: dtが大きすぎる(ロード直後/一時停止明け)は再同期して発散回避
+    if (dt > 1.0f / 20.0f)
+    {
+        // 未回収のsimulateがあれば捨てる
+        if (m_SimPending) { m_Scene->fetchResults(true); m_SimPending = false; }
+        resyncAll();
+        writeback();
+        m_Accum = 0.0f;
+        return;
+    }
+
+    // 固定60Hz: 1ステップ分溜まったら追従ターゲット設定してsimulateを投げる
+    m_Accum += dt;
+    if (m_Accum >= step)
+    {
+        // 直前に投げたものが未回収なら先に回収(通常はStepFetchで回収済み)
+        if (m_SimPending) { m_Scene->fetchResults(true); m_SimPending = false; }
+
+        for (Body& b : m_Bodies)
+        {
+            if (!b.actor || b.physicsType != 0 || b.boneIndex < 0) continue;
+            if (auto* dyn = b.actor->is<PxRigidDynamic>())
+                dyn->setKinematicTarget(ToPx(b.offset * global[b.boneIndex]));
+        }
+
+        m_Scene->simulate(step); 
+        m_SimPending = true;
+
+        m_Accum -= step;
+        if (m_Accum > step) m_Accum = step;   // 溜め込み過ぎ防止
+    }
+}
+
+void MmdPhysics::StepFetch(std::vector<DirectX::XMMATRIX>& global)
+{
+    if(!m_Scene || !m_SimPending) return;
+
+    m_Scene->fetchResults(true);   // 裏で完了済みなのでほぼ待たない
+    m_SimPending = false;
+
+    for (Body& b : m_Bodies)
+    {
+        if (!b.actor || b.physicsType == 0 || b.boneIndex < 0) continue;
+        global[b.boneIndex] = b.invOffset * FromPx(b.actor->getGlobalPose());
+    }
+}
+
 void MmdPhysics::Destroy()
 {
+    if (m_Scene && m_SimPending) { m_Scene->fetchResults(true); m_SimPending = false; }
     for (auto* j : m_Joints) if (j) j->release();
     m_Joints.clear();
     for (auto& b : m_Bodies) if (b.actor) b.actor->release();

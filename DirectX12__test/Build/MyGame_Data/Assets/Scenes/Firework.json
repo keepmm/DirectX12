@@ -1,0 +1,408 @@
+{
+  "entities": [
+    {
+      "Audio Listener": null,
+      "Camera": {
+        "CameraType": 0,
+        "FarZ": 100.0,
+        "FovY": 60.0,
+        "IsActive": true,
+        "NearZ": 0.10000000149011612,
+        "OrthoSize": 10.0,
+        "Projection": 0
+      },
+      "id": 1,
+      "name": "MainCamera",
+      "transform": {
+        "parent": 0,
+        "position": [
+          -0.21349027752876282,
+          1.2827775478363037,
+          2.6335761547088623
+        ],
+        "rotation": [
+          0.008726535364985466,
+          0.0,
+          0.0,
+          0.9999619126319885
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    },
+    {
+      "Light": {
+        "AmbientColor": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "BeamColorEnd": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "BeamWidth": 0.05000000074505806,
+        "Color": [
+          0.3375527262687683,
+          0.3375527262687683,
+          0.3375527262687683,
+          1.0
+        ],
+        "Direction": [
+          0.0,
+          -1.0,
+          -8.940696716308594e-08
+        ],
+        "GlowIntensity": 3.0,
+        "GlowPower": 6.0,
+        "Intensity": 0.0,
+        "IsActive": true,
+        "IsShow": true,
+        "Range": 27.746000289916992,
+        "ShowBeam": false,
+        "SpotAngle": 44.2140007019043,
+        "SwingAngle": 34.68199920654297,
+        "SwingAxis": 2,
+        "SwingEnabled": false,
+        "SwingSpeed": 45.0,
+        "Type": 2,
+        "VolumetricIntensity": 1.0
+      },
+      "id": 2,
+      "name": "MainLight",
+      "transform": {
+        "parent": 0,
+        "position": [
+          0.0,
+          7.89943790435791,
+          -0.5758527517318726
+        ],
+        "rotation": [
+          0.7071068286895752,
+          0.0,
+          0.0,
+          0.7071067690849304
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    },
+    {
+      "Camera": {
+        "CameraType": 1,
+        "FarZ": 100.0,
+        "FovY": 60.0,
+        "IsActive": true,
+        "NearZ": 0.10000000149011612,
+        "OrthoSize": 10.0,
+        "Projection": 0
+      },
+      "Free Look": {
+        "Enabled": true,
+        "MoveSpeed": 5.0,
+        "Pitch": 0.15000055730342865,
+        "RotateSpeed": 0.0024999999441206455,
+        "Yaw": 7.489996433258057
+      },
+      "id": 3,
+      "name": "EditorCamera",
+      "transform": {
+        "parent": 0,
+        "position": [
+          -7.246901512145996,
+          4.485476493835449,
+          -3.822533369064331
+        ],
+        "rotation": [
+          -0.06169794872403145,
+          -0.5658546686172485,
+          0.042519014328718185,
+          -0.8210932016372681
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    },
+    {
+      "Light": {
+        "AmbientColor": [
+          0.20000000298023224,
+          0.20000000298023224,
+          0.20000000298023224,
+          1.0
+        ],
+        "BeamColorEnd": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "BeamWidth": 0.05000000074505806,
+        "Color": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "Direction": [
+          0.026955006644129753,
+          -0.8571673631668091,
+          -0.5143321752548218
+        ],
+        "GlowIntensity": 3.0,
+        "GlowPower": 6.0,
+        "Intensity": 1.0,
+        "IsActive": false,
+        "IsShow": true,
+        "Range": 10.0,
+        "ShowBeam": false,
+        "SpotAngle": 45.0,
+        "SwingAngle": 30.0,
+        "SwingAxis": 13421568,
+        "SwingEnabled": false,
+        "SwingSpeed": 45.0,
+        "Type": 0,
+        "VolumetricIntensity": 1.0
+      },
+      "id": 4,
+      "name": "DirectinalLight",
+      "transform": {
+        "parent": 0,
+        "position": [
+          0.0,
+          10.5114164352417,
+          5.4326581954956055
+        ],
+        "rotation": [
+          0.8700574040412903,
+          -0.012890147976577282,
+          0.02278325706720352,
+          0.4922548532485962
+        ],
+        "scale": [
+          1.0,
+          0.9999848008155823,
+          0.9999848008155823
+        ]
+      }
+    },
+    {
+      "Animator": {
+        "Playing": false,
+        "Time": 0.0
+      },
+      "Audio Source": {
+        "Clip": "C:\\HAL\\study\\DirectX12__test\\DirectX12__test\\Assets\\Audio\\AipaiDanceHall.wav",
+        "Is3D": false,
+        "Loop": true,
+        "MaxDistance": 100.0,
+        "MinDistance": 1.0,
+        "PlayOnStart": false,
+        "Volume": 0.023000000044703484
+      },
+      "animator": {
+        "currentClip": 0,
+        "extraClips": [],
+        "playing": false
+      },
+      "id": 5,
+      "material": {
+        "filePath": "",
+        "metallic": 0.0,
+        "rampFilePath": "",
+        "rimColor": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "roughness": 0.5,
+        "shaderName": "SkinnedToon"
+      },
+      "mesh": {
+        "filePath": "Assets\\Model\\Livestage\\pmx\\01_Main.pmx",
+        "scale": 1.0
+      },
+      "name": "base",
+      "transform": {
+        "parent": 0,
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          0.10000000149011612,
+          0.10000000149011612,
+          0.10000000149011612
+        ]
+      }
+    },
+    {
+      "Animator": {
+        "Playing": false,
+        "Time": 0.0
+      },
+      "animator": {
+        "currentClip": 0,
+        "extraClips": [],
+        "playing": false
+      },
+      "id": 6,
+      "material": {
+        "filePath": "",
+        "metallic": 0.0,
+        "rampFilePath": "",
+        "rimColor": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "roughness": 0.5,
+        "shaderName": "SkinnedToon"
+      },
+      "mesh": {
+        "filePath": "Assets\\Model\\Livestage\\pmx\\02_StickLight.pmx",
+        "scale": 1.0
+      },
+      "name": "StickLight",
+      "transform": {
+        "parent": 0,
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          0.10000000149011612,
+          0.10000000149011612,
+          0.10000000149011612
+        ]
+      }
+    },
+    {
+      "Animator": {
+        "Playing": false,
+        "Time": 0.0
+      },
+      "animator": {
+        "currentClip": 0,
+        "extraClips": [],
+        "playing": false
+      },
+      "id": 7,
+      "material": {
+        "filePath": "",
+        "metallic": 0.0,
+        "rampFilePath": "",
+        "rimColor": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "roughness": 0.5,
+        "shaderName": "SkinnedToon"
+      },
+      "mesh": {
+        "filePath": "Assets\\Model\\Livestage\\pmx\\03_Screen.pmx",
+        "scale": 1.0
+      },
+      "name": "Screen",
+      "transform": {
+        "parent": 0,
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          0.10000000149011612,
+          0.10000000149011612,
+          0.10000000149011612
+        ]
+      }
+    },
+    {
+      "Animator": {
+        "Playing": false,
+        "Time": 0.0
+      },
+      "animator": {
+        "currentClip": 0,
+        "extraClips": [],
+        "playing": false
+      },
+      "id": 8,
+      "material": {
+        "filePath": "",
+        "metallic": 0.0,
+        "rampFilePath": "",
+        "rimColor": [
+          1.0,
+          1.0,
+          1.0,
+          1.0
+        ],
+        "roughness": 0.5,
+        "shaderName": "SkinnedToon"
+      },
+      "mesh": {
+        "filePath": "Assets\\Model\\Livestage\\pmx\\04_Emit.pmx",
+        "scale": 1.0
+      },
+      "name": "Emit",
+      "transform": {
+        "parent": 0,
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          0.10000000149011612,
+          0.10000000149011612,
+          0.10000000149011612
+        ]
+      }
+    }
+  ],
+  "sceneName": "Firework"
+}

@@ -240,6 +240,24 @@ struct CameraComponent
 	}
 };
 
+struct CameraAnimationComponent
+{
+	std::string vmdPath;
+	bool  playing = false;
+	bool  loop = false;
+	float time = 0.0f;
+
+	CameraClip clip;      // 実行時データ(シリアライズ対象外)
+	bool loaded = false;
+
+	void Reflect(FieldList& f)
+	{
+		f.Add("VmdPath", vmdPath);
+		f.Add("Playing", playing);
+		f.Add("Loop", loop);
+	}
+};
+
 struct FreeLookComponent
 {
 	float moveSpeed = 5.0f;
@@ -258,14 +276,40 @@ struct FreeLookComponent
 	}
 };
 
+struct MusicSyncComponent
+{
+	float offset = 0.0f;        // モーションを曲に対して前後させる(秒、+で遅らせる)
+	bool  syncAnimators = true; // 全AnimatorをこのAudioに同期
+	bool  syncCamera = true;    // カメラVMDも同期
+	float musicTime = 0.0f;
+	// ランタイム状態(シリアライズ対象外)
+	std::uint64_t startSamples = 0;
+	bool started = false;
+
+	void Reflect(FieldList& f)
+	{
+		f.Add("Offset", offset);
+		f.Add("SyncAnimators", syncAnimators);
+		f.Add("SyncCamera", syncCamera);
+	}
+};
+
 struct LightComponent
 {
 	enum class LightType
 	{
 		Directional,
 		Point,
-		Spot
+		Spot,
+		Laser
 	} type = LightType::Directional;
+
+	enum class SwingAxis : uint8_t
+	{
+		Pan,
+		Tilt,
+		PanTilt
+	};
 	COLOR color{ 1.0f, 1.0f, 1.0f, 1.0f };
 	COLOR ambientColor{ 0.2f, 0.2f, 0.2f, 1.0f };
 	float intensity = 1.0f;
@@ -274,9 +318,22 @@ struct LightComponent
 	float spotAngle = 45.0f;
 	bool isActive = true;
 
+	bool ShowBeam = false;
+	float beamWidth = 0.05f;
+
+	bool swingEnable = false;
+	SwingAxis swingAxis = SwingAxis::Pan;
+	float swingSpeed = 45.0f;
+	float swingAngle = 30.0f;
+
+	COLOR beamColorEnd{ 1.0f, 1.0f, 1.0f, 1.0f };
+	float glowPower = 6.0f;
+	float glowIntensity = 3.0f;
+	float volumetricIntensity = 1.0f;
+
 	void Reflect(FieldList& f)
 	{
-		f.AddEnum("Type", (int&)type, { "Directional", "Point", "Spot" });
+		f.AddEnum("Type", (int&)type, { "Directional", "Point", "Spot","Laser"});
 
 		f.Add("Color", color);
 		f.Add("AmbientColor", ambientColor);
@@ -286,6 +343,18 @@ struct LightComponent
 		f.AddRange("SpotAngle", spotAngle, 1.0f, 179.0f);
 		f.Add("IsActive", isActive);
 		f.Add("IsShow", isShow);
+		f.Add("ShowBeam", ShowBeam);
+		f.AddRange("BeamWidth", beamWidth, 0.01f, 2.0f);
+
+		f.Add("SwingEnabled", swingEnable);
+		f.AddEnum("SwingAxis", (int&)swingAxis, { "Pan", "Tilt", "PanTilt" });
+		f.AddRange("SwingSpeed", swingSpeed, 0.0f, 360.0f);
+		f.AddRange("SwingAngle", swingAngle, 0.0f, 90.0f);
+
+		f.Add("BeamColorEnd", beamColorEnd);
+		f.AddRange("GlowPower", glowPower, 1.0f, 32.0f);
+		f.AddRange("GlowIntensity", glowIntensity, 0.1f, 20.0f);
+		f.AddRange("VolumetricIntensity", volumetricIntensity, 0.0f, 10.0f);
 	}
 	bool castShadows = true;
 	bool isShow = false;
@@ -441,6 +510,10 @@ struct AnimatorComponent
 	float time = 0.0f;
 	bool playing = false;
 	std::vector<float4x4> palette;
+	std::vector<std::string> extraClipNames;	// 追加のアニメーション名
+
+	std::string clipPathsStr;  
+	bool clipsRestored = false;
 
 	MorphSet morphs;					// もーフ定義
 	std::vector<float> morphWeights;	// 各モーフの重み(0.0 ~ 1.0)
@@ -451,6 +524,7 @@ struct AnimatorComponent
 	{
 		f.Add("Time", time);
 		f.Add("Playing", playing);
+		f.Add("ClipPaths", clipPathsStr);
 	}
 };
 
@@ -458,4 +532,63 @@ struct MmdPhysicsComponent
 {
 	std::shared_ptr<MmdPhysics> impl;
 	void Reflect(FieldList& f) {}
+};
+
+struct ParticleEmitterComponent
+{
+	enum class EmitShape : uint8_t
+	{
+		Cone,
+		Sphere,
+		Box
+	}shape = EmitShape::Cone;
+
+	bool emitting		= true;	// スクリプトから ON / OFF
+	float emitRate		= 20.0f;	// 1秒あたりの発生数
+	int maxParticles	= 200;
+
+	float lifeTime = 1.5f;
+	float lifeTimeVariance = 0.5f;	// ランダム幅
+
+	float startSize = 0.03f;
+	float endSize = 0.0f;
+
+	COLOR startColor{ 1.0f, 1.0f, 1.0f, 0.6f };
+	COLOR endColor{ 1.0f, 1.0f, 1.0f, 0.0f };
+
+	float speed = 0.3f;				// ビーム方向への流れ速度
+	float speedVariance = 0.15f;
+	float drift = 0.05f;
+
+	bool followLight = true;
+	float3 gravity{ 0.0f,0.0f,0.0f };
+
+	void Reflect(FieldList& f)
+	{
+		f.AddEnum("Shape", (int&)shape, { "Cone", "Sphere", "Box" });
+		f.Add("Emitting", emitting);
+		f.AddRange("EmitRate", emitRate, 0.0f, 500.0f);
+		f.AddRange("MaxParticles", maxParticles, 1.0f, 2000.0f);
+		f.AddRange("LifeTime", lifeTime, 0.1f, 10.0f);
+		f.AddRange("LifeTimeVariance", lifeTimeVariance, 0.0f, 5.0f);
+		f.AddRange("StartSize", startSize, 0.001f, 1.0f);
+		f.AddRange("EndSize", endSize, 0.0f, 1.0f);
+		f.Add("StartColor", startColor);
+		f.Add("EndColor", endColor);
+		f.AddRange("Speed", speed, 0.0f, 10.0f);
+		f.AddRange("SpeedVariance", speedVariance, 0.0f, 5.0f);
+		f.AddRange("Drift", drift, 0.0f, 1.0f);
+		f.Add("FollowLight", followLight);
+	}
+
+	// --- ランタイム専用（シリアライズ不要）---
+	struct Particle
+	{
+		float3 pos;
+		float3 velocity;
+		float age = 0.0f;
+		float life = 1.0f;
+	};
+	std::vector<Particle> particles;   // プールとして使い回す(容量固定・再利用)
+	float spawnAccumulator = 0.0f;
 };
