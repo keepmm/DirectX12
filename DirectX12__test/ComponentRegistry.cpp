@@ -123,7 +123,7 @@ void DrawExtraUI<AnimatorComponent>(World& world, Entity e, AnimatorComponent& a
 {
     auto onLoaded = [&world, e](AnimationClip vc)
         {
-            if (vc.channels.empty()) return;
+            if (vc.channels.empty() && vc.morphChannels.empty()) return;
             if (!world.IsEntityAlive(e) || !world.HasComponent<AnimatorComponent>(e)) return;
             auto& a = world.GetComponent<AnimatorComponent>(e);
             a.clips.push_back(std::move(vc));

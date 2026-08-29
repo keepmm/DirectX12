@@ -52,6 +52,26 @@ inline void DrawMmdPlayerControls(World& world, AnimatorComponent& an)
         for (const auto& c : an.clips) names.push_back(c.name.c_str());
         if (ImGui::Combo(u8("クリップ"), &an.currentClip, names.data(), (int)names.size()))
             seekTo(0.0f);
+
+        // 表情クリップ(体と表情でVMDが別のとき用)。先頭は「本体と同じ」
+        if (!an.morphs.morphs.empty())
+        {
+            std::vector<const char*> mnames;
+            mnames.push_back(u8("(本体と同じ)"));
+            for (const auto& c : an.clips) mnames.push_back(c.name.c_str());
+
+            int sel = an.morphClip + 1;   // -1 -> 0
+            if (ImGui::Combo(u8("表情クリップ"), &sel, mnames.data(), (int)mnames.size()))
+            {
+                an.morphClip = sel - 1;
+                an.morphDirty = true;
+            }
+
+            const int mi = (an.morphClip >= 0 && an.morphClip < (int)an.clips.size())
+                ? an.morphClip : an.currentClip;
+            ImGui::SameLine();
+            ImGui::TextDisabled("(%d)", (int)an.clips[mi].morphChannels.size());
+        }
     }
 
     const AnimationClip& clip = an.clips[an.currentClip];

@@ -546,6 +546,11 @@ struct AnimatorComponent
 	std::vector<float3> morphoffsets;	// CPUでブレンド済みの頂点オフセット
 	bool morphDirty = true;				// モーフの重みが変更されたかどうか
 
+	// 表情を再生するクリップ。-1 = currentClip と同じものを使う。
+	// MMDでは体(FightingMyWay.vmd)と表情(face.vmd)が別ファイルのことがあるため、
+	// ボーン用とは別のクリップを指定できるようにしている。
+	int morphClip = -1;
+
 	void Reflect(FieldList& f)
 	{
 		f.Add("Time", time);
@@ -553,6 +558,7 @@ struct AnimatorComponent
 		f.Add("ClipPaths", clipPathsStr);
 		f.Add("Speed", speed);
 		f.Add("Loop",loop);
+		f.Add("MorphClip", morphClip);
 	}
 };
 

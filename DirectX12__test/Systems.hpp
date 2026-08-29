@@ -1045,7 +1045,7 @@ public:
 						AsyncLoader::Get().LoadVMDAsync(path, an.skeleton,
 							[&world, e](AnimationClip vc)
 							{
-								if (vc.channels.empty()) return;
+								if (vc.channels.empty() && vc.morphChannels.empty()) return;
 								if (!world.IsEntityAlive(e) ||
 									!world.HasComponent<AnimatorComponent>(e)) return;
 								auto& a = world.GetComponent<AnimatorComponent>(e);
@@ -1086,6 +1086,32 @@ public:
 				// スライダーをドラッグしている間はFK/IKのみ(物理を進めない)
 				ComputePalette(an.skeleton, an.skinData, clip, an.time, an.palette,
 					an.scrubbing ? nullptr : phys, dt);
+
+				// 表情モーフをVMDから駆動する。
+				// morphClip が有効ならそちらを使う(体と表情でVMDが別のケース)
+				if (!an.morphs.morphs.empty())
+				{
+					const int mi = (an.morphClip >= 0 && an.morphClip < (int)an.clips.size())
+						? an.morphClip : an.currentClip;
+
+					std::vector<std::string> missing;
+					if (SampleMorphWeights(an.clips[mi], an.time, an.morphs,
+						an.morphWeights, &missing))
+					{
+						an.morphDirty = true;
+					}
+
+					// 解決できなかったモーフ名は一度だけ報告する
+					if (!missing.empty())
+					{
+						static std::unordered_set<std::string> warned;
+						for (const auto& n : missing)
+						{
+							if (warned.insert(n).second)
+								LOG->LogInfo("morph not found in model: " + n);
+						}
+					}
+				}
 
 				auto t1 = clk::now();
 				static int c = 0;

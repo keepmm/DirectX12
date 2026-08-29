@@ -185,7 +185,7 @@ ModelCpuData ModelLoader::ParseFile(const std::string& filepath, float scale)
             if (entry.path().extension() == ".vmd")
             {
                 AnimationClip vc = LoadVMDClip(entry.path().string(), out.skeleton);
-                if (!vc.channels.empty()) out.clips.push_back(std::move(vc));
+                if (!vc.channels.empty() || !vc.morphChannels.empty()) out.clips.push_back(std::move(vc));
             }
         }
     }
@@ -628,6 +628,43 @@ AnimationClip ModelLoader::LoadVMDClip(const std::string& path, const Skeleton& 
         maxTime = std::max(maxTime, kf.time);
     }
 
+    // ---- 表情モーフセクション ----
+    // ボーンキーの直後に [4]表情数 + [23 x N]表情キー が続く
+    // (15:名前 + 4:フレーム + 4:重み)
+    if (o + 4 <= buf.size())
+    {
+        std::uint32_t morphCount; std::memcpy(&morphCount, d + o, 4); o += 4;
+
+        std::unordered_map<std::string, MorphAnimationChannel> morphChannels;
+        for (std::uint32_t i = 0; i < morphCount; ++i)
+        {
+            if (o + 23 > buf.size()) break;   // 壊れたVMD対策
+
+            char nameBuf[16] = {};
+            std::memcpy(nameBuf, d + o, 15); o += 15;
+            const std::string name = ShiftJisUtf8(std::string(nameBuf));
+
+            std::uint32_t frame; std::memcpy(&frame, d + o, 4); o += 4;
+            float weight;        std::memcpy(&weight, d + o, 4); o += 4;
+
+            MorphKeyFrame kf;
+            kf.time = frame / 30.0f;
+            kf.weight = weight;
+
+            auto& mc = morphChannels[name];
+            mc.morphName = name;
+            mc.keyFrames.push_back(kf);
+            maxTime = std::max(maxTime, kf.time);
+        }
+
+        for (auto& [name, mc] : morphChannels)
+        {
+            std::sort(mc.keyFrames.begin(), mc.keyFrames.end(),
+                [](const MorphKeyFrame& a, const MorphKeyFrame& b) { return a.time < b.time; });
+            clip.morphChannels.push_back(std::move(mc));
+        }
+    }
+
     for (auto& [name, ch] : channels)
     {
         std::sort(ch.keyFrames.begin(), ch.keyFrames.end(),
@@ -637,7 +674,7 @@ AnimationClip ModelLoader::LoadVMDClip(const std::string& path, const Skeleton& 
     clip.name = std::filesystem::path(path).stem().string();
     clip.tickPerSecond = 30.0f;
     clip.duration = maxTime;
-    LOG->LogInfo("VMD loaded: " + path + " ch=" + std::to_string(clip.channels.size())
+    LOG->LogInfo("VMD loaded: " + path + " ch=" + std::to_string(clip.channels.size()) + " morph=" + std::to_string(clip.morphChannels.size())
         + " dur=" + std::to_string(clip.duration));
     return clip;
 }
@@ -778,7 +815,7 @@ void ModelLoader::PopulateModelEntity(
                 for (const auto& vmd : extraVmds)
                 {
                     AnimationClip vc = ModelLoader::LoadVMDClip(vmd, an.skeleton);
-                    if (!vc.channels.empty()) an.clips.push_back(std::move(vc));
+                    if (!vc.channels.empty() || !vc.morphChannels.empty()) an.clips.push_back(std::move(vc));
                 }
                 if (restoreClip >= 0 && restoreClip < (int)an.clips.size())
                     an.currentClip = restoreClip;

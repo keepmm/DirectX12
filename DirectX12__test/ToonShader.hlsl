@@ -30,6 +30,7 @@ float4 ToonPS(PSInput input) : SV_TARGET
     
     float shininess = lerp(64.0f, 8.0f, saturate(roughness));
     
+    
     float3 diffuse = 0;
     float specMask = 0;
     const int count = (int)lightCount.x;

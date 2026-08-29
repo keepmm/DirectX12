@@ -1,6 +1,7 @@
 ﻿#pragma once
 #include "ModelData.hpp"
 #include <functional>
+#include <algorithm>
 #include <DirectXMath.h>
 #include "MmdPhysics.hpp"
 
@@ -46,6 +47,59 @@ inline void RebuildMorphOffsets(
 	{
 		if (fabsf(weights[i]) > 1e-6f) apply((int)i, weights[i]);
 	}
+}
+
+/// @brief クリップの表情モーフを time秒 でサンプルして weights に書き込む
+/// @param missing 解決できなかったモーフ名の受け取り先(デバッグ用、省略可)
+/// @return 前回から重みが変化したら true(= オフセットの再ビルドが必要)
+inline bool SampleMorphWeights(
+	const AnimationClip& clip, float time,
+	const MorphSet& morphSet, std::vector<float>& weights,
+	std::vector<std::string>* missing = nullptr)
+{
+	if (clip.morphChannels.empty()) return false;
+
+	std::vector<float> next(morphSet.morphs.size(), 0.0f);
+
+	for (const auto& ch : clip.morphChannels)
+	{
+		if (ch.keyFrames.empty()) continue;
+
+		auto it = morphSet.nameToIndex.find(ch.morphName);
+		if (it == morphSet.nameToIndex.end())
+		{
+			// モデルに無い表情はスキップ(VMDは他モデル用の名前も含むため正常)
+			if (missing) missing->push_back(ch.morphName);
+			continue;
+		}
+
+		const auto& keys = ch.keyFrames;
+		float w;
+		if (time <= keys.front().time)     w = keys.front().weight;
+		else if (time >= keys.back().time) w = keys.back().weight;
+		else
+		{
+			// time以降の最初のキーを二分探索し、直前のキーとの間を線形補間
+			auto hi = std::lower_bound(keys.begin(), keys.end(), time,
+				[](const MorphKeyFrame& k, float t) { return k.time < t; });
+			const MorphKeyFrame& b = *hi;
+			const MorphKeyFrame& a = *(hi - 1);
+			const float span = b.time - a.time;
+			const float t = (span > 1e-6f) ? (time - a.time) / span : 0.0f;
+			w = a.weight + (b.weight - a.weight) * t;   // VMDの表情補間は線形
+		}
+
+		const int idx = it->second;
+		if (idx >= 0 && idx < (int)next.size()) next[idx] = w;
+	}
+
+	// 重みが動いたフレームだけ再ビルドさせる(RebuildMorphOffsetsは全頂点走査で重い)
+	if (weights.size() != next.size()) { weights = std::move(next); return true; }
+	for (size_t i = 0; i < next.size(); ++i)
+	{
+		if (fabsf(weights[i] - next[i]) > 1e-4f) { weights = std::move(next); return true; }
+	}
+	return false;
 }
 
 // クリップを time秒 でサンプルし、スキン行列パレット(転置済み)を outPalette に生成
