@@ -17,7 +17,10 @@ param(
 $ErrorActionPreference = 'Stop'
 
 # 変換対象の拡張子
-$includeExt = @('.cpp', '.hpp', '.h', '.c', '.inl', '.hlsl', '.hlsli')
+# 変換対象の拡張子
+# 注意: .hlsl/.hlsli は含めない。fxc/D3DCompileFromFile が UTF-8 BOM を
+#       受け付けず error X3000 になるため、BOM なし UTF-8 で運用する。
+$includeExt = @('.cpp', '.hpp', '.h', '.c', '.inl')
 
 # 触らないディレクトリ（サードパーティ・生成物）
 $excludeDirs = @('.git', 'x64', 'Debug', 'Release', 'packages', 'lib', 'Build', 'Bin',

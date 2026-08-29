@@ -83,9 +83,11 @@ ImGui がシングルトンなので、当面パイプライン化はゲーム�
   演算子オーバーロードもここ。新規の共通定義はここに置く。
 - バックバッファ数は `RTV_NUM`（= 3）。ハードコードしない。
 - ファイル先頭に Doxygen 風のヘッダコメント（`\file` / `\brief` / 作成者 / 作成日 / 更新履歴）を付ける。
-- **ソースは UTF-8 with BOM**（`.cpp` `.hpp` `.h` `.hlsl` `.hlsli`）。コメントは日本語。
-  以前は Shift-JIS だったが `tools/Convert-Utf8Bom.ps1` で一括変換済み。
-  BOM は MSVC に UTF-8 と認識させるために必要なので外さないこと。
-  新規ファイルを VS で作ると Shift-JIS になることがあるので、同スクリプトを再実行すれば揃う
-  （ベンダーヘッダ `json.hpp` / `cr.h` / `d3dx12.h` は除外済み）。
+- **エンコーディング**（以前は Shift-JIS。`tools/Convert-Utf8Bom.ps1` で一括変換済み）
+  - `.cpp` `.hpp` `.h` `.inl` → **UTF-8 with BOM**。BOM は MSVC に UTF-8 と認識させるために必要。
+  - `.hlsl` `.hlsli` → **UTF-8 BOM なし**。`D3DCompileFromFile` / fxc は BOM を受け付けず
+    `error X3000: Illegal character in shader file` になり、`CreatePipelineStateObject` の
+    assert（[DirectX.cpp:768](DirectX12__test/DirectX.cpp:768)）に落ちる。**シェーダーに BOM を付けないこと。**
+  - コメントは日本語。VS で新規作成すると Shift-JIS になることがあるので、
+    スクリプトを再実行すれば揃う（`.hlsl` は対象外、ベンダーヘッダ `json.hpp` / `cr.h` / `d3dx12.h` も除外）。
 - メンバ変数は `m_PascalCase`。
