@@ -60,7 +60,40 @@ Scripts.dll はヘッダ inline なエンジンコードしか呼べない（テ
 - シェーダーを追加したら `DirectXApp::RegisterBuiltinShaders`（[DirectX.cpp:971](DirectX12__test/DirectX.cpp:971)）に 1 行足す。
 - 実行時はプロジェクトディレクトリ（デバッグ作業ディレクトリ）から読むので、出力コピーは不要。
 
-## 現在の作業: FramePipeline ブランチ
+## ブランチ運用
+
+方針が2系統あるが、**②は①の上に乗る**ので親子関係にする。
+マージは `engine` → `mmd-live` の**一方通行のみ**。逆流させない。
+
+```
+master ─────────── 安定版
+  └ engine ─────── ①汎用ゲームエンジンとしての開発
+       └ mmd-live ─ ②MMD再生特化（学マスのライブシーン制作）
+```
+
+- **engine**: 題材に依存しない基盤
+  `DirectX.*` / `FramePipeline.*` / `Systems.hpp` の汎用 System / `World.hpp` /
+  `Material.*` / `ShaderLibrary.*` / `EditorWindow.*` / ECS / スクリプト機構
+- **mmd-live**: 特定の作品・ライブ演出に依存するもの
+  PMX/VMD 拡張、モーフ、`MmdPhysics.*`、`MmdPlayerUI.hpp`、
+  ステージ／カメラワーク／ペンライト等の演出、専用シェーダー
+
+**判断基準**: 「次に別のゲームを作るときにも使うか？」
+使うなら engine、使わないなら mmd-live。
+
+**汎用コードに特化用の分岐を書きたくなったら赤信号。** 代わりに既存の拡張点を使う:
+
+- 新しい振る舞い → `MonoBehavior` 継承のスクリプト、または Component + System を追加
+- 新しい見た目 → `RegisterBuiltinShaders` にシェーダーパスを1行登録
+- 拡張点自体が足りないときだけ、engine 側に「拡張点の追加」を入れてから mmd-live で使う
+
+engine を進めたら定期的に取り込む:
+
+```
+git checkout mmd-live && git merge engine
+```
+
+## 現在の作業: FramePipeline（engine ブランチ）
 
 CEDEC2022 トイロジック「FramePipelineSystem」を段階導入中。
 
