@@ -1,4 +1,4 @@
-#include "SceneSerializer.hpp"
+ï»¿#include "SceneSerializer.hpp"
 #include "Scene.hpp"
 #include "Components.hpp"
 #include "PrefabLibrary.hpp"
@@ -37,10 +37,10 @@ namespace
         return ColliderComponent::ShapeType::Box;
     }
 
-    /// @brief JSON”z—ñ‚ğˆÀ‘S‚Éfloat3‚É•ÏŠ·‚·‚é
-	/// @param j jsonƒIƒuƒWƒFƒNƒg
-	/// @param def ƒfƒtƒHƒ‹ƒg’l
-	/// @return •ÏŠ·Œ‹‰Ê‚Ìfloat3
+    /// @brief JSONé…åˆ—ã‚’å®‰å…¨ã«float3ã«å¤‰æ›ã™ã‚‹
+	/// @param j jsonã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆ
+	/// @param def ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆå€¤
+	/// @return å¤‰æ›çµæœã®float3
     float3 ToFloat3(_In_ const json& j, _In_ const float3& def = { 0.0f,0.0f,0.0f })
     {
         if (!j.is_array() || j.size() < 3) return def;
@@ -48,10 +48,10 @@ namespace
         return float3(j[0].get<float>(), j[1].get<float>(), j[2].get<float>());
     }
 
-    /// @brief JSON”z—ñ‚ğˆÀ‘S‚Éfloat4‚É•ÏŠ·‚·‚é
-    /// @param j jsonƒIƒuƒWƒFƒNƒgj 
-    /// @param def ƒfƒtƒHƒ‹ƒg’ldef 
-    /// @return •ÏŠ·Œ‹‰Ê‚Ìfloat4 
+    /// @brief JSONé…åˆ—ã‚’å®‰å…¨ã«float4ã«å¤‰æ›ã™ã‚‹
+    /// @param j jsonã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆj 
+    /// @param def ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆå€¤def 
+    /// @return å¤‰æ›çµæœã®float4 
     float4 ToFloat4(_In_ const json& j, _In_ const float4& def = { 0.0f,0.0f,0.0f,1.0f })
     {
         if (!j.is_array() || j.size() < 4) return def;
@@ -59,10 +59,10 @@ namespace
         return float4(j[0].get<float>(), j[1].get<float>(), j[2].get<float>(), j[3].get<float>());
 	}
 
-	/// @brief JSONƒIƒuƒWƒFƒNƒg‚©‚çˆÀ‘S‚É•¶š—ñ‚ğæ“¾‚·‚é
-	/// @param j jsonƒIƒuƒWƒFƒNƒg
-	/// @param def ƒfƒtƒHƒ‹ƒg’l
-	/// @return •ÏŠ·Œ‹‰Ê‚Ì•¶š—ñ
+	/// @brief JSONã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆã‹ã‚‰å®‰å…¨ã«æ–‡å­—åˆ—ã‚’å–å¾—ã™ã‚‹
+	/// @param j jsonã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆ
+	/// @param def ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆå€¤
+	/// @return å¤‰æ›çµæœã®æ–‡å­—åˆ—
     std::string SafeString(_In_ const json& parent, _In_ const std::string& key, _In_ const std::string& def = "")
     {
         if (!parent.contains(key) || !parent[key].is_string()) return def;
@@ -125,7 +125,7 @@ std::string SceneSerializer::SaveToString(Scene& scene)
 			entry["transform"]["parent"] = t.parent;
         }
 
-        // ---- RigidBody / Colliderj ---- //
+        // ---- RigidBody / Colliderï¼‰ ---- //
         if (world.HasComponent<RigidBodyComponent>(entity))
         {
             const auto& rb = world.GetComponent<RigidBodyComponent>(entity);
@@ -189,7 +189,7 @@ std::string SceneSerializer::SaveToString(Scene& scene)
             }
         }
 
-        // ---- ‚»‚êˆÈŠO‚Ì”Ä—pƒRƒ“ƒ|[ƒlƒ“ƒg ---- //
+        // ---- ãã‚Œä»¥å¤–ã®æ±ç”¨ã‚³ãƒ³ãƒãƒ¼ãƒãƒ³ãƒˆ ---- //
         for (auto& c : ComponentRegistry::All())
         {
             if (c.save) c.save(world, entity, entry);
@@ -205,14 +205,14 @@ std::string SceneSerializer::SaveToString(Scene& scene)
                 json one;
                 one["name"] = name;
 
-                // ƒtƒB[ƒ‹ƒh’l(values)‚à•Û‘¶
+                // ãƒ•ã‚£ãƒ¼ãƒ«ãƒ‰å€¤(values)ã‚‚ä¿å­˜
                 json vals;
                 auto it = sc.values.find(name);
                 if (it != sc.values.end())
                 {
                     for (const auto& [fieldName, v] : it->second)
                     {
-                        // FieldValue ‚ğŒ^‚É‰‚¶‚Äjson‰»
+                        // FieldValue ã‚’å‹ã«å¿œã˜ã¦jsonåŒ–
                         switch (v.type)
                         {
                         case FieldType::Int:    vals[fieldName] = v.i; break;
@@ -223,7 +223,7 @@ std::string SceneSerializer::SaveToString(Scene& scene)
                         case FieldType::Float4: vals[fieldName] = { v.f[0], v.f[1], v.f[2], v.f[3] }; break;
                         case FieldType::Bool:   vals[fieldName] = v.b; break;
                         case FieldType::String: vals[fieldName] = v.s; break;
-                        case FieldType::Entity: vals[fieldName] = v.i; break;  // EntityRef‚Ìid
+                        case FieldType::Entity: vals[fieldName] = v.i; break;  // EntityRefã®id
                         default: break;
                         }
                     }
@@ -252,7 +252,7 @@ bool SceneSerializer::LoadFromString(Scene& scene, const std::string& data)
     World& world = scene.GetWorld();
     PhysicsWorld* physicsWorld = nullptr;
 
-    std::unordered_map<Entity, Entity> idMap; // •Û‘¶id -> ÀEntity
+    std::unordered_map<Entity, Entity> idMap; // ä¿å­˜id -> å®ŸEntity
     std::vector<std::pair<const json*, Entity>> loaded;
 
     if (root.contains("sceneName") && root["sceneName"].is_string())
@@ -287,8 +287,8 @@ bool SceneSerializer::LoadFromString(Scene& scene, const std::string& data)
             {
                 const bool isPrefab = entry.contains("prefab") || entry.contains("prefabGuid");
                 if (isPrefab)
-                    continue; // ƒvƒŒƒnƒuw’è‚È‚Ì‚ÉŒ©‚Â‚©‚ç‚È‚¢ê‡‚ÍƒXƒLƒbƒv
-                entity = world.CreateEntity(); // ”ñƒvƒŒƒnƒu‚Í‘f‚ÌƒGƒ“ƒeƒBƒeƒB‚Æ‚µ‚Ä•œŒ³
+                    continue; // ãƒ—ãƒ¬ãƒãƒ–æŒ‡å®šãªã®ã«è¦‹ã¤ã‹ã‚‰ãªã„å ´åˆã¯ã‚¹ã‚­ãƒƒãƒ—
+                entity = world.CreateEntity(); // éãƒ—ãƒ¬ãƒãƒ–ã¯ç´ ã®ã‚¨ãƒ³ãƒ†ã‚£ãƒ†ã‚£ã¨ã—ã¦å¾©å…ƒ
             }
 
             // ---- Name ---- //
@@ -388,7 +388,7 @@ bool SceneSerializer::LoadFromString(Scene& scene, const std::string& data)
                 if (mj.contains("shaderName"))
                     mat.shaderName = mj.value("shaderName", std::string("Basic"));
                 else {
-                    static const char* kLegacy[] = { "Basic", "Toon" };   // ‹Œenum‡
+                    static const char* kLegacy[] = { "Basic", "Toon" };   // æ—§enumé †
                     int idx = mj.value("pixelShader", 0);
                     mat.shaderName = (idx >= 0 && idx < 2) ? kLegacy[idx] : "Basic";
                 }
@@ -433,7 +433,7 @@ bool SceneSerializer::LoadFromString(Scene& scene, const std::string& data)
                 MeshComponent meshComp{};
                 meshComp.FilePath = meshJson.value("filePath", "");
                 meshComp.scale = meshJson.value("scale", 1.0f);
-                world.AddComponent<MeshComponent>(entity, meshComp);   // FilePath‚¾‚¯æ‚ÉŠm•Û
+                world.AddComponent<MeshComponent>(entity, meshComp);   // FilePathã ã‘å…ˆã«ç¢ºä¿
 
                 if (!meshComp.FilePath.empty())
                 {
@@ -452,7 +452,7 @@ bool SceneSerializer::LoadFromString(Scene& scene, const std::string& data)
                 }
             }
 
-            // ---- ‚»‚êˆÈŠO‚Ì”Ä—pƒRƒ“ƒ|[ƒlƒ“ƒgiReflectŒo—R‚Å©“®j ---- //
+            // ---- ãã‚Œä»¥å¤–ã®æ±ç”¨ã‚³ãƒ³ãƒãƒ¼ãƒãƒ³ãƒˆï¼ˆReflectçµŒç”±ã§è‡ªå‹•ï¼‰ ---- //
             for (auto& c : ComponentRegistry::All())
             {
                 if (c.load) c.load(world, entity, entry);
@@ -468,7 +468,7 @@ bool SceneSerializer::LoadFromString(Scene& scene, const std::string& data)
                     if (name.empty()) continue;
                     sc.scriptNames.push_back(name);
 
-                    // ƒtƒB[ƒ‹ƒh’l‚Ì•œŒ³
+                    // ãƒ•ã‚£ãƒ¼ãƒ«ãƒ‰å€¤ã®å¾©å…ƒ
                     if (one.contains("values"))
                     {
                         auto& vmap = sc.values[name];
@@ -505,8 +505,8 @@ bool SceneSerializer::LoadFromString(Scene& scene, const std::string& data)
         }
         catch (const std::exception& ex)
         {
-            LOG->LogError(std::string("[Scene] ƒGƒ“ƒeƒBƒeƒB“Ç¸”s: ") + ex.what());
-            continue;   // ‰ó‚ê‚½ƒGƒ“ƒeƒBƒeƒB‚ÍƒXƒLƒbƒvA‘±s
+            LOG->LogError(std::string("[Scene] ã‚¨ãƒ³ãƒ†ã‚£ãƒ†ã‚£èª­è¾¼å¤±æ•—: ") + ex.what());
+            continue;   // å£Šã‚ŒãŸã‚¨ãƒ³ãƒ†ã‚£ãƒ†ã‚£ã¯ã‚¹ã‚­ãƒƒãƒ—ã€ç¶šè¡Œ
         }
     }
 

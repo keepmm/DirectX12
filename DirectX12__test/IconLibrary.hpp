@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include <d3d12.h>
 #include <wrl/client.h>
 #include <unordered_map>
@@ -8,7 +8,7 @@
 
 class DirectXApp;
 
-/// PNG‰æ‘œ‚ğ“Ç‚İ‚İAImGui‚Å•\¦‚Å‚«‚é ImTextureID ‚É•ÏŠ·‚µ‚ÄƒLƒƒƒbƒVƒ…‚·‚éƒNƒ‰ƒX
+/// PNGç”»åƒã‚’èª­ã¿è¾¼ã¿ã€ImGuiã§è¡¨ç¤ºã§ãã‚‹ ImTextureID ã«å¤‰æ›ã—ã¦ã‚­ãƒ£ãƒƒã‚·ãƒ¥ã™ã‚‹ã‚¯ãƒ©ã‚¹
 class IconLibrary
 {
 public:
@@ -18,7 +18,7 @@ public:
         return &instance;
 	}
 
-    /// ƒpƒX‚ÌPNG‚ğ“Ç‚İ‚ñ‚Å ImTextureID ‚ğ•Ô‚·i2‰ñ–ÚˆÈ~‚ÍƒLƒƒƒbƒVƒ…‚©‚ç‘¦•Ô‚·j
+    /// ãƒ‘ã‚¹ã®PNGã‚’èª­ã¿è¾¼ã‚“ã§ ImTextureID ã‚’è¿”ã™ï¼ˆ2å›ç›®ä»¥é™ã¯ã‚­ãƒ£ãƒƒã‚·ãƒ¥ã‹ã‚‰å³è¿”ã™ï¼‰
     ImTextureID GetOrLoad(_In_ const std::wstring& path);
 
     void BeginFrame()
@@ -28,8 +28,8 @@ public:
 private:
     bool LoadTexture(_In_ const std::wstring& path, _Out_ ImTextureID& outId);
 
-    std::unordered_map<std::wstring, ImTextureID> m_Cache;     // ƒpƒX ¨ ImTextureID
-    std::vector<ComPtr<ID3D12Resource>> m_Textures;            // ƒeƒNƒXƒ`ƒƒ–{‘Ì‚ğ•Ûi‰ğ•ú–h~j
+    std::unordered_map<std::wstring, ImTextureID> m_Cache;     // ãƒ‘ã‚¹ â†’ ImTextureID
+    std::vector<ComPtr<ID3D12Resource>> m_Textures;            // ãƒ†ã‚¯ã‚¹ãƒãƒ£æœ¬ä½“ã‚’ä¿æŒï¼ˆè§£æ”¾é˜²æ­¢ï¼‰
     int m_LoadsThisFrame = 0;
-    static constexpr int kMaxLoadsPerFrame = 1; // 1ƒtƒŒ[ƒ€‚Å“Ç‚İ‚ŞÅ‘å”
+    static constexpr int kMaxLoadsPerFrame = 1; // 1ãƒ•ãƒ¬ãƒ¼ãƒ ã§èª­ã¿è¾¼ã‚€æœ€å¤§æ•°
 };

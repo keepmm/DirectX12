@@ -1,4 +1,4 @@
-#include "AudioEngine.hpp"
+ï»¿#include "AudioEngine.hpp"
 #include <filesystem>
 #include <fstream>
 #pragma comment(lib, "xaudio2.lib")
@@ -10,7 +10,7 @@ bool AudioEngine::Init()
     if (FAILED(m_XAudio2->CreateMasteringVoice(&m_MasterVoice)))
         return false;
 
-    // ƒ}ƒXƒ^[ƒ{ƒCƒX‚Ìƒ`ƒƒƒ“ƒlƒ‹\¬‚ğæ“¾
+    // ãƒã‚¹ã‚¿ãƒ¼ãƒœã‚¤ã‚¹ã®ãƒãƒ£ãƒ³ãƒãƒ«æ§‹æˆã‚’å–å¾—
     XAUDIO2_VOICE_DETAILS details{};
     m_MasterVoice->GetVoiceDetails(&details);
     m_OutputChannels = details.InputChannels;
@@ -19,7 +19,7 @@ bool AudioEngine::Init()
     m_MasterVoice->GetChannelMask(&channelMask);
     m_ChannelMask = channelMask;
 
-    // X3DAudio‰Šú‰»
+    // X3DAudioåˆæœŸåŒ–
     if (FAILED(X3DAudioInitialize(channelMask, X3DAUDIO_SPEED_OF_SOUND, m_X3DInstance)))
         return false;
 
@@ -55,7 +55,7 @@ std::shared_ptr<AudioClip> AudioEngine::Load(const std::string& path)
     return clip;
 }
 
-// Å¬WAVƒp[ƒTiPCM/RIFF‘O’ñj
+// æœ€å°WAVãƒ‘ãƒ¼ã‚µï¼ˆPCM/RIFFå‰æï¼‰
 std::shared_ptr<AudioClip> AudioEngine::LoadWav(const std::string& path)
 {
     std::ifstream f(path, std::ios::binary);
@@ -74,7 +74,7 @@ std::shared_ptr<AudioClip> AudioEngine::LoadWav(const std::string& path)
             memcpy(&clip->format, &file[pos], std::min<uint32_t>(size, sizeof(WAVEFORMATEX)));
         else if (memcmp(id, "data", 4) == 0)
             clip->data.assign(file.begin() + pos, file.begin() + pos + size);
-        pos += size + (size & 1);   // ƒ`ƒƒƒ“ƒN‚Í‹ô”‹«ŠE
+        pos += size + (size & 1);   // ãƒãƒ£ãƒ³ã‚¯ã¯å¶æ•°å¢ƒç•Œ
     }
     if (clip->data.empty()) return nullptr;
     return clip;

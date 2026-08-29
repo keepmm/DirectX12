@@ -1,4 +1,4 @@
-#ifndef ___LIGHTING_HLSLI___
+ï»¿#ifndef ___LIGHTING_HLSLI___
 #define ___LIGHTING_HLSLI___
 
 #define MAX_LIGHTS 10
@@ -49,19 +49,19 @@ void ComputeLight(LightData light, float3 worldPos, out float3 l, out float atte
     if (type == 3)
     {
         float3 axis = normalize(light.dir.xyz);
-        l = -axis; // •½sŒõ ¨ “üË‚Í -dir
+        l = -axis; // å¹³è¡Œå…‰ â†’ å…¥å°„ã¯ -dir
         float3 toP = worldPos - light.posRange.xyz;
-        float t = dot(toP, axis); // ƒr[ƒ€‚É‰ˆ‚Á‚½‹——£
+        float t = dot(toP, axis); // ãƒ“ãƒ¼ãƒ ã«æ²¿ã£ãŸè·é›¢
         float len = max(light.posRange.w, 0.0001f);
         if (t < 0.0f || t > len)
         {
             atten = 0.0f;
             return;
-        } // ƒr[ƒ€‹æŠÔŠO
-        float perp = length(toP - axis * t); // ƒr[ƒ€²‚©‚ç‚Ì‚’¼‹——£
+        } // ãƒ“ãƒ¼ãƒ åŒºé–“å¤–
+        float perp = length(toP - axis * t); // ãƒ“ãƒ¼ãƒ è»¸ã‹ã‚‰ã®å‚ç›´è·é›¢
         float radius = max(light.param.z, 0.001f);
         float r = saturate(1.0f - perp / radius);
-        atten = r * r; // ”¼ŒaŠO‚Í0A’†S‚ÅÅ‘å
+        atten = r * r; // åŠå¾„å¤–ã¯0ã€ä¸­å¿ƒã§æœ€å¤§
         return;
     }
 }

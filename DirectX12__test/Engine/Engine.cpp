@@ -1,4 +1,4 @@
-#include "Engine.hpp"
+ï»¿#include "Engine.hpp"
 #include "../Defines.hpp"
 #include "../Logger.hpp"
 #include "../Time.hpp"
@@ -46,12 +46,12 @@ void Engine::CreateGameWindow(int width, int height)
 
 	if (RegisterClassEx(&windowClass) == 0)
 	{
-		MessageBox(NULL, _T("ƒEƒBƒ“ƒhƒEƒNƒ‰ƒX‚Ì“o˜^‚É¸”s"), PROC_NAME, MB_OK);
+		MessageBox(NULL, _T("ã‚¦ã‚£ãƒ³ãƒ‰ã‚¦ã‚¯ãƒ©ã‚¹ã®ç™»éŒ²ã«å¤±æ•—"), PROC_NAME, MB_OK);
 		return;
 	}
 
 	// ------------------------ //
-	// ƒ{[ƒ_ƒŒƒXƒtƒ‹ƒXƒNƒŠ[ƒ“ //
+	// ãƒœãƒ¼ãƒ€ãƒ¬ã‚¹ãƒ•ãƒ«ã‚¹ã‚¯ãƒªãƒ¼ãƒ³ //
 	// ------------------------ //
 	const int screenW = GetSystemMetrics(SM_CXSCREEN);
 	const int screenH = GetSystemMetrics(SM_CYSCREEN);
@@ -74,7 +74,7 @@ HRESULT Engine::Init(HINSTANCE hInstance, int width, int height)
 
 	LOG->Init();
 
-	// ƒEƒBƒ“ƒhƒE‚ÌÀƒTƒCƒY‚ÅƒXƒƒbƒvƒ`ƒF[ƒ“‚ğì‚é
+	// ã‚¦ã‚£ãƒ³ãƒ‰ã‚¦ã®å®Ÿã‚µã‚¤ã‚ºã§ã‚¹ãƒ¯ãƒƒãƒ—ãƒã‚§ãƒ¼ãƒ³ã‚’ä½œã‚‹
 	RECT rc{};
 	GetClientRect(m_hWnd, &rc);
 	const int clientW = rc.right - rc.left;
@@ -87,7 +87,7 @@ HRESULT Engine::Init(HINSTANCE hInstance, int width, int height)
 
 	if (!IMGUI::Start(m_hWnd, m_DirectX->GetDevice().Get(), m_DirectX->GetCommandQueue().Get(),RTV_NUM, DXGI_FORMAT_R8G8B8A8_UNORM))
 	{
-		MessageBox(NULL, _T("IMGUI‚Ì‰Šú‰»‚É¸”s"), PROC_NAME, MB_OK);
+		MessageBox(NULL, _T("IMGUIã®åˆæœŸåŒ–ã«å¤±æ•—"), PROC_NAME, MB_OK);
 		return E_FAIL;
 	}
 
@@ -101,7 +101,7 @@ HRESULT Engine::Init(HINSTANCE hInstance, int width, int height)
 	}
 #endif
 
-	// ƒTƒuƒNƒ‰ƒX‚Ì‰Šú‰»
+	// ã‚µãƒ–ã‚¯ãƒ©ã‚¹ã®åˆæœŸåŒ–
 	HRESULT hr = OnInit();
 	if (FAILED(hr))
 	{
@@ -138,13 +138,13 @@ void Engine::Run()
 #ifdef _FRAMEPIPELINE
 			if(FAILED(m_DirectX->BeginFrameRecord(frameNumber)))
 			{
-				// ¸”s‚ÍŸƒtƒŒ[ƒ€‚Ö
+				// å¤±æ•—æ™‚ã¯æ¬¡ãƒ•ãƒ¬ãƒ¼ãƒ ã¸
 				return;
 			}
 #else
 			if (FAILED(m_DirectX->BeginRender()))
 			{
-				// ¸”s‚ÍŸƒtƒŒ[ƒ€‚Ö
+				// å¤±æ•—æ™‚ã¯æ¬¡ãƒ•ãƒ¬ãƒ¼ãƒ ã¸
 				return;
 			}
 #endif
@@ -153,14 +153,14 @@ void Engine::Run()
 			ImGuiIO& io = ImGui::GetIO();
 			INPUT->SetImGuiCapture(io.WantCaptureKeyboard, io.WantCaptureMouse, io.WantTextInput);
 
-			// ƒGƒ“ƒWƒ“XV
+			// ã‚¨ãƒ³ã‚¸ãƒ³æ›´æ–°
 			m_SceneManager.Update(deltaTime);
 
 			Scene* scene = m_SceneManager.GetActiveScene();
 			ScriptHost::Update(deltaTime,&scene->GetWorld());
 
 
-			// ŒÅ’èƒ^ƒCƒ€ƒXƒeƒbƒvXV
+			// å›ºå®šã‚¿ã‚¤ãƒ ã‚¹ãƒ†ãƒƒãƒ—æ›´æ–°
 			accumulatedTime += deltaTime;
 			while (accumulatedTime >= FIXED_TIMESTEP)
 			{
@@ -172,7 +172,7 @@ void Engine::Run()
 
 			OnUpdate();
 
-			// •`‰æƒRƒ“ƒeƒLƒXƒgì¬
+			// æç”»ã‚³ãƒ³ãƒ†ã‚­ã‚¹ãƒˆä½œæˆ
 			RenderContext renderContext{};
 			renderContext.CommandList = m_DirectX->GetCommandList().Get();
 			renderContext.frameIndex = m_DirectX->GetFrameSlot();
@@ -187,7 +187,7 @@ void Engine::Run()
 			renderContext.meshShaderPso = renderContext.useMeshShader ? m_DirectX->GetMeshPso() : nullptr;
 			renderContext.CommandList6 = m_DirectX->GetCommandList6();
 
-			// ƒV[ƒ“•`‰æ
+			// ã‚·ãƒ¼ãƒ³æç”»
 			ConfigureContext(renderContext);
 			m_SceneManager.Draw(renderContext);
 			m_DirectX->Present();
@@ -198,13 +198,13 @@ void Engine::Run()
 			{
 				return;
 			}
-			m_DirectX->KickExecuteAndPresent();   // ”ñ“¯Šú“Š“ü‚µ‚Ä‘¦ŸƒtƒŒ[ƒ€‚Ö
+			m_DirectX->KickExecuteAndPresent();   // éåŒæœŸæŠ•å…¥ã—ã¦å³æ¬¡ãƒ•ãƒ¬ãƒ¼ãƒ ã¸
 			m_DirectX->FlushGpuExec();
 			++frameNumber;
 #else
 			if(FAILED(m_DirectX->EndRender()))
 			{
-				// ¸”s‚ÍŸƒtƒŒ[ƒ€‚Ö
+				// å¤±æ•—æ™‚ã¯æ¬¡ãƒ•ãƒ¬ãƒ¼ãƒ ã¸
 				return;
 			}	
 #endif

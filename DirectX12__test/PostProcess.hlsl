@@ -1,4 +1,4 @@
-Texture2D g_Src : register(t0);
+ÔªøTexture2D g_Src : register(t0);
 Texture2D g_Bloom : register(t1);
 SamplerState g_Sampler : register(s0);
 
@@ -31,7 +31,7 @@ float4 BrightPS(VSOut i) : SV_TARGET
     return float4(c * k, 1.0f);
 }
 
-// ÉKÉEÉVÉAÉìÇ‘ÇÁÅ[
+// „Ç¨„Ç¶„Ç∑„Ç¢„É≥„Å∂„Çâ„Éº
 float4 BlurPS(VSOut i) : SV_TARGET
 {
     const float w[5] = { 0.227027, 0.194594, 0.121621, 0.054054, 0.016216 };

@@ -1,4 +1,4 @@
-#include "Shader.hpp"
+﻿#include "Shader.hpp"
 
 bool UseDxcProfile(const std::string& profile)
 {
@@ -120,7 +120,7 @@ bool Shader::CompileWithDxc(const std::wstring& filepath, const std::string& ent
 
 	if (errors && errors->GetStringLength() > 0)
 	{
-		m_LastError = errors->GetStringPointer();	// �ێ�
+		m_LastError = errors->GetStringPointer();	// 保持
 		OutputDebugStringA(m_LastError.c_str());
 	}
 

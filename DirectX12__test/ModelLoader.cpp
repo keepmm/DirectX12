@@ -1,4 +1,4 @@
-// ---- include ---- //
+ï»¿// ---- include ---- //
 #include "ModelLoader.hpp"
 #include "assimp/Importer.hpp"
 #include "assimp/postprocess.h"
@@ -19,7 +19,7 @@
 
 namespace
 {
-    // / aiMatrix4x4‚ğfloat4x4‚É•ÏŠ·
+    // / aiMatrix4x4ã‚’float4x4ã«å¤‰æ›
     float4x4 ToFloat4x4(const aiMatrix4x4& mat)
     {
         return float4x4{
@@ -31,32 +31,32 @@ namespace
     }
 
     /** 
-     *  ƒXƒPƒ‹ƒgƒ“ƒm[ƒh‚ğ’Ç‰Á
+     *  ã‚¹ã‚±ãƒ«ãƒˆãƒ³ãƒãƒ¼ãƒ‰ã‚’è¿½åŠ 
      * @param node 
      * @param index 
      * @param skeleton  
      */
     int AddSkeletonNode(const aiNode* node, int parentIndex, Skeleton& skeleton)
     {
-        // ƒm[ƒh‚Ìæ“¾
+        // ãƒãƒ¼ãƒ‰ã®å–å¾—
         const int index = static_cast<int>(skeleton.nodes.size());
 
-        // ƒ{[ƒ“ƒm[ƒh‚Ì’Ç‰Á
+        // ãƒœãƒ¼ãƒ³ãƒãƒ¼ãƒ‰ã®è¿½åŠ 
         BoneNode bone{};
         bone.name = node->mName.C_Str();
         if (bone.name.empty())
         {
             bone.name = "node_" + std::to_string(index);
         }
-        // eƒm[ƒh‚ÌƒCƒ“ƒfƒbƒNƒX‚Æƒ[ƒJƒ‹•ÏŠ·s—ñ‚ğİ’è
+        // è¦ªãƒãƒ¼ãƒ‰ã®ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹ã¨ãƒ­ãƒ¼ã‚«ãƒ«å¤‰æ›è¡Œåˆ—ã‚’è¨­å®š
         bone.parentIndex = parentIndex;
         bone.localTransform = ToFloat4x4(node->mTransformation);
 
-        // qƒm[ƒh‚Ì’Ç‰Á
+        // å­ãƒãƒ¼ãƒ‰ã®è¿½åŠ 
         skeleton.nodes.push_back(bone);
         skeleton.nameToIndex[bone.name] = index;
 
-        // qƒm[ƒh‚ğÄ‹A“I‚É’Ç‰Á
+        // å­ãƒãƒ¼ãƒ‰ã‚’å†å¸°çš„ã«è¿½åŠ 
         for (UINT i = 0; i < node->mNumChildren; ++i)
         {
             const int childindex = AddSkeletonNode(node->mChildren[i], index, skeleton);
@@ -67,30 +67,30 @@ namespace
     }
 
     /** 
-    *   ƒ{[ƒ“‚Ì’Ç‰Á or Šù‘¶‚Ìƒ{[ƒ“‚ÌƒCƒ“ƒfƒbƒNƒX‚ğæ“¾
-     *   @param bone ’Ç‰Á‚·‚éƒ{[ƒ“‚Ìî•ñ
-     *   @param skinData ƒXƒLƒjƒ“ƒOƒf[ƒ^
-     *   @return ’Ç‰Á‚µ‚½ƒ{[ƒ“‚ÌƒCƒ“ƒfƒbƒNƒXA‚à‚µ‚­‚ÍŠù‘¶‚Ìƒ{[ƒ“‚ÌƒCƒ“ƒfƒbƒNƒX
+    *   ãƒœãƒ¼ãƒ³ã®è¿½åŠ  or æ—¢å­˜ã®ãƒœãƒ¼ãƒ³ã®ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹ã‚’å–å¾—
+     *   @param bone è¿½åŠ ã™ã‚‹ãƒœãƒ¼ãƒ³ã®æƒ…å ±
+     *   @param skinData ã‚¹ã‚­ãƒ‹ãƒ³ã‚°ãƒ‡ãƒ¼ã‚¿
+     *   @return è¿½åŠ ã—ãŸãƒœãƒ¼ãƒ³ã®ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹ã€ã‚‚ã—ãã¯æ—¢å­˜ã®ãƒœãƒ¼ãƒ³ã®ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹
 	 *
     */
     std::uint16_t GetOrAddBoneIndex(const aiBone* bone, SkinData& skinData)
     {
-		// ƒ{[ƒ“–¼‚©‚çƒCƒ“ƒfƒbƒNƒX‚ğæ“¾
+		// ãƒœãƒ¼ãƒ³åã‹ã‚‰ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹ã‚’å–å¾—
         const std::string name = bone->mName.C_Str();
 
-		// Šù‚É‘¶İ‚·‚éƒ{[ƒ“‚©‚Ç‚¤‚©‚ğŠm”F
+		// æ—¢ã«å­˜åœ¨ã™ã‚‹ãƒœãƒ¼ãƒ³ã‹ã©ã†ã‹ã‚’ç¢ºèª
 		auto it = skinData.boneNametoIndex.find(name);
 
-        // Œ©‚Â‚©‚Á‚½ê‡‚»‚ÌƒCƒ“ƒfƒbƒNƒX‚ğ•Ô‚·
+        // è¦‹ã¤ã‹ã£ãŸå ´åˆãã®ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹ã‚’è¿”ã™
         if (it != skinData.boneNametoIndex.end())
         {
             return it->second;  
         }
 
-		// V‚µ‚¢ƒ{[ƒ“‚ğ’Ç‰Á
+		// æ–°ã—ã„ãƒœãƒ¼ãƒ³ã‚’è¿½åŠ 
 		const std::uint16_t index = static_cast<std::uint16_t>(skinData.boneNames.size());
 
-		// ƒ{[ƒ“–¼‚ÆƒIƒtƒZƒbƒgs—ñ‚ğ•Û‘¶
+		// ãƒœãƒ¼ãƒ³åã¨ã‚ªãƒ•ã‚»ãƒƒãƒˆè¡Œåˆ—ã‚’ä¿å­˜
         skinData.boneNames.push_back(name);
 		skinData.offsetMatrices.push_back(ToFloat4x4(bone->mOffsetMatrix));
         skinData.boneNametoIndex.emplace(name, index);
@@ -99,12 +99,12 @@ namespace
 
     void AddInfluence(BoneInfuence& influence, std::uint16_t boneIndex, float weight)
     {
-		// ‰e‹¿“x‚ª0‚ÌƒXƒƒbƒg‚ğ’T‚·
+		// å½±éŸ¿åº¦ãŒ0ã®ã‚¹ãƒ­ãƒƒãƒˆã‚’æ¢ã™
         int emptySlot = -1;
         int minSlot = 0;
         float minWeight = influence.weights[0];
 
-		// ‹ó‚«ƒXƒƒbƒg‚ğ’T‚·‚Æ“¯‚ÉAÅ‚à‰e‹¿“x‚Ì¬‚³‚¢ƒXƒƒbƒg‚à’T‚·
+		// ç©ºãã‚¹ãƒ­ãƒƒãƒˆã‚’æ¢ã™ã¨åŒæ™‚ã«ã€æœ€ã‚‚å½±éŸ¿åº¦ã®å°ã•ã„ã‚¹ãƒ­ãƒƒãƒˆã‚‚æ¢ã™
         for (int i = 0; i < 4; ++i)
         {
             if (influence.weights[i] == 0.0f && emptySlot == -1)
@@ -125,7 +125,7 @@ namespace
             return;
         }
 
-		// ƒXƒƒbƒg‚Éƒ{[ƒ“‚Ì‰e‹¿‚ğ’Ç‰Á
+		// ã‚¹ãƒ­ãƒƒãƒˆã«ãƒœãƒ¼ãƒ³ã®å½±éŸ¿ã‚’è¿½åŠ 
         influence.indices[slot] = boneIndex;
 		influence.weights[slot] = weight;
     }
@@ -140,7 +140,7 @@ namespace
                 influence.weights[2] + 
                 influence.weights[3];
 
-			// 0‚ÅŠ„‚é‚Ì‚ğ–h‚®‚½‚ßA‡Œv‚ª0ˆÈ‰º‚Ìê‡‚Í³‹K‰»‚ğƒXƒLƒbƒv
+			// 0ã§å‰²ã‚‹ã®ã‚’é˜²ããŸã‚ã€åˆè¨ˆãŒ0ä»¥ä¸‹ã®å ´åˆã¯æ­£è¦åŒ–ã‚’ã‚¹ã‚­ãƒƒãƒ—
             if (sum <= 0.0f)
             {
                 continue;
@@ -155,7 +155,7 @@ namespace
 }
 
 /*
-*     ƒtƒ@ƒCƒ‹‚©‚çƒ‚ƒfƒ‹‚ğƒ[ƒh
+*     ãƒ•ã‚¡ã‚¤ãƒ«ã‹ã‚‰ãƒ¢ãƒ‡ãƒ«ã‚’ãƒ­ãƒ¼ãƒ‰
 */
 ModelLoadResult ModelLoader::LoadFromFile(const ComPtr<ID3D12Device>& device,
     const std::string& filepath, float scale)
@@ -202,17 +202,17 @@ ModelCpuData ModelLoader::ParseFile(const std::string& filepath, float scale)
             aiProcess_FlipUVs |
             aiProcess_ConvertToLeftHanded;
 
-        // ƒ‚ƒfƒ‹“Ç‚İ‚İ
+        // ãƒ¢ãƒ‡ãƒ«èª­ã¿è¾¼ã¿
         const aiScene* scene = importer.ReadFile(filepath, flags);
 
-        // ƒGƒ‰[”»’è
+        // ã‚¨ãƒ©ãƒ¼åˆ¤å®š
         if (scene == nullptr || !scene->HasMeshes())
         {
             LOG->LogError("Failed to load model: " + filepath + " - " + importer.GetErrorString());
             return out;   // success=false
         }
 
-        // ƒƒbƒVƒ…‚Ìˆ—
+        // ãƒ¡ãƒƒã‚·ãƒ¥ã®å‡¦ç†
         for (unsigned int meshIndex = 0; meshIndex < scene->mNumMeshes; ++meshIndex)
         {
             const aiMesh* mesh = scene->mMeshes[meshIndex];
@@ -269,13 +269,13 @@ ModelCpuData ModelLoader::ParseFile(const std::string& filepath, float scale)
                 out.vertices.push_back(v);
             }
 
-            // ƒXƒLƒ“‚Ì‰e‹¿“xƒoƒbƒtƒ@Šg’£
+            // ã‚¹ã‚­ãƒ³ã®å½±éŸ¿åº¦ãƒãƒƒãƒ•ã‚¡æ‹¡å¼µ
             if (out.skinData.infuences.size() < out.vertices.size())
             {
                 out.skinData.infuences.resize(out.vertices.size());
             }
 
-            // ƒ{[ƒ“‚Ìˆ—
+            // ãƒœãƒ¼ãƒ³ã®å‡¦ç†
             for (unsigned int i = 0; i < mesh->mNumBones; ++i)
             {
                 const aiBone* bone = mesh->mBones[i];
@@ -289,12 +289,12 @@ ModelCpuData ModelLoader::ParseFile(const std::string& filepath, float scale)
                 }
             }
 
-            // –ÊiƒCƒ“ƒfƒbƒNƒXj‚Ìˆ—
+            // é¢ï¼ˆã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹ï¼‰ã®å‡¦ç†
             const std::uint32_t indexStart = static_cast<std::uint32_t>(out.indices.size());
             for (unsigned int f = 0; f < mesh->mNumFaces; ++f)
             {
                 const aiFace& face = mesh->mFaces[f];
-                if (face.mNumIndices != 3) { LOG->LogError("OŠpŒ`‚Å‚Í‚È‚¢–Ê‚ªŒ©‚Â‚©‚è‚Ü‚µ‚½: " + std::to_string(meshIndex)); continue; }
+                if (face.mNumIndices != 3) { LOG->LogError("ä¸‰è§’å½¢ã§ã¯ãªã„é¢ãŒè¦‹ã¤ã‹ã‚Šã¾ã—ãŸ: " + std::to_string(meshIndex)); continue; }
                 out.indices.push_back(baseVertex + face.mIndices[0]);
                 out.indices.push_back(baseVertex + face.mIndices[1]);
                 out.indices.push_back(baseVertex + face.mIndices[2]);
@@ -302,7 +302,7 @@ ModelCpuData ModelLoader::ParseFile(const std::string& filepath, float scale)
             const std::uint32_t indexCount =
                 static_cast<std::uint32_t>(out.indices.size()) - indexStart;
 
-            // ‚±‚ÌaiMesh = 1ƒTƒuƒƒbƒVƒ…imaterialIndex‚ÅŒãq‚Ìmaterials‚ğQÆj
+            // ã“ã®aiMesh = 1ã‚µãƒ–ãƒ¡ãƒƒã‚·ãƒ¥ï¼ˆmaterialIndexã§å¾Œè¿°ã®materialsã‚’å‚ç…§ï¼‰
             out.subMeshes.push_back(SubMesh{ indexStart, indexCount, mesh->mMaterialIndex });
         }
 
@@ -310,7 +310,7 @@ ModelCpuData ModelLoader::ParseFile(const std::string& filepath, float scale)
         if(scene->mRootNode)
 			AddSkeletonNode(scene->mRootNode, -1, out.skeleton);
 
-        //ƒXƒLƒ“‰e‹¿‚ğ’¸“_ƒoƒbƒtƒ@‚Ö“]‹@
+        //ã‚¹ã‚­ãƒ³å½±éŸ¿ã‚’é ‚ç‚¹ãƒãƒƒãƒ•ã‚¡ã¸è»¢æ©Ÿ
         const size_t vcount = out.vertices.size();
         if (out.skinData.infuences.size() == vcount)
         {
@@ -331,11 +331,11 @@ ModelCpuData ModelLoader::ParseFile(const std::string& filepath, float scale)
             return out;   // success=false
         }
 
-        // --- ƒ}ƒeƒŠƒAƒ‹iƒeƒNƒXƒ`ƒƒƒpƒXjˆ—FGPU‚ÍG‚ç‚¸ƒpƒX/ƒf[ƒ^‚¾‚¯’Šo ---
+        // --- ãƒãƒ†ãƒªã‚¢ãƒ«ï¼ˆãƒ†ã‚¯ã‚¹ãƒãƒ£ãƒ‘ã‚¹ï¼‰å‡¦ç†ï¼šGPUã¯è§¦ã‚‰ãšãƒ‘ã‚¹/ãƒ‡ãƒ¼ã‚¿ã ã‘æŠ½å‡º ---
         const std::filesystem::path modelPath(filepath);
         const std::filesystem::path baseDir = modelPath.parent_path();
 
-        // ƒtƒ@ƒCƒ‹–¼‚ğ basename ‰»‚µ textures/ or ’¼‰º‚©‚çÀİƒpƒX‚ğ’T‚·i.exr¨.pngj
+        // ãƒ•ã‚¡ã‚¤ãƒ«åã‚’ basename åŒ–ã— textures/ or ç›´ä¸‹ã‹ã‚‰å®Ÿåœ¨ãƒ‘ã‚¹ã‚’æ¢ã™ï¼ˆ.exrâ†’.pngï¼‰
         auto findInFolders = [&](std::filesystem::path fname) -> std::wstring
             {
                 if (fname.extension() == ".exr") fname.replace_extension(".png");
@@ -347,7 +347,7 @@ ModelCpuData ModelLoader::ParseFile(const std::string& filepath, float scale)
                 return L"";
             };
 
-        // assimp‚ª•Ô‚·ƒpƒX‚Í basename ‰»‚µ‚Ä‰ğŒˆ
+        // assimpãŒè¿”ã™ãƒ‘ã‚¹ã¯ basename åŒ–ã—ã¦è§£æ±º
         auto resolveByType = [&](const aiMaterial* mat, aiTextureType type) -> std::wstring
             {
                 aiString p{};
@@ -357,16 +357,16 @@ ModelCpuData ModelLoader::ParseFile(const std::string& filepath, float scale)
                 return findInFolders(std::filesystem::path(s).filename());
             };
 
-        // diffuseƒpƒX‚©‚çŒZ’íƒ}ƒbƒv‚ğ–½–¼‹K‘¥‚Å”h¶i_diff¨_metal “™jBŠg’£q‚Í•¡”‚·
+        // diffuseãƒ‘ã‚¹ã‹ã‚‰å…„å¼Ÿãƒãƒƒãƒ—ã‚’å‘½åè¦å‰‡ã§æ´¾ç”Ÿï¼ˆ_diffâ†’_metal ç­‰ï¼‰ã€‚æ‹¡å¼µå­ã¯è¤‡æ•°è©¦ã™
         auto deriveSibling = [&](const std::wstring& diffuse,
             const std::wstring& fromKey, const std::wstring& toKey) -> std::wstring
             {
                 if (diffuse.empty()) return L"";
                 std::filesystem::path pd(diffuse);
-                std::wstring stem = pd.stem().wstring();           // —á: bolt_..._diff_4k
+                std::wstring stem = pd.stem().wstring();           // ä¾‹: bolt_..._diff_4k
                 size_t at = stem.find(fromKey);
                 if (at == std::wstring::npos) return L"";
-                stem.replace(at, fromKey.size(), toKey);           // _diff ¨ _metal
+                stem.replace(at, fromKey.size(), toKey);           // _diff â†’ _metal
                 for (const wchar_t* ext : { L".png", L".jpg", L".jpeg", L".tga" })
                 {
                     std::filesystem::path cand = pd.parent_path() / (stem + ext);
@@ -375,7 +375,7 @@ ModelCpuData ModelLoader::ParseFile(const std::string& filepath, float scale)
                 return L"";
             };
 
-        // –@üƒ}ƒbƒv‚ğ‚Âi–{‘Ìjƒ}ƒeƒŠƒAƒ‹‚ğ—Dæ‚µ‚ÄŠm’è
+        // æ³•ç·šãƒãƒƒãƒ—ã‚’æŒã¤ï¼ˆï¼æœ¬ä½“ï¼‰ãƒãƒ†ãƒªã‚¢ãƒ«ã‚’å„ªå…ˆã—ã¦ç¢ºå®š
         out.materials.resize(scene->mNumMaterials);
         for (unsigned int i = 0; i < scene->mNumMaterials; ++i)
         {
@@ -427,7 +427,7 @@ ModelCpuData ModelLoader::ParseFile(const std::string& filepath, float scale)
             out.clips.push_back(std::move(clip));
         }
     }
-    // --- Šeƒ}ƒbƒv‚ğ RGBA8 ‚ÉƒfƒR[ƒhi‚±‚ÌParseFile‚Íƒ[ƒJ[ƒXƒŒƒbƒh‚ÅÀs‚³‚ê‚éj---
+    // --- å„ãƒãƒƒãƒ—ã‚’ RGBA8 ã«ãƒ‡ã‚³ãƒ¼ãƒ‰ï¼ˆã“ã®ParseFileã¯ãƒ¯ãƒ¼ã‚«ãƒ¼ã‚¹ãƒ¬ãƒƒãƒ‰ã§å®Ÿè¡Œã•ã‚Œã‚‹ï¼‰---
     auto decode = [](const std::wstring& path) -> DecodedImage
         {
             DecodedImage d;
@@ -452,7 +452,7 @@ ModelCpuData ModelLoader::ParseFile(const std::string& filepath, float scale)
             const DirectX::Image* src = img.GetImage(0, 0, 0);
             if (src == nullptr) return d;
 
-            // RGBA8 ‚É“ˆêiMaterial ‚Ì CreateTextureFromRGBA ‚ª R8G8B8A8_UNORM ‘O’ñj
+            // RGBA8 ã«çµ±ä¸€ï¼ˆMaterial ã® CreateTextureFromRGBA ãŒ R8G8B8A8_UNORM å‰æï¼‰
             DirectX::ScratchImage converted;
             if (meta.format != DXGI_FORMAT_R8G8B8A8_UNORM)
             {
@@ -474,7 +474,7 @@ ModelCpuData ModelLoader::ParseFile(const std::string& filepath, float scale)
         {
             if (path.empty()) return nullptr;
             auto it = imgCache.find(path);
-            if (it != imgCache.end()) return it->second;   // Šùo‚Í‹¤—L
+            if (it != imgCache.end()) return it->second;   // æ—¢å‡ºã¯å…±æœ‰
             auto d = std::make_shared<DecodedImage>(decode(path));
             imgCache[path] = d;
             return d;
@@ -488,7 +488,7 @@ ModelCpuData ModelLoader::ParseFile(const std::string& filepath, float scale)
         set.roughImage      = decodeCached(set.rough);
     }
 
-    // ’Pˆêƒ}ƒeƒŠƒAƒ‹ŒİŠ·F–@ü‚ğ‚ÂÅ‰‚Ìƒ}ƒeƒŠƒAƒ‹‚ğ]—ˆƒtƒB[ƒ‹ƒh‚É‚à“ü‚ê‚é
+    // å˜ä¸€ãƒãƒ†ãƒªã‚¢ãƒ«äº’æ›ï¼šæ³•ç·šã‚’æŒã¤æœ€åˆã®ãƒãƒ†ãƒªã‚¢ãƒ«ã‚’å¾“æ¥ãƒ•ã‚£ãƒ¼ãƒ«ãƒ‰ã«ã‚‚å…¥ã‚Œã‚‹
     for (auto& m : out.materials)
         if (!m.normal.empty())
         {
@@ -555,7 +555,7 @@ std::vector<AnimationClip> ModelLoader::LoadAnimationsOnly(const std::string& fi
     {
         const aiAnimation* anim = scene->mAnimations[a];
         AnimationClip clip;
-        clip.name = std::filesystem::path(filepath).stem().string();  // ƒtƒ@ƒCƒ‹–¼‚ğƒNƒŠƒbƒv–¼‚É
+        clip.name = std::filesystem::path(filepath).stem().string();  // ãƒ•ã‚¡ã‚¤ãƒ«åã‚’ã‚¯ãƒªãƒƒãƒ—åã«
         clip.tickPerSecond = (anim->mTicksPerSecond != 0.0) ? (float)anim->mTicksPerSecond : 30.0f;
         clip.duration = (float)(anim->mDuration / clip.tickPerSecond);
 
@@ -607,13 +607,13 @@ AnimationClip ModelLoader::LoadVMDClip(const std::string& path, const Skeleton& 
         std::uint32_t frame; std::memcpy(&frame, d + o, 4); o += 4;
         float pos[3];  std::memcpy(pos, d + o, 12); o += 12;
         float quat[4]; std::memcpy(quat, d + o, 16); o += 16;  // x,y,z,w
-        o += 64;   // •âŠÔƒpƒ‰ƒ[ƒ^(¡‰ñ‚ÍüŒ`/slerp)
+        o += 64;   // è£œé–“ãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿(ä»Šå›ã¯ç·šå½¢/slerp)
 
         auto it = skeleton.nameToIndex.find(name);
-        if (it == skeleton.nameToIndex.end()) continue;   // ƒ‚ƒfƒ‹‚É–³‚¢ƒ{[ƒ“‚ÍƒXƒLƒbƒv
+        if (it == skeleton.nameToIndex.end()) continue;   // ãƒ¢ãƒ‡ãƒ«ã«ç„¡ã„ãƒœãƒ¼ãƒ³ã¯ã‚¹ã‚­ãƒƒãƒ—
         const auto& node = skeleton.nodes[it->second];
 
-        // ƒoƒCƒ“ƒhƒIƒtƒZƒbƒg = ƒ[ƒJƒ‹•ÏŠ·‚Ì•½sˆÚ“®¬•ª
+        // ãƒã‚¤ãƒ³ãƒ‰ã‚ªãƒ•ã‚»ãƒƒãƒˆ = ãƒ­ãƒ¼ã‚«ãƒ«å¤‰æ›ã®å¹³è¡Œç§»å‹•æˆåˆ†
         const float3 bindOff = { node.localTransform._41, node.localTransform._42, node.localTransform._43 };
 
         KeyFrame kf;
@@ -658,18 +658,18 @@ CameraClip ModelLoader::LoadVMDCameraClip(const std::string& path)
 
 	size_t o = 50;   // 30(signature)+20(model name)
 
-    // ƒ{[ƒ“ƒtƒŒ[ƒ€‚ğ“Ç‚İ”ò‚Î‚·
+    // ãƒœãƒ¼ãƒ³ãƒ•ãƒ¬ãƒ¼ãƒ ã‚’èª­ã¿é£›ã°ã™
     std::uint32_t boneCount;
 	std::memcpy(&boneCount, d + o, 4); o += 4;
     o += (size_t)boneCount * 111;
 
-    // ƒ‚[ƒtƒtƒŒ[ƒ€‚à“Ç‚İ”ò‚Î‚·
+    // ãƒ¢ãƒ¼ãƒ•ãƒ•ãƒ¬ãƒ¼ãƒ ã‚‚èª­ã¿é£›ã°ã™
     if (o + 4 > size) return clip;
     std::uint32_t morphCount;
 	std::memcpy(&morphCount, d + o, 4); o += 4;
     o += (size_t)morphCount * 23;
 
-    // ƒJƒƒ‰ƒtƒŒ[ƒ€‚ğ“Ç‚İ‚Ş
+    // ã‚«ãƒ¡ãƒ©ãƒ•ãƒ¬ãƒ¼ãƒ ã‚’èª­ã¿è¾¼ã‚€
     if (o + 4 > size) return clip;
 	std::uint32_t cameraCount;
     std::memcpy(&cameraCount, d + 0, 4); o += 4;
@@ -682,9 +682,9 @@ CameraClip ModelLoader::LoadVMDCameraClip(const std::string& path)
         std::memcpy(&kf.distance, d + o, 4);                 o += 4;
         std::memcpy(&kf.target, d + o, 12);                  o += 12;
         std::memcpy(&kf.rotation, d + o, 12);                o += 12;
-        o += 24;                                             // •âŠÔƒxƒWƒF(‚Ü‚¸‚ÍüŒ`)
+        o += 24;                                             // è£œé–“ãƒ™ã‚¸ã‚§(ã¾ãšã¯ç·šå½¢)
         std::uint32_t fov; std::memcpy(&fov, d + o, 4);      o += 4;
-        o += 1;                                              // ƒp[ƒXƒyƒNƒeƒBƒuƒtƒ‰ƒO
+        o += 1;                                              // ãƒ‘ãƒ¼ã‚¹ãƒšã‚¯ãƒ†ã‚£ãƒ–ãƒ•ãƒ©ã‚°
         kf.time = frame / 30.0f;
         kf.fovY = (float)fov;
         clip.keys.push_back(kf);
@@ -709,7 +709,7 @@ void ModelLoader::PopulateModelEntity(
         {
             if (!world.IsEntityAlive(entity) || !result.mesh) return;
 
-            // TransformƒXƒP[ƒ‹(V‹KƒXƒ|[ƒ“‚Ì‚İİ’èB•œŒ³‚Í•Û‘¶’l‚ğ‘¸d)
+            // Transformã‚¹ã‚±ãƒ¼ãƒ«(æ–°è¦ã‚¹ãƒãƒ¼ãƒ³æ™‚ã®ã¿è¨­å®šã€‚å¾©å…ƒæ™‚ã¯ä¿å­˜å€¤ã‚’å°Šé‡)
             if (applyDefaultTransformScale && world.HasComponent<TransformComponent>(entity))
             {
                 auto& tr = world.GetComponent<TransformComponent>(entity);
@@ -725,13 +725,13 @@ void ModelLoader::PopulateModelEntity(
 
             MaterialComponent mc{};
 
-            // --- ƒAƒjƒ[ƒVƒ‡ƒ“/•¨—/ƒ‚[ƒt ---
+            // --- ã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³/ç‰©ç†/ãƒ¢ãƒ¼ãƒ• ---
             if (!result.clips.empty() || !result.skinData.boneNames.empty())
             {
                 AnimatorComponent an;
                 an.skeleton = std::move(result.skeleton);
                 an.skinData = std::move(result.skinData);
-                an.clips = std::move(result.clips);   // ƒtƒHƒ‹ƒ_VMD‚ÍParseFile‚ÅŠù‚ÉŠi”[Ï‚İ
+                an.clips = std::move(result.clips);   // ãƒ•ã‚©ãƒ«ãƒ€VMDã¯ParseFileã§æ—¢ã«æ ¼ç´æ¸ˆã¿
                 an.morphs = std::move(result.morphs);
                 an.morphWeights.assign(an.morphs.morphs.size(), 0.0f);
 
@@ -744,7 +744,7 @@ void ModelLoader::PopulateModelEntity(
                     an.playing = old.playing;
                 }
 
-                // •¨—
+                // ç‰©ç†
                 if (scene)
                 {
                     auto& physicsWorld = scene->EnsurePhysicsWorld();
@@ -758,7 +758,7 @@ void ModelLoader::PopulateModelEntity(
                     }
                 }
 
-                // ŒZ’íFBXƒAƒjƒ("stem_..."Œ`®)‚ğ’Ç‰Á
+                // å…„å¼ŸFBXã‚¢ãƒ‹ãƒ¡("stem_..."å½¢å¼)ã‚’è¿½åŠ 
                 namespace fs = std::filesystem;
                 fs::path base(modelpath);
                 std::string stem = base.stem().string();
@@ -773,7 +773,7 @@ void ModelLoader::PopulateModelEntity(
                     }
                 }
 
-                // --- ƒV[ƒ“•œŒ³: è“®’Ç‰ÁVMD‚ÌÄƒ[ƒh{Ä¶ó‘Ô ---
+                // --- ã‚·ãƒ¼ãƒ³å¾©å…ƒ: æ‰‹å‹•è¿½åŠ VMDã®å†ãƒ­ãƒ¼ãƒ‰ï¼‹å†ç”ŸçŠ¶æ…‹ ---
                 an.extraClipNames = extraVmds;
                 for (const auto& vmd : extraVmds)
                 {
@@ -788,25 +788,25 @@ void ModelLoader::PopulateModelEntity(
                 mc.shaderName = "SkinnedToon";
             }
 
-            // --- ƒV[ƒ“•œŒ³’l‚Ìˆø‚«Œp‚¬---
+            // --- ã‚·ãƒ¼ãƒ³å¾©å…ƒå€¤ã®å¼•ãç¶™ã---
             std::vector<SubMaterialRestore> pending;
             if (world.HasComponent<MaterialComponent>(entity))
             {
                 const auto& old = world.GetComponent<MaterialComponent>(entity);
                 if (!old.shaderName.empty() && old.shaderName != "Basic")
-                    mc.shaderName = old.shaderName;         // •œŒ³’l‚ğ—Dæ
+                    mc.shaderName = old.shaderName;         // å¾©å…ƒå€¤ã‚’å„ªå…ˆ
                 mc.FilePath = old.FilePath;
                 mc.RampFilePath = old.RampFilePath;
                 pending = old.pendingSubs;
             }
 
-            // ƒ}ƒeƒŠƒAƒ‹
+            // ãƒãƒ†ãƒªã‚¢ãƒ«
             mc.materials = BuildMaterials(result, "PBR");
             for (size_t i = 0; i < mc.materials.size(); ++i)
                 mc.materialnames.push_back(result.materials[i].name);
             if (!mc.materials.empty()) mc.material = mc.materials[0];
 
-            // --- •Û—¯‚µ‚Ä‚¢‚½ƒTƒuƒ}ƒeƒŠƒAƒ‹•œŒ³’l‚ğ“K—p ---
+            // --- ä¿ç•™ã—ã¦ã„ãŸã‚µãƒ–ãƒãƒ†ãƒªã‚¢ãƒ«å¾©å…ƒå€¤ã‚’é©ç”¨ ---
             for (size_t i = 0; i < pending.size() && i < mc.materials.size(); ++i)
             {
                 auto& sm = mc.materials[i];

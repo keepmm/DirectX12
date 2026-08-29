@@ -1,4 +1,4 @@
-#include "Common.hlsli"
+ï»¿#include "Common.hlsli"
 #include "Lighting.hlsli"
 #include "BRDF.hlsli"
 
@@ -18,12 +18,12 @@ float4 FresnelPS(PSInput pin) : SV_Target
     float4 color = g_Texture.Sample(g_Sampler, pin.uv);
     float3 basecolor = pin.col.rgb * color.rgb;
     
-    // –@ü‚ğ³‹K‰»
+    // æ³•ç·šã‚’æ­£è¦åŒ–
     float3 N = normalize(pin.normal);
-    // ƒrƒ…[•ûŒü‚ğŒvZ
+    // ãƒ“ãƒ¥ãƒ¼æ–¹å‘ã‚’è¨ˆç®—
     float3 V = normalize(cameraPos.xyz - pin.worldPos);
     
-    // ’Êí‚ÌLambertƒ‰ƒCƒeƒBƒ“ƒO
+    // é€šå¸¸ã®Lambertãƒ©ã‚¤ãƒ†ã‚£ãƒ³ã‚°
     float3 diffuse = 0;
     const int count = (int) lightCount.x;
     for (int i = 0; i < count; ++i)
@@ -35,7 +35,7 @@ float4 FresnelPS(PSInput pin) : SV_Target
     }
     float3 lit = diffuse + basecolor * ambientColor.rgb;
     
-    // ƒtƒŒƒlƒ‹‚ÅƒOƒ[‚ğ‰ÁZ
+    // ãƒ•ãƒ¬ãƒãƒ«ã§ã‚°ãƒ­ãƒ¼ã‚’åŠ ç®—
     float power = lerp(1.0f, 8.0f, saturate(roughness));
     float fresnel = Fresnel(N, V, power);
     float3 glow = rimColor.rgb * fresnel * rimColor.a;

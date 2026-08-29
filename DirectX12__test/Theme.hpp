@@ -1,10 +1,10 @@
-/*****************************************************************//**
+ï»¿/*****************************************************************//**
  * \file   Theme.hpp
- * \brief  ImGui‚Ìƒe[ƒ}ƒJƒ‰[‚ğİ’è‚·‚é
+ * \brief  ImGuiã®ãƒ†ãƒ¼ãƒã‚«ãƒ©ãƒ¼ã‚’è¨­å®šã™ã‚‹
  * 
- * ì¬Ò keeeep
- * ì¬“ú 2026/7/3
- * XV—š—ğ 7.3 ‘§”²‚«‚Éì¬
+ * ä½œæˆè€… keeeep
+ * ä½œæˆæ—¥ 2026/7/3
+ * æ›´æ–°å±¥æ­´ 7.3 æ¯æŠœãã«ä½œæˆ
  * *********************************************************************/
 #pragma once
 
@@ -21,7 +21,7 @@ inline void ApplyTheme(
 	_In_ const uiTheme newTheme,
 	_In_ const ImVec4 accent = ImVec4(0.26f, 0.59f, 0.98f, 1.0f))
 {
-	// ƒe[ƒ}‚²‚Æ‚ÉƒJƒ‰[İ’è
+	// ãƒ†ãƒ¼ãƒã”ã¨ã«ã‚«ãƒ©ãƒ¼è¨­å®š
 	switch (newTheme)
 	{
 	case uiTheme::Dark:
@@ -36,11 +36,11 @@ inline void ApplyTheme(
 	}
 
 	ImGuiStyle& style = ImGui::GetStyle();
-	style.WindowRounding = 4.0f;	// ƒEƒBƒ“ƒhƒE‚ÌŠp‚ğŠÛ‚­‚·‚é
-	style.FrameRounding  = 3.0f;	// ƒtƒŒ[ƒ€‚ÌŠp‚ğŠÛ‚­‚·‚é
-	style.WindowBorderSize = 1.0f;	// ƒEƒBƒ“ƒhƒE‚Ì‹«ŠEü‚Ì‘¾‚³
+	style.WindowRounding = 4.0f;	// ã‚¦ã‚£ãƒ³ãƒ‰ã‚¦ã®è§’ã‚’ä¸¸ãã™ã‚‹
+	style.FrameRounding  = 3.0f;	// ãƒ•ãƒ¬ãƒ¼ãƒ ã®è§’ã‚’ä¸¸ãã™ã‚‹
+	style.WindowBorderSize = 1.0f;	// ã‚¦ã‚£ãƒ³ãƒ‰ã‚¦ã®å¢ƒç•Œç·šã®å¤ªã•
 
-	// ƒAƒNƒZƒ“ƒgF‚ğƒ{ƒ^ƒ“ / ƒwƒbƒ_‚É”½‰f
+	// ã‚¢ã‚¯ã‚»ãƒ³ãƒˆè‰²ã‚’ãƒœã‚¿ãƒ³ / ãƒ˜ãƒƒãƒ€ã«åæ˜ 
 	style.Colors[ImGuiCol_Header] = accent;
 	style.Colors[ImGuiCol_HeaderHovered] = ImVec4(accent.x, accent.y, accent.z, 0.8f);
 	style.Colors[ImGuiCol_Button] = ImVec4(accent.x, accent.y, accent.z, 0.6f);

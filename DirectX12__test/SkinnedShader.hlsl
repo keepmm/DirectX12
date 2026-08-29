@@ -1,13 +1,13 @@
-#include "Common.hlsli"
+ï»¿#include "Common.hlsli"
 
 cbuffer BoneMatrices : register(b4)
 {
     float4x4 bones[512];
     float3 pad;
-    float morphActive; // ƒ‚[ƒt‚ª—LŒø‚©‚Ç‚¤‚© 0.0 = –³Œø, 1.0 = —LŒø
+    float morphActive; // ãƒ¢ãƒ¼ãƒ•ãŒæœ‰åŠ¹ã‹ã©ã†ã‹ 0.0 = ç„¡åŠ¹, 1.0 = æœ‰åŠ¹
 }
 
-StructuredBuffer<float3> g_MorphOffsets : register(t7); // ’¸“_index‘Î‰‚ÌƒuƒŒƒ“ƒhÏ‚İƒIƒtƒZƒbƒg
+StructuredBuffer<float3> g_MorphOffsets : register(t7); // é ‚ç‚¹indexå¯¾å¿œã®ãƒ–ãƒ¬ãƒ³ãƒ‰æ¸ˆã¿ã‚ªãƒ•ã‚»ãƒƒãƒˆ
 
 PSInput SkinnedVS(VSInput input, uint vertexId : SV_VertexID)
 {
@@ -16,7 +16,7 @@ PSInput SkinnedVS(VSInput input, uint vertexId : SV_VertexID)
     float wsum = input.boneWeights.x + input.boneWeights.y
                + input.boneWeights.z + input.boneWeights.w;
 
-    // ƒ‚[ƒt‚ğæ‚É“K—p‚µ‚Ä‚©‚çƒXƒLƒjƒ“ƒO
+    // ãƒ¢ãƒ¼ãƒ•ã‚’å…ˆã«é©ç”¨ã—ã¦ã‹ã‚‰ã‚¹ã‚­ãƒ‹ãƒ³ã‚°
     float3 morph = float3(0, 0, 0);
     [branch]
     if (morphActive > 0.5)

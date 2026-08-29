@@ -1,4 +1,4 @@
-#include "MeshRenderer.hpp"
+﻿#include "MeshRenderer.hpp"
 #include "Mesh.hpp"
 #include "Material.hpp"
 #include "RenderContext.hpp"
@@ -12,7 +12,7 @@ void MeshRenderer::Draw(const RenderContext& renderContext, const float4x4& worl
 	{
 		if(i >= m_Materials.size() || m_Materials[i] == nullptr)
 		{
-			// �}�e���A�����ݒ肳��Ă��Ȃ��T�u���b�V���͕`�悵�Ȃ�
+			// マテリアルが設定されていないサブメッシュは描画しない
 			continue;
 		}
 

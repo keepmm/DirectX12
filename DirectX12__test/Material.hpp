@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include "DirectX.hpp"
 #include "Defines.hpp"
@@ -12,20 +12,20 @@ class ConstantBufferAllocator;
 class Material
 {
 public:
-	/// @brief ‰Šú‰»
+	/// @brief åˆæœŸåŒ–
 	void Init();
 
 	/*
-	*	ƒeƒNƒXƒ`ƒƒ‚Ìİ’è
+	*	ãƒ†ã‚¯ã‚¹ãƒãƒ£ã®è¨­å®š
 	*/
 	bool SetTextureFromFile(_In_ const std::wstring& filePath);
 
 	/** 
-	*	ƒƒ‚ƒŠ‚©‚çƒeƒNƒXƒ`ƒƒ‚ğİ’è
+	*	ãƒ¡ãƒ¢ãƒªã‹ã‚‰ãƒ†ã‚¯ã‚¹ãƒãƒ£ã‚’è¨­å®š
 	*/
 	bool SetTextureFromMemory(_In_ const std::uint8_t* data, size_t size);
 
-	/// @brief ƒgƒD[ƒ“ƒ‰ƒbƒvƒeƒNƒXƒ`ƒƒ‚Ìİ’è
+	/// @brief ãƒˆã‚¥ãƒ¼ãƒ³ãƒ©ãƒƒãƒ—ãƒ†ã‚¯ã‚¹ãƒãƒ£ã®è¨­å®š
 	bool SetToonRampTexture(_In_ const std::wstring& filepath);
 
 	void ShareDiffuseTexture(_In_ const Material& src);
@@ -68,10 +68,10 @@ public:
 	float4 rimColor = { 1.0f,1.0f,1.0f,1.0f };
 	bool isFace = false;
 	float outlineWidth = 1.0f;
-	float sssStrength = 0.0f;	// ”§ : 0.5 ~ 0.7
-	float sssWrap = 0.4f;		// –¾ˆÃ‹«ŠE‚Ì‚È‚¾‚ç‚©‚³
-	float sssTrans = 0.0f;		// ¨Ew‚Ì‹tŒõ“§‰ß
-	float sheen = 0.0f;			// •z : 0.5 ~ 1.0
+	float sssStrength = 0.0f;	// è‚Œ : 0.5 ~ 0.7
+	float sssWrap = 0.4f;		// æ˜æš—å¢ƒç•Œã®ãªã ã‚‰ã‹ã•
+	float sssTrans = 0.0f;		// è€³ãƒ»æŒ‡ã®é€†å…‰é€é
+	float sheen = 0.0f;			// å¸ƒ : 0.5 ~ 1.0
 	COLOR sssColor = {0.9f,0.35f,0.25f,1.0f};
 	float baseAlpha = 1.0f;
 	COLOR baseColor = { 1.0f,1.0f,1.0f,1.0f };
@@ -81,7 +81,7 @@ public:
 	bool SetMetalTexture(_In_ const std::wstring& path);
 	bool SetRoughTexture(_In_ const std::wstring& path);
 
-	// SRVƒq[ƒv‚ğ5–‡‚ÅŠm•Û{‘Sslot‚ğƒfƒtƒHƒ‹ƒg[“Uid•¡ƒR[ƒhW–ñj
+	// SRVãƒ’ãƒ¼ãƒ—ã‚’5æšã§ç¢ºä¿ï¼‹å…¨slotã‚’ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆå……å¡«ï¼ˆé‡è¤‡ã‚³ãƒ¼ãƒ‰é›†ç´„ï¼‰
 	bool EnsureSrvHeap();
 private:
 	static constexpr UINT FRAME_COUNT = RTV_NUM;

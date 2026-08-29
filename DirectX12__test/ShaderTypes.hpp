@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include "Defines.hpp"
 
@@ -29,24 +29,24 @@ struct alignas(256) MaterialCB
 	float4 rimColor;
 	float4 mapFlags; // x: hasNormal, y: hasMetal, z: hasRough
 	float4 faceParam; // x isFace w Outline
-	float4 sssParams; // x = SSS‹­“x y = ƒ‰ƒbƒv—Ê z = ‹tŒõ“§‰ß w = •zƒV[ƒ“‹­“x
-	float4 sssColor;  // x = SSSFR y = SSSFG z = SSSFB
+	float4 sssParams; // x = SSSå¼·åº¦ y = ãƒ©ãƒƒãƒ—é‡ z = é€†å…‰é€é w = å¸ƒã‚·ãƒ¼ãƒ³å¼·åº¦
+	float4 sssColor;  // x = SSSè‰²R y = SSSè‰²G z = SSSè‰²B
 	float4 basecolor;
 
 };
 
 struct LightData
 {
-	float4 dir{ 0.0f, -1.0f, 0.0f, 0.0f };		// xyz: •ûŒüi³‹K‰»Ï‚İj
-	float4 color{ 1.0f, 1.0f, 1.0f, 1.0f };	// rgb: F ~ ‹­“x
-	float4 posRange{ 0.0f, 0.0f, 0.0f, 10.0f };	// xyz: ˆÊ’u, w: ”ÍˆÍ
-	float4 param{ 0.0f, 0.0f, 0.0f, 0.0f };	// x: ƒ^ƒCƒv, y: cos(ƒXƒ|ƒbƒg”¼Šp)
+	float4 dir{ 0.0f, -1.0f, 0.0f, 0.0f };		// xyz: æ–¹å‘ï¼ˆæ­£è¦åŒ–æ¸ˆã¿ï¼‰
+	float4 color{ 1.0f, 1.0f, 1.0f, 1.0f };	// rgb: è‰² Ã— å¼·åº¦
+	float4 posRange{ 0.0f, 0.0f, 0.0f, 10.0f };	// xyz: ä½ç½®, w: ç¯„å›²
+	float4 param{ 0.0f, 0.0f, 0.0f, 0.0f };	// x: ã‚¿ã‚¤ãƒ—, y: cos(ã‚¹ãƒãƒƒãƒˆåŠè§’)
 };
 
 struct alignas(256) LightCB
 {
 	float4 ambientColor{ 0.1f, 0.1f, 0.1f, 1.0f };
-	float4 lightCount{ 0.0f, 0.0f, 0.0f, 0.0f };	// x: —LŒøƒ‰ƒCƒg”
+	float4 lightCount{ 0.0f, 0.0f, 0.0f, 0.0f };	// x: æœ‰åŠ¹ãƒ©ã‚¤ãƒˆæ•°
 	float4x4 lightviewproj{};
 	float4 shadowParams{ 0.002f, 0.0f, 2048.0f, 0.0f };
 	LightData lights[MAX_LIGHTS];

@@ -1,10 +1,10 @@
-/*****************************************************************//**
+ï»¿/*****************************************************************//**
  * \file   Defines.hpp
- * \brief  ’è‹`ƒtƒ@ƒCƒ‹
+ * \brief  å®šç¾©ãƒ•ã‚¡ã‚¤ãƒ«
  * 
- * ì¬Ò 
- * ì¬“ú 2026/2/17
- * XV—š—ğ
+ * ä½œæˆè€… 
+ * ä½œæˆæ—¥ 2026/2/17
+ * æ›´æ–°å±¥æ­´
  * *********************************************************************/
 #pragma once
 
@@ -22,7 +22,7 @@
 #include <DirectXCollision.h>
 #include <d3dcompiler.h>
 
-// C++•W€ƒ‰ƒCƒuƒ‰ƒŠ
+// C++æ¨™æº–ãƒ©ã‚¤ãƒ–ãƒ©ãƒª
 #include <memory>
 #include <vector>
 #include <string>
@@ -41,7 +41,7 @@
 #include <type_traits>
 #include <utility>
 
-// ”ñ“¯Šúˆ—
+// éåŒæœŸå‡¦ç†
 #include <thread>
 #include <queue>
 #include <mutex>
@@ -51,7 +51,7 @@
 
 
  // -------------------------------//
- //			 Œ^ƒGƒCƒŠƒAƒX			   //
+ //			 å‹ã‚¨ã‚¤ãƒªã‚¢ã‚¹			   //
  // -------------------------------//
 using float3 = DirectX::XMFLOAT3;
 using float4 = DirectX::XMFLOAT4;
@@ -67,10 +67,10 @@ using QUATERNION = DirectX::XMFLOAT4;
 using SCALE = DirectX::XMFLOAT3;
 
 // -------------------------------//
-//		  ‰‰ZqƒI[ƒo[ƒ[ƒh		  //
+//		  æ¼”ç®—å­ã‚ªãƒ¼ãƒãƒ¼ãƒ­ãƒ¼ãƒ‰		  //
 // -------------------------------//
 
-// float3 + float3 ‚Ì‰‰ZqƒI[ƒo[ƒ[ƒh
+// float3 + float3 ã®æ¼”ç®—å­ã‚ªãƒ¼ãƒãƒ¼ãƒ­ãƒ¼ãƒ‰
 inline float3 operator+(const float3& a, const float3& b)
 {
 	return float3(a.x + b.x, a.y + b.y, a.z + b.z);
@@ -175,5 +175,5 @@ std::shared_ptr<T> MakeShared(Args&&... args)
 	return std::make_shared<T>(std::forward<Args>(args)...);
 }
 
-/// @brief ƒoƒbƒtƒ@‚Ì”
+/// @brief ãƒãƒƒãƒ•ã‚¡ã®æ•°
 static constexpr int RTV_NUM = 3;

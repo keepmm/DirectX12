@@ -1,12 +1,12 @@
-/*****************************************************************//**
+ï»¿/*****************************************************************//**
  * \file   PrefabLibrary.hpp
- * \brief  PrefabŠÇ—
+ * \brief  Prefabç®¡ç†
  * 
- * ì¬Ò keeeep
- * ì¬“ú 2026/5/22
- * XV—š—ğ	5.22 ì¬
- *			5.23 ƒvƒŒƒnƒu‚ğƒV[ƒ“‹¤’Ê‚É‚Å‚«‚é‚æ‚¤‚É’Ç‰Á
- *			5.25 GUID‚©‚çƒvƒŒƒnƒu‚ğ¶¬‚Å‚«‚é‚æ‚¤‚É’Ç‰Á
+ * ä½œæˆè€… keeeep
+ * ä½œæˆæ—¥ 2026/5/22
+ * æ›´æ–°å±¥æ­´	5.22 ä½œæˆ
+ *			5.23 ãƒ—ãƒ¬ãƒãƒ–ã‚’ã‚·ãƒ¼ãƒ³å…±é€šã«ã§ãã‚‹ã‚ˆã†ã«è¿½åŠ 
+ *			5.25 GUIDã‹ã‚‰ãƒ—ãƒ¬ãƒãƒ–ã‚’ç”Ÿæˆã§ãã‚‹ã‚ˆã†ã«è¿½åŠ 
  * *********************************************************************/
 #pragma once
 
@@ -18,40 +18,40 @@ class PrefabLibrary
 public:
 	using PrefabBuilder = std::function<void(Scene&,World&, Entity)>;
 
-	/// @brief ƒvƒŒƒnƒu‚ÌƒCƒ“ƒXƒ^ƒ“ƒX‚ğæ“¾
-	/// @return ƒ|ƒCƒ“ƒ^
+	/// @brief ãƒ—ãƒ¬ãƒãƒ–ã®ã‚¤ãƒ³ã‚¹ã‚¿ãƒ³ã‚¹ã‚’å–å¾—
+	/// @return ãƒã‚¤ãƒ³ã‚¿
 	static PrefabLibrary& Get();
 
-	/// @brief ƒvƒŒƒnƒu‚Ì“o˜^(guid‚Æ‚È‚Ü‚¦)
-	/// @param name ƒvƒŒƒnƒu‚Ì–¼‘O
-	/// @param guid ƒvƒŒƒnƒu‚ÌGUID
-	/// @param builder ƒrƒ‹ƒ_[ŠÖ”
+	/// @brief ãƒ—ãƒ¬ãƒãƒ–ã®ç™»éŒ²(guidã¨ãªã¾ãˆ)
+	/// @param name ãƒ—ãƒ¬ãƒãƒ–ã®åå‰
+	/// @param guid ãƒ—ãƒ¬ãƒãƒ–ã®GUID
+	/// @param builder ãƒ“ãƒ«ãƒ€ãƒ¼é–¢æ•°
 	void RegisterPrefab(
 		_In_ const std::string& name,
 		_In_ const std::string& guid,
 		_In_ PrefabBuilder builder);
 
-	/// @brief ƒvƒŒƒnƒu‚Ì“o˜^
-	/// @param name “o˜^‚·‚éƒvƒŒƒnƒu‚Ì–¼‘O
-	/// @param builder ƒrƒ‹ƒ_[ŠÖ”
+	/// @brief ãƒ—ãƒ¬ãƒãƒ–ã®ç™»éŒ²
+	/// @param name ç™»éŒ²ã™ã‚‹ãƒ—ãƒ¬ãƒãƒ–ã®åå‰
+	/// @param builder ãƒ“ãƒ«ãƒ€ãƒ¼é–¢æ•°
 	void RegisterPrefab(
 		_In_ const std::string& name,
 		_In_ PrefabBuilder builder);
 
-	/// @brief Šù‚ÉƒvƒŒƒnƒu‚ª“o˜^‚³‚ê‚Ä‚¢‚é‚©(–¼‘O)
-	/// @param name ŒŸõ‚·‚éƒvƒŒƒnƒu‚Ì‚È‚Ü‚¦@
-	/// @return ‘¶İ‚·‚éê‡‚Ítrue
+	/// @brief æ—¢ã«ãƒ—ãƒ¬ãƒãƒ–ãŒç™»éŒ²ã•ã‚Œã¦ã„ã‚‹ã‹(åå‰)
+	/// @param name æ¤œç´¢ã™ã‚‹ãƒ—ãƒ¬ãƒãƒ–ã®ãªã¾ãˆã€€
+	/// @return å­˜åœ¨ã™ã‚‹å ´åˆã¯true
 	bool HasPrefab(_In_ const std::string& name) const;
 
-	/// @brief Šù‚ÉƒvƒŒƒnƒu‚ÉGUID‚ª“o˜^‚³‚ê‚Ä‚¢‚é‚©
-	/// @param guid ŒŸõ‚·‚éguid
-	/// @return ‘¶İ‚·‚éê‡‚Ítrue
+	/// @brief æ—¢ã«ãƒ—ãƒ¬ãƒãƒ–ã«GUIDãŒç™»éŒ²ã•ã‚Œã¦ã„ã‚‹ã‹
+	/// @param guid æ¤œç´¢ã™ã‚‹guid
+	/// @return å­˜åœ¨ã™ã‚‹å ´åˆã¯true
 	bool HasPrefabGuid(_In_ const std::string& guid) const;
 
-	/// @brief ƒCƒ“ƒXƒ^ƒ“ƒX¶¬
-	/// @param name ¶¬‚·‚éƒvƒŒƒnƒu‚Ì–¼‘O
-	/// @param world ¶¬‚·‚éî•ñ
-	/// @return ¶¬‚³‚ê‚½ƒGƒ“ƒeƒBƒeƒB
+	/// @brief ã‚¤ãƒ³ã‚¹ã‚¿ãƒ³ã‚¹ç”Ÿæˆ
+	/// @param name ç”Ÿæˆã™ã‚‹ãƒ—ãƒ¬ãƒãƒ–ã®åå‰
+	/// @param world ç”Ÿæˆã™ã‚‹æƒ…å ±
+	/// @return ç”Ÿæˆã•ã‚ŒãŸã‚¨ãƒ³ãƒ†ã‚£ãƒ†ã‚£
 	Entity Instantiate(
 		_In_ const std::string& name, 
 		_In_ Scene& scene,
@@ -62,8 +62,8 @@ public:
 		_In_ Scene& scene,
 		_In_ World& world) const;
 
-	/// @brief “o˜^‚³‚ê‚Ä‚¢‚éƒvƒŒƒnƒu‚Ì–¼‘O‚Ìæ“¾
-	/// @return •¶š—ñ‚ÌƒxƒNƒ^[
+	/// @brief ç™»éŒ²ã•ã‚Œã¦ã„ã‚‹ãƒ—ãƒ¬ãƒãƒ–ã®åå‰ã®å–å¾—
+	/// @return æ–‡å­—åˆ—ã®ãƒ™ã‚¯ã‚¿ãƒ¼
 	std::vector<std::string> GetPrefabNames() const;
 
 	std::string GetPrefabGuid(const std::string& name) const;

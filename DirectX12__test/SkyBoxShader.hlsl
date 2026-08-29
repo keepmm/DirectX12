@@ -1,4 +1,4 @@
-#include "Common.hlsli"
+ï»¿#include "Common.hlsli"
 
 Texture2D gPanorma : register(t0);
 SamplerState gSampler : register(s0);
@@ -14,11 +14,11 @@ SkyVSOut SkyboxVS(VSInput pin)
     SkyVSOut o;
     o.dir = pin.pos;
     
-    // ƒJƒƒ‰ˆÊ’u‚É•½sˆÚ“®
+    // ã‚«ãƒ¡ãƒ©ä½ç½®ã«å¹³è¡Œç§»å‹•
     float4 p = mul(float4(pin.pos + cameraPos.xyz, 1.0f), viewProj);
     
     
-    // z = w‚É‚µ‚Ä[“x‚ğ•K‚¸1.0‚É‚·‚é
+    // z = wã«ã—ã¦æ·±åº¦ã‚’å¿…ãš1.0ã«ã™ã‚‹
     o.pos = p.xyww;
     
     return o;
@@ -30,13 +30,13 @@ float4 SkyboxPS(SkyVSOut pin) : SV_Target
 {
     float3 d = normalize(pin.dir);
     
-    // •ûŒüƒxƒNƒgƒ‹
+    // æ–¹å‘ãƒ™ã‚¯ãƒˆãƒ«
     float u = atan2(d.z, d.x) / (2.0f * PI) + 0.5f;
     float v = acos(clamp(d.y, -1.0f, 1.0f)) / PI;
     
     float3 hdr = gPanorma.Sample(gSampler, float2(u, v)).rgb;
     
-    // ŠÈˆÕƒg[ƒ“ƒ}ƒbƒv
+    // ç°¡æ˜“ãƒˆãƒ¼ãƒ³ãƒãƒƒãƒ—
     float3 mapped = hdr / (hdr + 1.0f);
     mapped = pow(mapped, 1.0f / 2.2f);
   

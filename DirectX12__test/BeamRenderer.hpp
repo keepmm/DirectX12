@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include "Defines.hpp"
 #include "RenderContext.hpp"
@@ -6,30 +6,30 @@
 class BeamRenderer
 {
 public:
-	/// @brief ‰Šú‰»
-	/// @param device ƒfƒoƒCƒX
-	/// @param beamPso •`‰æ—p‚ÌPSOiƒgƒ‰ƒCƒAƒ“ƒOƒ‹ƒŠƒXƒgE‰ÁZ‡¬j
+	/// @brief åˆæœŸåŒ–
+	/// @param device ãƒ‡ãƒã‚¤ã‚¹
+	/// @param beamPso æç”»ç”¨ã®PSOï¼ˆãƒˆãƒ©ã‚¤ã‚¢ãƒ³ã‚°ãƒ«ãƒªã‚¹ãƒˆãƒ»åŠ ç®—åˆæˆï¼‰
 	void Init(
 		_In_ const ComPtr<ID3D12Device>& device,
 		_In_ const ComPtr<ID3D12PipelineState>& beamPso);
 
 	void Begin();
 
-	/// @brief OŠpŒ`‚Ì’Ç‰Ái’¸“_ƒJƒ‰[EƒAƒ‹ƒtƒ@‚ÍƒR[ƒ“/ƒr[ƒ€‚ÌƒtƒF[ƒh—pj
+	/// @brief ä¸‰è§’å½¢ã®è¿½åŠ ï¼ˆé ‚ç‚¹ã‚«ãƒ©ãƒ¼ãƒ»ã‚¢ãƒ«ãƒ•ã‚¡ã¯ã‚³ãƒ¼ãƒ³/ãƒ“ãƒ¼ãƒ ã®ãƒ•ã‚§ãƒ¼ãƒ‰ç”¨ï¼‰
 	void AddTriangle(
 		_In_ const float3& a,
 		_In_ const float3& b,
 		_In_ const float3& c,
 		_In_ const float4& color);
 
-	/// @brief ’¸“_‚²‚Æ‚ÉF‚ğw’è‚µ‚ÄOŠpŒ`‚ğ’Ç‰Á(ƒOƒ‰ƒf[ƒVƒ‡ƒ“—p)
+	/// @brief é ‚ç‚¹ã”ã¨ã«è‰²ã‚’æŒ‡å®šã—ã¦ä¸‰è§’å½¢ã‚’è¿½åŠ (ã‚°ãƒ©ãƒ‡ãƒ¼ã‚·ãƒ§ãƒ³ç”¨)
 	void AddTriangle(
 		_In_ const float3& a, _In_ const float4& colA,
 		_In_ const float3& b, _In_ const float4& colB,
 		_In_ const float3& c, _In_ const float4& colC);
 
-	/// @brief •`‰æ
-	/// @param context •`‰æ‚É•K—v‚Èî•ñ
+	/// @brief æç”»
+	/// @param context æç”»ã«å¿…è¦ãªæƒ…å ±
 	void Draw(
 		_In_ const RenderContext& context, ID3D12PipelineState* psoOverride = nullptr);
 

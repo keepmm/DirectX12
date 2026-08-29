@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include "World.hpp"
 #include "Components.hpp"
@@ -70,7 +70,7 @@ public:
 			renderContext.CommandList6->DispatchMesh(1, 1, 1);
 		}
 
-		// b2: ƒ‰ƒCƒgCB
+		// b2: ãƒ©ã‚¤ãƒˆCB
 		if (renderContext.cbAllocator != nullptr)
 		{
 			const UINT frameSlot = renderContext.frameIndex % RTV_NUM;
@@ -86,7 +86,7 @@ public:
 		static D3D12_GPU_VIRTUAL_ADDRESS s_zeroMorphVA = 0;
 		if (!s_zeroMorph)
 		{
-			const UINT ZERO_VERTS = 300000;                  // Å‘åƒƒbƒVƒ…’¸“_”‚ğ—]—T‚ÅƒJƒo[
+			const UINT ZERO_VERTS = 300000;                  // æœ€å¤§ãƒ¡ãƒƒã‚·ãƒ¥é ‚ç‚¹æ•°ã‚’ä½™è£•ã§ã‚«ãƒãƒ¼
 			const UINT bytes = ZERO_VERTS * sizeof(DirectX::XMFLOAT3);
 			CD3DX12_HEAP_PROPERTIES hp(D3D12_HEAP_TYPE_UPLOAD);
 			CD3DX12_RESOURCE_DESC rd = CD3DX12_RESOURCE_DESC::Buffer(bytes);
@@ -112,11 +112,11 @@ public:
 					return;
 				}
 
-				// --- b4(root 5): ƒ{[ƒ“s—ñƒpƒŒƒbƒg + morphActiveƒtƒ‰ƒO ---
+				// --- b4(root 5): ãƒœãƒ¼ãƒ³è¡Œåˆ—ãƒ‘ãƒ¬ãƒƒãƒˆ + morphActiveãƒ•ãƒ©ã‚° ---
 				if (renderContext.cbAllocator)
 				{
 					const UINT slot = renderContext.frameIndex % RTV_NUM;
-					BoneCB cb{};   // ‘Sƒ[ƒ‰Šú‰»(morph=0ŠÜ‚Ş)
+					BoneCB cb{};   // å…¨ã‚¼ãƒ­åˆæœŸåŒ–(morph=0å«ã‚€)
 
 					bool anyMorph = false;
 					if (world.HasComponent<AnimatorComponent>(entity))
@@ -132,7 +132,7 @@ public:
 					}
 					else
 					{
-						// ƒAƒjƒ–³‚µ: ‘Sƒ{[ƒ“identity(ƒXƒLƒ“‚³‚ê‚Ä‚àŒ´“_ˆÛ)
+						// ã‚¢ãƒ‹ãƒ¡ç„¡ã—: å…¨ãƒœãƒ¼ãƒ³identity(ã‚¹ã‚­ãƒ³ã•ã‚Œã¦ã‚‚åŸç‚¹ç¶­æŒ)
 						for (size_t i = 0; i < MAX_BONES; ++i)
 							DirectX::XMStoreFloat4x4(&cb.boneMatrices[i], DirectX::XMMatrixIdentity());
 					}
@@ -141,8 +141,8 @@ public:
 					auto b4 = renderContext.cbAllocator->Allocate(slot, &cb, sizeof(BoneCB));
 					if (b4) renderContext.CommandList->SetGraphicsRootConstantBufferView(5, b4);
 
-					// --- t7(root 6): ’¸“_ƒ‚[ƒt (ƒAƒjƒ‚ ‚è ‚©‚Â ƒ‚[ƒt‚ªƒAƒNƒeƒBƒu‚È‚¾‚¯) ---
-					D3D12_GPU_VIRTUAL_ADDRESS morphVA = s_zeroMorphVA;   // Šù’è‚Íƒ[ƒƒoƒbƒtƒ@
+					// --- t7(root 6): é ‚ç‚¹ãƒ¢ãƒ¼ãƒ• (ã‚¢ãƒ‹ãƒ¡ã‚ã‚Š ã‹ã¤ ãƒ¢ãƒ¼ãƒ•ãŒã‚¢ã‚¯ãƒ†ã‚£ãƒ–ãªæ™‚ã ã‘) ---
+					D3D12_GPU_VIRTUAL_ADDRESS morphVA = s_zeroMorphVA;   // æ—¢å®šã¯ã‚¼ãƒ­ãƒãƒƒãƒ•ã‚¡
 
 					if (anyMorph && world.HasComponent<AnimatorComponent>(entity))
 					{
@@ -153,7 +153,7 @@ public:
 						{
 							auto va = renderContext.cbAllocator->Allocate(slot, an.morphoffsets.data(),
 								an.morphoffsets.size() * sizeof(DirectX::XMFLOAT3));
-							if (va) morphVA = va;   // ƒ‚[ƒt‚ ‚è‚È‚çÀƒf[ƒ^‚Åã‘‚«
+							if (va) morphVA = va;   // ãƒ¢ãƒ¼ãƒ•ã‚ã‚Šãªã‚‰å®Ÿãƒ‡ãƒ¼ã‚¿ã§ä¸Šæ›¸ã
 						}
 					}
 					renderContext.CommandList->SetGraphicsRootShaderResourceView(6, morphVA);
@@ -162,7 +162,7 @@ public:
 				const bool multi =
 					!material.materials.empty() && mesh.mesh->GetSubMeshCount() > 0;
 
-				// --- ’Êí•`‰æ(‘Sƒ}ƒeƒŠƒAƒ‹E–³ğŒ) ---
+				// --- é€šå¸¸æç”»(å…¨ãƒãƒ†ãƒªã‚¢ãƒ«ãƒ»ç„¡æ¡ä»¶) ---
 				if (multi)
 				{
 					const UINT sub = mesh.mesh->GetSubMeshCount();
@@ -173,12 +173,12 @@ public:
 						auto& mat = material.materials[mi];
 						if (!mat) continue;
 
-						// ƒTƒuƒ}ƒeƒŠƒAƒ‹‘¤‚ª‹ó‚È‚çƒRƒ“ƒ|[ƒlƒ“ƒg‚Ì’l‚ğŒp³
+						// ã‚µãƒ–ãƒãƒ†ãƒªã‚¢ãƒ«å´ãŒç©ºãªã‚‰ã‚³ãƒ³ãƒãƒ¼ãƒãƒ³ãƒˆã®å€¤ã‚’ç¶™æ‰¿
 						const std::string& sn = mat->shaderName.empty()
 							? material.shaderName : mat->shaderName;
 
 						const bool isTransparent = APP->IsShaderAlphaBlend(sn);
-						if (filter == DrawFilter::OPAQUEONLY && isTransparent)		 continue; // ‚±‚ÌƒGƒ“ƒeƒBƒeƒBskip
+						if (filter == DrawFilter::OPAQUEONLY && isTransparent)		 continue; // ã“ã®ã‚¨ãƒ³ãƒ†ã‚£ãƒ†ã‚£skip
 						if (filter == DrawFilter::TRANSPARENTONLY && !isTransparent) continue;
 
 						mat->Apply(renderContext.CommandList, transform.world,
@@ -197,7 +197,7 @@ public:
 					mesh.mesh->Draw(renderContext.CommandList);
 				}
 
-				// --- ƒAƒEƒgƒ‰ƒCƒ“ƒpƒX(Genshin_Toon‚Ì‚İE’Êí•`‰æ‚ÌŒã) ---
+				// --- ã‚¢ã‚¦ãƒˆãƒ©ã‚¤ãƒ³ãƒ‘ã‚¹(Genshin_Toonã®ã¿ãƒ»é€šå¸¸æç”»ã®å¾Œ) ---
 				if (material.shaderName == "Genshin_Toon" && !renderContext.wireframe)
 				{
 					std::string outlineShaderName = "Genshin_Outline";
@@ -215,7 +215,7 @@ public:
 								if (!mat) continue;
 
 								const bool isTransparent = APP->IsShaderAlphaBlend(material.shaderName);
-								if (filter == DrawFilter::OPAQUEONLY && isTransparent)		 continue; // ‚±‚ÌƒGƒ“ƒeƒBƒeƒBskip
+								if (filter == DrawFilter::OPAQUEONLY && isTransparent)		 continue; // ã“ã®ã‚¨ãƒ³ãƒ†ã‚£ãƒ†ã‚£skip
 								if (filter == DrawFilter::TRANSPARENTONLY && !isTransparent) continue;
 
 								mat->Apply(renderContext.CommandList, transform.world,
@@ -245,14 +245,14 @@ class LightSystem
 public:
 	void Apply(World& world)
 	{
-		// ƒ‰ƒCƒg‚ª‚È‚¢ê‡‚Ì‚½‚ß‚ÉƒfƒtƒHƒ‹ƒg
+		// ãƒ©ã‚¤ãƒˆãŒãªã„å ´åˆã®ãŸã‚ã«ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆ
 		m_Data = {};
 
 		UINT count = 0;
 
 		world.Each<LightComponent>([&](Entity entity, LightComponent& light)
 			{
-				// ”ñƒAƒNƒeƒBƒuA‚Ü‚½‚ÍãŒÀ‚É’B‚µ‚½‚çƒXƒLƒbƒv
+				// éã‚¢ã‚¯ãƒ†ã‚£ãƒ–ã€ã¾ãŸã¯ä¸Šé™ã«é”ã—ãŸã‚‰ã‚¹ã‚­ãƒƒãƒ—
 				if (!light.isActive || count >= MAX_LIGHTS)
 				{
 					return;
@@ -260,13 +260,13 @@ public:
 
 				LightData& dst = m_Data.lights[count];
 
-				// F ~ ‹­“x
+				// è‰² Ã— å¼·åº¦
 				dst.color = light.color;
 				dst.color.x *= light.intensity;
 				dst.color.y *= light.intensity;
 				dst.color.z *= light.intensity;
 
-				// ˆÊ’u‚Æ•ûŒüiTransform‚ª‚ ‚ê‚Î‰ñ“]‚©‚ç“±oj
+				// ä½ç½®ã¨æ–¹å‘ï¼ˆTransformãŒã‚ã‚Œã°å›è»¢ã‹ã‚‰å°å‡ºï¼‰
 				if (world.HasComponent<TransformComponent>(entity))
 				{
 					const auto& tr = world.GetComponent<TransformComponent>(entity);
@@ -312,7 +312,7 @@ public:
 					fwd = DirectX::XMVector3Normalize(fwd);
 					DirectX::XMStoreFloat4(&dst.dir, fwd);
 
-					// ƒMƒYƒ‚•\¦—p‚É‘‚«–ß‚·
+					// ã‚®ã‚ºãƒ¢è¡¨ç¤ºç”¨ã«æ›¸ãæˆ»ã™
 					DirectX::XMStoreFloat3(&light.direction, fwd);
 				}
 				else
@@ -323,19 +323,19 @@ public:
 					dst.posRange.w = light.range;
 				}
 
-				// ƒ^ƒCƒv‚ÆƒXƒ|ƒbƒgŠp
+				// ã‚¿ã‚¤ãƒ—ã¨ã‚¹ãƒãƒƒãƒˆè§’
 				dst.param.x = static_cast<float>(light.type);
 				dst.param.y = cosf(DirectX::XMConvertToRadians(light.spotAngle * 0.5f));
 				dst.param.z = light.beamWidth;
 				dst.param.w = light.volumetricIntensity;
 
-				// ŠÂ‹«Œõ‚ÍÅ‰‚Ìƒ‰ƒCƒg‚Ì‚à‚Ì‚ğÌ—p
+				// ç’°å¢ƒå…‰ã¯æœ€åˆã®ãƒ©ã‚¤ãƒˆã®ã‚‚ã®ã‚’æ¡ç”¨
 				if (count == 0)
 				{
 					if (APP->HasEnvironment())
 					{
 						const float3 e = APP->GetEnvAmbient();
-						const float k = 0.5f;   // ŠÂ‹«Œõ‚Ì‹­‚³iD‚İ‚Å’²®j
+						const float k = 0.5f;   // ç’°å¢ƒå…‰ã®å¼·ã•ï¼ˆå¥½ã¿ã§èª¿æ•´ï¼‰
 						m_Data.ambientColor = float4(e.x * k, e.y * k, e.z * k, 1.0f);
 					}
 					else
@@ -348,16 +348,16 @@ public:
 			});
 
 		// ----------------------------- //
-		//		ƒVƒƒƒhƒEƒ}ƒbƒsƒ“ƒO	     //
+		//		ã‚·ãƒ£ãƒ‰ã‚¦ãƒãƒƒãƒ”ãƒ³ã‚°	     //
 		// ----------------------------- //
 		m_Data.shadowParams = { 0.005f, 0.0f, 2048.0f, 0.0f };
 		float3 shadowDir{};
 		bool found = false;
 		world.Each<LightComponent>([&](Entity e, LightComponent& light)
 			{
-				// Œ©‚Â‚©‚Á‚½ or ”ñƒAƒNƒeƒBƒu‚È‚çƒXƒLƒbƒv
+				// è¦‹ã¤ã‹ã£ãŸ or éã‚¢ã‚¯ãƒ†ã‚£ãƒ–ãªã‚‰ã‚¹ã‚­ãƒƒãƒ—
 				if (found || !light.isActive) return;
-				// •ûŒüƒ‰ƒCƒgˆÈŠO‚ÍƒXƒLƒbƒv
+				// æ–¹å‘ãƒ©ã‚¤ãƒˆä»¥å¤–ã¯ã‚¹ã‚­ãƒƒãƒ—
 				if (light.type != LightComponent::LightType::Directional) return;
 				shadowDir = light.direction;
 				found = true;
@@ -365,13 +365,13 @@ public:
 
 		if (found)
 		{
-			// •ûŒü‚ªƒ[ƒ/•s³‚È‚çƒfƒtƒHƒ‹ƒg‚ÖiNaNs—ñ–h~j
+			// æ–¹å‘ãŒã‚¼ãƒ­/ä¸æ­£ãªã‚‰ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆã¸ï¼ˆNaNè¡Œåˆ—é˜²æ­¢ï¼‰
 			DirectX::XMVECTOR d = DirectX::XMVector3Normalize(DirectX::XMLoadFloat3(&shadowDir));
 			const float dist = 50.0f;
 			const float ortho = 30.0f;
 			const float mapSize = m_Data.shadowParams.z;   // 2048
 
-			// --- ƒJƒƒ‰’Ç]FƒGƒfƒBƒ^(FreeLook)ƒJƒƒ‰—DæA–³‚¯‚ê‚Î’ÊíƒJƒƒ‰ ---
+			// --- ã‚«ãƒ¡ãƒ©è¿½å¾“ï¼šã‚¨ãƒ‡ã‚£ã‚¿(FreeLook)ã‚«ãƒ¡ãƒ©å„ªå…ˆã€ç„¡ã‘ã‚Œã°é€šå¸¸ã‚«ãƒ¡ãƒ© ---
 			float3 camPos{ 0,0,0 }, camFwd{ 0,0,1 };
 			bool got = false, gotEditor = false;
 			world.Each<TransformComponent, CameraComponent>(
@@ -389,14 +389,14 @@ public:
 					}
 				});
 
-			// ƒJƒƒ‰‚Ì­‚µ‘O•û‚ğ‰e‚Ì’†S‚ÉiY‚Í0=’n–ÊŠî€j
+			// ã‚«ãƒ¡ãƒ©ã®å°‘ã—å‰æ–¹ã‚’å½±ã®ä¸­å¿ƒã«ï¼ˆYã¯0=åœ°é¢åŸºæº–ï¼‰
 			float3 focus = {
 				camPos.x + camFwd.x * (ortho * 0.4f),
 				0.0f,
 				camPos.z + camFwd.z * (ortho * 0.4f)
 			};
 
-			// ƒeƒNƒZƒ‹’PˆÊ‚ÉƒXƒiƒbƒviƒJƒƒ‰ˆÚ“®‚Ì‰e‚ÌƒVƒ}[–h~j
+			// ãƒ†ã‚¯ã‚»ãƒ«å˜ä½ã«ã‚¹ãƒŠãƒƒãƒ—ï¼ˆã‚«ãƒ¡ãƒ©ç§»å‹•æ™‚ã®å½±ã®ã‚·ãƒãƒ¼é˜²æ­¢ï¼‰
 			const float texelWorld = ortho / mapSize;
 			focus.x = floorf(focus.x / texelWorld) * texelWorld;
 			focus.z = floorf(focus.z / texelWorld) * texelWorld;
@@ -485,7 +485,7 @@ public:
 		world.Each<TransformComponent, SpriteComponent>([&](Entity, TransformComponent& transform, SpriteComponent& sprite)
 			{
 
-				// material –¢¶¬ & ƒpƒX‚ ‚è
+				// material æœªç”Ÿæˆ & ãƒ‘ã‚¹ã‚ã‚Š
 				if (!sprite.material && !sprite.texturePath.empty())
 				{
 					auto mat = std::make_shared<Material>();
@@ -494,7 +494,7 @@ public:
 					sprite.material = mat;
 				}
 
-				// material –¢¶¬‚È‚ç•`‰æ‚µ‚È‚¢
+				// material æœªç”Ÿæˆãªã‚‰æç”»ã—ãªã„
 				if (!sprite.material) return;
 
 				transform.ApplyEuler();
@@ -514,7 +514,7 @@ class FreeLookSystem
 public:
 	void Update(World& world, float deltatime,CameraComponent::CameraType targetType)
 	{
-		// ƒrƒ…[ƒ|[ƒgã‚Å‰EƒNƒŠƒbƒN’†‚Ì‚İƒJƒƒ‰‘€ì•ƒJ[ƒ\ƒ‹ƒƒbƒN
+		// ãƒ“ãƒ¥ãƒ¼ãƒãƒ¼ãƒˆä¸Šã§å³ã‚¯ãƒªãƒƒã‚¯ä¸­ã®ã¿ã‚«ãƒ¡ãƒ©æ“ä½œï¼†ã‚«ãƒ¼ã‚½ãƒ«ãƒ­ãƒƒã‚¯
 		const bool active = INPUT->MouseInput.Right().IsPressed()
 			&& INPUT->IsViewportHovered();
 
@@ -534,16 +534,16 @@ public:
 		world.Each<TransformComponent, FreeLookComponent>(
 			[&](Entity entity, TransformComponent& tr, FreeLookComponent& fl)
 			{
-				// FreeLook‚ª—LŒø‚Å‚È‚¢ê‡ˆ—‚µ‚È‚¢
+				// FreeLookãŒæœ‰åŠ¹ã§ãªã„å ´åˆå‡¦ç†ã—ãªã„
 				if (!fl.Enabled) return;
 
-				// ‚±‚ÌEntity‚ÌƒJƒƒ‰í•Ê‚ª‘ÎÛ‚Å‚È‚¯‚ê‚ÎƒXƒLƒbƒv
+				// ã“ã®Entityã®ã‚«ãƒ¡ãƒ©ç¨®åˆ¥ãŒå¯¾è±¡ã§ãªã‘ã‚Œã°ã‚¹ã‚­ãƒƒãƒ—
 				if (!world.HasComponent<CameraComponent>(entity)) return;
 				if (world.GetComponent<CameraComponent>(entity).cameraType != targetType) return;
 
 				if (!active) return;
 
-				// ‰ñ“]
+				// å›è»¢
 				fl.yaw += (float)INPUT->MouseInput.DeltaX() * fl.rotateSpeed;
 				fl.pitch += (float)INPUT->MouseInput.DeltaY() * fl.rotateSpeed;
 				fl.pitch = std::clamp(fl.pitch, -DirectX::XM_PIDIV2 + 0.01f, DirectX::XM_PIDIV2 - 0.01f);
@@ -551,7 +551,7 @@ public:
 				vector q = DirectX::XMQuaternionRotationRollPitchYaw(fl.pitch, fl.yaw, 0.0f);
 				DirectX::XMStoreFloat4(&tr.rotation, DirectX::XMQuaternionNormalize(q));
 
-				// ˆÚ“®iWASDj
+				// ç§»å‹•ï¼ˆWASDï¼‰
 				float speed = 1.0f;
 				vector move = DirectX::XMVectorZero();
 				if (INPUT->Key.Shift().IsPressed()) speed *= 5.0f;
@@ -588,11 +588,11 @@ public:
 
 			DirectX::XMMATRIX w = DirectX::XMLoadFloat4x4(&tr.world);
 
-			// ƒXƒP[ƒ‹œ‹
+			// ã‚¹ã‚±ãƒ¼ãƒ«é™¤å»
 			DirectX::XMVECTOR s, q, t;
 			if(!DirectX::XMMatrixDecompose(&s, &q, &t, w))
 			{
-				// ¸”s‚Íƒ[ƒJƒ‹’l‚Ö
+				// å¤±æ•—æ™‚ã¯ãƒ­ãƒ¼ã‚«ãƒ«å€¤ã¸
 				q = DirectX::XMVector4Normalize(DirectX::XMLoadFloat4(&tr.rotation));
 				t = DirectX::XMLoadFloat3(&tr.position);
 			}
@@ -628,7 +628,7 @@ public:
 				if (anim.time > anim.clip.duration)
 					anim.time = anim.loop ? std::fmod(anim.time, anim.clip.duration) : anim.clip.duration;
 
-				// ‘OŒãƒL[‚ğŒŸõ‚µ‚ÄüŒ`•âŠÔ
+				// å‰å¾Œã‚­ãƒ¼ã‚’æ¤œç´¢ã—ã¦ç·šå½¢è£œé–“
 				const auto& keys = anim.clip.keys;
 				auto it = std::lower_bound(keys.begin(), keys.end(), anim.time,
 					[](const CameraKeyFrame& k, float t) { return k.time < t; });
@@ -638,7 +638,7 @@ public:
 				else
 				{
 					const auto& k1 = *it; const auto& k0 = *(it - 1);
-					// MMD‚ÌƒJƒbƒgØ‘Ö(“¯ƒtƒŒ[ƒ€ or 1ƒtƒŒ[ƒ€·)‚Í•âŠÔ‚µ‚È‚¢
+					// MMDã®ã‚«ãƒƒãƒˆåˆ‡æ›¿(åŒãƒ•ãƒ¬ãƒ¼ãƒ  or 1ãƒ•ãƒ¬ãƒ¼ãƒ å·®)ã¯è£œé–“ã—ãªã„
 					const float span = k1.time - k0.time;
 					float t = (span <= 1.0f / 30.0f + 1e-4f) ? 0.0f
 						: (anim.time - k0.time) / span;
@@ -659,7 +659,7 @@ public:
 					XMVectorScale(fwd, k.distance));
 
 				XMStoreFloat3((XMFLOAT3*)&tr.position, eye);
-				XMStoreFloat4((XMFLOAT4*)&tr.rotation, q);   // Transform‚Ì‰ñ“]‚ªƒNƒH[ƒ^ƒjƒIƒ“‚Ìê‡
+				XMStoreFloat4((XMFLOAT4*)&tr.rotation, q);   // Transformã®å›è»¢ãŒã‚¯ã‚©ãƒ¼ã‚¿ãƒ‹ã‚ªãƒ³ã®å ´åˆ
 				cam.fovY = k.fovY;
 			});
 	}
@@ -683,17 +683,17 @@ public:
 	static void SetName(World& world, Entity entity, const std::string& name)
 	{
 		// -------------------------//
-		// “¯‚¶–¼‘O‚ª‘¶İ‚µ‚Ä‚éê‡	//
-		// –¼‘O + _”Ô†‚É‚·‚é		//
+		// åŒã˜åå‰ãŒå­˜åœ¨ã—ã¦ã‚‹å ´åˆ	//
+		// åå‰ + _ç•ªå·ã«ã™ã‚‹		//
 		// -------------------------//
 		std::string newName = GenerateName(world, entity, name, 1);
 		if (world.HasComponent<NameComponent>(entity))
-			world.GetComponent<NameComponent>(entity).name = newName;   // ‘‚«–ß‚·
+			world.GetComponent<NameComponent>(entity).name = newName;   // æ›¸ãæˆ»ã™
 		else
 			world.AddComponent<NameComponent>(entity, NameComponent{ newName });
 	}
 
-	/// @brief –¼‘O‚ğ‘{õ‚·‚é
+	/// @brief åå‰ã‚’æœç´¢ã™ã‚‹
 	static std::string GenerateName(World& world, Entity entity,const std::string& name,int num)
 	{
 		std::string result = name;
@@ -703,7 +703,7 @@ public:
 			conflict = false;
 			world.Each<NameComponent>([&](Entity e, NameComponent& nameComp)
 				{
-					// ©•ª©g‚ÍœŠO
+					// è‡ªåˆ†è‡ªèº«ã¯é™¤å¤–
 					if(e != entity && nameComp.name == result)
 					{
 						conflict = true;
@@ -730,7 +730,7 @@ public:
 		_In_ float screenW,
 		_In_ float screenH)
 	{
-		// ƒXƒNƒŠ[ƒ“³Ë‰e
+		// ã‚¹ã‚¯ãƒªãƒ¼ãƒ³æ­£å°„å½±
 		float4x4 view, proj;
 		DirectX::XMStoreFloat4x4(&view, DirectX::XMMatrixIdentity());
 		DirectX::XMStoreFloat4x4(&proj, DirectX::XMMatrixOrthographicOffCenterLH(
@@ -739,7 +739,7 @@ public:
 		world.Each<RectTransformComponent, UIImageComponent>(
 			[&](Entity e, RectTransformComponent& rt, UIImageComponent& img)
 			{
-				// ƒeƒNƒXƒ`ƒƒ’x‰„ƒ[ƒh
+				// ãƒ†ã‚¯ã‚¹ãƒãƒ£é…å»¶ãƒ­ãƒ¼ãƒ‰
 				if(!img.material && !img.texturePath.empty())
 				{
 					auto mat = std::make_shared<Material>();
@@ -750,8 +750,8 @@ public:
 
 				if (!img.material) return;
 
-				// RectTransform -> ƒsƒNƒZƒ‹‹óŠÔworldÀ•W
-				// quad ‚Í¶ãÀ•W + ”¼ƒTƒCƒY‚Å’†S‚É’u‚­
+				// RectTransform -> ãƒ”ã‚¯ã‚»ãƒ«ç©ºé–“worldåº§æ¨™
+				// quad ã¯å·¦ä¸Šåº§æ¨™ + åŠã‚µã‚¤ã‚ºã§ä¸­å¿ƒã«ç½®ã
 				const float w = rt.SizeDelta.x;
 				const float h = rt.SizeDelta.y;
 				const float cx = rt.AnchoredPosition.x + w * 0.5f;
@@ -768,7 +768,7 @@ public:
 				quad.Draw(ctx.CommandList);
 			});
 
-		// text•`‰æ
+		// textæç”»
 		world.Each<RectTransformComponent, UITextComponent>(
 			[&](Entity, RectTransformComponent& rt, UITextComponent& txt)
 			{
@@ -777,7 +777,7 @@ public:
 
 				if (!txt.mesh) txt.mesh = std::make_shared<Mesh>();
 
-				// •¶š‚ª•Ï‚í‚Á‚½‚¾‚¯ƒƒbƒVƒ…Ä\’zifontSize‚ÍŠÜ‚ß‚È‚¢j
+				// æ–‡å­—ãŒå¤‰ã‚ã£ãŸæ™‚ã ã‘ãƒ¡ãƒƒã‚·ãƒ¥å†æ§‹ç¯‰ï¼ˆfontSizeã¯å«ã‚ãªã„ï¼‰
 				if (txt.isDirty || txt.text != txt._lastText)
 				{
 					APP->WaitForGPUIdle();
@@ -786,7 +786,7 @@ public:
 					txt.isDirty = false;
 				}
 
-				// fontSize ‚Íƒ[ƒ‹ƒh‚ÌƒXƒP[ƒ‹‚ÅŒø‚©‚¹‚éiÄƒxƒCƒNEÄ\’z‚È‚µŒy‚¢j
+				// fontSize ã¯ãƒ¯ãƒ¼ãƒ«ãƒ‰ã®ã‚¹ã‚±ãƒ¼ãƒ«ã§åŠ¹ã‹ã›ã‚‹ï¼ˆå†ãƒ™ã‚¤ã‚¯ãƒ»å†æ§‹ç¯‰ãªã—ï¼è»½ã„ï¼‰
 				const float s = txt.fontSize / atlas->RefHeight();
 				float4x4 worldf;
 				DirectX::XMStoreFloat4x4(&worldf,
@@ -822,7 +822,7 @@ public:
 		const bool justStopped = (!isPlaying && m_PrevPlaying);
 		m_PrevPlaying = isPlaying;
 
-		// ---- ƒŠƒXƒi[i¨j‚ğ1‚Â’T‚· ---- //
+		// ---- ãƒªã‚¹ãƒŠãƒ¼ï¼ˆè€³ï¼‰ã‚’1ã¤æ¢ã™ ---- //
 		X3DAUDIO_LISTENER listener{};
 		bool hasListener = false;
 		world.Each<AudioListenerComponent, TransformComponent>(
@@ -833,7 +833,7 @@ public:
 
 				listener.Position = { tr.position.x, tr.position.y, tr.position.z };
 
-				// Œü‚«i‰ñ“]ƒNƒH[ƒ^ƒjƒIƒ“‚©‚çforward/up‚ğo‚·j
+				// å‘ãï¼ˆå›è»¢ã‚¯ã‚©ãƒ¼ã‚¿ãƒ‹ã‚ªãƒ³ã‹ã‚‰forward/upã‚’å‡ºã™ï¼‰
 				using namespace DirectX;
 				XMVECTOR q = XMLoadFloat4(&tr.rotation);
 				XMVECTOR fwd = XMVector3Rotate(XMVectorSet(0, 0, 1, 0), q);
@@ -846,7 +846,7 @@ public:
 		world.Each<AudioSourceComponent, TransformComponent>(
 			[&](Entity, AudioSourceComponent& src, TransformComponent& tr)
 			{
-				// ---- ƒ[ƒh ---- //
+				// ---- ãƒ­ãƒ¼ãƒ‰ ---- //
 				if (!src.clip && !src.clipPath.empty())
 				{
 					src.clip = AudioEngine::Get().Load(src.clipPath);
@@ -855,7 +855,7 @@ public:
 				}
 				if (!src.voice || !src.clip) return;
 
-				// ---- playOnStart / Ä¶E’â~i‘O‰ñ‚Æ“¯‚¶j ---- //
+				// ---- playOnStart / å†ç”Ÿãƒ»åœæ­¢ï¼ˆå‰å›ã¨åŒã˜ï¼‰ ---- //
 				if (justStarted && src.playOnStart) src.playRequested = true;
 				if (justStopped) src.stopRequested = true;
 
@@ -879,7 +879,7 @@ public:
 					src.voice->FlushSourceBuffers();
 				}
 
-				// ---- ƒV[ƒN(PlayBegin‚Åƒoƒbƒtƒ@‚ğ“Š‚°’¼‚·) ---- //
+				// ---- ã‚·ãƒ¼ã‚¯(PlayBeginã§ãƒãƒƒãƒ•ã‚¡ã‚’æŠ•ã’ç›´ã™) ---- //
 				if (src.seekRequested)
 				{
 					src.seekRequested = false;
@@ -900,28 +900,28 @@ public:
 					buf.pAudioData = src.clip->data.data();
 					buf.Flags = XAUDIO2_END_OF_STREAM;
 					buf.LoopCount = src.loop ? XAUDIO2_LOOP_INFINITE : 0;
-					buf.PlayBegin = sampleOffset;   // ‚±‚±‚©‚çÄ¶
+					buf.PlayBegin = sampleOffset;   // ã“ã“ã‹ã‚‰å†ç”Ÿ
 					src.voice->SubmitSourceBuffer(&buf);
 					src.voice->Start();
 				}
 
-				// ---- ˆê’â~ / ÄŠJ(ˆÊ’u‚Í•Û‚³‚ê‚é) ---- //
+				// ---- ä¸€æ™‚åœæ­¢ / å†é–‹(ä½ç½®ã¯ä¿æŒã•ã‚Œã‚‹) ---- //
 				if (src.pauseRequested) { src.pauseRequested = false; src.voice->Stop(); }
 				if (src.resumeRequested) { src.resumeRequested = false; src.voice->Start(); }
 
-				// ---- 3D’èˆÊ ---- //
+				// ---- 3Då®šä½ ---- //
 				if (src.is3D && hasListener)
 				{
 					X3DAUDIO_EMITTER emitter{};
 					emitter.Position = { tr.position.x, tr.position.y, tr.position.z };
 					emitter.OrientFront = { 0, 0, 1 };
 					emitter.OrientTop = { 0, 1, 0 };
-					emitter.ChannelCount = 1;                 // ƒ‚ƒmƒ‰ƒ‹‘O’ñi3D‰¹Œ¹‚ÍŠî–{ƒ‚ƒmƒ‰ƒ‹j
+					emitter.ChannelCount = 1;                 // ãƒ¢ãƒãƒ©ãƒ«å‰æï¼ˆ3DéŸ³æºã¯åŸºæœ¬ãƒ¢ãƒãƒ©ãƒ«ï¼‰
 					emitter.CurveDistanceScaler = src.maxDistance;
 					emitter.DopplerScaler = 1.0f;
 
 					const UINT32 outCh = AudioEngine::Get().OutputChannels();
-					float matrix[8] = {};                     // Å‘å8chƒXƒs[ƒJ[•ª
+					float matrix[8] = {};                     // æœ€å¤§8chã‚¹ãƒ”ãƒ¼ã‚«ãƒ¼åˆ†
 					X3DAUDIO_DSP_SETTINGS dsp{};
 					dsp.SrcChannelCount = 1;
 					dsp.DstChannelCount = outCh;
@@ -932,14 +932,14 @@ public:
 						X3DAUDIO_CALCULATE_MATRIX | X3DAUDIO_CALCULATE_DOPPLER,
 						&dsp);
 
-					// o—Íƒ}ƒgƒŠƒNƒXi’èˆÊ{‹——£Œ¸Šj‚Æƒhƒbƒvƒ‰[‚ğ”½‰f
+					// å‡ºåŠ›ãƒãƒˆãƒªã‚¯ã‚¹ï¼ˆå®šä½ï¼‹è·é›¢æ¸›è¡°ï¼‰ã¨ãƒ‰ãƒƒãƒ—ãƒ©ãƒ¼ã‚’åæ˜ 
 					src.voice->SetOutputMatrix(nullptr, 1, outCh, matrix);
 					src.voice->SetFrequencyRatio(dsp.DopplerFactor);
 					src.voice->SetVolume(src.volume);
 				}
 				else
 				{
-					// 2Di]—ˆ’Ê‚èj
+					// 2Dï¼ˆå¾“æ¥é€šã‚Šï¼‰
 					src.voice->SetVolume(src.volume);
 				}
 			});
@@ -953,7 +953,7 @@ class TransformSystem
 public:
 	void Update(World& world)
 	{
-		// ŠeƒGƒ“ƒeƒBƒeƒB‚Ìworld‚ğAe‚ğ‚½‚Ç‚Á‚ÄŒvZ
+		// å„ã‚¨ãƒ³ãƒ†ã‚£ãƒ†ã‚£ã®worldã‚’ã€è¦ªã‚’ãŸã©ã£ã¦è¨ˆç®—
 		world.Each<TransformComponent>([&](Entity e, TransformComponent& tr)
 			{
 				UpdateWorld(world, e, tr);
@@ -971,7 +971,7 @@ private:
 			XMMatrixTranslation(tr.position.x, tr.position.y, tr.position.z);
 
 		XMMATRIX worldMat = local;
-		// e‚ª©•ª©g‚Å‚È‚­AÀİ‚·‚éê‡‚Ì‚İ
+		// è¦ªãŒè‡ªåˆ†è‡ªèº«ã§ãªãã€å®Ÿåœ¨ã™ã‚‹å ´åˆã®ã¿
 		if (tr.parent != INVALID_ENTITY && tr.parent != e &&
 			world.HasComponent<TransformComponent>(tr.parent))
 		{
@@ -1032,7 +1032,7 @@ public:
 				using clk = std::chrono::high_resolution_clock;
 				auto t0 = clk::now();
 
-				// •Û‘¶‚³‚ê‚½VMDƒpƒX‚©‚çƒNƒŠƒbƒv‚ğ•œŒ³(ƒXƒPƒ‹ƒgƒ“€”õŒã‚É1‰ñ‚¾‚¯)
+				// ä¿å­˜ã•ã‚ŒãŸVMDãƒ‘ã‚¹ã‹ã‚‰ã‚¯ãƒªãƒƒãƒ—ã‚’å¾©å…ƒ(ã‚¹ã‚±ãƒ«ãƒˆãƒ³æº–å‚™å¾Œã«1å›ã ã‘)
 				if (!an.clipsRestored && !an.clipPathsStr.empty() &&
 					!an.skeleton.nodes.empty())
 				{
@@ -1076,14 +1076,14 @@ public:
 				if (world.HasComponent<MmdPhysicsComponent>(e))
 					phys = world.GetComponent<MmdPhysicsComponent>(e).impl.get();
 
-				// ƒV[ƒN’¼Œã‚Í„‘Ì‚ğŒ»İ‚Ìƒ{[ƒ“p¨‚ÖÄ“¯Šú(”š”­–h~)
+				// ã‚·ãƒ¼ã‚¯ç›´å¾Œã¯å‰›ä½“ã‚’ç¾åœ¨ã®ãƒœãƒ¼ãƒ³å§¿å‹¢ã¸å†åŒæœŸ(çˆ†ç™ºé˜²æ­¢)
 				if (an.physicsResetRequest)
 				{
 					if (phys) phys->Reset();
 					an.physicsResetRequest = false;
 				}
 
-				// ƒXƒ‰ƒCƒ_[‚ğƒhƒ‰ƒbƒO‚µ‚Ä‚¢‚éŠÔ‚ÍFK/IK‚Ì‚İ(•¨—‚ği‚ß‚È‚¢)
+				// ã‚¹ãƒ©ã‚¤ãƒ€ãƒ¼ã‚’ãƒ‰ãƒ©ãƒƒã‚°ã—ã¦ã„ã‚‹é–“ã¯FK/IKã®ã¿(ç‰©ç†ã‚’é€²ã‚ãªã„)
 				ComputePalette(an.skeleton, an.skinData, clip, an.time, an.palette,
 					an.scrubbing ? nullptr : phys, dt);
 
@@ -1126,19 +1126,19 @@ public:
 				float3 dir;
 				DirectX::XMStoreFloat3(&dir, dirV);
 
-				// --- Šù‘¶ƒp[ƒeƒBƒNƒ‹‚ÌXV ---
+				// --- æ—¢å­˜ãƒ‘ãƒ¼ãƒ†ã‚£ã‚¯ãƒ«ã®æ›´æ–° ---
 				for (auto& p : pe.particles)
 				{
 					p.age += dt;
 					p.pos = p.pos + p.velocity * dt + pe.gravity * dt;
 				}
-				// õ–½Ø‚ê‚ğíœiswap-and-popAÄƒAƒƒP[ƒVƒ‡ƒ“‚È‚µj
+				// å¯¿å‘½åˆ‡ã‚Œã‚’å‰Šé™¤ï¼ˆswap-and-popã€å†ã‚¢ãƒ­ã‚±ãƒ¼ã‚·ãƒ§ãƒ³ãªã—ï¼‰
 				pe.particles.erase(
 					std::remove_if(pe.particles.begin(), pe.particles.end(),
 						[](const ParticleEmitterComponent::Particle& p) { return p.age >= p.life; }),
 					pe.particles.end());
 
-				// --- V‹K”­¶ ---
+				// --- æ–°è¦ç™ºç”Ÿ ---
 				if (pe.emitting && pe.emitRate > 0.0f)
 				{
 					pe.spawnAccumulator += dt * pe.emitRate;
@@ -1207,7 +1207,7 @@ public:
 					return;
 				}
 
-				// ƒV[ƒN’¼Œã‚ÍÄ¶ŠJn“_‚ğæ‚è’¼‚·
+				// ã‚·ãƒ¼ã‚¯ç›´å¾Œã¯å†ç”Ÿé–‹å§‹ç‚¹ã‚’å–ã‚Šç›´ã™
 				if (sync.resyncRequested)
 				{
 					sync.resyncRequested = false;
@@ -1217,15 +1217,15 @@ public:
 				XAUDIO2_VOICE_STATE st{};
 				src.voice->GetState(&st);
 
-				// Ä¶ŠJn‚ÌuŠÔ‚ÌSamplesPlayed‚ğŠî€‚Æ‚µ‚Ä‹L˜^
-				// (voice‚Í‰ß‹‚ÌÄ¶•ª‚àƒJƒEƒ“ƒg‚µ‘±‚¯‚é‚½‚ß)
+				// å†ç”Ÿé–‹å§‹ã®ç¬é–“ã®SamplesPlayedã‚’åŸºæº–ã¨ã—ã¦è¨˜éŒ²
+				// (voiceã¯éå»ã®å†ç”Ÿåˆ†ã‚‚ã‚«ã‚¦ãƒ³ãƒˆã—ç¶šã‘ã‚‹ãŸã‚)
 				if (!sync.started)
 				{
-					if (st.BuffersQueued == 0) return;  // ‚Ü‚¾Ä¶‚ªn‚Ü‚Á‚Ä‚¢‚È‚¢
+					if (st.BuffersQueued == 0) return;  // ã¾ã å†ç”ŸãŒå§‹ã¾ã£ã¦ã„ãªã„
 					sync.startSamples = st.SamplesPlayed;
 					sync.started = true;
 				}
-				if (st.BuffersQueued == 0) return;      // Ä¶I—¹
+				if (st.BuffersQueued == 0) return;      // å†ç”Ÿçµ‚äº†
 
 				const float rate = (float)src.clip->format.nSamplesPerSec;
 				const float musicTime =
@@ -1234,7 +1234,7 @@ public:
 
 				sync.musicTime = musicTime;
 
-				// ‹ÈˆÊ’u‚ğ³‚Æ‚µ‚Ä‚ğã‘‚«
+				// æ›²ä½ç½®ã‚’æ­£ã¨ã—ã¦æ™‚åˆ»ã‚’ä¸Šæ›¸ã
 				if (sync.syncAnimators)
 				{
 					world.Each<AnimatorComponent>(

@@ -1,13 +1,13 @@
-/*! ************************************************************
+ï»¿/*! ************************************************************
  * \file   EditorWindow.hpp
- * \brief  Engine‚Ég‚¤Window‚Ìì¬
+ * \brief  Engineã«ä½¿ã†Windowã®ä½œæˆ
  *
- * ì¬Ò keeep
- * ì¬“ú 2026/5/22
- * XV—š—ğ	5.22 ì¬
- *			5.23 EntityƒtƒBƒ‹ƒ^[‚Ìì¬
- *			5.28 Prototype‚ÉŒü‚¯‚ÄƒŠƒtƒ@ƒNƒ^ƒŠƒ“ƒO
- *			5.29 ƒŒƒCƒAƒEƒg‚Ì•ÏX
+ * ä½œæˆè€… keeep
+ * ä½œæˆæ—¥ 2026/5/22
+ * æ›´æ–°å±¥æ­´	5.22 ä½œæˆ
+ *			5.23 Entityãƒ•ã‚£ãƒ«ã‚¿ãƒ¼ã®ä½œæˆ
+ *			5.28 Prototypeã«å‘ã‘ã¦ãƒªãƒ•ã‚¡ã‚¯ã‚¿ãƒªãƒ³ã‚°
+ *			5.29 ãƒ¬ã‚¤ã‚¢ã‚¦ãƒˆã®å¤‰æ›´
  * *********************************************************************/
 #pragma once
 
@@ -27,8 +27,8 @@ public:
 		_In_ DirectXApp& app,
 		_In_ SceneManager& sceneManager);
 
-	/// @brief •`‰æˆ—
-	/// @param sceneManager •`‰æ‚É•K—v‚ÈƒV[ƒ“ƒ}ƒl[ƒWƒƒ[‚ÌQÆ 
+	/// @brief æç”»å‡¦ç†
+	/// @param sceneManager æç”»ã«å¿…è¦ãªã‚·ãƒ¼ãƒ³ãƒãƒãƒ¼ã‚¸ãƒ£ãƒ¼ã®å‚ç…§ 
 	void Draw(_In_ SceneManager& sceneManager);
 
 	inline RenderTexture* GetGameRenderTexture() const { return m_GameRenderTexture.get(); }
@@ -39,12 +39,12 @@ public:
 
 	void ReleaseRenderTextures();
 private:
-	/// @brief ƒV[ƒ“‚Ìî•ñ‚ğ•`‰æ‚·‚é
-	/// @param scene ƒV[ƒ“‚Ì•`–@
+	/// @brief ã‚·ãƒ¼ãƒ³ã®æƒ…å ±ã‚’æç”»ã™ã‚‹
+	/// @param scene ã‚·ãƒ¼ãƒ³ã®ææ³•
 	void DrawSceneInfo(_In_ Scene& scene);
 
-	/// @brief ƒGƒ“ƒeƒBƒeƒBƒŠƒXƒg‚ğ•`‰æ‚·‚é
-	/// @param world entity‚Ìî•ñ‚ğ‚ÂWorldƒNƒ‰ƒX‚ÌQÆ
+	/// @brief ã‚¨ãƒ³ãƒ†ã‚£ãƒ†ã‚£ãƒªã‚¹ãƒˆã‚’æç”»ã™ã‚‹
+	/// @param world entityã®æƒ…å ±ã‚’æŒã¤Worldã‚¯ãƒ©ã‚¹ã®å‚ç…§
 	void DrawEntityList(_In_ World& world);
 
 	/// @brief 
@@ -52,58 +52,58 @@ private:
 	/// @param entity 
 	void DrawEntityNode(_In_ World& world, _In_ Entity entity);
 
-	/// @brief ƒCƒ“ƒXƒyƒNƒ^[‚Ì•`‰æ
-	/// @param world entity‚Ìî•ñ‚ğ‚ÂWorldƒNƒ‰ƒX‚ÌQÆ
+	/// @brief ã‚¤ãƒ³ã‚¹ãƒšã‚¯ã‚¿ãƒ¼ã®æç”»
+	/// @param world entityã®æƒ…å ±ã‚’æŒã¤Worldã‚¯ãƒ©ã‚¹ã®å‚ç…§
 	void DrawInspector(
 		_In_ World& world,
 		_In_ Scene* scene);
 
-	/// @brief ƒvƒŒƒnƒuƒpƒlƒ‹‚Ì•`‰æ
-	/// @param world prefab‚Ìî•ñ‚ğ‚ÂWorldƒNƒ‰ƒX‚ÌQÆ
+	/// @brief ãƒ—ãƒ¬ãƒãƒ–ãƒ‘ãƒãƒ«ã®æç”»
+	/// @param world prefabã®æƒ…å ±ã‚’æŒã¤Worldã‚¯ãƒ©ã‚¹ã®å‚ç…§
 	void DrawPrefabPanel(
 		_In_ Scene& scene,
 		_In_ World& world);
 
-	/// @brief Assetˆê——‚Ì•`‰æ
+	/// @brief Assetä¸€è¦§ã®æç”»
 	void DrawAssetPanel(_In_ SceneManager& sceneManager);
 
-	/// @brief ƒƒ‚ƒŠg—p—Ê‚Ì•`‰æ
+	/// @brief ãƒ¡ãƒ¢ãƒªä½¿ç”¨é‡ã®æç”»
 	void DrawMemoryPanel();
 
-	/// @brief ƒRƒ“ƒ\[ƒ‹ƒEƒBƒ“ƒhƒE‚Ì•`‰æ
+	/// @brief ã‚³ãƒ³ã‚½ãƒ¼ãƒ«ã‚¦ã‚£ãƒ³ãƒ‰ã‚¦ã®æç”»
 	void DrawConsole();
 
-	/// @brief MMDÄ¶ƒEƒBƒ“ƒhƒE‚Ì•`‰æ
+	/// @brief MMDå†ç”Ÿã‚¦ã‚£ãƒ³ãƒ‰ã‚¦ã®æç”»
 	void DrawMmdPlayer(_In_ World& world);
 
-	/// @brief ƒvƒŒƒC/’â~ƒ{ƒ^ƒ“‚Ì•`‰æ
+	/// @brief ãƒ—ãƒ¬ã‚¤/åœæ­¢ãƒœã‚¿ãƒ³ã®æç”»
 	void DrawPlayControl(_In_ Scene* activeScene);
 
-	/// @brief Scene•Û‘¶ / “Ç‚İ‚İ
-	/// @param sceneManager ƒV[ƒ“ƒ}ƒl[ƒWƒƒ[‚ÌQÆ
+	/// @brief Sceneä¿å­˜ / èª­ã¿è¾¼ã¿
+	/// @param sceneManager ã‚·ãƒ¼ãƒ³ãƒãƒãƒ¼ã‚¸ãƒ£ãƒ¼ã®å‚ç…§
 	void DrawScenePanel(_In_ SceneManager& sceneManager);
 
-	/// @brief canvas‚ÌŒŸõ‚Ü‚½‚Íì¬
-	/// @param world world‚ÌQÆ
-	/// @return Šù‚É‘¶İ‚·‚éê‡‚ÍID‚ğ•Ô‚·A‘¶İ‚µ‚È‚¢ê‡‚ÍV‹Kì¬‚µ‚ÄID‚ğ•Ô‚·
+	/// @brief canvasã®æ¤œç´¢ã¾ãŸã¯ä½œæˆ
+	/// @param world worldã®å‚ç…§
+	/// @return æ—¢ã«å­˜åœ¨ã™ã‚‹å ´åˆã¯IDã‚’è¿”ã™ã€å­˜åœ¨ã—ãªã„å ´åˆã¯æ–°è¦ä½œæˆã—ã¦IDã‚’è¿”ã™
 	Entity EnsureCanvas(World& world);
 
-	/// @brief image‚Ìì¬(Entity)
-	/// @param world world‚ÌQÆ
-	/// @return ì¬‚µ‚½Entity‚ÌID
+	/// @brief imageã®ä½œæˆ(Entity)
+	/// @param world worldã®å‚ç…§
+	/// @return ä½œæˆã—ãŸEntityã®ID
 	Entity CreateImage(_In_ World& world);
 
-	/// @brief Text‚Ìì¬(Entity)
-	/// @param world world‚ÌQÆ
-	/// @return ì¬‚µ‚½Entity‚ÌID
+	/// @brief Textã®ä½œæˆ(Entity)
+	/// @param world worldã®å‚ç…§
+	/// @return ä½œæˆã—ãŸEntityã®ID
 	Entity CreateText(_In_ World& world);
 
-	/// @brief Inspector‚ÉAddComponent‚Ìƒ|ƒbƒvƒAƒbƒv‚ğ•\¦‚·‚é
-	/// @param world world‚ÌQÆ
-	/// @param entity entity‚ÌID
+	/// @brief Inspectorã«AddComponentã®ãƒãƒƒãƒ—ã‚¢ãƒƒãƒ—ã‚’è¡¨ç¤ºã™ã‚‹
+	/// @param world worldã®å‚ç…§
+	/// @param entity entityã®ID
 	void DrawAddComponentPopup(_In_ World& world, _In_ Entity entity);
 
-	/// @brief GUI‚ÌƒXƒ^ƒCƒ‹İ’è‚ğs‚¤Window‚ğ•\¦‚·‚é
+	/// @brief GUIã®ã‚¹ã‚¿ã‚¤ãƒ«è¨­å®šã‚’è¡Œã†Windowã‚’è¡¨ç¤ºã™ã‚‹
 	void DrawStyleSetting();
 
 	Entity m_SelectedEntity = INVALID_ENTITY;
@@ -121,36 +121,36 @@ private:
 	DirectXApp& m_App;
 
 	// ============================================//
-	//		Unreal Engine ƒXƒ^ƒCƒ‹‚Ìƒpƒlƒ‹•\¦ƒtƒ‰ƒO	   //
+	//		Unreal Engine ã‚¹ã‚¿ã‚¤ãƒ«ã®ãƒ‘ãƒãƒ«è¡¨ç¤ºãƒ•ãƒ©ã‚°	   //
 	// ============================================//
-	bool m_ShowOutliner = true;		// ¶: ƒAƒEƒgƒ‰ƒCƒi[iƒGƒ“ƒeƒBƒeƒBˆê——j
-	bool m_ShowViewport = true;		// ’†‰›: ƒrƒ…[ƒ|[ƒg
-	bool m_ShowProperties = true;	// ‰E: ƒvƒƒpƒeƒBƒpƒlƒ‹iƒCƒ“ƒXƒyƒNƒ^j
-	bool m_ShowDetails = true;		// ‰º: Ú×ƒpƒlƒ‹
-	bool m_ShowMemory = true;		// ƒƒ‚ƒŠg—p—Ê•\¦
-	bool m_ShowConsole = true;		// ƒRƒ“ƒ\[ƒ‹•\¦
+	bool m_ShowOutliner = true;		// å·¦: ã‚¢ã‚¦ãƒˆãƒ©ã‚¤ãƒŠãƒ¼ï¼ˆã‚¨ãƒ³ãƒ†ã‚£ãƒ†ã‚£ä¸€è¦§ï¼‰
+	bool m_ShowViewport = true;		// ä¸­å¤®: ãƒ“ãƒ¥ãƒ¼ãƒãƒ¼ãƒˆ
+	bool m_ShowProperties = true;	// å³: ãƒ—ãƒ­ãƒ‘ãƒ†ã‚£ãƒ‘ãƒãƒ«ï¼ˆã‚¤ãƒ³ã‚¹ãƒšã‚¯ã‚¿ï¼‰
+	bool m_ShowDetails = true;		// ä¸‹: è©³ç´°ãƒ‘ãƒãƒ«
+	bool m_ShowMemory = true;		// ãƒ¡ãƒ¢ãƒªä½¿ç”¨é‡è¡¨ç¤º
+	bool m_ShowConsole = true;		// ã‚³ãƒ³ã‚½ãƒ¼ãƒ«è¡¨ç¤º
 	bool m_DockLayout = false;
 	bool m_ShowMmdPlayer = true;
 
-	// ƒrƒ…[ƒ|[ƒgî•ñ
+	// ãƒ“ãƒ¥ãƒ¼ãƒãƒ¼ãƒˆæƒ…å ±
 	ImVec2 m_ViewportSize{ 0.0f, 0.0f };
 	ImVec2 m_ViewportPos{ 0.0f, 0.0f };
 
-	// ƒQ[ƒ€‰æ–Ê—p‚ÌƒŒƒ“ƒ_[ƒeƒNƒXƒ`ƒƒ
+	// ã‚²ãƒ¼ãƒ ç”»é¢ç”¨ã®ãƒ¬ãƒ³ãƒ€ãƒ¼ãƒ†ã‚¯ã‚¹ãƒãƒ£
 	std::unique_ptr<RenderTexture> m_GameRenderTexture;
 	D3D12_GPU_DESCRIPTOR_HANDLE m_GameRenderTextureHandle{};
 	bool m_GameTextureHandleValid = false;
 
-	// ƒGƒfƒBƒ^—p‚ÌƒŒƒ“ƒ_[ƒeƒNƒXƒ`ƒƒ
+	// ã‚¨ãƒ‡ã‚£ã‚¿ç”¨ã®ãƒ¬ãƒ³ãƒ€ãƒ¼ãƒ†ã‚¯ã‚¹ãƒãƒ£
 	std::unique_ptr<RenderTexture> m_EditorRenderTexture;
 	D3D12_CPU_DESCRIPTOR_HANDLE m_EditorRenderTextureHandle{};
 	bool m_EditorTextureHandleValid = false;
 
 	bool m_ShowColliderDebug = false;
 
-	/// @brief “–‚½‚è”»’è•`‰æ
-	/// @param collider colliderƒRƒ“ƒ|[ƒlƒ“ƒg
-	/// @param transform transformƒRƒ“ƒ|[ƒlƒ“ƒg
+	/// @brief å½“ãŸã‚Šåˆ¤å®šæç”»
+	/// @param collider colliderã‚³ãƒ³ãƒãƒ¼ãƒãƒ³ãƒˆ
+	/// @param transform transformã‚³ãƒ³ãƒãƒ¼ãƒãƒ³ãƒˆ
 	void DrawColliderDebug(
 		_In_ const ColliderComponent& collider,
 		_In_ const TransformComponent& transform
@@ -192,7 +192,7 @@ private:
 
 	bool m_ShowStyleSetting = false;
 
-	// ƒrƒ‹ƒhİ’è
+	// ãƒ“ãƒ«ãƒ‰è¨­å®š
 	std::array<char, 256> m_BuildOutputDir = { "Build" };
 	std::array<char, 128> m_BuildGameName = { "MyGame" };
 	std::array<char, 256> m_BuildStartScene = { "Assets/Scenes/SampleScene.json" };

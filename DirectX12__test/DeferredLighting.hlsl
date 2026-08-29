@@ -1,4 +1,4 @@
-#include "Common.hlsli"
+ï»¿#include "Common.hlsli"
 #include "Lighting.hlsli"
 #include "BRDF.hlsli"
 
@@ -14,17 +14,17 @@ SamplerComparisonState g_ShadowSampler : register(s2);
 cbuffer DeferredCB : register(b3)
 {
     float4x4 invViewProj;
-    float4 envParam; // x: envMaxMipi0‚È‚çŠÂ‹«‚È‚µj
+    float4 envParam; // x: envMaxMipï¼ˆ0ãªã‚‰ç’°å¢ƒãªã—ï¼‰
 }
 
 //float ShadowFactor(float3 worldPos)
 //{
 //    if (shadowParams.y < 0.5f)
-//        return 1.0f; // ‰e–³Œø
+//        return 1.0f; // å½±ç„¡åŠ¹
 
 //    float4 lp = mul(float4(worldPos, 1.0f), lightviewproj);
-//    lp.xyz /= lp.w; // ortho‚È‚çw=1
-//    float2 uv = lp.xy * float2(0.5f, -0.5f) + 0.5f; // NDC¨UV(y”½“])
+//    lp.xyz /= lp.w; // orthoãªã‚‰w=1
+//    float2 uv = lp.xy * float2(0.5f, -0.5f) + 0.5f; // NDCâ†’UV(yåè»¢)
 //    if (uv.x < 0 || uv.x > 1 || uv.y < 0 || uv.y > 1)
 //        return 1.0f;
 
@@ -40,7 +40,7 @@ cbuffer DeferredCB : register(b3)
 //    return sum / 9.0f;
 //}
 
-// ˆÀ‰¿‚ÈƒVƒƒƒhƒE
+// å®‰ä¾¡ãªã‚·ãƒ£ãƒ‰ã‚¦
 float ShadowFactor1(float3 worldPos)
 {
     if (shadowParams.y < 0.5f)
@@ -101,7 +101,7 @@ float4 DeferredPS(VSOut input) : SV_TARGET
     float3 V = normalize(cameraPos.xyz - worldPos);
     float shininess = lerp(64.0f, 8.0f, saturate(roughness));
 
-    // ---- Toon ’¼ÚŒõ ----
+    // ---- Toon ç›´æ¥å…‰ ----
     float3 diffuse = 0;
     float specMask = 0;
     float shadow = ShadowFactor1(worldPos);
@@ -132,11 +132,11 @@ float4 DeferredPS(VSOut input) : SV_TARGET
     float maxMip = envParam.x;
     if (maxMip > 0.0f)
     {
-        // ŠgUF–@ü•ûŒü‚ÌÅ‚à‘e‚¢ƒ~ƒbƒvŠÂ‹«‚Ì•½‹ÏÆ“x
+        // æ‹¡æ•£ï¼šæ³•ç·šæ–¹å‘ã®æœ€ã‚‚ç²—ã„ãƒŸãƒƒãƒ—ï¼ç’°å¢ƒã®å¹³å‡ç…§åº¦
         float3 irradiance = g_Env.SampleLevel(g_Sampler, DirToEquirect(N), maxMip).rgb;
         float3 diffuseIBL = irradiance * baseColor * envParam.y;
 
-        // ‹¾–ÊF”½Ë•ûŒü‚ğƒ‰ƒtƒlƒX‚Åƒ~ƒbƒv‘I‘ğiƒƒ^ƒ‹‚Ù‚Ç‹­‚­j
+        // é¡é¢ï¼šåå°„æ–¹å‘ã‚’ãƒ©ãƒ•ãƒã‚¹ã§ãƒŸãƒƒãƒ—é¸æŠï¼ˆãƒ¡ã‚¿ãƒ«ã»ã©å¼·ãï¼‰
         float3 R = reflect(-V, N);
         float3 prefiltered = g_Env.SampleLevel(g_Sampler, DirToEquirect(R), roughness * maxMip).rgb;
         float3 specularIBL = prefiltered * metallic;
@@ -151,14 +151,14 @@ float4 DeferredPS(VSOut input) : SV_TARGET
     return float4(color, 1.0f);
 }
 
-// Henyey-Greenstein ˆÊ‘ŠŠÖ”i‘O•ûU—‚Åƒr[ƒ€‚ªƒJƒƒ‰Œü‚«‚É‹­‚­Œõ‚éj
+// Henyey-Greenstein ä½ç›¸é–¢æ•°ï¼ˆå‰æ–¹æ•£ä¹±ã§ãƒ“ãƒ¼ãƒ ãŒã‚«ãƒ¡ãƒ©å‘ãã«å¼·ãå…‰ã‚‹ï¼‰
 float PhaseHG(float cosTheta, float g)
 {
     float g2 = g * g;
     return (1.0f - g2) / (4.0f * PI * pow(max(1.0f + g2 - 2.0f * g * cosTheta, 1e-4f), 1.5f));
 }
 
-// ‹^——”iƒoƒ“ƒfƒBƒ“ƒO’áŒ¸‚ÌƒfƒBƒUj
+// ç–‘ä¼¼ä¹±æ•°ï¼ˆãƒãƒ³ãƒ‡ã‚£ãƒ³ã‚°ä½æ¸›ã®ãƒ‡ã‚£ã‚¶ï¼‰
 float Hash(float2 p)
 {
     return frac(sin(dot(p, float2(12.9898f, 78.233f))) * 43758.5453f);
@@ -166,7 +166,7 @@ float Hash(float2 p)
 
 float4 VolumetricPS(VSOut input) : SV_TARGET
 {
-    // ƒŒƒC‚ÌI“_F[“x‚ª‚ ‚é–Ê‚Ü‚Å^‹ó‚È‚ç‰“ƒNƒŠƒbƒv‘Š“–
+    // ãƒ¬ã‚¤ã®çµ‚ç‚¹ï¼šæ·±åº¦ãŒã‚ã‚‹é¢ã¾ã§ï¼ç©ºãªã‚‰é ã‚¯ãƒªãƒƒãƒ—ç›¸å½“
     float depth = g_Depth.Sample(g_Sampler, input.uv).r;
     float2 ndc = input.uv * float2(2, -2) + float2(-1, 1);
     float4 wp = mul(float4(ndc, depth, 1.0f), invViewProj);
@@ -177,18 +177,18 @@ float4 VolumetricPS(VSOut input) : SV_TARGET
     float rayLen = length(rayVec);
     float3 rayDir = rayVec / max(rayLen, 1e-4f);
 
-    // ‰“‚·‚¬‚éƒr[ƒ€‚Í“K“x‚É‘Å‚¿Ø‚éi‹óƒsƒNƒZƒ‹‚Ì–\‘––h~j
+    // é ã™ãã‚‹ãƒ“ãƒ¼ãƒ ã¯é©åº¦ã«æ‰“ã¡åˆ‡ã‚‹ï¼ˆç©ºãƒ”ã‚¯ã‚»ãƒ«ã®æš´èµ°é˜²æ­¢ï¼‰
     const float maxDist = 60.0f;
     rayLen = min(rayLen, maxDist);
 
     const int STEPS = 24;
     float stepLen = rayLen / STEPS;
 
-    // ƒfƒBƒU‚ÅŠJnˆÊ’u‚ğ‚¸‚ç‚µ‚Äƒoƒ“ƒfƒBƒ“ƒO‚ğÁ‚·
+    // ãƒ‡ã‚£ã‚¶ã§é–‹å§‹ä½ç½®ã‚’ãšã‚‰ã—ã¦ãƒãƒ³ãƒ‡ã‚£ãƒ³ã‚°ã‚’æ¶ˆã™
     float jitter = Hash(input.uv * shadowParams.z);
     float3 p = camPos + rayDir * stepLen * jitter;
 
-    const float g = 0.3f; // ‘O•ûU—‚Ì‰s‚³(‰¡‚©‚çŒ©‚Ä‚à‹Ø‚ªŒ©‚¦‚é‚æ‚¤‚É0.6¨0.3)
+    const float g = 0.3f; // å‰æ–¹æ•£ä¹±ã®é‹­ã•(æ¨ªã‹ã‚‰è¦‹ã¦ã‚‚ç­‹ãŒè¦‹ãˆã‚‹ã‚ˆã†ã«0.6â†’0.3)
 
     float3 scatter = 0;
     const int count = (int) lightCount.x;
@@ -220,6 +220,6 @@ float4 VolumetricPS(VSOut input) : SV_TARGET
         scatter += lights[i].color.rgb * lightScatter * density;
     }
 
-    scatter *= 0.5f * stepLen; // ƒx[ƒXŒW”(density ‚Íƒ‰ƒCƒg‚²‚Æ‚ÉæZÏ‚İ)
+    scatter *= 0.5f * stepLen; // ãƒ™ãƒ¼ã‚¹ä¿‚æ•°(density ã¯ãƒ©ã‚¤ãƒˆã”ã¨ã«ä¹—ç®—æ¸ˆã¿)
     return float4(scatter, 1.0f);
 }

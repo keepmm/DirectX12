@@ -1,12 +1,12 @@
-#include "Common.hlsli"
+ï»¿#include "Common.hlsli"
 #include "Lighting.hlsli"
 #include "BRDF.hlsli"
 
-Texture2D g_Texture : register(t0); // ƒAƒ‹ƒxƒh
-Texture2D g_RampTexture : register(t1); // ƒgƒD[ƒ“ƒ‰ƒ“ƒv(ŠK’²)
+Texture2D g_Texture : register(t0); // ã‚¢ãƒ«ãƒ™ãƒ‰
+Texture2D g_RampTexture : register(t1); // ãƒˆã‚¥ãƒ¼ãƒ³ãƒ©ãƒ³ãƒ—(éšèª¿)
 Texture2D g_NormalMap : register(t2);
-Texture2D g_MetalMap : register(t3); // ‹à‘®ƒ}ƒbƒv(‘Ì—p): rgb=ƒnƒCƒ‰ƒCƒgF a=‹à‘®ƒ}ƒXƒN
-Texture2D g_LightMap : register(t4); // Šçê—pƒ‰ƒCƒgƒ}ƒbƒv(rough˜g‚ğ—¬—p): r=–¾ˆÃƒ}ƒXƒN
+Texture2D g_MetalMap : register(t3); // é‡‘å±ãƒãƒƒãƒ—(ä½“ç”¨): rgb=ãƒã‚¤ãƒ©ã‚¤ãƒˆè‰² a=é‡‘å±ãƒã‚¹ã‚¯
+Texture2D g_LightMap : register(t4); // é¡”å°‚ç”¨ãƒ©ã‚¤ãƒˆãƒãƒƒãƒ—(roughæ ã‚’æµç”¨): r=æ˜æš—ãƒã‚¹ã‚¯
 SamplerState g_Sampler : register(s0);
 SamplerState g_RampSampler : register(s1);
 
@@ -15,9 +15,9 @@ cbuffer Material : register(b3)
     float roughness;
     float metallic;
     float2 _pad;
-    float4 rimColor; // rgb: ƒŠƒ€ƒJƒ‰[ / a: ƒŠƒ€‹­“x
+    float4 rimColor; // rgb: ãƒªãƒ ã‚«ãƒ©ãƒ¼ / a: ãƒªãƒ å¼·åº¦
     float4 mapFlags; // x:hasNormal y:hasMetal z:hasRough w:envMaxMip
-    float4 faceParam; // x:isFace y:–¢g—p z:–¢g—p w:ƒAƒEƒgƒ‰ƒCƒ“•
+    float4 faceParam; // x:isFace y:æœªä½¿ç”¨ z:æœªä½¿ç”¨ w:ã‚¢ã‚¦ãƒˆãƒ©ã‚¤ãƒ³å¹…
 }
 
 float4 Genshin_ToonPS(PSInput input) : SV_TARGET
@@ -30,7 +30,7 @@ float4 Genshin_ToonPS(PSInput input) : SV_TARGET
     const bool isFace = faceParam.x > 0.5f;
     const float shininess = lerp(32.0f, 8.0f, saturate(roughness));
 
-    // ‹à‘®ƒ}ƒbƒv: ‘ÌŞ¿‚ÌƒnƒCƒ‰ƒCƒgF/‹­‚³‚ğ§Œä(–¢İ’è‚È‚çmetallicƒXƒJƒ‰[‚Å‘ã—p)
+    // é‡‘å±ãƒãƒƒãƒ—: ä½“æè³ªã®ãƒã‚¤ãƒ©ã‚¤ãƒˆè‰²/å¼·ã•ã‚’åˆ¶å¾¡(æœªè¨­å®šãªã‚‰metallicã‚¹ã‚«ãƒ©ãƒ¼ã§ä»£ç”¨)
     const float4 metalSample = (mapFlags.y > 0.5f)
         ? g_MetalMap.Sample(g_Sampler, input.uv)
         : float4(1.0f, 1.0f, 1.0f, metallic);
@@ -50,7 +50,7 @@ float4 Genshin_ToonPS(PSInput input) : SV_TARGET
         float3 ramp;
         if (isFace)
         {
-            // Šç: –@üƒx[ƒX‚Ì–¾ˆÃ‚Å‚Í‚È‚­AŠGt‚ªw’è‚µ‚½ŒÅ’èƒ}ƒXƒN‚Å‰A‰e‚ğØ‘Ö‚¦‚é
+            // é¡”: æ³•ç·šãƒ™ãƒ¼ã‚¹ã®æ˜æš—ã§ã¯ãªãã€çµµå¸«ãŒæŒ‡å®šã—ãŸå›ºå®šãƒã‚¹ã‚¯ã§é™°å½±ã‚’åˆ‡æ›¿ãˆã‚‹
             float mask = g_LightMap.Sample(g_Sampler, input.uv).r;
             ramp = g_RampTexture.Sample(g_RampSampler, float2(mask, 0.5f)).rgb;
         }
@@ -60,7 +60,7 @@ float4 Genshin_ToonPS(PSInput input) : SV_TARGET
         }
         diffuse += lights[i].color.rgb * baseColor * ramp;
 
-        // ƒnƒCƒ‰ƒCƒg: smoothstep‚ÅƒGƒbƒW‚ÌƒWƒƒƒM[‚ğŒyŒ¸
+        // ãƒã‚¤ãƒ©ã‚¤ãƒˆ: smoothstepã§ã‚¨ãƒƒã‚¸ã®ã‚¸ãƒ£ã‚®ãƒ¼ã‚’è»½æ¸›
         float3 H = normalize(L + V);
         float spec = pow(saturate(dot(N, H)), shininess);
         specMask = max(specMask, smoothstep(0.45f, 0.55f, spec) * atten);
@@ -69,7 +69,7 @@ float4 Genshin_ToonPS(PSInput input) : SV_TARGET
     float3 color = diffuse + baseColor * ambientColor.rgb;
     color += specMask * specStrength * specTint;
 
-    // Šç‚É‚ÍƒŠƒ€ƒ‰ƒCƒg‚ğæ‚¹‚È‚¢
+    // é¡”ã«ã¯ãƒªãƒ ãƒ©ã‚¤ãƒˆã‚’ä¹—ã›ãªã„
     if (!isFace)
     {
         float rim = Fresnel(N, V, 3.0f);

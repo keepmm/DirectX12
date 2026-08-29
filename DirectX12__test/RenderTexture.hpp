@@ -1,10 +1,10 @@
-/*****************************************************************//**
+ï»¿/*****************************************************************//**
  * \file   RenderTexture.hpp
- * \brief  ƒIƒtƒXƒNƒŠ[ƒ“•`‰æ—p
+ * \brief  ã‚ªãƒ•ã‚¹ã‚¯ãƒªãƒ¼ãƒ³æç”»ç”¨
  *
- * ì¬Ò
- * ì¬“ú 2026/5/25
- * XV—š—ğ	5.29 ì¬
+ * ä½œæˆè€…
+ * ä½œæˆæ—¥ 2026/5/25
+ * æ›´æ–°å±¥æ­´	5.29 ä½œæˆ
  * *********************************************************************/
 #pragma once
 
@@ -20,17 +20,17 @@ public:
 	RenderTexture(const RenderTexture&) = delete;
 	RenderTexture& operator=(const RenderTexture&) = delete;
 
-	/// @brief ƒŒƒ“ƒ_[ƒeƒNƒXƒ`ƒƒ‚Ì‰Šú‰»
-	/// @param device DirectXƒfƒoƒCƒX
-	/// @param width ƒeƒNƒXƒ`ƒƒ‚Ì•
-	/// @param height ƒeƒNƒXƒ`ƒƒ‚Ì‚‚³
-	/// @param format ƒeƒNƒXƒ`ƒƒƒtƒH[ƒ}ƒbƒg(ƒfƒtƒHƒ‹ƒg“K—pÏ‚İ)
+	/// @brief ãƒ¬ãƒ³ãƒ€ãƒ¼ãƒ†ã‚¯ã‚¹ãƒãƒ£ã®åˆæœŸåŒ–
+	/// @param device DirectXãƒ‡ãƒã‚¤ã‚¹
+	/// @param width ãƒ†ã‚¯ã‚¹ãƒãƒ£ã®å¹…
+	/// @param height ãƒ†ã‚¯ã‚¹ãƒãƒ£ã®é«˜ã•
+	/// @param format ãƒ†ã‚¯ã‚¹ãƒãƒ£ãƒ•ã‚©ãƒ¼ãƒãƒƒãƒˆ(ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆé©ç”¨æ¸ˆã¿)
 	HRESULT Init(
 		_In_ UINT width,
 		_In_ UINT height,
 		_In_ DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM);
 
-	/// @brief ƒŠƒŠ[ƒX‚ğŠm•ÛÏ‚İƒXƒƒbƒg‚ğŠJ•ú
+	/// @brief ãƒªãƒªãƒ¼ã‚¹ã‚’ç¢ºä¿æ¸ˆã¿ã‚¹ãƒ­ãƒƒãƒˆã‚’é–‹æ”¾
 	void Release();
 
 	void Clear(
@@ -44,8 +44,8 @@ public:
 		_In_ D3D12_RESOURCE_STATES afterState
 	);
 
-	/// @brief ƒŒƒ“ƒ_[ƒeƒNƒXƒ`ƒƒ‚ª—LŒø‚©‚Ç‚¤‚©‚ğæ“¾
-	/// @return —LŒø‚Å‚ ‚ê‚Î trueA–³Œø‚Å‚ ‚ê‚Î false
+	/// @brief ãƒ¬ãƒ³ãƒ€ãƒ¼ãƒ†ã‚¯ã‚¹ãƒãƒ£ãŒæœ‰åŠ¹ã‹ã©ã†ã‹ã‚’å–å¾—
+	/// @return æœ‰åŠ¹ã§ã‚ã‚Œã° trueã€ç„¡åŠ¹ã§ã‚ã‚Œã° false
 	bool IsValid() const { return m_Resource != nullptr; }
 
 	inline ComPtr<ID3D12Resource> GetResource() const { return m_Resource; }
@@ -63,7 +63,7 @@ private:
 
 	ComPtr<ID3D12Resource> m_Resource;
 
-	// ‹¤—Lƒq[ƒv“à‚ÌƒXƒƒbƒg”Ô†
+	// å…±æœ‰ãƒ’ãƒ¼ãƒ—å†…ã®ã‚¹ãƒ­ãƒƒãƒˆç•ªå·
 	UINT m_RTVIndex = UINT_MAX;
 	UINT m_SRVIndex = UINT_MAX;
 

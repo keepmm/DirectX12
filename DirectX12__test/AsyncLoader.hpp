@@ -1,10 +1,10 @@
-/*****************************************************************//**
+ï»¿/*****************************************************************//**
  * \file   AsyncLoader.hpp
- * \brief  ”ñ“¯Šúˆ—‚Ìƒ[ƒh
+ * \brief  éåŒæœŸå‡¦ç†ã®ãƒ­ãƒ¼ãƒ‰
  * 
- * ì¬Ò keeeep
- * ì¬“ú 2026/6/28
- * XV—š—ğ	6.28 ì¬
+ * ä½œæˆè€… keeeep
+ * ä½œæˆæ—¥ 2026/6/28
+ * æ›´æ–°å±¥æ­´	6.28 ä½œæˆ
  * *********************************************************************/
 #pragma once
 
@@ -23,7 +23,7 @@ public:
 		return s;
 	}
 
-	// ’x‰„‰Šú‰»iDevice‚ª—pˆÓ‚Å‚«‚Ä‚©‚çj
+	// é…å»¶åˆæœŸåŒ–ï¼ˆDeviceãŒç”¨æ„ã§ãã¦ã‹ã‚‰ï¼‰
 	void Init(_In_ ThreadPool* pool, _In_ const ComPtr<ID3D12Device>& device)
 	{
 		m_Pool = pool;
@@ -32,7 +32,7 @@ public:
 
 	bool IsReady() const { return m_Pool != nullptr; }
 
-	// I—¹‚É–¾¦“I‚É•Ğ•t‚¯‚éiÃ“I”jŠü‡‚Ì–ŒÌ–h~j
+	// çµ‚äº†æ™‚ã«æ˜ç¤ºçš„ã«ç‰‡ä»˜ã‘ã‚‹ï¼ˆé™çš„ç ´æ£„é †ã®äº‹æ•…é˜²æ­¢ï¼‰
 	void Shutdown()
 	{
 		m_Pending.clear();
@@ -45,7 +45,7 @@ public:
 		float scale,
 		std::function<void(ModelLoadResult)> onDone)
 	{
-		if (m_Pool == nullptr) return;   // –¢‰Šú‰»ƒK[ƒh
+		if (m_Pool == nullptr) return;   // æœªåˆæœŸåŒ–ã‚¬ãƒ¼ãƒ‰
 
 		Pending p;
 		p.future = m_Pool->Enqueue([filepath, scale]() {
@@ -64,7 +64,7 @@ public:
 		if (m_Pool == nullptr) return;
 
 		PendingClip p;
-		Skeleton skelCopy = skeleton; // ƒXƒPƒ‹ƒgƒ“‚ğƒRƒs[‚µ‚Äƒ‰ƒ€ƒ_‚É“n‚·
+		Skeleton skelCopy = skeleton; // ã‚¹ã‚±ãƒ«ãƒˆãƒ³ã‚’ã‚³ãƒ”ãƒ¼ã—ã¦ãƒ©ãƒ ãƒ€ã«æ¸¡ã™
 		p.future = m_Pool->Enqueue([filePath, skelCopy]() {
 			return ModelLoader::LoadVMDClip(filePath, skelCopy);
 			});
@@ -95,7 +95,7 @@ public:
 				continue;
 			}
 			AnimationClip clip = it->future.get();
-			if (it->onDone) it->onDone(std::move(clip));   // ƒƒCƒ“ƒXƒŒƒbƒh‚ÅÀs
+			if (it->onDone) it->onDone(std::move(clip));   // ãƒ¡ã‚¤ãƒ³ã‚¹ãƒ¬ãƒƒãƒ‰ã§å®Ÿè¡Œ
 			it = m_PendingClips.erase(it);
 		}
 	}
@@ -103,7 +103,7 @@ public:
 	size_t PendingCount() const { return m_Pending.size(); }
 
 private:
-	AsyncLoader() = default;                       // ƒVƒ“ƒOƒ‹ƒgƒ“
+	AsyncLoader() = default;                       // ã‚·ãƒ³ã‚°ãƒ«ãƒˆãƒ³
 	AsyncLoader(const AsyncLoader&) = delete;
 	AsyncLoader& operator=(const AsyncLoader&) = delete;
 
@@ -120,7 +120,7 @@ private:
 	};
 	std::vector<PendingClip> m_PendingClips;
 
-	ThreadPool* m_Pool = nullptr;                  // QÆ¨ƒ|ƒCƒ“ƒ^iŒã‚©‚ç·‚¹‚éj
+	ThreadPool* m_Pool = nullptr;                  // å‚ç…§â†’ãƒã‚¤ãƒ³ã‚¿ï¼ˆå¾Œã‹ã‚‰å·®ã›ã‚‹ï¼‰
 	ComPtr<ID3D12Device> m_Device;
 	std::vector<Pending> m_Pending;
 };

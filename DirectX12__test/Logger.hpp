@@ -1,10 +1,10 @@
-/*****************************************************************//**
+ï»¿/*****************************************************************//**
  * \file   Logger.hpp
- * \brief  ƒƒOŠÇ—ƒVƒXƒeƒ€
+ * \brief  ãƒ­ã‚°ç®¡ç†ã‚·ã‚¹ãƒ†ãƒ 
  * 
- * ì¬Ò keepm
- * ì¬“ú 2026/3/2
- * XV—š—ğ 2026/3/2: V‹Kì¬
+ * ä½œæˆè€… keepm
+ * ä½œæˆæ—¥ 2026/3/2
+ * æ›´æ–°å±¥æ­´ 2026/3/2: æ–°è¦ä½œæˆ
  * *********************************************************************/
 #pragma once
 
@@ -23,10 +23,10 @@
 
 enum class LogLevel : uint8_t
 {
-	Info,	// ’Êíî•ñ
-	Warning,// Œx
-	Error,	// ƒGƒ‰[
-	Debug	// ƒfƒoƒbƒO
+	Info,	// é€šå¸¸æƒ…å ±
+	Warning,// è­¦å‘Š
+	Error,	// ã‚¨ãƒ©ãƒ¼
+	Debug	// ãƒ‡ãƒãƒƒã‚°
 };
 
 class ENGINE_API Logger
@@ -85,13 +85,13 @@ private:
 	std::deque<std::string> m_RecentLogs;
 	size_t m_MaxRecentLogs = 200;
 
-	// ’¼‘O‚ÌƒƒO‚Ìd•¡ŒŸo—p
+	// ç›´å‰ã®ãƒ­ã‚°ã®é‡è¤‡æ¤œå‡ºç”¨
 	LogLevel m_LastLogLevel = LogLevel::Info;
 	std::string m_LastRawMessage;
 	int m_LastCount = 0;
 };
 
-// ƒ}ƒNƒ
+// ãƒã‚¯ãƒ­
 #define LOG_INFO(msg) LOG->Info() << msg
 #define LOG_WARNING(msg) LOG->Warning() << msg
 #define LOG_ERROR(msg) LOG->Error() << msg

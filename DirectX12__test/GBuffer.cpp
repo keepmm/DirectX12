@@ -1,4 +1,4 @@
-// GBuffer.cpp
+Ôªø// GBuffer.cpp
 #include "GBuffer.hpp"
 #include "DirectX.hpp"
 
@@ -26,7 +26,7 @@ void GBuffer::BuildSrvTable(ID3D12Resource* depthSrvCpu, ID3D12Resource* envSrvC
     UINT base = srv.AllocateRange(7);
     m_SrvTableStartGpu = srv.Gpu(base);
 
-    // òAë±ÉXÉçÉbÉgÇ÷íºê⁄SRVÇçÏÇÈÉwÉãÉp
+    // ÈÄ£Á∂ö„Çπ„É≠„ÉÉ„Éà„Å∏Áõ¥Êé•SRV„Çí‰Ωú„Çã„Éò„É´„Éë
     const auto MakeSrv = [&](UINT slot, ID3D12Resource* res, DXGI_FORMAT fmt, UINT mips)
         {
             if (!res) return;
@@ -42,6 +42,6 @@ void GBuffer::BuildSrvTable(ID3D12Resource* depthSrvCpu, ID3D12Resource* envSrvC
     MakeSrv(2, m_RT[1].GetResource().Get(), DXGI_FORMAT_R10G10B10A2_UNORM, 1); // t2 Normal
     MakeSrv(3, m_RT[2].GetResource().Get(), DXGI_FORMAT_R8G8B8A8_UNORM, 1);    // t3 ORM
     MakeSrv(4, depthSrvCpu, DXGI_FORMAT_R32_FLOAT, 1);                              // t4 Depth
-    MakeSrv(5, envSrvCpu, DXGI_FORMAT_R32G32B32A32_FLOAT, m_EnvMips);        // t5 Env(nullâ¬)
-    MakeSrv(6, shadowSrvCpu, DXGI_FORMAT_R32_FLOAT, 1);                             // t6 Shadow(nullâ¬)
+    MakeSrv(5, envSrvCpu, DXGI_FORMAT_R32G32B32A32_FLOAT, m_EnvMips);        // t5 Env(nullÂèØ)
+    MakeSrv(6, shadowSrvCpu, DXGI_FORMAT_R32_FLOAT, 1);                             // t6 Shadow(nullÂèØ)
 }

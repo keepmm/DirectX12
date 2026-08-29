@@ -1,4 +1,4 @@
-// dear imgui: Platform Backend for Windows (standard windows API for 32-bits AND 64-bits applications)
+ï»¿// dear imgui: Platform Backend for Windows (standard windows API for 32-bits AND 64-bits applications)
 // This needs to be used along with a Renderer (e.g. DirectX11, OpenGL3, Vulkan..)
 
 // Implemented features:
@@ -1169,10 +1169,10 @@ static void ImGui_ImplWin32_DestroyWindow(ImGuiViewport* viewport)
         {
             ::SetPropA(vd->Hwnd, "IMGUI_CONTEXT", nullptr);
 
-            // IME/TSFŠÖ˜A‚ÌƒNƒŠ[ƒ“ƒAƒbƒv‚ðŽŽsi—áŠO‚ª”­¶‚·‚é‰Â”\«‚ª‚ ‚éj
+            // IME/TSFé–¢é€£ã®ã‚¯ãƒªãƒ¼ãƒ³ã‚¢ãƒƒãƒ—ã‚’è©¦è¡Œï¼ˆä¾‹å¤–ãŒç™ºç”Ÿã™ã‚‹å¯èƒ½æ€§ãŒã‚ã‚‹ï¼‰
             __try
             {
-                // IMEƒRƒ“ƒeƒLƒXƒg‚ÌØ’f‚ðŽŽs
+                // IMEã‚³ãƒ³ãƒ†ã‚­ã‚¹ãƒˆã®åˆ‡æ–­ã‚’è©¦è¡Œ
                 HIMC hImc = ::ImmGetContext(vd->Hwnd);
                 if (hImc)
                 {
@@ -1182,25 +1182,25 @@ static void ImGui_ImplWin32_DestroyWindow(ImGuiViewport* viewport)
             }
             __except (EXCEPTION_EXECUTE_HANDLER)
             {
-                // IMEŠÖ˜A‚Ì—áŠO‚Í–³Ž‹iŠù’m‚Ì–â‘èj
+                // IMEé–¢é€£ã®ä¾‹å¤–ã¯ç„¡è¦–ï¼ˆæ—¢çŸ¥ã®å•é¡Œï¼‰
             }
 
-            // ƒƒbƒZ[ƒWƒLƒ…[‚ðƒNƒŠƒA
+            // ãƒ¡ãƒƒã‚»ãƒ¼ã‚¸ã‚­ãƒ¥ãƒ¼ã‚’ã‚¯ãƒªã‚¢
             MSG msg;
             while (::PeekMessageW(&msg, vd->Hwnd, 0, 0, PM_REMOVE))
             {
-                // ƒƒbƒZ[ƒW‚ðˆ—‚¹‚¸‚É”jŠü
+                // ãƒ¡ãƒƒã‚»ãƒ¼ã‚¸ã‚’å‡¦ç†ã›ãšã«ç ´æ£„
             }
 
-            // DestroyWindow‚à—áŠO‚ª”­¶‚·‚é‰Â”\«‚ª‚ ‚é‚½‚ß•ÛŒì
+            // DestroyWindowã‚‚ä¾‹å¤–ãŒç™ºç”Ÿã™ã‚‹å¯èƒ½æ€§ãŒã‚ã‚‹ãŸã‚ä¿è­·
             __try
             {
                 ::DestroyWindow(vd->Hwnd);
             }
             __except (EXCEPTION_EXECUTE_HANDLER)
             {
-                // msctf.dll‚ÌŠù’m‚Ì–â‘è‚Å—áŠO‚ª”­¶‚·‚éê‡‚ª‚ ‚é
-                // ƒEƒBƒ“ƒhƒEƒnƒ“ƒhƒ‹‚Í–³Œø‚É‚È‚Á‚Ä‚¢‚é‚Ì‚Å‘±s
+                // msctf.dllã®æ—¢çŸ¥ã®å•é¡Œã§ä¾‹å¤–ãŒç™ºç”Ÿã™ã‚‹å ´åˆãŒã‚ã‚‹
+                // ã‚¦ã‚£ãƒ³ãƒ‰ã‚¦ãƒãƒ³ãƒ‰ãƒ«ã¯ç„¡åŠ¹ã«ãªã£ã¦ã„ã‚‹ã®ã§ç¶šè¡Œ
             }
         }
         vd->Hwnd = nullptr;

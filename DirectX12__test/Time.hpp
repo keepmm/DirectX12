@@ -1,10 +1,10 @@
-/*****************************************************************//**
+ï»¿/*****************************************************************//**
  * \file   Time.hpp
- * \brief  ŠÔŠÇ—ƒVƒXƒeƒ€
+ * \brief  æ™‚é–“ç®¡ç†ã‚·ã‚¹ãƒ†ãƒ 
  * 
- * ì¬Ò keepmm
- * ì¬“ú 2026/2/26
- * XV—š—ğ 2026/2/26: V‹Kì¬
+ * ä½œæˆè€… keepmm
+ * ä½œæˆæ—¥ 2026/2/26
+ * æ›´æ–°å±¥æ­´ 2026/2/26: æ–°è¦ä½œæˆ
  * *********************************************************************/
 #pragma once
 #include <Windows.h>
@@ -18,43 +18,43 @@ class ENGINE_API Time
 public:
 	static Time* GetInstance();
 
-	/// @brief ‰Šú‰»
+	/// @brief åˆæœŸåŒ–
 	void Init();
 
-	/// @brief XVˆ—
+	/// @brief æ›´æ–°å‡¦ç†
 	void Update();
 
-	/// @brief ƒfƒ‹ƒ^ƒ^ƒCƒ€‚Ìæ“¾
-	/// @return (‘OƒtƒŒ[ƒ€‚©‚ç‚ÌŒo‰ßŠÔ - •b’PˆÊ)
+	/// @brief ãƒ‡ãƒ«ã‚¿ã‚¿ã‚¤ãƒ ã®å–å¾—
+	/// @return (å‰ãƒ•ãƒ¬ãƒ¼ãƒ ã‹ã‚‰ã®çµŒéæ™‚é–“ - ç§’å˜ä½)
 	float GetDeltaTime() const;
 
-	/// @brief ƒQ[ƒ€ŠJn‚©‚ç‚Ì‘Œo‰ßŠÔ(•b’PˆÊ)
-	/// @return ‘•Œo‰ßŠÔ
+	/// @brief ã‚²ãƒ¼ãƒ é–‹å§‹ã‹ã‚‰ã®ç·çµŒéæ™‚é–“(ç§’å˜ä½)
+	/// @return è£…çµŒéæ™‚é–“
 	float GetTotalTime() const;
 
-	/// @brief ƒ^ƒCƒ€ƒXƒP[ƒ‹(ƒXƒ[ƒ‚[ƒVƒ‡ƒ“/‘‘—‚è)‚Ìæ“¾
+	/// @brief ã‚¿ã‚¤ãƒ ã‚¹ã‚±ãƒ¼ãƒ«(ã‚¹ãƒ­ãƒ¼ãƒ¢ãƒ¼ã‚·ãƒ§ãƒ³/æ—©é€ã‚Š)ã®å–å¾—
 	/// @brief 0.0f ~ 1.0f
-	/// @param scale İ’è‚·‚éƒXƒP[ƒ‹(0.0f ~ 1.0f)
+	/// @param scale è¨­å®šã™ã‚‹ã‚¹ã‚±ãƒ¼ãƒ«(0.0f ~ 1.0f)
 	void SetTimeScale(_In_ float scale);
 
-	/// @brief Œ»İ‚Ìƒ^ƒCƒ€ƒXƒP[ƒ‹‚ğæ“¾‚·‚é
-	/// @return Œ»İ‚Ìƒ^ƒCƒ€ƒXƒP[ƒ‹(0.0f ~ 1.0f)
+	/// @brief ç¾åœ¨ã®ã‚¿ã‚¤ãƒ ã‚¹ã‚±ãƒ¼ãƒ«ã‚’å–å¾—ã™ã‚‹
+	/// @return ç¾åœ¨ã®ã‚¿ã‚¤ãƒ ã‚¹ã‚±ãƒ¼ãƒ«(0.0f ~ 1.0f)
 	float GetTimeScale() const;
 
-	/// @brief ƒXƒP[ƒ‹‰^—pŒã‚Ìƒfƒ‹ƒ^ƒ^ƒCƒ€
-	/// @return ƒfƒ‹ƒ^ƒ^ƒCƒ€
+	/// @brief ã‚¹ã‚±ãƒ¼ãƒ«é‹ç”¨å¾Œã®ãƒ‡ãƒ«ã‚¿ã‚¿ã‚¤ãƒ 
+	/// @return ãƒ‡ãƒ«ã‚¿ã‚¿ã‚¤ãƒ 
 	float GetScaleDeltaTime() const;
 
-	/// @brief Œ»İ‚ÌFPS
-	/// @return Œ»İ‚ÌFPS
+	/// @brief ç¾åœ¨ã®FPS
+	/// @return ç¾åœ¨ã®FPS
 	int GetFPS() const;
 
-	/// @brief FPS‚Ìİ’è
-	/// @param fps İ’è‚·‚éFPS’l(int)
+	/// @brief FPSã®è¨­å®š
+	/// @param fps è¨­å®šã™ã‚‹FPSå€¤(int)
 	void SetFPS(_In_ int fps) { m_FPS = fps; }
 
-	/// @brief ƒtƒŒ[ƒ€ƒJƒEƒ“ƒg‚Ìæ“¾
-	/// @return ƒtƒŒ[ƒ€ƒJƒEƒ“ƒg
+	/// @brief ãƒ•ãƒ¬ãƒ¼ãƒ ã‚«ã‚¦ãƒ³ãƒˆã®å–å¾—
+	/// @return ãƒ•ãƒ¬ãƒ¼ãƒ ã‚«ã‚¦ãƒ³ãƒˆ
 	int GetFrameCount() const;
 
 private:
@@ -63,16 +63,16 @@ private:
 	Time(const Time&) = delete;
 	void operator=(const Time&) = delete;
 
-	float m_DeltaTime;	// ƒfƒ‹ƒ^ƒ^ƒCƒ€
-	float m_TotalTime;	// ƒQ[ƒ€‚Ì‘•Œo‰ßŠÔ
-	float m_TimeScale;	// ƒ^ƒCƒ€ƒXƒP[ƒ‹(0.0f ~ 1.0f)
+	float m_DeltaTime;	// ãƒ‡ãƒ«ã‚¿ã‚¿ã‚¤ãƒ 
+	float m_TotalTime;	// ã‚²ãƒ¼ãƒ ã®è£…çµŒéæ™‚é–“
+	float m_TimeScale;	// ã‚¿ã‚¤ãƒ ã‚¹ã‚±ãƒ¼ãƒ«(0.0f ~ 1.0f)
 	int m_FPS;			// FPS
-	int m_FrameCount;	// ƒtƒŒ[ƒ€ƒJƒEƒ“ƒg
+	int m_FrameCount;	// ãƒ•ãƒ¬ãƒ¼ãƒ ã‚«ã‚¦ãƒ³ãƒˆ
 
-	DWORD m_PrevTime;	// ‘O‰ñ‚ÌŒo‰ßŠÔ
-	DWORD m_StartTime;	// ƒXƒ^[ƒgŠÔ
+	DWORD m_PrevTime;	// å‰å›ã®çµŒéæ™‚é–“
+	DWORD m_StartTime;	// ã‚¹ã‚¿ãƒ¼ãƒˆæ™‚é–“
 
-	// FPSŒv‘ª—p
+	// FPSè¨ˆæ¸¬ç”¨
 	int m_FPSFrameCount;
 	DWORD m_FPSLastTime;
 };

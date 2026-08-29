@@ -1,4 +1,4 @@
-#include "PipelineStateCache.hpp"
+ï»¿#include "PipelineStateCache.hpp"
 
 ComPtr<ID3D12PipelineState> PipelineStateCache::GetOrCreate(const std::string& key, ID3D12Device* device, const D3D12_GRAPHICS_PIPELINE_STATE_DESC& desc)
 {
@@ -22,7 +22,7 @@ ComPtr<ID3D12PipelineState> PipelineStateCache::GetOrCreate(const std::string& k
 		return nullptr;
 	}
 
-	// ƒLƒƒƒbƒVƒ…‚É•Û‘¶‚µ‚Ä•Ô‚·
+	// ã‚­ãƒ£ãƒƒã‚·ãƒ¥ã«ä¿å­˜ã—ã¦è¿”ã™
 	m_PipelineStates.emplace(key, pso);
 	return pso;
 }

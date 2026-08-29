@@ -1,4 +1,4 @@
-// FontAtlas.cpp ‚Ìæ“ª‚Å1‰ñ‚¾‚¯
+ï»¿// FontAtlas.cpp ã®å…ˆé ­ã§1å›ã ã‘
 #define STB_TRUETYPE_IMPLEMENTATION
 #include "imstb_truetype.h"
 #include "FontAtlas.hpp"
@@ -10,7 +10,7 @@
 
 bool FontAtlas::Build(const std::string& fontPathUtf8)
 {
-    // ƒtƒHƒ“ƒgƒtƒ@ƒCƒ‹“Ç‚İ‚İ
+    // ãƒ•ã‚©ãƒ³ãƒˆãƒ•ã‚¡ã‚¤ãƒ«èª­ã¿è¾¼ã¿
     std::ifstream f(Utf8ToWide(fontPathUtf8),std::ios::binary);
 
     if (!f) return false;
@@ -25,7 +25,7 @@ bool FontAtlas::Build(const std::string& fontPathUtf8)
 	stbtt_GetFontVMetrics(&font, &ascent, &descent, &lineGap);
 	m_LineHeight = (ascent - descent + lineGap) * scale;
 
-    // ASCII‚ÉÄ‚­
+    // ASCIIã«ç„¼ã
     const int ATLAS = 512;
 	std::vector<unsigned char> gray(ATLAS * ATLAS, 0);
     int penX = 1, penY = 1, rowH = 0;
@@ -40,7 +40,7 @@ bool FontAtlas::Build(const std::string& fontPathUtf8)
             penY += rowH + 1;
             rowH = 0;
         }
-        // gray‚ÖƒRƒs[
+        // grayã¸ã‚³ãƒ”ãƒ¼
         for (int y = 0; y < h; ++y)
             for (int x = 0; x < w; ++x)
                 gray[(penY + y) * ATLAS + (penX + x)] = bmp[y * w + x];
@@ -66,7 +66,7 @@ bool FontAtlas::Build(const std::string& fontPathUtf8)
 		stbtt_FreeBitmap(bmp, nullptr);
     }
 
-    // R8 - > RGBA8‚É•ÏŠ·
+    // R8 - > RGBA8ã«å¤‰æ›
     std::vector<std::uint8_t> rgba(ATLAS * ATLAS * 4);
     for (int i = 0; i < ATLAS * ATLAS; ++i)
     {

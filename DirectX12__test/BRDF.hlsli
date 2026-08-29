@@ -1,21 +1,21 @@
-#ifndef BRDF_HLSLI
+ï»¿#ifndef BRDF_HLSLI
 #define BRDF_HLSLI
 
-// --- Lamberti¡‚Ì BasicPS ‘Š“–j---
+// --- Lambertï¼ˆä»Šã® BasicPS ç›¸å½“ï¼‰---
 float3 Lambert(float3 baseColor, float3 lightColor, float3 N, float3 L)
 {
     return lightColor * baseColor * saturate(dot(N, L));
 }
 
-// --- RimiƒtƒŒƒlƒ‹•—‚Ì‰Œõ‚èj---
-// rimColor / rimPower ‚Íƒ}ƒeƒŠƒAƒ‹‚©‚ç“n‚·‘z’è
+// --- Rimï¼ˆãƒ•ãƒ¬ãƒãƒ«é¢¨ã®ç¸å…‰ã‚Šï¼‰---
+// rimColor / rimPower ã¯ãƒãƒ†ãƒªã‚¢ãƒ«ã‹ã‚‰æ¸¡ã™æƒ³å®š
 float3 Rim(float3 N, float3 V, float3 rimColor, float rimPower)
 {
     float rim = 1.0f - saturate(dot(N, V));
     return rimColor * pow(rim, rimPower);
 }
 
-// --- PBR: Cook-Torrance ‚ÌŠe€ ---
+// --- PBR: Cook-Torrance ã®å„é … ---
 static const float PI = 3.14159265f;
 
 float D_GGX(float ndoth, float rough)
@@ -43,7 +43,7 @@ float Fresnel(float3 N,float3 V,float power)
     return pow(1.0f - saturate(dot(N, V)), power);
 }
 
-// 1ƒ‰ƒCƒg•ª‚Ì Cook-Torrance
+// 1ãƒ©ã‚¤ãƒˆåˆ†ã® Cook-Torrance
 float3 CookTorrance(float3 albedo, float metallic, float rough,
                     float3 N, float3 V, float3 L, float3 lightColor)
 {
@@ -64,7 +64,7 @@ float3 CookTorrance(float3 albedo, float metallic, float rough,
     return (diff + spec) * lightColor * ndotl;
 }
 
-// --- Blinn-Phong ƒXƒyƒLƒ…ƒ‰ ---
+// --- Blinn-Phong ã‚¹ãƒšã‚­ãƒ¥ãƒ© ---
 float3 BlinnPhongSpec(float3 N, float3 L, float3 V, float3 lightColor, float shininess)
 {
     float3 H = normalize(L + V);
@@ -72,7 +72,7 @@ float3 BlinnPhongSpec(float3 N, float3 L, float3 V, float3 lightColor, float shi
     return lightColor * s;
 }
 
-// ---- Cloth Charlie•ª•z ---- //
+// ---- Cloth Charlieåˆ†å¸ƒ ---- //
 float D_Charlie(float ndoth,float rough)
 {
     float invR = 1.0f / max(rough, 1e-3f);
@@ -93,10 +93,10 @@ float3 N,float3 V,float3 L,float3 lightColor)
     float ndotv = saturate(dot(N, V)) + 1e-5f;
     float ndoth = saturate(dot(N, H));
     
-    // ‘@ˆÛ‚ÌƒV[ƒ“ƒ[ƒu
+    // ç¹Šç¶­ã®ã‚·ãƒ¼ãƒ³ãƒ­ãƒ¼ãƒ–
     float spec = sheenColor * D_Charlie(ndoth, rougth) * V_Ashikhman(ndotl, ndotv);
     
-    // •z‚ÌŠgU
+    // å¸ƒã®æ‹¡æ•£
     float wrap = saturate((dot(N, L) + 0.5f) / 1.5f);
     float3 diff = albedo * wrap / PI;
     

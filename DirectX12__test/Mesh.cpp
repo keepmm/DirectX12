@@ -1,4 +1,4 @@
-#include "Mesh.hpp"
+ï»¿#include "Mesh.hpp"
 #include "d3dx12.h"
 #include <array>
 #include <cstdint>
@@ -16,7 +16,7 @@ void Mesh::Init(
 	const std::vector<std::uint32_t>& indices,
 	const std::vector<SubMesh>* subMeshes)
 {
-	// ˆø”‚Ì‚Ç‚ê‚©‚ª‹ó‚Ìê‡‰Šú‰»‚µ‚È‚¢
+	// å¼•æ•°ã®ã©ã‚Œã‹ãŒç©ºã®å ´åˆåˆæœŸåŒ–ã—ãªã„
 	if(device == nullptr || vertices.empty() || indices.empty())
 	{
 		return;
@@ -26,7 +26,7 @@ void Mesh::Init(
 	const UINT indexBufferSize = static_cast<UINT>(indices.size() * sizeof(std::uint32_t));
 	m_VertexCount = static_cast<UINT>(vertices.size());
 
-	// ’¸“_ƒoƒbƒtƒ@‚Ìì¬
+	// é ‚ç‚¹ãƒãƒƒãƒ•ã‚¡ã®ä½œæˆ
 		CD3DX12_HEAP_PROPERTIES uploadHeap(D3D12_HEAP_TYPE_UPLOAD);
 
 	{
@@ -40,7 +40,7 @@ void Mesh::Init(
 			IID_PPV_ARGS(&m_VertexBuffer));
 
 		void* vbMapped = nullptr;
-		CD3DX12_RANGE readRange(0, 0); // “Ç‚İæ‚è‚Í‚µ‚È‚¢
+		CD3DX12_RANGE readRange(0, 0); // èª­ã¿å–ã‚Šã¯ã—ãªã„
 		m_VertexBuffer->Map(0, &readRange, &vbMapped);
 		std::memcpy(vbMapped, vertices.data(), vertexBufferSize);
 		m_VertexBuffer->Unmap(0, nullptr);
@@ -60,7 +60,7 @@ void Mesh::Init(
 			nullptr,
 			IID_PPV_ARGS(&m_IndexBuffer));
 		void* ibMapped = nullptr;
-		CD3DX12_RANGE readRange(0, 0); // “Ç‚İæ‚è‚Í‚µ‚È‚¢
+		CD3DX12_RANGE readRange(0, 0); // èª­ã¿å–ã‚Šã¯ã—ãªã„
 		m_IndexBuffer->Map(0, &readRange, &ibMapped);
 		std::memcpy(ibMapped, indices.data(), indexBufferSize);
 		m_IndexBuffer->Unmap(0, nullptr);

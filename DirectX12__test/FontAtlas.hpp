@@ -1,14 +1,14 @@
-#pragma once
+ï»¿#pragma once
 #include "Material.hpp"
 #include "Mesh.hpp"
 #include "Defines.hpp"
 
 struct Glyph
 {
-	float u0, v0, u1, v1;	// ƒAƒgƒ‰ƒX“àUV
-	float w, h;				// ƒsƒNƒZƒ‹ƒTƒCƒY
-	float wofff, yoff;		// ‚×|ƒXƒ‰ƒCƒ“‚©‚ç‚ÌƒIƒtƒZƒbƒg
-	float xadvance;			// Ÿ‚Ì•¶š‚Ü‚Å‚Ì‘—‚è
+	float u0, v0, u1, v1;	// ã‚¢ãƒˆãƒ©ã‚¹å†…UV
+	float w, h;				// ãƒ”ã‚¯ã‚»ãƒ«ã‚µã‚¤ã‚º
+	float wofff, yoff;		// ã¹ï¼ã‚¹ãƒ©ã‚¤ãƒ³ã‹ã‚‰ã®ã‚ªãƒ•ã‚»ãƒƒãƒˆ
+	float xadvance;			// æ¬¡ã®æ–‡å­—ã¾ã§ã®é€ã‚Š
 };
 
 class FontAtlas
@@ -61,13 +61,13 @@ public:
 		if (it != map.end()) return it->second.get();
 
 		auto atlas = std::make_unique<FontAtlas>();
-		if (!atlas->Build(fontPath)) return nullptr;   // 1‰ñ‚¾‚¯Ä‚­
+		if (!atlas->Build(fontPath)) return nullptr;   // 1å›ã ã‘ç„¼ã
 		FontAtlas* ptr = atlas.get();
 		map[fontPath] = std::move(atlas);
 		return ptr;
 	}
 
-	// ƒfƒoƒCƒX”jŠü‘O‚ÉŒÄ‚Ôi”CˆÓEŒãqj
+	// ãƒ‡ãƒã‚¤ã‚¹ç ´æ£„å‰ã«å‘¼ã¶ï¼ˆä»»æ„ãƒ»å¾Œè¿°ï¼‰
 	static void Clear() { Instance().m_Atlases.clear(); }
 
 private:

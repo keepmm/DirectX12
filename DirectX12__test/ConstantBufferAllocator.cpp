@@ -1,4 +1,4 @@
-#include "ConstantBufferAllocator.hpp"
+ï»¿#include "ConstantBufferAllocator.hpp"
 #include "Logger.hpp"
 #include "d3dx12.h"
 #include <cstring>
@@ -24,7 +24,7 @@ void ConstantBufferAllocator::Reset(UINT frameSlot)
 D3D12_GPU_VIRTUAL_ADDRESS ConstantBufferAllocator::Allocate(UINT frameSlot, const void* data, size_t size)
 {
 	// ------------------------ //
-	//			ˆø”‚ÌŒŸ¸	   	//
+	//			å¼•æ•°ã®æ¤œæŸ»	   	//
 	// ------------------------ //
 	if (frameSlot >= FRAME_COUNT)
 	{
@@ -33,16 +33,16 @@ D3D12_GPU_VIRTUAL_ADDRESS ConstantBufferAllocator::Allocate(UINT frameSlot, cons
 
 	if(m_Buffer[frameSlot] == nullptr || m_MappedData[frameSlot] == nullptr)
 	{
-		LOG->LogError("ConstantBufferAllocator::Allocate: ƒoƒbƒtƒ@‚ª‰Šú‰»‚³‚ê‚Ä‚¢‚Ü‚¹‚ñ");
+		LOG->LogError("ConstantBufferAllocator::Allocate: ãƒãƒƒãƒ•ã‚¡ãŒåˆæœŸåŒ–ã•ã‚Œã¦ã„ã¾ã›ã‚“");
 		return 0;
 	}
 
 	const UINT alignedSize = AlignUp(static_cast<UINT>(size), CBV_ALIGNMENT);
 
-	// ƒŠƒ“ƒO‚ªˆì‚ê‚½‚çŠm•Û¸”s
+	// ãƒªãƒ³ã‚°ãŒæº¢ã‚ŒãŸã‚‰ç¢ºä¿å¤±æ•—
 	if(m_Offset[frameSlot] + alignedSize > RING_BYTES)
 	{
-		LOG->LogError("ConstantBufferAllocator::Allocate: ƒŠƒ“ƒOƒoƒbƒtƒ@‚ªˆì‚ê‚Ü‚µ‚½");
+		LOG->LogError("ConstantBufferAllocator::Allocate: ãƒªãƒ³ã‚°ãƒãƒƒãƒ•ã‚¡ãŒæº¢ã‚Œã¾ã—ãŸ");
 		return 0;
 	}
 
@@ -63,10 +63,10 @@ void ConstantBufferAllocator::Init()
 	auto device = DirectXApp::GetCurrent()->GetDevice();
 	if (device == nullptr)
 	{
-		LOG->LogError("ConstantBufferAllocator::Init: ƒfƒoƒCƒX‚ªæ“¾‚Å‚«‚Ü‚¹‚ñ‚Å‚µ‚½");
+		LOG->LogError("ConstantBufferAllocator::Init: ãƒ‡ãƒã‚¤ã‚¹ãŒå–å¾—ã§ãã¾ã›ã‚“ã§ã—ãŸ");
 	}
 
-	// ƒtƒŒ[ƒ€”•ª‚Ìuploadƒoƒbƒtƒ@‚ğŠm•Û‚µA‰i‘±ƒ}ƒbƒv‚µ‚Ä‚¨‚­
+	// ãƒ•ãƒ¬ãƒ¼ãƒ æ•°åˆ†ã®uploadãƒãƒƒãƒ•ã‚¡ã‚’ç¢ºä¿ã—ã€æ°¸ç¶šãƒãƒƒãƒ—ã—ã¦ãŠã
 	CD3DX12_HEAP_PROPERTIES uploadHeap(D3D12_HEAP_TYPE_UPLOAD);
 	CD3DX12_RESOURCE_DESC bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(RING_BYTES);
 
@@ -84,18 +84,18 @@ void ConstantBufferAllocator::Init()
 		{
 			m_Buffer[i] = nullptr;
 			m_MappedData[i] = nullptr;
-			LOG->LogError("ConstantBufferAllocator::Init: ƒoƒbƒtƒ@‚Ìì¬‚É¸”s‚µ‚Ü‚µ‚½");
+			LOG->LogError("ConstantBufferAllocator::Init: ãƒãƒƒãƒ•ã‚¡ã®ä½œæˆã«å¤±æ•—ã—ã¾ã—ãŸ");
 			continue;
 		}
 
-		// “Ç‚İæ‚è‚Í‚µ‚È‚¢‚Ì‚Å”ÍˆÍ‚Í0
+		// èª­ã¿å–ã‚Šã¯ã—ãªã„ã®ã§ç¯„å›²ã¯0
 		void* mapped = nullptr;
 		CD3DX12_RANGE readRange(0, 0);
 		if(FAILED(m_Buffer[i]->Map(0,&readRange, &mapped)))
 		{
 			m_Buffer[i] = nullptr;
 			m_MappedData[i] = nullptr;
-			LOG->LogError("ConstantBufferAllocator::Init: ƒoƒbƒtƒ@‚Ìƒ}ƒbƒsƒ“ƒO‚É¸”s‚µ‚Ü‚µ‚½");
+			LOG->LogError("ConstantBufferAllocator::Init: ãƒãƒƒãƒ•ã‚¡ã®ãƒãƒƒãƒ”ãƒ³ã‚°ã«å¤±æ•—ã—ã¾ã—ãŸ");
 			continue;
 		}
 

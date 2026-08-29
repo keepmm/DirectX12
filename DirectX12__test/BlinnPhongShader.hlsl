@@ -1,4 +1,4 @@
-#include "Common.hlsli"
+ï»¿#include "Common.hlsli"
 #include "Lighting.hlsli"
 #include "BRDF.hlsli"
 
@@ -7,15 +7,15 @@ SamplerState g_Sampler : register(s0);
 
 cbuffer Material : register(b3)
 {
-    float roughness;    // ‘å = L‚­“İ‚¢ / ¬ = ‹·‚­‰s‚¢
-    float metallic;     // ‹¾–Ê‚Ì‹­‚³
+    float roughness;    // å¤§ = åºƒãéˆã„ / å° = ç‹­ãé‹­ã„
+    float metallic;     // é¡é¢ã®å¼·ã•
     float2 _pad;
     float4 rimColor;
 }
 
 float4 PhongPS(PSInput pin) : SV_Target
 {
-    // ’Êí‚ÌLambertƒ‰ƒCƒeƒBƒ“ƒO
+    // é€šå¸¸ã®Lambertãƒ©ã‚¤ãƒ†ã‚£ãƒ³ã‚°
     float4 tex = g_Texture.Sample(g_Sampler, pin.uv);
     float3 baseColor = pin.col.rgb * tex.rgb;
     float3 N = normalize(pin.normal);
@@ -38,7 +38,7 @@ float4 PhongPS(PSInput pin) : SV_Target
 
     float3 color = diffuse
                  + baseColor * ambientColor.rgb
-                 + specular * metallic; // ‹¾–Ê‚Ì‹­‚³
+                 + specular * metallic; // é¡é¢ã®å¼·ã•
 
     return float4(color, pin.col.a * tex.a);
 }

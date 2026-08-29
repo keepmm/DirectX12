@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include <string>
 #include <Windows.h>
 #include <commdlg.h>
@@ -7,7 +7,7 @@
 #include "ModelData.hpp"
 #include "Debug.hpp"
 
-// ---- UTF-8 <-> wide •ÏŠ· ---- //
+// ---- UTF-8 <-> wide å¤‰æ› ---- //
 inline std::wstring Utf8ToWide(const std::string& s)
 {
     if (s.empty()) return {};
@@ -26,8 +26,8 @@ inline std::string WideToUtf8(const std::wstring& w)
     return s;
 }
 
-// ---- ƒtƒ@ƒCƒ‹‘I‘ğƒ_ƒCƒAƒƒO ---- //
-// filter ‚Í "Image\0*.png;*.jpg\0All\0*.*\0" Œ`®iƒ_ƒuƒ‹NULI’[j
+// ---- ãƒ•ã‚¡ã‚¤ãƒ«é¸æŠãƒ€ã‚¤ã‚¢ãƒ­ã‚° ---- //
+// filter ã¯ "Image\0*.png;*.jpg\0All\0*.*\0" å½¢å¼ï¼ˆãƒ€ãƒ–ãƒ«NULçµ‚ç«¯ï¼‰
 inline bool OpenFileDialog(std::wstring& out, const wchar_t* filter)
 {
     wchar_t file[MAX_PATH] = L"";
@@ -44,7 +44,7 @@ inline std::vector<std::shared_ptr<Material>> BuildMaterials(
     const ModelLoadResult& model, const std::string& shaderName)
 {
     std::vector<std::shared_ptr<Material>> out;
-    // ƒeƒNƒXƒ`ƒƒ‚Ì‹¤—LŒ³Material(ƒŠƒ\[ƒX‚ÌÀ‘Ì‚ğ‚Â)‚ğƒpƒX‚²‚Æ‚É‹L˜^
+    // ãƒ†ã‚¯ã‚¹ãƒãƒ£ã®å…±æœ‰å…ƒMaterial(ãƒªã‚½ãƒ¼ã‚¹ã®å®Ÿä½“ã‚’æŒã¤)ã‚’ãƒ‘ã‚¹ã”ã¨ã«è¨˜éŒ²
     std::unordered_map<std::wstring, Material*> texOwner;
 
     for (const auto& set : model.materials)
@@ -60,7 +60,7 @@ inline std::vector<std::shared_ptr<Material>> BuildMaterials(
             auto it = texOwner.find(set.diffuse);
             if (it != texOwner.end())
             {
-                m->ShareDiffuseTexture(*it->second);   // GPUƒŠƒ\[ƒX‚¾‚¯‹¤—L
+                m->ShareDiffuseTexture(*it->second);   // GPUãƒªã‚½ãƒ¼ã‚¹ã ã‘å…±æœ‰
             }
             else if (set.diffuseImage && set.diffuseImage->ok)
             {
@@ -97,7 +97,7 @@ inline std::string ShiftJisUtf8(const std::string& sjis)
 
 inline std::filesystem::path ResolveAssetPath(const std::filesystem::path& path)
 {
-	// â‘ÎƒpƒX‚Ü‚½‚Í‘¶İ‚·‚éƒpƒX‚È‚ç‚»‚Ì‚Ü‚Ü•Ô‚·
+	// çµ¶å¯¾ãƒ‘ã‚¹ã¾ãŸã¯å­˜åœ¨ã™ã‚‹ãƒ‘ã‚¹ãªã‚‰ãã®ã¾ã¾è¿”ã™
     if (path.is_absolute() || std::filesystem::exists(path))
     {
         return path;

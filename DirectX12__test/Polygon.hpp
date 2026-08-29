@@ -1,10 +1,10 @@
-/*****************************************************************//**
+ï»¿/*****************************************************************//**
  * \file   Polygon.hpp
- * \brief  ƒ|ƒŠƒSƒ“•`‰æŠÖŒW‚ÌƒNƒ‰ƒX
+ * \brief  ãƒãƒªã‚´ãƒ³æç”»é–¢ä¿‚ã®ã‚¯ãƒ©ã‚¹
  * 
- * ì¬Ò 
- * ì¬“ú 2026/2/19
- * XV—š—ğ
+ * ä½œæˆè€… 
+ * ä½œæˆæ—¥ 2026/2/19
+ * æ›´æ–°å±¥æ­´
  * *********************************************************************/
 #pragma once
 
@@ -28,20 +28,20 @@ public:
 	static void DrawWireFrame(bool b);
 	static void DrawPolygon(bool b);
 
-	/* ƒ‰ƒCƒg‚Ì•ûŒü‚Ìİ’è */
+	/* ãƒ©ã‚¤ãƒˆã®æ–¹å‘ã®è¨­å®š */
 	static void SetLightDir(float3 dir) { m_LightDir = dir; }
 
-	/* Œõ‚ÌF‚Ìİ’è */
+	/* å…‰ã®è‰²ã®è¨­å®š */
 	static void SetLightColor(float4 color) { m_LightColor = color; }
 
-	/* ŠÂ‹«Œõ‚Ìİ’è */
+	/* ç’°å¢ƒå…‰ã®è¨­å®š */
 	static void SetAmbientColor(float4 color) { m_AmbientColor = color; }
 
-	/// @brief •`‰æ‚Ég—p‚·‚éƒeƒNƒXƒ`ƒƒ‚ğŠO•”‚©‚ç“n‚·
-	/// @param srvHeap ƒVƒF[ƒ_[‚©‚çQÆ‰Â”\‚ÈSRVƒq[ƒv
+	/// @brief æç”»æ™‚ã«ä½¿ç”¨ã™ã‚‹ãƒ†ã‚¯ã‚¹ãƒãƒ£ã‚’å¤–éƒ¨ã‹ã‚‰æ¸¡ã™
+	/// @param srvHeap ã‚·ã‚§ãƒ¼ãƒ€ãƒ¼ã‹ã‚‰å‚ç…§å¯èƒ½ãªSRVãƒ’ãƒ¼ãƒ—
 	static void SetTexture(ComPtr<ID3D12DescriptorHeap> srvHeap) { m_SRV_Heap = srvHeap; }
 
-	/* •`‰æ */
+	/* æç”» */
 	static void Draw();
 private:
 	Polygon(const Polygon&)				= delete;
@@ -69,7 +69,7 @@ private:
 	static ComPtr<ID3D12PipelineState>			m_PipelineStateWireFrame;
 
 	// =======================
-	//		ƒeƒNƒXƒ`ƒƒŠÖ˜A
+	//		ãƒ†ã‚¯ã‚¹ãƒãƒ£é–¢é€£
 	// =======================
 	static ComPtr<ID3D12DescriptorHeap> m_SRV_Heap;
 };

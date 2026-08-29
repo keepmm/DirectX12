@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include "Defines.hpp"
 #include "ModelData.hpp"
@@ -14,18 +14,18 @@ namespace physx {
 class MmdPhysics
 {
 public:
-    // „‘Ì/ƒWƒ‡ƒCƒ“ƒg‚ÆƒXƒPƒ‹ƒgƒ“‚©‚çPhysXƒAƒNƒ^[‚ğ\’z
+    // å‰›ä½“/ã‚¸ãƒ§ã‚¤ãƒ³ãƒˆã¨ã‚¹ã‚±ãƒ«ãƒˆãƒ³ã‹ã‚‰PhysXã‚¢ã‚¯ã‚¿ãƒ¼ã‚’æ§‹ç¯‰
     void Init(physx::PxPhysics* physics, const PmxPhysics& phys, const Skeleton& skel);
     void Destroy();
 
-    // –ˆƒtƒŒ[ƒ€: global(Šeƒ{[ƒ“‚Ìƒ[ƒ‹ƒhs—ñ) ‚ğ“üo—Í
-    //   “ü—Í: FK/IK/•t—^Œã‚Ì global, o—Í: •¨—”½‰fŒã‚Ì global
+    // æ¯ãƒ•ãƒ¬ãƒ¼ãƒ : global(å„ãƒœãƒ¼ãƒ³ã®ãƒ¯ãƒ¼ãƒ«ãƒ‰è¡Œåˆ—) ã‚’å…¥å‡ºåŠ›
+    //   å…¥åŠ›: FK/IK/ä»˜ä¸å¾Œã® global, å‡ºåŠ›: ç‰©ç†åæ˜ å¾Œã® global
     void Step(std::vector<DirectX::XMMATRIX>& global, float dt);
 
-    // ’Ç]İ’è + simulate
+    // è¿½å¾“è¨­å®š + simulate
 	void StepBegin(std::vector<DirectX::XMMATRIX>& global,float dt);
 
-    // ‘O‰ñŒ‹‰Ê‚ğ‰ñû‚µ‚Ä‘‚«–ß‚µ
+    // å‰å›çµæœã‚’å›åã—ã¦æ›¸ãæˆ»ã—
 	void StepFetch(std::vector<DirectX::XMMATRIX>& global);
 
     void Reset();

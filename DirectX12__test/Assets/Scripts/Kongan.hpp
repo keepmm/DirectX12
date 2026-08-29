@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include "MonoBehavior.hpp"
 #include "Input.hpp"
 #include "GameAPI.hpp"
@@ -16,11 +16,11 @@ public:
     {
         if (INPUT->Key.Space().Down())
         {
-            // u8"" ‚ÅUTF-8‚ğ•ÛØ(ExplodeText‘¤‚ªUTF-8‘O’ñ‚Ì‚½‚ß)
+            // u8"" ã§UTF-8ã‚’ä¿è¨¼(ExplodeTextå´ãŒUTF-8å‰æã®ãŸã‚)
             GameAPI::LaunchFirework(
                 launchPos, GameAPI::Text,
                 float3{ 1.0f, 0.85f, 0.2f },
-                reinterpret_cast<const char*>(u8"5A‚­‚¾‚³‚¢"));
+                reinterpret_cast<const char*>(u8"5Aãã ã•ã„"));
         }
     }
 };

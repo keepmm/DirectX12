@@ -1,4 +1,4 @@
-#include "EditorWindow.hpp"
+ï»¿#include "EditorWindow.hpp"
 #include "SceneSerializer.hpp"
 #include "Components.hpp"
 #include "PrefabLibrary.hpp"
@@ -24,37 +24,37 @@ void EditorWindow::DrawAssetPanel(SceneManager& sceneManager)
 
 	if (!fs::exists(assetRoot))
 	{
-		ImGui::Text(u8("Assets ƒtƒHƒ‹ƒ_‚ªŒ©‚Â‚©‚è‚Ü‚¹‚ñ"));
+		ImGui::Text(u8("Assets ãƒ•ã‚©ãƒ«ãƒ€ãŒè¦‹ã¤ã‹ã‚Šã¾ã›ã‚“"));
 		return;
 	}
 
-	// ŠJ‚¢‚Ä‚¢‚½ƒtƒHƒ‹ƒ_‚ªÁ‚³‚ê‚Ä‚¢‚½‚çƒ‹[ƒg‚É–ß‚·
+	// é–‹ã„ã¦ã„ãŸãƒ•ã‚©ãƒ«ãƒ€ãŒæ¶ˆã•ã‚Œã¦ã„ãŸã‚‰ãƒ«ãƒ¼ãƒˆã«æˆ»ã™
 	if (!fs::exists(m_CurrentAssetDir))
 	{
 		m_CurrentAssetDir = assetRoot.string();
 	}
 
 	// -------------------------//
-	//		 ƒc[ƒ‹ƒo[			//
+	//		 ãƒ„ãƒ¼ãƒ«ãƒãƒ¼			//
 	// -------------------------//
 
-	// uªvƒ{ƒ^ƒ“: eƒtƒHƒ‹ƒ_‚Öiƒ‹[ƒg‚Å‚Í–³Œø‰»j
+	// ã€Œâ†‘ã€ãƒœã‚¿ãƒ³: è¦ªãƒ•ã‚©ãƒ«ãƒ€ã¸ï¼ˆãƒ«ãƒ¼ãƒˆã§ã¯ç„¡åŠ¹åŒ–ï¼‰
 	const bool atRoot = fs::equivalent(m_CurrentAssetDir, assetRoot);
 	ImGui::BeginDisabled(atRoot);
-	if (ImGui::Button(u8("ª##AssetUp")))
+	if (ImGui::Button(u8("â†‘##AssetUp")))
 	{
 		m_CurrentAssetDir = fs::path(m_CurrentAssetDir).parent_path().string();
 	}
 	ImGui::EndDisabled();
 
-	// Œ»İ‚ÌƒpƒX‚ğ•\¦
+	// ç¾åœ¨ã®ãƒ‘ã‚¹ã‚’è¡¨ç¤º
 	ImGui::SameLine();
 	ImGui::Text("%s", m_CurrentAssetDir.c_str());
 
-	// ƒZƒ‹ƒTƒCƒY‚ÌƒXƒ‰ƒCƒ_[
+	// ã‚»ãƒ«ã‚µã‚¤ã‚ºã®ã‚¹ãƒ©ã‚¤ãƒ€ãƒ¼
 	ImGui::SameLine();
 	ImGui::SetNextItemWidth(120.0f);
-	ImGui::SliderFloat(u8("ƒTƒCƒY##AssetCell"), &m_AssetCellSize, 48.0f, 128.0f, "%.0f");
+	ImGui::SliderFloat(u8("ã‚µã‚¤ã‚º##AssetCell"), &m_AssetCellSize, 48.0f, 128.0f, "%.0f");
 
 	ImGui::Separator();
 
@@ -68,7 +68,7 @@ void EditorWindow::DrawAssetPanel(SceneManager& sceneManager)
 		const ImGuiStyle& style = ImGui::GetStyle();
 
 		// ---------------------------------------//
-		// ƒtƒHƒ‹ƒ_¨ƒtƒ@ƒCƒ‹‚Ì‡‚É•À‚×‚½‚¢‚Ì‚Å•ª‚¯‚é //
+		// ãƒ•ã‚©ãƒ«ãƒ€â†’ãƒ•ã‚¡ã‚¤ãƒ«ã®é †ã«ä¸¦ã¹ãŸã„ã®ã§åˆ†ã‘ã‚‹ //
 		// ---------------------------------------//
 		std::vector<fs::directory_entry> folders;
 		std::vector<fs::directory_entry> files;
@@ -84,10 +84,10 @@ void EditorWindow::DrawAssetPanel(SceneManager& sceneManager)
 			}
 		}
 
-		std::string pendingDir;	// ƒCƒeƒŒ[ƒVƒ‡ƒ“’†‚Ém_CurrentAssetDir‚ğ‘‚«Š·‚¦‚È‚¢‚½‚ß
+		std::string pendingDir;	// ã‚¤ãƒ†ãƒ¬ãƒ¼ã‚·ãƒ§ãƒ³ä¸­ã«m_CurrentAssetDirã‚’æ›¸ãæ›ãˆãªã„ãŸã‚
 		std::string pendingScenepath;
 
-		// ƒ^ƒCƒ‹1ŒÂ‚ğ•`‚­‹¤’Êˆ—
+		// ã‚¿ã‚¤ãƒ«1å€‹ã‚’æãå…±é€šå‡¦ç†
 		auto drawTile = [&](const fs::directory_entry& entry, bool isFolder)
 			{
 				auto U8 = [](const std::filesystem::path& p) {
@@ -99,7 +99,7 @@ void EditorWindow::DrawAssetPanel(SceneManager& sceneManager)
 				const std::string ext = U8(entry.path().extension());
 
 				// -------------------------------------//
-				// ƒAƒCƒRƒ“‚ÆƒtƒH[ƒ‹ƒoƒbƒNF‚ğŒˆ‚ß‚é	//
+				// ã‚¢ã‚¤ã‚³ãƒ³ã¨ãƒ•ã‚©ãƒ¼ãƒ«ãƒãƒƒã‚¯è‰²ã‚’æ±ºã‚ã‚‹	//
 				// -------------------------------------//
 				std::wstring iconPath;
 				const char* label = "FILE";
@@ -119,7 +119,7 @@ void EditorWindow::DrawAssetPanel(SceneManager& sceneManager)
 				}
 				else if (ext == ".png" || ext == ".jpg" || ext == ".bmp")
 				{
-					iconPath = entry.path().wstring();	// ‰æ‘œ‚Í©•ª©g‚ğƒTƒ€ƒlƒCƒ‹‚É
+					iconPath = entry.path().wstring();	// ç”»åƒã¯è‡ªåˆ†è‡ªèº«ã‚’ã‚µãƒ ãƒã‚¤ãƒ«ã«
 					label = "IMG";
 					color = ImVec4(0.3f, 0.7f, 0.3f, 1.0f);
 				}
@@ -145,7 +145,7 @@ void EditorWindow::DrawAssetPanel(SceneManager& sceneManager)
 				ImGui::PushID(fullPath.c_str());
 				ImGui::BeginGroup();
 
-				// ---- ƒ^ƒCƒ‹–{‘Ì ---- //
+				// ---- ã‚¿ã‚¤ãƒ«æœ¬ä½“ ---- //
 				bool clicked = false;
 				ImTextureID icon = IconLibrary::Get()->GetOrLoad(iconPath);
 				if (icon != 0)
@@ -164,7 +164,7 @@ void EditorWindow::DrawAssetPanel(SceneManager& sceneManager)
 					m_SelectedAsset = fullPath;
 				}
 
-				// ƒtƒHƒ‹ƒ_‚Íƒ_ƒuƒ‹ƒNƒŠƒbƒN‚Å’†‚É“ü‚é
+				// ãƒ•ã‚©ãƒ«ãƒ€ã¯ãƒ€ãƒ–ãƒ«ã‚¯ãƒªãƒƒã‚¯ã§ä¸­ã«å…¥ã‚‹
 				if (isFolder &&
 					ImGui::IsItemHovered() &&
 					ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
@@ -172,7 +172,7 @@ void EditorWindow::DrawAssetPanel(SceneManager& sceneManager)
 					pendingDir = fullPath;
 				}
 
-				// .hpp/.h/.cpp/.hlsl ‚È‚Ç‚ğƒ_ƒuƒ‹ƒNƒŠƒbƒN‚Å Visual Studio ‚ÅŠJ‚­
+				// .hpp/.h/.cpp/.hlsl ãªã©ã‚’ãƒ€ãƒ–ãƒ«ã‚¯ãƒªãƒƒã‚¯ã§ Visual Studio ã§é–‹ã
 				if (!isFolder &&
 					(ext == ".hpp" || ext == ".h" || ext == ".cpp" || ext == ".c" || ext == ".hlsl") &&
 					ImGui::IsItemHovered() &&
@@ -188,11 +188,11 @@ void EditorWindow::DrawAssetPanel(SceneManager& sceneManager)
 					pendingScenepath = fullPath;
 				}
 
-				// ---- ƒhƒ‰ƒbƒOŒ³iƒtƒ@ƒCƒ‹‚Ì‚İj---- //
+				// ---- ãƒ‰ãƒ©ãƒƒã‚°å…ƒï¼ˆãƒ•ã‚¡ã‚¤ãƒ«ã®ã¿ï¼‰---- //
 				if (!isFolder && ImGui::BeginDragDropSource())
 				{
-					// Šg’£q‚©‚çƒyƒCƒ[ƒhí•Ê‚ğŒˆ‚ß‚é
-					const char* payloadType = "ASSET_FILE";   // Šù’èi”Ä—pj
+					// æ‹¡å¼µå­ã‹ã‚‰ãƒšã‚¤ãƒ­ãƒ¼ãƒ‰ç¨®åˆ¥ã‚’æ±ºã‚ã‚‹
+					const char* payloadType = "ASSET_FILE";   // æ—¢å®šï¼ˆæ±ç”¨ï¼‰
 					if (ext == ".fbx" || ext == ".obj" || ext == ".pmx")
 						payloadType = "ASSET_MODEL";
 					else if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" ||
@@ -209,7 +209,7 @@ void EditorWindow::DrawAssetPanel(SceneManager& sceneManager)
 					ImGui::EndDragDropSource();
 				}
 
-				// ƒzƒo[‚Åƒtƒ‹ƒpƒX•\¦
+				// ãƒ›ãƒãƒ¼ã§ãƒ•ãƒ«ãƒ‘ã‚¹è¡¨ç¤º
 				if (ImGui::IsItemHovered())
 				{
 					ImGui::BeginTooltip();
@@ -217,14 +217,14 @@ void EditorWindow::DrawAssetPanel(SceneManager& sceneManager)
 					ImGui::EndTooltip();
 				}
 
-				// ---- –¼‘Oiƒ^ƒCƒ‹•‚ÅÜ‚è•Ô‚µj---- //
+				// ---- åå‰ï¼ˆã‚¿ã‚¤ãƒ«å¹…ã§æŠ˜ã‚Šè¿”ã—ï¼‰---- //
 				ImGui::PushTextWrapPos(ImGui::GetCursorPos().x + cellSize);
 				ImGui::TextUnformatted(name.c_str());
 				ImGui::PopTextWrapPos();
 
 				ImGui::EndGroup();
 
-				// ---- Ü‚è•Ô‚µ ---- //
+				// ---- æŠ˜ã‚Šè¿”ã— ---- //
 				const float lastTileRight = ImGui::GetItemRectMax().x;
 				const float nextTileRight = lastTileRight + style.ItemSpacing.x + cellSize;
 				if (nextTileRight < windowRight)
@@ -232,21 +232,21 @@ void EditorWindow::DrawAssetPanel(SceneManager& sceneManager)
 					ImGui::SameLine();
 				}
 
-				// ‰EƒNƒŠƒbƒN‚ÅƒRƒ“ƒeƒLƒXƒgƒƒjƒ…[
+				// å³ã‚¯ãƒªãƒƒã‚¯ã§ã‚³ãƒ³ãƒ†ã‚­ã‚¹ãƒˆãƒ¡ãƒ‹ãƒ¥ãƒ¼
 				if (ImGui::BeginPopupContextWindow("AssetCtx##", ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems))
 				{
-					if (ImGui::BeginMenu(u8("ì¬")))
+					if (ImGui::BeginMenu(u8("ä½œæˆ")))
 					{
 
 
-						if (ImGui::MenuItem(u8("ƒtƒHƒ‹ƒ_[‚Ìì¬")))
+						if (ImGui::MenuItem(u8("ãƒ•ã‚©ãƒ«ãƒ€ãƒ¼ã®ä½œæˆ")))
 						{
 							CreateFolder(m_CurrentAssetDir);
 						}
 
-						if (ImGui::MenuItem(u8("C++ ƒXƒNƒŠƒvƒg")))
+						if (ImGui::MenuItem(u8("C++ ã‚¹ã‚¯ãƒªãƒ—ãƒˆ")))
 						{
-							// ì¬ˆ—(—\’è)
+							// ä½œæˆå‡¦ç†(äºˆå®š)
 							m_ShowCreateScriptPopup = true;
 						}
 						ImGui::EndMenu();
@@ -257,11 +257,11 @@ void EditorWindow::DrawAssetPanel(SceneManager& sceneManager)
 				ImGui::PopID();
 			};
 
-		// ƒtƒHƒ‹ƒ_ ¨ ƒtƒ@ƒCƒ‹‚Ì‡‚Å•`‰æ
+		// ãƒ•ã‚©ãƒ«ãƒ€ â†’ ãƒ•ã‚¡ã‚¤ãƒ«ã®é †ã§æç”»
 		for (const auto& f : folders) { drawTile(f, true); }
 		for (const auto& f : files) { drawTile(f, false); }
 
-		// ƒ‹[ƒvŒã‚ÉƒtƒHƒ‹ƒ_ˆÚ“®‚ğ”½‰f
+		// ãƒ«ãƒ¼ãƒ—å¾Œã«ãƒ•ã‚©ãƒ«ãƒ€ç§»å‹•ã‚’åæ˜ 
 		if (!pendingDir.empty())
 		{
 			m_CurrentAssetDir = pendingDir;
@@ -270,20 +270,20 @@ void EditorWindow::DrawAssetPanel(SceneManager& sceneManager)
 		if (!pendingScenepath.empty() && sceneManager.GetFadeAlpha() == 0.0f)
 		{
 			sceneManager.RequestSceneChangeWithString(pendingScenepath);
-			m_SelectedEntity = INVALID_ENTITY;	// ƒV[ƒ“Ø‚è‘Ö‚¦‚Å‘I‘ğƒGƒ“ƒeƒBƒeƒB‚ÍƒŠƒZƒbƒg
+			m_SelectedEntity = INVALID_ENTITY;	// ã‚·ãƒ¼ãƒ³åˆ‡ã‚Šæ›¿ãˆã§é¸æŠã‚¨ãƒ³ãƒ†ã‚£ãƒ†ã‚£ã¯ãƒªã‚»ãƒƒãƒˆ
 		}
 
 		if (m_ShowCreateScriptPopup) { ImGui::OpenPopup("CreateScript"); m_ShowCreateScriptPopup = false; }
 		if (ImGui::BeginPopupModal("CreateScript", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
 		{
-			ImGui::InputText(u8("ƒNƒ‰ƒX–¼"), m_NewScriptName, sizeof(m_NewScriptName));
-			if (ImGui::Button(u8("ì¬")) && m_NewScriptName[0] != '\0')
+			ImGui::InputText(u8("ã‚¯ãƒ©ã‚¹å"), m_NewScriptName, sizeof(m_NewScriptName));
+			if (ImGui::Button(u8("ä½œæˆ")) && m_NewScriptName[0] != '\0')
 			{
 				CreateScriptFile(m_CurrentAssetDir, m_NewScriptName);
 				ImGui::CloseCurrentPopup();
 			}
 			ImGui::SameLine();
-			if (ImGui::Button(u8("ƒLƒƒƒ“ƒZƒ‹"))) ImGui::CloseCurrentPopup();
+			if (ImGui::Button(u8("ã‚­ãƒ£ãƒ³ã‚»ãƒ«"))) ImGui::CloseCurrentPopup();
 			ImGui::EndPopup();
 		}
 	}

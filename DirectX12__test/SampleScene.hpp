@@ -1,12 +1,12 @@
-///*****************************************************************//**
+ï»¿///*****************************************************************//**
 // * \file   SampleScene.hpp
-// * \brief  ƒTƒ“ƒvƒ‹ƒV[ƒ“
+// * \brief  ã‚µãƒ³ãƒ—ãƒ«ã‚·ãƒ¼ãƒ³
 // * 
-// * ì¬Ò keeeep
-// * ì¬“ú 2026/5/8
-// * XV—š—ğ	5.8 ì¬
-// *			5.8 ƒ{[ƒ“‚Ì•\¦‚ğ’Ç‰Á
-// *			5.15 player’Ç‰Á
+// * ä½œæˆè€… keeeep
+// * ä½œæˆæ—¥ 2026/5/8
+// * æ›´æ–°å±¥æ­´	5.8 ä½œæˆ
+// *			5.8 ãƒœãƒ¼ãƒ³ã®è¡¨ç¤ºã‚’è¿½åŠ 
+// *			5.15 playerè¿½åŠ 
 // * *********************************************************************/
 //#pragma once
 //
@@ -31,7 +31,7 @@
 //		_In_ const ComPtr<ID3D12PipelineState>& linePso);
 //	~SampleScene() final;
 //
-//	// ---- ƒ‰ƒCƒtƒTƒCƒNƒ‹ ---- //
+//	// ---- ãƒ©ã‚¤ãƒ•ã‚µã‚¤ã‚¯ãƒ« ---- //
 //
 //	void OnLoad() final;
 //	void OnStart() final;
@@ -44,15 +44,15 @@
 //	void Draw(_In_ const RenderContext& renderContext) final;
 //
 //
-//	// ---- XVˆ— ---- //
+//	// ---- æ›´æ–°å‡¦ç† ---- //
 //	void Update(_In_ float deltatime) final;
 //	void FixedUpdate(_In_ float fixedDeltatime) final;
 //	void LateUpdate(_In_ float deltatime) final;
 //
-//	/// @brief ƒfƒoƒbƒOƒEƒBƒ“ƒhƒE‚Ì•\¦(–¢À‘•)
+//	/// @brief ãƒ‡ãƒãƒƒã‚°ã‚¦ã‚£ãƒ³ãƒ‰ã‚¦ã®è¡¨ç¤º(æœªå®Ÿè£…)
 //	void DebugWindow();
 //
-//	/// @brief ƒOƒŠƒbƒh‚Ì•\¦
+//	/// @brief ã‚°ãƒªãƒƒãƒ‰ã®è¡¨ç¤º
 //	void DrawGrid();
 //private:
 //	void DrawSkeleton(
@@ -78,7 +78,7 @@
 //	Skeleton m_Skeleton;
 //	DebugLineRenderer m_DebugLineRenderer;
 //
-//	// ƒ‰ƒCƒgî•ñ
+//	// ãƒ©ã‚¤ãƒˆæƒ…å ±
 //	float m_LightAngle = 0.0f;
 //	float m_AmbientAngle = 0.0f;
 //	float3 m_LightDir{ 0.0f, -1.0f, 0.0f };

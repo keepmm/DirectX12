@@ -1,4 +1,4 @@
-#include "ShaderLibrary.hpp"
+ï»¿#include "ShaderLibrary.hpp"
 
 const Shader* ShaderLibrary::Load(
     const std::wstring& filePath, 
@@ -7,17 +7,17 @@ const Shader* ShaderLibrary::Load(
     UINT compileFlags)
 {
 
-	// ‚·‚Å‚É“¯‚¶ShaderKey‚ª‘¶İ‚·‚é‚©Šm”F
+	// ã™ã§ã«åŒã˜ShaderKeyãŒå­˜åœ¨ã™ã‚‹ã‹ç¢ºèª
 	const ShaderKey key{ filePath , entryPoint, profile, compileFlags };
 
-    // ‘¶İ‚·‚éê‡‚ÍƒLƒƒƒbƒVƒ…‚ğ•Ô‚·
+    // å­˜åœ¨ã™ã‚‹å ´åˆã¯ã‚­ãƒ£ãƒƒã‚·ãƒ¥ã‚’è¿”ã™
 	auto it = m_Shaders.find(key);
     if (it != m_Shaders.end())
     {
         return it->second.shader.get();
 	}
 
-    // ‘¶İ‚µ‚È‚¢ê‡‚ÍV‹K‚Éì¬
+    // å­˜åœ¨ã—ãªã„å ´åˆã¯æ–°è¦ã«ä½œæˆ
 	auto shader = std::make_shared<Shader>();
     if (!shader->LoadFromFile(
         filePath,
@@ -36,7 +36,7 @@ const Shader* ShaderLibrary::Load(
         entry.lastWriteTime = std::filesystem::last_write_time(filePath);
 	}
 
-    // ƒLƒƒƒbƒVƒ…‚ğ•Û‘¶‚µ‚Ä•Ô‚·
+    // ã‚­ãƒ£ãƒƒã‚·ãƒ¥ã‚’ä¿å­˜ã—ã¦è¿”ã™
     m_Shaders.emplace(key, shader);
     return shader.get();
 }
@@ -47,7 +47,7 @@ const Shader* ShaderLibrary::Reload(const std::wstring& filePath, const std::str
     auto shader = std::make_shared<Shader>();
     if(!shader->LoadFromFile(filePath, entry, profile, flags))
     {
-        outError = shader->GetLastError(); // UI‚Ö–ß‚·
+        outError = shader->GetLastError(); // UIã¸æˆ»ã™
         return nullptr;
 	}
     outError.clear();
@@ -56,7 +56,7 @@ const Shader* ShaderLibrary::Reload(const std::wstring& filePath, const std::str
     {
         e.lastWriteTime = std::filesystem::last_write_time(filePath);        
     }
-    m_Shaders[key] = e; // ã‘‚«
+    m_Shaders[key] = e; // ä¸Šæ›¸ã
     return shader.get();
 }
 
@@ -71,23 +71,23 @@ bool ShaderLibrary::ReoadChanged()
 
     for (auto& [key, entry] : m_Shaders)
     {
-        // ƒtƒ@ƒCƒ‹‚ÌÅIXV“ú‚ğæ“¾
+        // ãƒ•ã‚¡ã‚¤ãƒ«ã®æœ€çµ‚æ›´æ–°æ—¥æ™‚ã‚’å–å¾—
         if (!std::filesystem::exists(key.filePath))
         {
-            // ƒtƒ@ƒCƒ‹‚ª‘¶İ‚µ‚È‚¢ê‡‚ÍƒXƒLƒbƒv
+            // ãƒ•ã‚¡ã‚¤ãƒ«ãŒå­˜åœ¨ã—ãªã„å ´åˆã¯ã‚¹ã‚­ãƒƒãƒ—
             continue;
         }
 
 		const auto current = std::filesystem::last_write_time(key.filePath);
         if (current == entry.lastWriteTime)
         {
-            // XV‚³‚ê‚Ä‚¢‚È‚¢ê‡‚ÍƒXƒLƒbƒv
+            // æ›´æ–°ã•ã‚Œã¦ã„ãªã„å ´åˆã¯ã‚¹ã‚­ãƒƒãƒ—
 			continue;
         }
 
         auto shader = std::make_shared<Shader>();
 
-        // ƒVƒF[ƒ_[‚ªæ“¾‚Å‚«‚È‚¢ê‡‚ÍƒXƒLƒbƒv
+        // ã‚·ã‚§ãƒ¼ãƒ€ãƒ¼ãŒå–å¾—ã§ããªã„å ´åˆã¯ã‚¹ã‚­ãƒƒãƒ—
         if (!shader->LoadFromFile(
             key.filePath,
             key.entryPoint,

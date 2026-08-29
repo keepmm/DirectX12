@@ -1,4 +1,4 @@
-#define CR_HOST CR_DISABLE
+ï»¿#define CR_HOST CR_DISABLE
 #include "cr.h"
 #include "ScriptContext.hpp"
 #include "ScriptHost.hpp"
@@ -19,7 +19,7 @@ static ScriptContext s_ctx;
 static std::vector<std::string> s_scriptNames;
 static bool s_isOpen = false;
 
-// ---- ©“®ƒrƒ‹ƒh—p ---- //
+// ---- è‡ªå‹•ãƒ“ãƒ«ãƒ‰ç”¨ ---- //
 static std::filesystem::path s_ScriptsSrcDir;
 static std::filesystem::path s_ProjPath;
 static std::filesystem::path s_SlnDir;
@@ -28,7 +28,7 @@ static std::string s_msbuild =
 static std::filesystem::file_time_type s_lastSrcTime{};
 static std::atomic<bool> s_building{ false };
 
-// ƒrƒ‹ƒhŒ‹‰Ê‚ğLogger‚Éó‚¯‚í‚½‚µ
+// ãƒ“ãƒ«ãƒ‰çµæœã‚’Loggerã«å—ã‘ã‚ãŸã—
 static std::mutex s_BuildMutex;
 static std::string s_BuildOutput;
 static int s_BuildExit = 0;
@@ -40,7 +40,7 @@ static void LogErrorBridge(const char* msg) { LOG->LogError(msg); }
 
 static void DrainBuildResult()
 {
-    if (!s_BuildDone.exchange(false)) return;   // Œ‹‰Ê‚ª—ˆ‚Ä‚¢‚È‚¯‚ê‚Î‰½‚à‚µ‚È‚¢
+    if (!s_BuildDone.exchange(false)) return;   // çµæœãŒæ¥ã¦ã„ãªã‘ã‚Œã°ä½•ã‚‚ã—ãªã„
 
     std::string out; int code;
     {
@@ -51,13 +51,13 @@ static void DrainBuildResult()
 
     if (code == 0)
     {
-        LOG->LogInfo(IMGUI::ToUTF8("[Scripts] ƒrƒ‹ƒh¬Œ÷ -> ƒŠƒ[ƒh"));
+        LOG->LogInfo(IMGUI::ToUTF8("[Scripts] ãƒ“ãƒ«ãƒ‰æˆåŠŸ -> ãƒªãƒ­ãƒ¼ãƒ‰"));
         return;
     }
 
-    LOG->LogError(IMGUI::ToUTF8("[Scripts] ƒrƒ‹ƒh¸”s (exit " + std::to_string(code) + ")"));
+    LOG->LogError(IMGUI::ToUTF8("[Scripts] ãƒ“ãƒ«ãƒ‰å¤±æ•— (exit " + std::to_string(code) + ")"));
 
-    // error / warning / fatal ‚ğŠÜ‚Şs‚¾‚¯”²‚«o‚µ‚Äo‚·
+    // error / warning / fatal ã‚’å«ã‚€è¡Œã ã‘æŠœãå‡ºã—ã¦å‡ºã™
     std::istringstream iss(out);
     std::string line;
     while (std::getline(iss, line))
@@ -77,7 +77,7 @@ static void LaunchBuild()
     if (s_building.exchange(true)) return;
 
     std::thread([] {
-        // ƒGƒ“ƒWƒ“©g‚Ìƒrƒ‹ƒh\¬‚Æ•K‚¸ˆê’v‚³‚¹‚é(Debug/Release¬İ‚ÍABI•sˆê’v‚Å‘¦ƒNƒ‰ƒbƒVƒ…)
+        // ã‚¨ãƒ³ã‚¸ãƒ³è‡ªèº«ã®ãƒ“ãƒ«ãƒ‰æ§‹æˆã¨å¿…ãšä¸€è‡´ã•ã›ã‚‹(Debug/Releaseæ··åœ¨ã¯ABIä¸ä¸€è‡´ã§å³ã‚¯ãƒ©ãƒƒã‚·ãƒ¥)
 #ifdef _DEBUG
         constexpr const char* kConfig = "Debug";
 #else
@@ -89,11 +89,11 @@ static void LaunchBuild()
             " /p:SolutionDir=" + s_SlnDir.string() + "\\"
             " /nologo /clp:NoSummary /v:minimal";
 
-        // qƒvƒƒZƒX‚Ì stdout/stderr ‚ğó‚¯æ‚éƒpƒCƒv
+        // å­ãƒ—ãƒ­ã‚»ã‚¹ã® stdout/stderr ã‚’å—ã‘å–ã‚‹ãƒ‘ã‚¤ãƒ—
         SECURITY_ATTRIBUTES sa{ sizeof(sa), nullptr, TRUE };
         HANDLE rd = nullptr, wr = nullptr;
         CreatePipe(&rd, &wr, &sa, 0);
-        SetHandleInformation(rd, HANDLE_FLAG_INHERIT, 0); // “Ç‚İ‘¤‚ÍŒp³‚µ‚È‚¢
+        SetHandleInformation(rd, HANDLE_FLAG_INHERIT, 0); // èª­ã¿å´ã¯ç¶™æ‰¿ã—ãªã„
 
         std::vector<char> buf(cmd.begin(), cmd.end());
         buf.push_back('\0');
@@ -110,7 +110,7 @@ static void LaunchBuild()
         if (CreateProcessA(nullptr, buf.data(), nullptr, nullptr, TRUE,
             CREATE_NO_WINDOW, nullptr, nullptr, &si, &pi))
         {
-            CloseHandle(wr); wr = nullptr;  // e‘¤‚Ì‘‚«‚İ’[‚Í•Â‚¶‚é(EOFŒŸo‚Ì‚½‚ß)
+            CloseHandle(wr); wr = nullptr;  // è¦ªå´ã®æ›¸ãè¾¼ã¿ç«¯ã¯é–‰ã˜ã‚‹(EOFæ¤œå‡ºã®ãŸã‚)
 
             char tmp[4096]; DWORD n = 0;
             while (ReadFile(rd, tmp, sizeof(tmp), &n, nullptr) && n > 0)
@@ -133,7 +133,7 @@ static void LaunchBuild()
             std::lock_guard<std::mutex> lk(s_BuildMutex);
             s_BuildOutput = std::move(output);
             s_BuildExit = exitCode;
-            s_BuildDone = true;     // ƒƒCƒ“ƒXƒŒƒbƒh‚É’Ê’m
+            s_BuildDone = true;     // ãƒ¡ã‚¤ãƒ³ã‚¹ãƒ¬ãƒƒãƒ‰ã«é€šçŸ¥
         }
         s_building = false;
         }).detach();
@@ -163,13 +163,13 @@ static void CheckAndBuild()
             OutputDebugStringA(b);
         }
 
-    // ‰‰ñ‚ÍŠî€’l‚ğæ‚é‚¾‚¯i‹N“®’¼Œã‚Éƒrƒ‹ƒh‚µ‚È‚¢j
+    // åˆå›ã¯åŸºæº–å€¤ã‚’å–ã‚‹ã ã‘ï¼ˆèµ·å‹•ç›´å¾Œã«ãƒ“ãƒ«ãƒ‰ã—ãªã„ï¼‰
     if (s_lastSrcTime.time_since_epoch().count() == 0) { s_lastSrcTime = maxT; return; }
 
     if (maxT > s_lastSrcTime)
     {
         s_lastSrcTime = maxT;
-        OutputDebugStringA("[ScriptHost] ƒXƒNƒŠƒvƒg•ÏXŒŸ’m -> build\n");
+        OutputDebugStringA("[ScriptHost] ã‚¹ã‚¯ãƒªãƒ—ãƒˆå¤‰æ›´æ¤œçŸ¥ -> build\n");
         LaunchBuild();
     }
 }
@@ -180,12 +180,12 @@ void ScriptHost::Open(World* world)
     s_plugin.userdata = &s_ctx;
     s_ctx.savedScripts = &s_scriptNames;
 
-	// LOG‚Ì‹´“n‚µŠÖ”‚ğƒZƒbƒg
+	// LOGã®æ©‹æ¸¡ã—é–¢æ•°ã‚’ã‚»ãƒƒãƒˆ
     Debug::g_LogInfo = [](const char* m) { LOG->LogInfo(m); };
     Debug::g_LogWarning = [](const char* m) { LOG->LogWarning(m); };
     Debug::g_LogError = [](const char* m) { LOG->LogError(m); };
 
-    // DLL‚É“n‚·ŠÖ”ƒ|ƒCƒ“ƒ^iScriptContextj‚àİ’è
+    // DLLã«æ¸¡ã™é–¢æ•°ãƒã‚¤ãƒ³ã‚¿ï¼ˆScriptContextï¼‰ã‚‚è¨­å®š
     s_ctx.logInfo = [](const char* m) { LOG->LogInfo(m); };
     s_ctx.logWarning = [](const char* m) { LOG->LogWarning(m); };
     s_ctx.logError = [](const char* m) { LOG->LogError(m); };
@@ -196,15 +196,15 @@ void ScriptHost::Open(World* world)
                 rs->LaunchFirework(float3{ x,y,z }, shape, float3{ r,g,b }, text);
         };
 
-	// DLL‚ÌƒpƒX‚ğexe‚ÌˆÊ’u‚©‚ç‹tZ
+	// DLLã®ãƒ‘ã‚¹ã‚’exeã®ä½ç½®ã‹ã‚‰é€†ç®—
     char exePath[MAX_PATH];
     GetModuleFileNameA(nullptr, exePath, MAX_PATH);
     auto exeDir = std::filesystem::path(exePath).parent_path();
     std::filesystem::path dll = exeDir/ "Bin" / "Scripts.dll";
     if(!std::filesystem::exists(dll))
-		dll = exeDir / "Scripts.dll";   // Bin‚É‚È‚¢ê‡‚Íexe’¼‰º‚àŒ©‚é
+		dll = exeDir / "Scripts.dll";   // Binã«ãªã„å ´åˆã¯exeç›´ä¸‹ã‚‚è¦‹ã‚‹
 
-    // ƒ\[ƒX / ƒvƒƒWƒFƒNƒgƒpƒX‚ğexe‚ÌˆÊ’u‚©‚ç‹tZ
+    // ã‚½ãƒ¼ã‚¹ / ãƒ—ãƒ­ã‚¸ã‚§ã‚¯ãƒˆãƒ‘ã‚¹ã‚’exeã®ä½ç½®ã‹ã‚‰é€†ç®—
     s_SlnDir = exeDir.parent_path().parent_path();
     s_ScriptsSrcDir = s_SlnDir / "DirectX12__test" / "Assets" / "Scripts";
     s_ProjPath = s_SlnDir / "Scripts" / "Scripts.vcxproj";
@@ -213,7 +213,7 @@ void ScriptHost::Open(World* world)
 
     if (!cr_plugin_open(s_plugin, dll.string().c_str()))
     {
-        OutputDebugStringA("[ScriptHost] cr_plugin_open ¸”s\n");
+        OutputDebugStringA("[ScriptHost] cr_plugin_open å¤±æ•—\n");
         return;
     }
     s_isOpen = true;
@@ -221,7 +221,7 @@ void ScriptHost::Open(World* world)
 
 void ScriptHost::Update(float dt, World* world)
 {
-    // ‚Ü‚¾ŠJ‚¯‚Ä‚¢‚È‚¯‚ê‚ÎADLL‚Ì‘¶İ‚ğŒ©‚ÄŠJ‚­i‰‰ñƒrƒ‹ƒh/Œã’Ç‚¢‘Î‰j
+    // ã¾ã é–‹ã‘ã¦ã„ãªã‘ã‚Œã°ã€DLLã®å­˜åœ¨ã‚’è¦‹ã¦é–‹ãï¼ˆåˆå›ãƒ“ãƒ«ãƒ‰/å¾Œè¿½ã„å¯¾å¿œï¼‰
     if (!s_isOpen)
     {
         char exePath[MAX_PATH];
@@ -234,18 +234,18 @@ void ScriptHost::Update(float dt, World* world)
             cr_plugin_open(s_plugin, dll.string().c_str()))
         {
             s_isOpen = true;
-			OutputDebugStringA("[ScriptHost] cr_plugin_open Œã’Ç‚¢¬Œ÷\n");
+			OutputDebugStringA("[ScriptHost] cr_plugin_open å¾Œè¿½ã„æˆåŠŸ\n");
         }
     }
 
-    // 0.5•b‚²‚Æ‚É•ÏXƒ`ƒFƒbƒN
+    // 0.5ç§’ã”ã¨ã«å¤‰æ›´ãƒã‚§ãƒƒã‚¯
     static float acc = 0.0f;
     acc += dt;
     if (acc >= 0.5f) { acc = 0.0f; CheckAndBuild(); }
 
     DrainBuildResult();
 
-    if (!s_isOpen) return;       // ‚Ü‚¾ŠJ‚¯‚Ä‚È‚¢‚È‚ç‚±‚±‚Ü‚Å
+    if (!s_isOpen) return;       // ã¾ã é–‹ã‘ã¦ãªã„ãªã‚‰ã“ã“ã¾ã§
     s_ctx.deltaTime = dt;
     s_ctx.world = world;
     s_ctx.isPlaing = PLAY.isPlaying();

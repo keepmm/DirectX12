@@ -1,11 +1,11 @@
-/*****************************************************************//**
+ï»¿/*****************************************************************//**
  * \file   InspectorWindow.cpp
- * \brief  ”ì‘å‰»‚µ‚½EditorWindow.cpp‚ğ•ªŠ„‚·‚é‚½‚ß‚Ìƒtƒ@ƒCƒ‹
+ * \brief  è‚¥å¤§åŒ–ã—ãŸEditorWindow.cppã‚’åˆ†å‰²ã™ã‚‹ãŸã‚ã®ãƒ•ã‚¡ã‚¤ãƒ«
  * 
- * ì¬Ò keeep
- * ì¬“ú 2026/6/20
- * XV—š—ğ 6.20 •ªŠ„
- *			6.26 Inspector‚ÌAddComponentƒ{ƒ^ƒ“‚Ì‹““®‚ğC³
+ * ä½œæˆè€… keeep
+ * ä½œæˆæ—¥ 2026/6/20
+ * æ›´æ–°å±¥æ­´ 6.20 åˆ†å‰²
+ *			6.26 Inspectorã®AddComponentãƒœã‚¿ãƒ³ã®æŒ™å‹•ã‚’ä¿®æ­£
  * *********************************************************************/
 #include "EditorWindow.hpp"
 #include "SceneSerializer.hpp"
@@ -43,11 +43,11 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 
 	if (m_SelectedEntity == INVALID_ENTITY)
 	{
-		ImGui::Text(u8("ƒGƒ“ƒeƒBƒeƒB‚ğ‘I‘ğ‚µ‚Ä‚­‚¾‚³‚¢"));
+		ImGui::Text(u8("ã‚¨ãƒ³ãƒ†ã‚£ãƒ†ã‚£ã‚’é¸æŠã—ã¦ãã ã•ã„"));
 		return;
 	}
 
-	ImGui::Text(u8("Ú×î•ñ"));
+	ImGui::Text(u8("è©³ç´°æƒ…å ±"));
 	ImGui::Separator();
 	ImGui::Text("Entity ID: %u", m_SelectedEntity);
 	ImGui::Separator();
@@ -62,7 +62,7 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 			auto& nameComp = world.GetComponent<NameComponent>(m_SelectedEntity);
 			if (ImGui::InputText(u8("##NameInput"), nameBuffer, sizeof(nameBuffer)))
 			{
-				// “ü—Í‚³‚ê‚½–¼‘O‚ª‹ó‚Å‚È‚¢‚±‚Æ‚ğŠm”F
+				// å…¥åŠ›ã•ã‚ŒãŸåå‰ãŒç©ºã§ãªã„ã“ã¨ã‚’ç¢ºèª
 				if (!nameBuffer[0] == '\0')
 				{
 					nameComp.name = std::string(nameBuffer);
@@ -95,20 +95,20 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 			auto& transform = world.GetComponent<TransformComponent>(m_SelectedEntity);
 
 			bool dirty = false;
-			dirty |= ImGui::DragFloat3(u8("ˆÊ’u##Pos"), &transform.position.x, 0.1f);
+			dirty |= ImGui::DragFloat3(u8("ä½ç½®##Pos"), &transform.position.x, 0.1f);
 			float3 euler = transform.EulerAngles;
 			if (ImGui::DragFloat3("Rotation", &euler.x, 0.5f))
 			{
 				transform.EulerAngles = euler;
 				transform.ApplyEuler();
 			}
-			dirty |= ImGui::DragFloat3(u8("ƒXƒP[ƒ‹##Scale"), &transform.scale.x, 0.1f);
+			dirty |= ImGui::DragFloat3(u8("ã‚¹ã‚±ãƒ¼ãƒ«##Scale"), &transform.scale.x, 0.1f);
 
 			if (dirty)
 			{
 				transform.RebuildWorld();
 
-				// ƒRƒ‰ƒCƒ_[‚Ì“–‚½‚è”»’è‚àXV
+				// ã‚³ãƒ©ã‚¤ãƒ€ãƒ¼ã®å½“ãŸã‚Šåˆ¤å®šã‚‚æ›´æ–°
 				if (world.HasComponent<ColliderComponent>(m_SelectedEntity))
 				{
 					auto& collider = world.GetComponent<ColliderComponent>(m_SelectedEntity);
@@ -122,7 +122,7 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 						collider.radius = std::max(transform.scale.x, std::max(transform.scale.y, transform.scale.z)) * 0.5f;
 					}
 
-					// PhysicsWorld‚É”½‰f
+					// PhysicsWorldã«åæ˜ 
 					if (scene && world.HasComponent<RigidBodyComponent>(m_SelectedEntity))
 					{
 						auto* physicsWorld = scene->GetPhysicsWorld();
@@ -153,22 +153,22 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 		if (world.HasComponent<MeshComponent>(m_SelectedEntity))
 		{
 			auto& meshComp = world.GetComponent<MeshComponent>(m_SelectedEntity);
-			ImGui::Text(u8("ƒƒbƒVƒ…ƒRƒ“ƒ|[ƒlƒ“ƒg"));
+			ImGui::Text(u8("ãƒ¡ãƒƒã‚·ãƒ¥ã‚³ãƒ³ãƒãƒ¼ãƒãƒ³ãƒˆ"));
 
 			ImGui::Separator();
 
-			// ƒtƒ@ƒCƒ‹ƒpƒX‚Ìİ’è
+			// ãƒ•ã‚¡ã‚¤ãƒ«ãƒ‘ã‚¹ã®è¨­å®š
 			char filepathBuffer[256];
-			// Œ³‚ÌƒpƒX‚ğƒRƒs[
+			// å…ƒã®ãƒ‘ã‚¹ã‚’ã‚³ãƒ”ãƒ¼
 			snprintf(filepathBuffer, sizeof(filepathBuffer), "%s", meshComp.FilePath.c_str());
 
-			if (ImGui::InputText(u8("ƒtƒ@ƒCƒ‹ƒpƒX##MeshFilePath"), filepathBuffer, sizeof(filepathBuffer)))
+			if (ImGui::InputText(u8("ãƒ•ã‚¡ã‚¤ãƒ«ãƒ‘ã‚¹##MeshFilePath"), filepathBuffer, sizeof(filepathBuffer)))
 			{
 				meshComp.FilePath = filepathBuffer;
 			}
 
 			// -------------------------------------
-			// ƒAƒZƒbƒgƒpƒlƒ‹‚©‚çƒhƒƒbƒv‚ğó‚¯•t‚¯
+			// ã‚¢ã‚»ãƒƒãƒˆãƒ‘ãƒãƒ«ã‹ã‚‰ãƒ‰ãƒ­ãƒƒãƒ—ã‚’å—ã‘ä»˜ã‘
 			// -------------------------------------
 			if (ImGui::BeginDragDropTarget())
 			{
@@ -183,14 +183,14 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 			ImGui::Separator();
 
 
-			ImGui::InputFloat(u8("ƒXƒP[ƒ‹”{—¦##MeshScale"), &meshComp.scale);
+			ImGui::InputFloat(u8("ã‚¹ã‚±ãƒ¼ãƒ«å€ç‡##MeshScale"), &meshComp.scale);
 
 			if (meshComp.scale <= 0.0f)
 			{
 				meshComp.scale = 0.01f;
 			}
 
-			if (ImGui::Button(u8("“Ç‚İ‚İ##MeshReload")))
+			if (ImGui::Button(u8("èª­ã¿è¾¼ã¿##MeshReload")))
 			{
 				auto result = ModelLoader::LoadFromFile(
 					APP->GetDevice(),
@@ -199,11 +199,11 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 
 				if (!meshComp.mesh)
 				{
-					// ƒƒbƒVƒ…‚ª–¢¶¬‚È‚çì‚é
+					// ãƒ¡ãƒƒã‚·ãƒ¥ãŒæœªç”Ÿæˆãªã‚‰ä½œã‚‹
 					meshComp.mesh = std::make_shared<Mesh>();
 					meshComp.mesh->CreateCube(APP->GetDevice());
 
-					LOG->LogInfo(("ƒƒbƒVƒ…‚ğ¶¬‚µ‚Ü‚µ‚½"));
+					LOG->LogInfo(("ãƒ¡ãƒƒã‚·ãƒ¥ã‚’ç”Ÿæˆã—ã¾ã—ãŸ"));
 				}
 
 				if (result.mesh)
@@ -212,7 +212,7 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 				}
 				else
 				{
-					LOG->LogError(u8("ƒƒbƒVƒ…‚Ì“Ç‚İ‚İ‚É¸”s‚µ‚Ü‚µ‚½"));
+					LOG->LogError(u8("ãƒ¡ãƒƒã‚·ãƒ¥ã®èª­ã¿è¾¼ã¿ã«å¤±æ•—ã—ã¾ã—ãŸ"));
 				}
 			}
 
@@ -229,7 +229,7 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 				MeshComponent mesh{};
 				world.AddComponent<MeshComponent>(m_SelectedEntity, mesh);
 
-				// Transform‚ÆMaterial‚à‚È‚¢‚È‚ç‚Â‚¢‚Å‚Éì‚é
+				// Transformã¨Materialã‚‚ãªã„ãªã‚‰ã¤ã„ã§ã«ä½œã‚‹
 				if (!world.HasComponent<TransformComponent>(m_SelectedEntity))
 				{
 					TransformComponent tr{};
@@ -243,7 +243,7 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 					material.material = std::make_shared<Material>();
 					material.material->Init();
 					world.AddComponent<MaterialComponent>(m_SelectedEntity, material);
-					LOG->LogInfo(("ƒ}ƒeƒŠƒAƒ‹‚ğ¶¬‚µ‚Ü‚µ‚½"));
+					LOG->LogInfo(("ãƒãƒ†ãƒªã‚¢ãƒ«ã‚’ç”Ÿæˆã—ã¾ã—ãŸ"));
 				}
 			}
 		}
@@ -256,16 +256,16 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 		{
 			auto& materialComp = world.GetComponent<MaterialComponent>(m_SelectedEntity);
 
-			// ƒtƒ@ƒCƒ‹ƒpƒX‚Ìİ’è
+			// ãƒ•ã‚¡ã‚¤ãƒ«ãƒ‘ã‚¹ã®è¨­å®š
 			char filepathBuffer[256];
-			// Œ³‚ÌƒpƒX‚ğƒRƒs[
+			// å…ƒã®ãƒ‘ã‚¹ã‚’ã‚³ãƒ”ãƒ¼
 			snprintf(filepathBuffer, sizeof(filepathBuffer), "%s", materialComp.FilePath.c_str());
-			if (ImGui::InputText(u8("ƒtƒ@ƒCƒ‹ƒpƒX##MaterialFilePath"), filepathBuffer, sizeof(filepathBuffer)))
+			if (ImGui::InputText(u8("ãƒ•ã‚¡ã‚¤ãƒ«ãƒ‘ã‚¹##MaterialFilePath"), filepathBuffer, sizeof(filepathBuffer)))
 			{
 				materialComp.FilePath = filepathBuffer;
 			}
 
-			// ƒAƒZƒbƒgƒpƒlƒ‹‚©‚çƒhƒƒbƒv‚ğó‚¯•t‚¯
+			// ã‚¢ã‚»ãƒƒãƒˆãƒ‘ãƒãƒ«ã‹ã‚‰ãƒ‰ãƒ­ãƒƒãƒ—ã‚’å—ã‘ä»˜ã‘
 			if (ImGui::BeginDragDropTarget())
 			{
 				const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ASSET_TEXTURE");
@@ -276,10 +276,10 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 				ImGui::EndDragDropTarget();
 			}
 
-			// “K—p
-			if (ImGui::Button(u8("“K—p##MaterialApply")))
+			// é©ç”¨
+			if (ImGui::Button(u8("é©ç”¨##MaterialApply")))
 			{
-				// ƒ}ƒeƒŠƒAƒ‹‚ª–¢¶¬‚È‚çì‚é
+				// ãƒãƒ†ãƒªã‚¢ãƒ«ãŒæœªç”Ÿæˆãªã‚‰ä½œã‚‹
 				if (!materialComp.material)
 				{
 					materialComp.material = std::make_shared<Material>();
@@ -289,11 +289,11 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 				std::wstring wpath = std::filesystem::path(materialComp.FilePath).wstring();
 				if (!materialComp.material->SetTextureFromFile(wpath))
 				{
-					LOG->LogError("ƒeƒNƒXƒ`ƒƒ‚Ì“Ç‚İ‚İ‚É¸”s‚µ‚Ü‚µ‚½");
+					LOG->LogError("ãƒ†ã‚¯ã‚¹ãƒãƒ£ã®èª­ã¿è¾¼ã¿ã«å¤±æ•—ã—ã¾ã—ãŸ");
 				}
 				else
 				{
-					LOG->LogInfo(("ƒeƒNƒXƒ`ƒƒ‚ğ“K—p‚µ‚Ü‚µ‚½"));
+					LOG->LogInfo(("ãƒ†ã‚¯ã‚¹ãƒãƒ£ã‚’é©ç”¨ã—ã¾ã—ãŸ"));
 				}
 			}
 
@@ -310,19 +310,19 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 				ImGui::EndCombo();
 			}
 
-			// ƒ}ƒ‹ƒ`ƒ}ƒeƒŠƒAƒ‹‚ÌƒXƒƒbƒgˆê——i“Ç‚İæ‚è•\¦j
+			// ãƒãƒ«ãƒãƒãƒ†ãƒªã‚¢ãƒ«ã®ã‚¹ãƒ­ãƒƒãƒˆä¸€è¦§ï¼ˆèª­ã¿å–ã‚Šè¡¨ç¤ºï¼‰
 			Material* target = materialComp.material.get();
 			if (!materialComp.materials.empty())
 			{
-				static int selectedSub = 0;   // •ÒW’†‚ÌƒTƒuƒ}ƒeƒŠƒAƒ‹
+				static int selectedSub = 0;   // ç·¨é›†ä¸­ã®ã‚µãƒ–ãƒãƒ†ãƒªã‚¢ãƒ«
 				const int count = (int)materialComp.materials.size();
 				if (selectedSub >= count) selectedSub = 0;
 
 				ImGui::Separator();
-				ImGui::Text(u8("ƒTƒuƒ}ƒeƒŠƒAƒ‹: %d"), count);
+				ImGui::Text(u8("ã‚µãƒ–ãƒãƒ†ãƒªã‚¢ãƒ«: %d"), count);
 				for (int i = 0; i < count; ++i)
 				{
-					// materialnames‚É–¼‘O‚ª“o˜^‚³‚ê‚Ä‚¢‚éê‡
+					// materialnamesã«åå‰ãŒç™»éŒ²ã•ã‚Œã¦ã„ã‚‹å ´åˆ
 					if(!materialComp.materialnames[i].empty())
 					{
 						ImGui::PushID(i);
@@ -341,18 +341,18 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 					}
 				}
 				if (materialComp.materials[selectedSub])
-					// ‘I‘ğ’†‚ÌƒTƒuƒ}ƒeƒŠƒAƒ‹‚ğtarget‚Éİ’è
+					// é¸æŠä¸­ã®ã‚µãƒ–ãƒãƒ†ãƒªã‚¢ãƒ«ã‚’targetã«è¨­å®š
 					target = materialComp.materials[selectedSub].get();
 			}
 
-			// ‘I‘ğ’†ƒTƒuƒ}ƒeƒŠƒAƒ‹ƒVƒF[ƒ_(ŒÂ•Ê)
+			// é¸æŠä¸­ã‚µãƒ–ãƒãƒ†ãƒªã‚¢ãƒ«ã‚·ã‚§ãƒ¼ãƒ€(å€‹åˆ¥)
 			if (target && !materialComp.materials.empty())
 			{
 				const char* cur = target->shaderName.empty()
-					? u8("(‘S‘Ìİ’è‚ğŒp³)") : target->shaderName.c_str();
-				if (ImGui::BeginCombo(u8("Shader(ŒÂ•Ê)##SUBmat"), cur))
+					? u8("(å…¨ä½“è¨­å®šã‚’ç¶™æ‰¿)") : target->shaderName.c_str();
+				if (ImGui::BeginCombo(u8("Shader(å€‹åˆ¥)##SUBmat"), cur))
 				{
-					// Œp³‚É–ß‚·‘I‘ğˆ
+					// ç¶™æ‰¿ã«æˆ»ã™é¸æŠè‚¢
 					if (ImGui::Selectable("use default", target->shaderName.empty()))
 						target->shaderName.clear();
 
@@ -367,17 +367,17 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 				}
 			}
 
-			// --- ƒ}ƒeƒŠƒAƒ‹¿Š´ƒpƒ‰ƒ[ƒ^ ---
+			// --- ãƒãƒ†ãƒªã‚¢ãƒ«è³ªæ„Ÿãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ ---
 			if (target)
 			{
 				const std::string& effShader = 
 					(target && !target->shaderName.empty()) ? target->shaderName : materialComp.shaderName;
 				ImGui::Separator();
-				ImGui::Text(u8("ƒ}ƒeƒŠƒAƒ‹¿Š´ƒpƒ‰ƒ[ƒ^"));
+				ImGui::Text(u8("ãƒãƒ†ãƒªã‚¢ãƒ«è³ªæ„Ÿãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿"));
 
-				// ƒTƒuƒ}ƒeƒŠƒAƒ‹‚Ì•\¦/”ñ•\¦(Ş¿ƒ‚[ƒt‚Å‰B‚·ˆß‘•ƒp[ƒc—p)
+				// ã‚µãƒ–ãƒãƒ†ãƒªã‚¢ãƒ«ã®è¡¨ç¤º/éè¡¨ç¤º(æè³ªãƒ¢ãƒ¼ãƒ•ã§éš ã™è¡£è£…ãƒ‘ãƒ¼ãƒ„ç”¨)
 				bool visible = target->baseAlpha > 0.5f;
-				if (ImGui::Checkbox(u8("•\¦##SubMatVisible"), &visible))
+				if (ImGui::Checkbox(u8("è¡¨ç¤º##SubMatVisible"), &visible))
 					target->baseAlpha = visible ? 1.0f : 0.0f;
 
 				if (effShader == "PBR" || effShader == "SkinnedPBR")
@@ -385,12 +385,12 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 					ImGui::SliderFloat(u8("Roughness##Mat"), &target->roughness, 0.0f, 1.0f);
 					ImGui::SliderFloat(u8("Metallic##Mat"), &target->metallic, 0.0f, 1.0f);
 					ImGui::ColorEdit4(u8("RimColor##Mat"), &target->rimColor.x);
-					ImGui::SeparatorText(u8("”§ / •z"));
-					ImGui::SliderFloat(u8("SSS‹­“x##Mat"), &target->sssStrength, 0.0f, 1.0f);
-					ImGui::SliderFloat(u8("SSSƒ‰ƒbƒv##Mat"), &target->sssWrap, 0.0f, 1.0f);
-					ImGui::SliderFloat(u8("‹tŒõ“§‰ß##Mat"), &target->sssTrans, 0.0f, 2.0f);
-					ImGui::ColorEdit3(u8("U—F##Mat"), &target->sssColor.x);
-					ImGui::SliderFloat(u8("•zƒV[ƒ“##Mat"), &target->sheen, 0.0f, 2.0f);
+					ImGui::SeparatorText(u8("è‚Œ / å¸ƒ"));
+					ImGui::SliderFloat(u8("SSSå¼·åº¦##Mat"), &target->sssStrength, 0.0f, 1.0f);
+					ImGui::SliderFloat(u8("SSSãƒ©ãƒƒãƒ—##Mat"), &target->sssWrap, 0.0f, 1.0f);
+					ImGui::SliderFloat(u8("é€†å…‰é€é##Mat"), &target->sssTrans, 0.0f, 2.0f);
+					ImGui::ColorEdit3(u8("æ•£ä¹±è‰²##Mat"), &target->sssColor.x);
+					ImGui::SliderFloat(u8("å¸ƒã‚·ãƒ¼ãƒ³##Mat"), &target->sheen, 0.0f, 2.0f);
 				}
 				if (effShader == "Rim" || effShader == "SkinnedRim")
 				{
@@ -405,9 +405,9 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 
 				if (effShader == "Dissolve" || effShader == "SkinnedDissolve")
 				{
-					ImGui::SliderFloat(u8("ƒmƒCƒY‚Ì×‚©‚³##Mat"), &target->roughness, 0.0f, 1.0f);
-					ImGui::SliderFloat(u8("Dissolve‹ï‡##Mat"), &target->metallic, 0.0f, 1.0f);
-					ImGui::ColorEdit4(u8("‰ğ‚¯Û‚Ì”­sF##Mat"), &target->rimColor.x);
+					ImGui::SliderFloat(u8("ãƒã‚¤ã‚ºã®ç´°ã‹ã•##Mat"), &target->roughness, 0.0f, 1.0f);
+					ImGui::SliderFloat(u8("Dissolveå…·åˆ##Mat"), &target->metallic, 0.0f, 1.0f);
+					ImGui::ColorEdit4(u8("è§£ã‘éš›ã®ç™ºè¡Œè‰²##Mat"), &target->rimColor.x);
 				}
 
 				if (effShader == "BlinnPhong" || effShader == "SkinnedBlinnPhong")
@@ -418,10 +418,10 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 
 				if (effShader == "Genshin_Toon")
 				{
-					ImGui::SliderFloat(u8("ƒnƒCƒ‰ƒCƒg‚ÌL‚³##Mat"), &target->roughness, 0.0f, 1.0f);
-					ImGui::SliderFloat(u8("ƒnƒCƒ‰ƒCƒg‚Ì‹­‚³##Mat"), &target->metallic, 0.0f, 1.0f);
-					ImGui::Checkbox(u8("ƒtƒFƒCƒX•`‰æ##Mat"), &target->isFace);
-					ImGui::SliderFloat(u8("ƒAƒEƒgƒ‰ƒCƒ“•##Mat"), &target->outlineWidth, 0.0f, 10.0f);
+					ImGui::SliderFloat(u8("ãƒã‚¤ãƒ©ã‚¤ãƒˆã®åºƒã•##Mat"), &target->roughness, 0.0f, 1.0f);
+					ImGui::SliderFloat(u8("ãƒã‚¤ãƒ©ã‚¤ãƒˆã®å¼·ã•##Mat"), &target->metallic, 0.0f, 1.0f);
+					ImGui::Checkbox(u8("ãƒ•ã‚§ã‚¤ã‚¹æç”»##Mat"), &target->isFace);
+					ImGui::SliderFloat(u8("ã‚¢ã‚¦ãƒˆãƒ©ã‚¤ãƒ³å¹…##Mat"), &target->outlineWidth, 0.0f, 10.0f);
 				}
 			}
 
@@ -431,21 +431,21 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 				world.DeleteComponent<MaterialComponent>(m_SelectedEntity);
 			}
 
-			// ƒ}ƒeƒŠƒAƒ‹‚Ìó‘Ô•\¦
+			// ãƒãƒ†ãƒªã‚¢ãƒ«ã®çŠ¶æ…‹è¡¨ç¤º
 			ImGui::Separator();
 			if (materialComp.material)
 			{
-				ImGui::TextColored(ImVec4(0.2f, 0.8f, 0.2f, 1.0f), u8("ƒ}ƒeƒŠƒAƒ‹‰Šú‰»Ï‚İ"));
+				ImGui::TextColored(ImVec4(0.2f, 0.8f, 0.2f, 1.0f), u8("ãƒãƒ†ãƒªã‚¢ãƒ«åˆæœŸåŒ–æ¸ˆã¿"));
 			}
 			else
 			{
-				ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), u8("ƒ}ƒeƒŠƒAƒ‹–¢‰Šú‰»"));
+				ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), u8("ãƒãƒ†ãƒªã‚¢ãƒ«æœªåˆæœŸåŒ–"));
 			}
 
-			// ƒgƒD[ƒ“ƒ‰ƒ“ƒvƒeƒNƒXƒ`ƒƒ
+			// ãƒˆã‚¥ãƒ¼ãƒ³ãƒ©ãƒ³ãƒ—ãƒ†ã‚¯ã‚¹ãƒãƒ£
 			char toonRampBuffer[256];
 			snprintf(toonRampBuffer, sizeof(toonRampBuffer), "%s", materialComp.RampFilePath.c_str());
-			if (ImGui::InputText(u8("ƒgƒD[ƒ“ƒ‰ƒ“ƒvƒeƒNƒXƒ`ƒƒ##ToonRampFilePath"), toonRampBuffer, sizeof(toonRampBuffer)))
+			if (ImGui::InputText(u8("ãƒˆã‚¥ãƒ¼ãƒ³ãƒ©ãƒ³ãƒ—ãƒ†ã‚¯ã‚¹ãƒãƒ£##ToonRampFilePath"), toonRampBuffer, sizeof(toonRampBuffer)))
 			{
 				materialComp.RampFilePath = toonRampBuffer;
 			}
@@ -460,14 +460,14 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 				ImGui::EndDragDropTarget();
 			}
 
-			if (ImGui::Button(u8("ƒ‰ƒ“ƒv“K—p##MaterialRampApply")))
+			if (ImGui::Button(u8("ãƒ©ãƒ³ãƒ—é©ç”¨##MaterialRampApply")))
 			{
 				if (materialComp.material)
 				{
 					std::wstring wpath = std::filesystem::path(materialComp.RampFilePath).wstring();
 					if (!materialComp.material->SetToonRampTexture(wpath))
 					{
-						LOG->LogError(u8("ƒ‰ƒ“ƒvƒeƒNƒXƒ`ƒƒ‚Ì“Ç‚İ‚İ‚É¸”s‚µ‚Ü‚µ‚½"));
+						LOG->LogError(u8("ãƒ©ãƒ³ãƒ—ãƒ†ã‚¯ã‚¹ãƒãƒ£ã®èª­ã¿è¾¼ã¿ã«å¤±æ•—ã—ã¾ã—ãŸ"));
 					}
 				}
 			}
@@ -494,7 +494,7 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 		{
 			auto& sc = world.GetComponent<ScriptComponent>(m_SelectedEntity);
 
-			// ’Ç‰ÁÏ‚İƒXƒNƒŠƒvƒgˆê——
+			// è¿½åŠ æ¸ˆã¿ã‚¹ã‚¯ãƒªãƒ—ãƒˆä¸€è¦§
 			int removeIdx = -1;
 			for (int i = 0; i < (int)sc.scriptNames.size(); i++)
 			{
@@ -505,7 +505,7 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 				ImGui::SameLine();
 				if (ImGui::SmallButton("Remove")) removeIdx = i;
 
-				// ‚±‚ÌƒXƒNƒŠƒvƒg1ŒÂ•ª‚¾‚¯•`‰æi“ñdƒ‹[ƒv‰ğÁj
+				// ã“ã®ã‚¹ã‚¯ãƒªãƒ—ãƒˆ1å€‹åˆ†ã ã‘æç”»ï¼ˆäºŒé‡ãƒ«ãƒ¼ãƒ—è§£æ¶ˆï¼‰
 				auto& descs = sc.fieldDescs[name];
 				auto& vals = sc.values[name];
 				for (auto& d : descs)
@@ -523,7 +523,7 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 					case FieldType::Float4:
 					case FieldType::Vector4:ImGui::DragFloat4(d.name.c_str(), v.f); break;
 					case FieldType::Bool:   ImGui::Checkbox(d.name.c_str(), &v.b); break;
-					case FieldType::String: /* InputText: v.s ‚ğ char buf ‚É‹´“n‚µ */ break;
+					case FieldType::String: /* InputText: v.s ã‚’ char buf ã«æ©‹æ¸¡ã— */ break;
 					case FieldType::Entity:
 					{
 						Entity cur = (Entity)v.i;
@@ -540,7 +540,7 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 							if (ImGui::Selectable("(None)", cur == INVALID_ENTITY))
 								v.i = (int)INVALID_ENTITY;
 
-							// NameComponent‚ğ‚Â‘SƒIƒuƒWƒFƒNƒg‚ğ–¼‘O•t‚«‚Å—ñ‹“
+							// NameComponentã‚’æŒã¤å…¨ã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆã‚’åå‰ä»˜ãã§åˆ—æŒ™
 							world.Each<NameComponent>([&](Entity e, NameComponent& nm)
 								{
 									std::string n = nm.name + " (" + std::to_string(e) + ")";
@@ -566,7 +566,7 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 
 			ImGui::Separator();
 
-			// Unity ‚Ì Add Script ƒ{ƒ^ƒ“
+			// Unity ã® Add Script ãƒœã‚¿ãƒ³
 			if (ImGui::Button(u8("Add Script"), ImVec2(-1, 0)))
 			{
 				m_ScriptSerachBuffer[0] = '\0';
@@ -582,7 +582,7 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 					m_FocusScriptSearch = false;
 				}
 				ImGui::SetNextItemWidth(240.0f);
-				ImGui::InputTextWithHint("##ScriptSearch", u8("ŒŸõ..."),
+				ImGui::InputTextWithHint("##ScriptSearch", u8("æ¤œç´¢..."),
 					m_ScriptSerachBuffer, sizeof(m_ScriptSerachBuffer));
 				ImGui::Separator();
 
@@ -590,7 +590,7 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 				bool any = false;
 				for (const auto& n : names)
 				{
-					// ƒtƒBƒ‹ƒ^ƒŠƒ“ƒO
+					// ãƒ•ã‚£ãƒ«ã‚¿ãƒªãƒ³ã‚°
 					if (m_ScriptSerachBuffer[0] != '\0')
 					{
 						std::string lower = n, query = m_ScriptSerachBuffer;
@@ -610,7 +610,7 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 					any = true;
 				}
 				if (!any)
-					ImGui::TextDisabled(u8("Œ©‚Â‚©‚è‚Ü‚¹‚ñ"));
+					ImGui::TextDisabled(u8("è¦‹ã¤ã‹ã‚Šã¾ã›ã‚“"));
 
 				ImGui::EndPopup();
 			}
@@ -642,7 +642,7 @@ void EditorWindow::DrawAddComponentPopup(World& world, Entity entity)
 
 	if (m_FocusAddCompSearch) { ImGui::SetKeyboardFocusHere(); m_FocusAddCompSearch = false; }
 	ImGui::SetNextItemWidth(260.0f);
-	ImGui::InputTextWithHint("##acsearch", u8("ŒŸõ..."), m_AddCompSearchBuffer, sizeof(m_AddCompSearchBuffer));
+	ImGui::InputTextWithHint("##acsearch", u8("æ¤œç´¢..."), m_AddCompSearchBuffer, sizeof(m_AddCompSearchBuffer));
 	ImGui::Separator();
 
 	auto match = [&](const std::string& s)
@@ -654,7 +654,7 @@ void EditorWindow::DrawAddComponentPopup(World& world, Entity entity)
 			return a.find(q) != std::string::npos;
 		};
 
-	// ƒRƒ“ƒ|[ƒlƒ“ƒg
+	// ã‚³ãƒ³ãƒãƒ¼ãƒãƒ³ãƒˆ
 	for (const auto& c : ComponentRegistry::All())
 	{
 		if (!match(c.name)) continue;
@@ -664,7 +664,7 @@ void EditorWindow::DrawAddComponentPopup(World& world, Entity entity)
 		if (has) ImGui::EndDisabled();
 	}
 
-	// ƒXƒNƒŠƒvƒg
+	// ã‚¹ã‚¯ãƒªãƒ—ãƒˆ
 	ImGui::SeparatorText("Scripts");
 	ImGui::Text("Open = %d names =%d", (int)ScriptHost::isOpen(), (int)ScriptHost::GetScriptNames().size());
 	for (const auto& n : ScriptHost::GetScriptNames())

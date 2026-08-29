@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include <xaudio2.h>
 #include <wrl.h>
@@ -7,8 +7,8 @@
 
 struct AudioClip
 {
-	std::vector<BYTE> data; // PCMƒf[ƒ^
-	WAVEFORMATEX format;    // ‰¹ºƒtƒH[ƒ}ƒbƒgî•ñ
+	std::vector<BYTE> data; // PCMãƒ‡ãƒ¼ã‚¿
+	WAVEFORMATEX format;    // éŸ³å£°ãƒ•ã‚©ãƒ¼ãƒãƒƒãƒˆæƒ…å ±
 };
 
 class AudioEngine
@@ -23,10 +23,10 @@ public:
     bool Init();
 	void Shutdown();
 
-    // ƒNƒŠƒbƒvæ“¾iƒLƒƒƒbƒVƒ…•t‚«j
+    // ã‚¯ãƒªãƒƒãƒ—å–å¾—ï¼ˆã‚­ãƒ£ãƒƒã‚·ãƒ¥ä»˜ãï¼‰
     std::shared_ptr<AudioClip> Load(const std::string& path);
 
-    // ƒ{ƒCƒX¶¬iÄ¶‚ÍAudioSource‘¤‚Å§Œäj
+    // ãƒœã‚¤ã‚¹ç”Ÿæˆï¼ˆå†ç”Ÿã¯AudioSourceå´ã§åˆ¶å¾¡ï¼‰
     IXAudio2SourceVoice* CreateVoice(const WAVEFORMATEX& fmt);
 
     IXAudio2* Get2() { return m_XAudio2.Get(); }

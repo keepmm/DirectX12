@@ -1,12 +1,12 @@
-/*****************************************************************//**
+ï»¿/*****************************************************************//**
  * \file   FramePipeline.hpp
  * \brief  FramePipeline,hpp .. 
- *		   ˆêƒtƒŒ[ƒ€•ª‚ÌŠm’èƒf[ƒ^(FrameObject)‚ğŒ^•Ê‚É•Û‚µ
-		   ƒpƒCƒvƒ‰ƒCƒ“ƒXƒe[ƒWŠÔ‚Åó‚¯“n‚·
+ *		   ä¸€ãƒ•ãƒ¬ãƒ¼ãƒ åˆ†ã®ç¢ºå®šãƒ‡ãƒ¼ã‚¿(FrameObject)ã‚’å‹åˆ¥ã«ä¿æŒã—
+		   ãƒ‘ã‚¤ãƒ—ãƒ©ã‚¤ãƒ³ã‚¹ãƒ†ãƒ¼ã‚¸é–“ã§å—ã‘æ¸¡ã™
  * 
- * ì¬Ò 
- * ì¬“ú 2026/7/18
- * XV—š—ğ
+ * ä½œæˆè€… 
+ * ä½œæˆæ—¥ 2026/7/18
+ * æ›´æ–°å±¥æ­´
  * *********************************************************************/
 #pragma once
 
@@ -22,7 +22,7 @@
 
 #include "RenderContext.hpp"
 
-/// @brief Œ^–‚Éƒ†ƒj[ƒNID‚ğ˜A”Ô‚ÅŠ„‚èU‚é
+/// @brief å‹äº‹ã«ãƒ¦ãƒ‹ãƒ¼ã‚¯IDã‚’é€£ç•ªã§å‰²ã‚ŠæŒ¯ã‚‹
 namespace detail
 {
 	inline std::atomic<int> g_FrameObjectTypeCounter{ 0 };
@@ -57,7 +57,7 @@ public:
 	{
 		const size_t aligned = (size + align - 1) & ~(align - 1);
 		const size_t old = m_Offset.fetch_add(aligned, std::memory_order_relaxed);
-		assert(old + aligned <= m_Capacity && "FrameAllocator—e—Ê•s‘«: Init‚ÌƒTƒCƒY‚ğ‘‚â‚·");
+		assert(old + aligned <= m_Capacity && "FrameAllocatorå®¹é‡ä¸è¶³: Initã®ã‚µã‚¤ã‚ºã‚’å¢—ã‚„ã™");
 		return m_Buffer + old;
 	}
 	void Resset()
@@ -119,7 +119,7 @@ public:
 		const int id = GetFrameObjectTypeID<T>();
 		assert(id < MAX_TYPES);
 		assert(!m_Fixed[id].load(std::memory_order_acquire)
-			&& "FixÏ‚İ‚ÌFrameObjectŒ^‚É’Ç‰Á‚µ‚æ‚¤‚Æ‚µ‚½(“o˜^ƒ^ƒCƒ~ƒ“ƒO‚ª’x‚¢)");
+			&& "Fixæ¸ˆã¿ã®FrameObjectå‹ã«è¿½åŠ ã—ã‚ˆã†ã¨ã—ãŸ(ç™»éŒ²ã‚¿ã‚¤ãƒŸãƒ³ã‚°ãŒé…ã„)");
 
 		void* mem = m_Allocator.Allocate(sizeof(Node) + sizeof(T),
 			(std::max)(alignof(Node), alignof(T)));
@@ -130,7 +130,7 @@ public:
 			? nullptr
 			: +[](void* p) { static_cast<T*>(p)->~T(); };
 
-		// ƒƒbƒNƒtƒŠ[push(’Ç‰Á‚Ì‚İEíœ‚È‚µ‚È‚Ì‚ÅABA–â‘è‚È‚µ)
+		// ãƒ­ãƒƒã‚¯ãƒ•ãƒªãƒ¼push(è¿½åŠ ã®ã¿ãƒ»å‰Šé™¤ãªã—ãªã®ã§ABAå•é¡Œãªã—)
 		Node* head = m_Heads[id].load(std::memory_order_relaxed);
 		do
 		{
@@ -141,7 +141,7 @@ public:
 		return obj;
 	}
 
-	// ---- ’P‘Ìæ“¾: ÅŒã‚É“o˜^‚³‚ê‚½‚à‚Ì‚ğ•Ô‚· ----
+	// ---- å˜ä½“å–å¾—: æœ€å¾Œã«ç™»éŒ²ã•ã‚ŒãŸã‚‚ã®ã‚’è¿”ã™ ----
 	template<class T>
 	const T* GetFrameObject() const
 	{
@@ -153,7 +153,7 @@ public:
 		return reinterpret_cast<const T*>(reinterpret_cast<const uint8_t*>(head) + sizeof(Node));
 	}
 
-	// ---- ƒŠƒXƒg‘–¸(æ“¾“_‚ÌƒXƒiƒbƒvƒVƒ‡ƒbƒg) ----
+	// ---- ãƒªã‚¹ãƒˆèµ°æŸ»(å–å¾—æ™‚ç‚¹ã®ã‚¹ãƒŠãƒƒãƒ—ã‚·ãƒ§ãƒƒãƒˆ) ----
 	template<class T, class Fn>
 	void ForEachFrameObject(Fn&& fn) const
 	{
@@ -164,7 +164,7 @@ public:
 		}
 	}
 
-	// ---- Á”ïƒ^ƒCƒ~ƒ“ƒO‚Å’Ç‰Á‹Ö~‚É(“o˜^˜R‚êE’x‰„“o˜^‚ÌŒŸo) ----
+	// ---- æ¶ˆè²»ã‚¿ã‚¤ãƒŸãƒ³ã‚°ã§è¿½åŠ ç¦æ­¢ã«(ç™»éŒ²æ¼ã‚Œãƒ»é…å»¶ç™»éŒ²ã®æ¤œå‡º) ----
 	template<class T>
 	void FixFrameObject()
 	{
@@ -185,7 +185,7 @@ namespace detail
 
 inline FramePipeline* GetFrameThreadPipeline()
 {
-	assert(detail::tls_FramePipeline && "FramePipelineƒXƒR[ƒvŠO‚©‚ç‚Ìæ“¾");
+	assert(detail::tls_FramePipeline && "FramePipelineã‚¹ã‚³ãƒ¼ãƒ—å¤–ã‹ã‚‰ã®å–å¾—");
 	return detail::tls_FramePipeline;
 }
 
@@ -209,7 +209,7 @@ private:
 	FramePipeline* m_Prev;
 };
 
-// ‚»‚ÌƒtƒŒ[ƒ€‚ÅŠm’è‚µ‚½•`‰æİ’è‚ÌƒXƒiƒbƒvƒVƒ‡ƒbƒg
+// ãã®ãƒ•ãƒ¬ãƒ¼ãƒ ã§ç¢ºå®šã—ãŸæç”»è¨­å®šã®ã‚¹ãƒŠãƒƒãƒ—ã‚·ãƒ§ãƒƒãƒˆ
 struct FO_RenderSettings
 {
 	E_VERTEX_SHADER vertexShader;

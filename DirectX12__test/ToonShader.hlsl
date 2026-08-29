@@ -1,4 +1,4 @@
-#include "Common.hlsli"
+ï»¿#include "Common.hlsli"
 #include "Lighting.hlsli"
 #include "BRDF.hlsli"
 
@@ -23,7 +23,7 @@ cbuffer Material : register(b3)
 float4 ToonPS(PSInput input) : SV_TARGET
 {
     float4 texColor = g_Texture.Sample(g_Sampler, input.uv);
-    clip(faceParam.y * input.col.a - 0.05f); // ”ñ•\¦ƒ}ƒeƒŠƒAƒ‹‚ğÁ‚·
+    clip(faceParam.y * input.col.a - 0.05f); // éè¡¨ç¤ºãƒãƒ†ãƒªã‚¢ãƒ«ã‚’æ¶ˆã™
     float3 baseColor = input.col.rgb * texColor.rgb * matBaseColor.rgb;
     float3 N = normalize(input.normal);
     float3 V = normalize(cameraPos.xyz - input.worldPos);
@@ -40,12 +40,12 @@ float4 ToonPS(PSInput input) : SV_TARGET
         ComputeLight(lights[i], input.worldPos, L, atten);
         float nDotL = saturate(dot(N, L)) * atten;
         
-        // ƒ‰ƒ“ƒv‚ÅŠK’²‰»‚µ‚½ƒfƒBƒtƒ…[ƒY(2 ~ 3ƒg[ƒ“)
+        // ãƒ©ãƒ³ãƒ—ã§éšèª¿åŒ–ã—ãŸãƒ‡ã‚£ãƒ•ãƒ¥ãƒ¼ã‚º(2 ~ 3ãƒˆãƒ¼ãƒ³)
         float3 ramp = g_RampTexture.Sample(g_RampSampler, float2(nDotL, 0.5f)).rgb;
         return float4(ramp, 1.0f);
         diffuse += lights[i].color.rgb * baseColor * ramp;
         
-        // ƒAƒjƒ’²‚·‚Ø‚«‚ã‚ç
+        // ã‚¢ãƒ‹ãƒ¡èª¿ã™ãºãã‚…ã‚‰
         float3 H = normalize(L + V);
         float spec = pow(saturate(dot(N, H)), shininess);
         specMask = max(specMask, step(0.5f, spec) * atten);

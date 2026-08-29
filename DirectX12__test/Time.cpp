@@ -1,4 +1,4 @@
-#include "Time.hpp"
+ï»¿#include "Time.hpp"
 
 #pragma comment(lib, "winmm.lib")
 
@@ -59,7 +59,7 @@ Time* Time::GetInstance()
 
 void Time::Init()
 {
-	timeBeginPeriod(1); // ƒ^ƒCƒ}[‚Ì¸“x‚ð1ms‚ÉÝ’è
+	timeBeginPeriod(1); // ã‚¿ã‚¤ãƒžãƒ¼ã®ç²¾åº¦ã‚’1msã«è¨­å®š
 	m_StartTime = timeGetTime();
 	m_PrevTime = m_StartTime;
 	m_FPSLastTime = m_StartTime;
@@ -73,21 +73,21 @@ void Time::Init()
 
 void Time::Update()
 {
-	// Œ»ÝŽžŠÔ‚ÌXV
+	// ç¾åœ¨æ™‚é–“ã®æ›´æ–°
 	DWORD currentTime = timeGetTime();
 
-	// ƒfƒ‹ƒ^ƒ^ƒCƒ€‚ÌŒvŽZ
-	// ŒvŽZ‚Í(ƒ~ƒŠ•b‚©‚ç•b‚É•ÏŠ·)
+	// ãƒ‡ãƒ«ã‚¿ã‚¿ã‚¤ãƒ ã®è¨ˆç®—
+	// è¨ˆç®—ã¯(ãƒŸãƒªç§’ã‹ã‚‰ç§’ã«å¤‰æ›)
 	m_DeltaTime = (currentTime - m_PrevTime) / 1000.0f;
 	m_PrevTime = currentTime;
 
-	// ‘•Œo‰ßŽžŠÔ‚ÌXV
+	// è£…çµŒéŽæ™‚é–“ã®æ›´æ–°
 	m_TotalTime = (currentTime - m_StartTime) / 1000.0f;
 
-	// ƒtƒŒ[ƒ€ƒJƒEƒ“ƒg
+	// ãƒ•ãƒ¬ãƒ¼ãƒ ã‚«ã‚¦ãƒ³ãƒˆ
 	m_FrameCount++;
 
-	// FPS‚ÌŒv‘ª
+	// FPSã®è¨ˆæ¸¬
 	m_FPSFrameCount++;
 	DWORD fpsDiff = currentTime - m_FPSLastTime;
 	if (fpsDiff >= 1000)

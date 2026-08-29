@@ -1,4 +1,4 @@
-#include "Application.hpp"
+ï»¿#include "Application.hpp"
 #include "RuntimeScene.hpp"
 #include "Polygon.hpp"
 #include "Logger.hpp"
@@ -22,7 +22,7 @@ Application* Application::GetInstance()
 
 HRESULT Application::OnInit()
 {
-	// ---- ŠeƒEƒBƒ“ƒhƒE‚Ì‰Šú‰» ---- //
+	// ---- å„ã‚¦ã‚£ãƒ³ãƒ‰ã‚¦ã®åˆæœŸåŒ– ---- //
 	if (m_GameMode)
 	{
 		PLAY.SetMode(EngineMode::Play);
@@ -32,7 +32,7 @@ HRESULT Application::OnInit()
 		m_EditorWindow = std::make_unique<EditorWindow>(*m_DirectX,m_SceneManager);
 	}
 
-	// ƒV[ƒ“‚Ì¶¬•û–@‚ğ“o˜^(–¼‘O¨ Assets/Scenes/<–¼‘O>.json)
+	// ã‚·ãƒ¼ãƒ³ã®ç”Ÿæˆæ–¹æ³•ã‚’ç™»éŒ²(åå‰â†’ Assets/Scenes/<åå‰>.json)
 	m_SceneManager.SetSceneFactory([this](const std::string& jsonPath)
 		{
 			return MakeUnique<RuntimeScene>(jsonPath,
@@ -40,14 +40,14 @@ HRESULT Application::OnInit()
 				m_DirectX->GetLinePso());
 		});
 
-	// ŠJnƒV[ƒ“‚ğ“o˜^‚µ‚Äƒ[ƒh
+	// é–‹å§‹ã‚·ãƒ¼ãƒ³ã‚’ç™»éŒ²ã—ã¦ãƒ­ãƒ¼ãƒ‰
 	m_SceneManager.RegisterScene(m_StartScene);
 	m_SceneManager.LoadScene(m_StartScene);
 
-	// ƒvƒŒƒnƒu‚Ì‰Šú‰»
+	// ãƒ—ãƒ¬ãƒãƒ–ã®åˆæœŸåŒ–
 	OnInitPrefabs();
 
-	// ƒ|ƒŠƒSƒ“‰Šú‰»
+	// ãƒãƒªã‚´ãƒ³åˆæœŸåŒ–
 	Polygon::Init(
 		m_DirectX->GetDevice(),
 		m_DirectX->GetCommandList(),
@@ -55,10 +55,10 @@ HRESULT Application::OnInit()
 		m_DirectX->GetPipelineStateWireFrame());
 	Polygon::CreatePolygon();
 
-	// ƒXƒNƒŠƒvƒgƒzƒXƒg‚Ì‰Šú‰»
+	// ã‚¹ã‚¯ãƒªãƒ—ãƒˆãƒ›ã‚¹ãƒˆã®åˆæœŸåŒ–
 	ScriptHost::Open(&m_SceneManager.GetActiveScene()->GetWorld());
 
-	// ƒI[ƒfƒBƒIƒGƒ“ƒWƒ“‚Ì‰Šú‰»
+	// ã‚ªãƒ¼ãƒ‡ã‚£ã‚ªã‚¨ãƒ³ã‚¸ãƒ³ã®åˆæœŸåŒ–
 	AudioEngine::Get().Init();
 
 	return S_OK;
@@ -157,7 +157,7 @@ void Application::OnInitPrefabs()
 			world.AddComponent<MaterialComponent>(entity, MaterialComponent{ modelMaterial });
 		});
 
-	// RigidBody‚ğ‚½‚È‚¢Box
+	// RigidBodyã‚’æŒãŸãªã„Box
 	PrefabLibrary::Get().RegisterPrefab("StaticBox",
 		[sharedBoxMesh, sharedBoxMaterial](Scene& scene, World& world, Entity entity)
 		{
@@ -173,13 +173,13 @@ void Application::OnInitPrefabs()
 }
 
 /*
-*	@brief •`‰æ‚É•K—v‚Èî•ñ‚ğRenderContext‚ÉƒZƒbƒg‚·‚é
+*	@brief æç”»ã«å¿…è¦ãªæƒ…å ±ã‚’RenderContextã«ã‚»ãƒƒãƒˆã™ã‚‹
 */
 void Application::ConfigureContext(RenderContext& renderContext)
 {
 	// --------------------------------------//
-	// ƒGƒfƒBƒ^[ƒEƒBƒ“ƒhƒE‚ª‘¶İ‚µ‚È‚¢ê‡
-	// î•ñ‚ğƒZƒbƒg‚¹‚¸–ß‚é
+	// ã‚¨ãƒ‡ã‚£ã‚¿ãƒ¼ã‚¦ã‚£ãƒ³ãƒ‰ã‚¦ãŒå­˜åœ¨ã—ãªã„å ´åˆ
+	// æƒ…å ±ã‚’ã‚»ãƒƒãƒˆã›ãšæˆ»ã‚‹
 	// --------------------------------------//
 	if (!m_EditorWindow)
 	{
@@ -189,7 +189,7 @@ void Application::ConfigureContext(RenderContext& renderContext)
 		return;
 	}
 
-	// ===== ƒpƒX1: Scene Viewiæ‚É•`‰æj=====
+	// ===== ãƒ‘ã‚¹1: Scene Viewï¼ˆå…ˆã«æç”»ï¼‰=====
 	auto* editorTex = m_EditorWindow->GetEditorRenderTexture();
 	if (editorTex && editorTex->IsValid())
 	{
@@ -206,7 +206,7 @@ void Application::ConfigureContext(RenderContext& renderContext)
 		m_SceneManager.Draw(sceneCtx);
 	}
 
-	// ===== ƒpƒX2: Game ViewiŒÄ‚Ño‚µŒ³‚Å•`‰æ‚³‚ê‚éj=====
+	// ===== ãƒ‘ã‚¹2: Game Viewï¼ˆå‘¼ã³å‡ºã—å…ƒã§æç”»ã•ã‚Œã‚‹ï¼‰=====
 	auto* gameTex = m_EditorWindow->GetGameRenderTexture();
 	if (!gameTex)
 	{
@@ -229,8 +229,8 @@ void Application::ConfigureContext(RenderContext& renderContext)
 void Application::ConfigureContext(RenderContext& renderContext, RenderTexture& renderTexture, D3D12_VIEWPORT& viewport, D3D12_RECT& scissorRect, bool isSceneView)
 {
 	// --------------------------------------//
-// ƒGƒfƒBƒ^[ƒEƒBƒ“ƒhƒE‚ª‘¶İ‚µ‚È‚¢ê‡
-// î•ñ‚ğƒZƒbƒg‚¹‚¸–ß‚é
+// ã‚¨ãƒ‡ã‚£ã‚¿ãƒ¼ã‚¦ã‚£ãƒ³ãƒ‰ã‚¦ãŒå­˜åœ¨ã—ãªã„å ´åˆ
+// æƒ…å ±ã‚’ã‚»ãƒƒãƒˆã›ãšæˆ»ã‚‹
 // --------------------------------------//
 	if (!m_EditorWindow)
 	{

@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include "AudioEngine.hpp"
 #include <vector>
@@ -11,7 +11,7 @@ public:
 		auto clip = AudioEngine::Get().Load(path);
 		if (!clip) return;
 
-		Reap();   // Ä¶‚µI‚í‚Á‚½ƒ{ƒCƒX‚ð‰ñŽû
+		Reap();   // å†ç”Ÿã—çµ‚ã‚ã£ãŸãƒœã‚¤ã‚¹ã‚’å›žåŽ
 
 		IXAudio2SourceVoice* voice = AudioEngine::Get().CreateVoice(clip->format);
 		if (!voice) return;

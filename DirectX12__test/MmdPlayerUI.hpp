@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include "Components.hpp"
 #include "World.hpp"
 #include "imguiinit.hpp"
@@ -6,9 +6,9 @@
 #include <algorithm>
 #include <vector>
 
-inline constexpr float MMD_FPS = 30.0f;   // VMD‚Í30fps
+inline constexpr float MMD_FPS = 30.0f;   // VMDã¯30fps
 
-// ‹È‚ğw’è•b‚ÖƒV[ƒN(MusicSync‚ğ‚ÂAudioSource‘S•”)
+// æ›²ã‚’æŒ‡å®šç§’ã¸ã‚·ãƒ¼ã‚¯(MusicSyncã‚’æŒã¤AudioSourceå…¨éƒ¨)
 inline void SeekMusic(World& world, float time)
 {
     world.Each<AudioSourceComponent, MusicSyncComponent>(
@@ -22,7 +22,7 @@ inline void SeekMusic(World& world, float time)
         });
 }
 
-// ‹È‚Ìˆê’â~ / ÄŠJ
+// æ›²ã®ä¸€æ™‚åœæ­¢ / å†é–‹
 inline void SetMusicPaused(World& world, bool paused)
 {
     world.Each<AudioSourceComponent, MusicSyncComponent>(
@@ -35,10 +35,10 @@ inline void SetMusicPaused(World& world, bool paused)
 
 inline void DrawMmdPlayerControls(World& world, AnimatorComponent& an)
 {
-    if (an.clips.empty()) { ImGui::TextDisabled(u8("ƒNƒŠƒbƒv–¢“Ç‚İ‚İ")); return; }
+    if (an.clips.empty()) { ImGui::TextDisabled(u8("ã‚¯ãƒªãƒƒãƒ—æœªèª­ã¿è¾¼ã¿")); return; }
     if (an.currentClip < 0 || an.currentClip >= (int)an.clips.size()) an.currentClip = 0;
 
-    // ƒV[ƒN‚É‹¤’Ê‚ÅŒÄ‚Ô(•¨—ƒŠƒZƒbƒg + ‹È‚à’Ç])
+    // ã‚·ãƒ¼ã‚¯æ™‚ã«å…±é€šã§å‘¼ã¶(ç‰©ç†ãƒªã‚»ãƒƒãƒˆ + æ›²ã‚‚è¿½å¾“)
     auto seekTo = [&](float t)
         {
             an.time = t;
@@ -46,11 +46,11 @@ inline void DrawMmdPlayerControls(World& world, AnimatorComponent& an)
             SeekMusic(world, t);
         };
 
-    // --- ƒNƒŠƒbƒv‘I‘ğ ---
+    // --- ã‚¯ãƒªãƒƒãƒ—é¸æŠ ---
     {
         std::vector<const char*> names;
         for (const auto& c : an.clips) names.push_back(c.name.c_str());
-        if (ImGui::Combo(u8("ƒNƒŠƒbƒv"), &an.currentClip, names.data(), (int)names.size()))
+        if (ImGui::Combo(u8("ã‚¯ãƒªãƒƒãƒ—"), &an.currentClip, names.data(), (int)names.size()))
             seekTo(0.0f);
     }
 
@@ -58,43 +58,43 @@ inline void DrawMmdPlayerControls(World& world, AnimatorComponent& an)
     const int   totalFrame = (int)(clip.duration * MMD_FPS + 0.5f);
     const float oneFrame = 1.0f / MMD_FPS;
 
-    // --- Ä¶ƒRƒ“ƒgƒ[ƒ‹ ---
-    if (ImGui::Button(an.playing ? u8("ˆê’â~") : u8("Ä¶")))
+    // --- å†ç”Ÿã‚³ãƒ³ãƒˆãƒ­ãƒ¼ãƒ« ---
+    if (ImGui::Button(an.playing ? u8("ä¸€æ™‚åœæ­¢") : u8("å†ç”Ÿ")))
     {
         an.playing = !an.playing;
-        SetMusicPaused(world, !an.playing);   // ‹È‚à~‚ß‚é / ÄŠJ‚·‚é
+        SetMusicPaused(world, !an.playing);   // æ›²ã‚‚æ­¢ã‚ã‚‹ / å†é–‹ã™ã‚‹
     }
     ImGui::SameLine();
-    if (ImGui::Button(u8("Å‰‚©‚ç"))) seekTo(0.0f);
+    if (ImGui::Button(u8("æœ€åˆã‹ã‚‰"))) seekTo(0.0f);
     ImGui::SameLine();
     if (ImGui::Button("|<")) seekTo(std::max(0.0f, an.time - oneFrame));
     ImGui::SameLine();
     if (ImGui::Button(">|")) seekTo(std::min(clip.duration, an.time + oneFrame));
     ImGui::SameLine();
-    ImGui::Checkbox(u8("ƒ‹[ƒv"), &an.loop);
+    ImGui::Checkbox(u8("ãƒ«ãƒ¼ãƒ—"), &an.loop);
 
-    // --- ƒV[ƒNƒXƒ‰ƒCƒ_[(ƒtƒŒ[ƒ€’PˆÊ) ---
+    // --- ã‚·ãƒ¼ã‚¯ã‚¹ãƒ©ã‚¤ãƒ€ãƒ¼(ãƒ•ãƒ¬ãƒ¼ãƒ å˜ä½) ---
     int frame = (int)(an.time * MMD_FPS + 0.5f);
     ImGui::SetNextItemWidth(-1.0f);
-    if (ImGui::SliderInt("##mmdseek", &frame, 0, std::max(totalFrame, 1), u8("%d ƒtƒŒ[ƒ€")))
-        an.time = std::clamp(frame / MMD_FPS, 0.0f, clip.duration);   // ‹È‚Í‚Ü‚¾“®‚©‚³‚È‚¢
+    if (ImGui::SliderInt("##mmdseek", &frame, 0, std::max(totalFrame, 1), u8("%d ãƒ•ãƒ¬ãƒ¼ãƒ ")))
+        an.time = std::clamp(frame / MMD_FPS, 0.0f, clip.duration);   // æ›²ã¯ã¾ã å‹•ã‹ã•ãªã„
 
-    // ƒhƒ‰ƒbƒO’†‚Í•¨—‚à‹È‚à~‚ßA—£‚µ‚½uŠÔ‚É‚Ü‚Æ‚ß‚Ä’Ç]‚³‚¹‚é
+    // ãƒ‰ãƒ©ãƒƒã‚°ä¸­ã¯ç‰©ç†ã‚‚æ›²ã‚‚æ­¢ã‚ã€é›¢ã—ãŸç¬é–“ã«ã¾ã¨ã‚ã¦è¿½å¾“ã•ã›ã‚‹
     const bool active = ImGui::IsItemActive();
     if (!an.scrubbing && active)
     {
-        SetMusicPaused(world, true);          // ’Í‚ñ‚¾
+        SetMusicPaused(world, true);          // æ´ã‚“ã 
     }
     else if (an.scrubbing && !active)
     {
-        seekTo(an.time);                      // —£‚µ‚½: •¨—ƒŠƒZƒbƒg + ‹ÈƒV[ƒN
+        seekTo(an.time);                      // é›¢ã—ãŸ: ç‰©ç†ãƒªã‚»ãƒƒãƒˆ + æ›²ã‚·ãƒ¼ã‚¯
         if (an.playing) SetMusicPaused(world, false);
     }
     an.scrubbing = active;
 
-    ImGui::Text(u8("%.2f / %.2f •b   %d / %d ƒtƒŒ[ƒ€"),
+    ImGui::Text(u8("%.2f / %.2f ç§’   %d / %d ãƒ•ãƒ¬ãƒ¼ãƒ "),
         an.time, clip.duration, frame, totalFrame);
 
     ImGui::SetNextItemWidth(160.0f);
-    ImGui::SliderFloat(u8("‘¬“x"), &an.speed, 0.0f, 2.0f, "x%.2f");
+    ImGui::SliderFloat(u8("é€Ÿåº¦"), &an.speed, 0.0f, 2.0f, "x%.2f");
 }

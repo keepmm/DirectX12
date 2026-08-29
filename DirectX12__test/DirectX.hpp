@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include <Windows.h>
 #include <d3d12.h>
@@ -30,9 +30,9 @@
 struct DescriptorAllocator
 {
 	ComPtr<ID3D12DescriptorHeap> heap;
-	UINT decSize = 0;	// ƒfƒXƒNƒŠƒvƒ^ƒq[ƒv“à‚ÌƒTƒCƒY
-	UINT capacity = 0;	// ƒfƒXƒNƒŠƒvƒ^ƒq[ƒv‚Ì—e—Ê
-	std::vector<UINT> freeList;	// ‹ó‚¢‚Ä‚¢‚éƒXƒƒbƒg‚ÌƒŠƒXƒg
+	UINT decSize = 0;	// ãƒ‡ã‚¹ã‚¯ãƒªãƒ—ã‚¿ãƒ’ãƒ¼ãƒ—å†…ã®ã‚µã‚¤ã‚º
+	UINT capacity = 0;	// ãƒ‡ã‚¹ã‚¯ãƒªãƒ—ã‚¿ãƒ’ãƒ¼ãƒ—ã®å®¹é‡
+	std::vector<UINT> freeList;	// ç©ºã„ã¦ã„ã‚‹ã‚¹ãƒ­ãƒƒãƒˆã®ãƒªã‚¹ãƒˆ
 	UINT next = 0;
 
 	void Init(
@@ -54,9 +54,9 @@ struct DescriptorAllocator
 		freeList.clear();
 	}
 
-	/// @brief ƒXƒƒbƒg‚ÌŠm•Û
-	/// @param outIndex Šm•Û‚·‚éIndex
-	/// @return Šm•Û‚Å‚«‚½ê‡True 
+	/// @brief ã‚¹ãƒ­ãƒƒãƒˆã®ç¢ºä¿
+	/// @param outIndex ç¢ºä¿ã™ã‚‹Index
+	/// @return ç¢ºä¿ã§ããŸå ´åˆTrue 
 	bool Allocate(UINT& outIndex)
 	{
 		if (!freeList.empty())
@@ -66,14 +66,14 @@ struct DescriptorAllocator
 			return true;
 		}
 
-		// Ÿ‚ÌƒXƒƒbƒg‚ªƒLƒƒƒpƒVƒeƒB‚ğ’´‚¦‚½ê‡
-		// Šm•Û¸”s
+		// æ¬¡ã®ã‚¹ãƒ­ãƒƒãƒˆãŒã‚­ãƒ£ãƒ‘ã‚·ãƒ†ã‚£ã‚’è¶…ãˆãŸå ´åˆ
+		// ç¢ºä¿å¤±æ•—
 		if (next >= capacity)
 		{
 			return false;
 		}
 
-		// üŒ`Šm•Û
+		// ç·šå½¢ç¢ºä¿
 		outIndex = next++;
 		return true;
 	}
@@ -82,7 +82,7 @@ struct DescriptorAllocator
 	{
 		if (next + count > capacity)
 		{
-			return UINT_MAX; // Šm•Û¸”s
+			return UINT_MAX; // ç¢ºä¿å¤±æ•—
 		}
 		UINT startIndex = next;
 		next += count;
@@ -125,10 +125,10 @@ struct RegisteredPass
 class DirectXApp
 {
 public:
-	/// @brief ƒOƒ[ƒoƒ‹ SRV ƒq[ƒv‚ÌƒXƒƒbƒg”
+	/// @brief ã‚°ãƒ­ãƒ¼ãƒãƒ« SRV ãƒ’ãƒ¼ãƒ—ã®ã‚¹ãƒ­ãƒƒãƒˆæ•°
 	static constexpr UINT SRV_HEAP_SIZE = 256;
 
-	/// @brief ƒOƒ[ƒoƒ‹ SRV ƒq[ƒv‚ğ‚Â—Bˆê‚Ì DirectXApp ƒCƒ“ƒXƒ^ƒ“ƒX‚ğ•Ô‚·
+	/// @brief ã‚°ãƒ­ãƒ¼ãƒãƒ« SRV ãƒ’ãƒ¼ãƒ—ã‚’æŒã¤å”¯ä¸€ã® DirectXApp ã‚¤ãƒ³ã‚¹ã‚¿ãƒ³ã‚¹ã‚’è¿”ã™
 	static DirectXApp* GetCurrent() noexcept { return s_Instance; }
 
 	static constexpr size_t VERTEX_SHADER_COUNT = static_cast<size_t>(E_VERTEX_SHADER::COUNT);
@@ -258,7 +258,7 @@ public:
 		return it != m_ShaderRegistry.end() && it->second.def.alphaBlend;
 	}
 
-	/// @brief ƒOƒ[ƒoƒ‹ SRV ƒq[ƒv‚ğ•Ô‚·iSetDescriptorHeaps —pj
+	/// @brief ã‚°ãƒ­ãƒ¼ãƒãƒ« SRV ãƒ’ãƒ¼ãƒ—ã‚’è¿”ã™ï¼ˆSetDescriptorHeaps ç”¨ï¼‰
 	ID3D12DescriptorHeap* GetSrvHeap() const noexcept { return m_SrvAllocator.heap.Get(); }
 	inline const PipelineStateTable& GetPipelineStates() const noexcept { return m_PipelineStates; }
 	inline ComPtr<ID3D12PipelineState> GetPipelineState() const noexcept
@@ -274,7 +274,7 @@ public:
 	inline DescriptorAllocator& GetRtvAllocator() noexcept { return m_RtvAllocator; }
 	inline DescriptorAllocator& GetDsvAllocator() noexcept { return m_DsvAllocator; }
 	inline D3D12_CPU_DESCRIPTOR_HANDLE GetDsvHandle() const noexcept { return m_DSV_Handle; }
-	// ‹L˜^’†‚ÌƒRƒ}ƒ“ƒhƒŠƒXƒg‚ª‘ÎÛ‚É‚µ‚Ä‚¢‚éƒoƒbƒNƒoƒbƒtƒ@‚ğ•Ô‚·
+	// è¨˜éŒ²ä¸­ã®ã‚³ãƒãƒ³ãƒ‰ãƒªã‚¹ãƒˆãŒå¯¾è±¡ã«ã—ã¦ã„ã‚‹ãƒãƒƒã‚¯ãƒãƒƒãƒ•ã‚¡ã‚’è¿”ã™
 	inline D3D12_CPU_DESCRIPTOR_HANDLE GetRtvHandle() const noexcept { return m_RTV_Handle[BackbufferIndex()]; }
 	inline D3D12_CPU_DESCRIPTOR_HANDLE GetShadowSrvCpu() const noexcept { return m_ShadowSrvCpu; }
 	inline D3D12_CPU_DESCRIPTOR_HANDLE GetEnvSrvCpu() const noexcept { return m_EnvSrvCpu; }
@@ -313,7 +313,7 @@ private:
 
 	std::atomic<UINT64> m_SyncPacked{ 0 };
 
-	/// @brief GpuExecƒXƒŒƒbƒh
+	/// @brief GpuExecã‚¹ãƒ¬ãƒƒãƒ‰
 	struct GPUExecJob
 	{
 		UINT64 frameNumber;
@@ -449,7 +449,7 @@ private:
 		D3D12_GPU_VIRTUAL_ADDRESS cb, D3D12_CPU_DESCRIPTOR_HANDLE dstRtv,
 		UINT w, UINT h);
 
-	/// @brief Œ»İ‹L˜^‘ÎÛ‚ÌƒRƒ}ƒ“ƒhƒŠƒXƒg
+	/// @brief ç¾åœ¨è¨˜éŒ²å¯¾è±¡ã®ã‚³ãƒãƒ³ãƒ‰ãƒªã‚¹ãƒˆ
 	ID3D12GraphicsCommandList* Cmd() const noexcept
 	{
 #ifdef _FRAMEPIPELINE
@@ -459,7 +459,7 @@ private:
 #endif
 	}
 
-	/// @brief CBƒAƒƒP[ƒ^/DeferredRelease‚ÌƒXƒƒbƒgƒL[
+	/// @brief CBã‚¢ãƒ­ã‚±ãƒ¼ã‚¿/DeferredReleaseã®ã‚¹ãƒ­ãƒƒãƒˆã‚­ãƒ¼
 	UINT RecordSlot() const noexcept
 	{
 #ifdef _FRAMEPIPELINE

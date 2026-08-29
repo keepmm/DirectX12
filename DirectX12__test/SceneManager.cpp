@@ -1,4 +1,4 @@
-#include "SceneManager.hpp"
+ï»¿#include "SceneManager.hpp"
 #include "Logger.hpp"
 #include "PlayState.hpp"
 #include "RuntimeScene.hpp"
@@ -22,76 +22,76 @@ bool SceneManager::RegisterScene(const std::string& name)
 
 void SceneManager::RegisterScene(const std::string& name, std::unique_ptr<Scene> scene)
 {
-	// ”ñ“¯Šúˆ—‚ğƒƒbƒN
+	// éåŒæœŸå‡¦ç†ã‚’ãƒ­ãƒƒã‚¯
 	std::unique_lock<std::mutex> lock(m_SceneMutex);
 	if (m_Scenes.find(name) != m_Scenes.end())
 	{
-		LOG->LogWarning("Scene '" + name + "'‚ÍŠù‚É“o˜^‚³‚ê‚Ä‚¢‚Ü‚·");
+		LOG->LogWarning("Scene '" + name + "'ã¯æ—¢ã«ç™»éŒ²ã•ã‚Œã¦ã„ã¾ã™");
 		return;
 	}
-	// ƒV[ƒ“–¼‚ğİ’è‚µ‚Ä“o˜^
+	// ã‚·ãƒ¼ãƒ³åã‚’è¨­å®šã—ã¦ç™»éŒ²
 	scene->SetSceneName(name);
 	m_Scenes[name].scene = std::move(scene);
-	LOG->LogInfo("Scene '" + name + "'‚ğ“o˜^‚µ‚Ü‚µ‚½");
+	LOG->LogInfo("Scene '" + name + "'ã‚’ç™»éŒ²ã—ã¾ã—ãŸ");
 }
 
 void SceneManager::LoadScene(const std::string& name)
 {
-	// ”ñ“¯Šúˆ—‚ğƒƒbƒN
+	// éåŒæœŸå‡¦ç†ã‚’ãƒ­ãƒƒã‚¯
 	//std::unique_lock<std::mutex> lock(m_SceneMutex);
 
-	// ƒV[ƒ“‚ª“o˜^‚³‚ê‚Ä‚¢‚é‚©Šm”F
+	// ã‚·ãƒ¼ãƒ³ãŒç™»éŒ²ã•ã‚Œã¦ã„ã‚‹ã‹ç¢ºèª
 	if (m_Scenes.find(name) == m_Scenes.end())
 	{
-		LOG->LogError("Scene '" + name + "'‚Í“o˜^‚³‚ê‚Ä‚¢‚Ü‚¹‚ñ");
+		LOG->LogError("Scene '" + name + "'ã¯ç™»éŒ²ã•ã‚Œã¦ã„ã¾ã›ã‚“");
 		return;
 	}
 
-	// Œ»İ‚ÌƒV[ƒ“‚ğƒAƒ“ƒ[ƒh
+	// ç¾åœ¨ã®ã‚·ãƒ¼ãƒ³ã‚’ã‚¢ãƒ³ãƒ­ãƒ¼ãƒ‰
 	if (m_ActiveScene)
 	{
 		m_UnloadQueue.push(m_ActiveScene->GetSceneName());
 	}
 
-	// V‚µ‚¢ƒV[ƒ“‚Ìƒ[ƒh
+	// æ–°ã—ã„ã‚·ãƒ¼ãƒ³ã®ãƒ­ãƒ¼ãƒ‰
 	m_LoadQueue.push(name);
 	m_NextSceneName = name;
 	m_SceneChangeRequested = true;
 
-	LOG->LogInfo("Scene '" + name + "'‚Ìƒ[ƒh‚ª—v‹‚³‚ê‚Ü‚µ‚½");
+	LOG->LogInfo("Scene '" + name + "'ã®ãƒ­ãƒ¼ãƒ‰ãŒè¦æ±‚ã•ã‚Œã¾ã—ãŸ");
 }
 
 void SceneManager::LoadSceneAdditive(const std::string& name)
 {
-	// ”ñ“¯Šúˆ—‚ğƒƒbƒN
+	// éåŒæœŸå‡¦ç†ã‚’ãƒ­ãƒƒã‚¯
 	std::unique_lock<std::mutex> lock(m_SceneMutex);
 
 	if(m_Scenes.find(name) == m_Scenes.end())
 	{
-		LOG->LogError("Scene '" + name + "'‚Í“o˜^‚³‚ê‚Ä‚¢‚Ü‚¹‚ñ");
+		LOG->LogError("Scene '" + name + "'ã¯ç™»éŒ²ã•ã‚Œã¦ã„ã¾ã›ã‚“");
 		return;
 	}
 
 	m_LoadQueue.push(name);
-	LOG->LogInfo("Scene '" + name + "'‚Ì’Ç‰Áƒ[ƒh‚ª—v‹‚³‚ê‚Ü‚µ‚½");
+	LOG->LogInfo("Scene '" + name + "'ã®è¿½åŠ ãƒ­ãƒ¼ãƒ‰ãŒè¦æ±‚ã•ã‚Œã¾ã—ãŸ");
 }
 
 void SceneManager::UnloadScene(const std::string& name)
 {
-	// ”ñ“¯Šúˆ—‚ğƒƒbƒN
+	// éåŒæœŸå‡¦ç†ã‚’ãƒ­ãƒƒã‚¯
 	std::unique_lock<std::mutex> lock(m_SceneMutex);
 	if(m_Scenes.find(name) == m_Scenes.end())
 	{
-		LOG->LogError("Scene '" + name + "'‚Í“o˜^‚³‚ê‚Ä‚¢‚Ü‚¹‚ñ");
+		LOG->LogError("Scene '" + name + "'ã¯ç™»éŒ²ã•ã‚Œã¦ã„ã¾ã›ã‚“");
 		return;
 	}
 	m_UnloadQueue.push(name);
-	LOG->LogInfo("Scene '" + name + "'‚ÌƒAƒ“ƒ[ƒh‚ª—v‹‚³‚ê‚Ü‚µ‚½");
+	LOG->LogInfo("Scene '" + name + "'ã®ã‚¢ãƒ³ãƒ­ãƒ¼ãƒ‰ãŒè¦æ±‚ã•ã‚Œã¾ã—ãŸ");
 }
 
 Scene* SceneManager::GetScene(const std::string& name) const
 {
-	// ”ñ“¯Šúˆ—‚ğƒƒbƒN
+	// éåŒæœŸå‡¦ç†ã‚’ãƒ­ãƒƒã‚¯
 	std::unique_lock<std::mutex> lock(m_SceneMutex);
 	auto it = m_Scenes.find(name);
 	if (it != m_Scenes.end())
@@ -103,29 +103,29 @@ Scene* SceneManager::GetScene(const std::string& name) const
 
 Scene* SceneManager::GetActiveScene() const
 {
-	// ”ñ“¯Šúˆ—‚ğƒƒbƒN
+	// éåŒæœŸå‡¦ç†ã‚’ãƒ­ãƒƒã‚¯
 	std::unique_lock<std::mutex> lock(m_SceneMutex);
 	return m_ActiveScene;
 }
 
 void SceneManager::Update(float deltatime)
 {
-	// AsyncLoader ‚ğˆê“x‚¾‚¯‰Šú‰»idevice‚ª—pˆÓ‚Å‚«‚Ä‚©‚çj
+	// AsyncLoader ã‚’ä¸€åº¦ã ã‘åˆæœŸåŒ–ï¼ˆdeviceãŒç”¨æ„ã§ãã¦ã‹ã‚‰ï¼‰
 	if (!AsyncLoader::Get().IsReady())
 	{
 		AsyncLoader::Get().Init(&m_ThreadPool, APP->GetDevice());
 	}
 
-	// Š®—¹‚µ‚½”ñ“¯Šúƒ[ƒh‚ğƒƒCƒ“ƒXƒŒƒbƒh‚Å”½‰f
+	// å®Œäº†ã—ãŸéåŒæœŸãƒ­ãƒ¼ãƒ‰ã‚’ãƒ¡ã‚¤ãƒ³ã‚¹ãƒ¬ãƒƒãƒ‰ã§åæ˜ 
 	AsyncLoader::Get().ProcessCompletedTasks();
 
-	// ƒV[ƒ“ƒ[ƒh / ƒAƒ“ƒ[ƒhˆ—
+	// ã‚·ãƒ¼ãƒ³ãƒ­ãƒ¼ãƒ‰ / ã‚¢ãƒ³ãƒ­ãƒ¼ãƒ‰å‡¦ç†
 	ProcessSceneQueue();
 
-	// ƒtƒF[ƒhˆ—
+	// ãƒ•ã‚§ãƒ¼ãƒ‰å‡¦ç†
 	UpdateFade(deltatime);
 
-	// ƒ[ƒhÏ‚İƒV[ƒ“‚ÌXV
+	// ãƒ­ãƒ¼ãƒ‰æ¸ˆã¿ã‚·ãƒ¼ãƒ³ã®æ›´æ–°
 	UpdateLoadedScenes(deltatime);
 }
 
@@ -153,7 +153,7 @@ void SceneManager::RequestSceneChangeWithString(const std::string& name)
 
 void SceneManager::ProcessSceneQueue()
 {
-	// ƒAƒ“ƒ[ƒhˆ—
+	// ã‚¢ãƒ³ãƒ­ãƒ¼ãƒ‰å‡¦ç†
 	while (!m_UnloadQueue.empty())
 	{
 		std::string sceneName = m_UnloadQueue.front();
@@ -166,7 +166,7 @@ void SceneManager::ProcessSceneQueue()
 			scene->OnUnload();
 			scene->SetState(SceneState::Unloaded);
 
-			// ƒ[ƒhÏ‚İƒŠƒXƒg‚©‚çíœ
+			// ãƒ­ãƒ¼ãƒ‰æ¸ˆã¿ãƒªã‚¹ãƒˆã‹ã‚‰å‰Šé™¤
 			auto it = std::find(m_LoadedScenes.begin(), m_LoadedScenes.end(), scene);
 			if (it != m_LoadedScenes.end())
 			{
@@ -178,11 +178,11 @@ void SceneManager::ProcessSceneQueue()
 				m_ActiveScene = nullptr;
 			}
 
-			LOG->LogInfo("Scene '" + sceneName + "'‚ªƒAƒ“ƒ[ƒh‚³‚ê‚Ü‚µ‚½");
+			LOG->LogInfo("Scene '" + sceneName + "'ãŒã‚¢ãƒ³ãƒ­ãƒ¼ãƒ‰ã•ã‚Œã¾ã—ãŸ");
 		}
 	}
 
-	// ƒ[ƒhˆ—
+	// ãƒ­ãƒ¼ãƒ‰å‡¦ç†
 	while (!m_LoadQueue.empty())
 	{
 		std::string sceneName = m_LoadQueue.front();
@@ -200,7 +200,7 @@ void SceneManager::ProcessSceneQueue()
 				scene->SetState(SceneState::Active);
 				m_LoadedScenes.push_back(scene);
 				SetActiveScene(sceneName);
-				LOG->LogInfo("Scene '" + sceneName + "'‚ªƒ[ƒh‚³‚ê‚Ü‚µ‚½");
+				LOG->LogInfo("Scene '" + sceneName + "'ãŒãƒ­ãƒ¼ãƒ‰ã•ã‚Œã¾ã—ãŸ");
 			}
 
 			if (m_SceneChangeRequested && sceneName == m_NextSceneName)
@@ -210,13 +210,13 @@ void SceneManager::ProcessSceneQueue()
 			}
 			else if (!m_SceneChangeRequested)
 			{
-				// Additiveƒ[ƒh‚Ìê‡‚ÍƒAƒNƒeƒBƒuƒV[ƒ“‚ğ•ÏX‚µ‚È‚¢
+				// Additiveãƒ­ãƒ¼ãƒ‰ã®å ´åˆã¯ã‚¢ã‚¯ãƒ†ã‚£ãƒ–ã‚·ãƒ¼ãƒ³ã‚’å¤‰æ›´ã—ãªã„
 				if (std::find(m_LoadedScenes.begin(), m_LoadedScenes.end(), scene) == m_LoadedScenes.end())
 				{
 					m_LoadedScenes.push_back(scene);
 					scene->SetState(SceneState::Active);
 					scene->OnStart();
-					LOG->LogInfo("Scene '" + sceneName + "'‚ª’Ç‰Áƒ[ƒh‚³‚ê‚Ü‚µ‚½");
+					LOG->LogInfo("Scene '" + sceneName + "'ãŒè¿½åŠ ãƒ­ãƒ¼ãƒ‰ã•ã‚Œã¾ã—ãŸ");
 				}
 			}
 		}
@@ -237,15 +237,15 @@ void SceneManager::SetActiveScene(const std::string& name)
 
 	if (scene)
 	{
-		// Œ»İ‚ÌƒAƒNƒeƒBƒuƒV[ƒ“‚ğˆê’â~
+		// ç¾åœ¨ã®ã‚¢ã‚¯ãƒ†ã‚£ãƒ–ã‚·ãƒ¼ãƒ³ã‚’ä¸€æ™‚åœæ­¢
 		if (m_ActiveScene && m_ActiveScene != scene)
 		{
 			m_ActiveScene->SetState(SceneState::Paused);
 			m_ActiveScene->OnPause();
-			LOG->LogInfo("Scene '" + m_ActiveScene->GetSceneName() + "'‚ªˆê’â~‚³‚ê‚Ü‚µ‚½");
+			LOG->LogInfo("Scene '" + m_ActiveScene->GetSceneName() + "'ãŒä¸€æ™‚åœæ­¢ã•ã‚Œã¾ã—ãŸ");
 		}
 
-		// V‚µ‚¢ƒV[ƒ“‚ğƒAƒNƒeƒBƒu‚É‚·‚é
+		// æ–°ã—ã„ã‚·ãƒ¼ãƒ³ã‚’ã‚¢ã‚¯ãƒ†ã‚£ãƒ–ã«ã™ã‚‹
 		if(std::find(m_LoadedScenes.begin(),m_LoadedScenes.end(),scene) == m_LoadedScenes.end())
 		{
 			m_LoadedScenes.push_back(scene);
@@ -256,7 +256,7 @@ void SceneManager::SetActiveScene(const std::string& name)
 		m_ActiveScene->OnStart();
 		m_ActiveScene->EnsurePhysicsWorld();
 
-		LOG->LogInfo("Scene '" + name + "'‚ªƒAƒNƒeƒBƒu‚É‚È‚è‚Ü‚µ‚½");
+		LOG->LogInfo("Scene '" + name + "'ãŒã‚¢ã‚¯ãƒ†ã‚£ãƒ–ã«ãªã‚Šã¾ã—ãŸ");
 	}
 }
 
@@ -341,10 +341,10 @@ void SceneManager::UpdateFade(float deltatime)
 		{
 			m_FadeAlpha = 1.0f;
 
-			// ^‚Á•‚ÌuŠÔ‚ÉÀˆ—i‚Ç‚¿‚ç‚Ì‘JˆÚ‚©‚Å•ªŠòj
+			// çœŸã£é»’ã®ç¬é–“ã«å®Ÿå‡¦ç†ï¼ˆã©ã¡ã‚‰ã®é·ç§»ã‹ã§åˆ†å²ï¼‰
 			if (!m_PendingScenePath.empty())
 			{
-				// •û®A: ƒAƒNƒeƒBƒuƒV[ƒ“‚Éƒtƒ@ƒCƒ‹‚©‚çã‘‚«ƒ[ƒh
+				// æ–¹å¼A: ã‚¢ã‚¯ãƒ†ã‚£ãƒ–ã‚·ãƒ¼ãƒ³ã«ãƒ•ã‚¡ã‚¤ãƒ«ã‹ã‚‰ä¸Šæ›¸ããƒ­ãƒ¼ãƒ‰
 				if (m_ActiveScene)
 				{
 					APP->WaitForGPUIdle();
@@ -354,7 +354,7 @@ void SceneManager::UpdateFade(float deltatime)
 			}
 			else if (!m_PendingSceneName.empty())
 			{
-				// –¼‘Ow’è‚ÌØ‚è‘Ö‚¦
+				// åå‰æŒ‡å®šã®åˆ‡ã‚Šæ›¿ãˆ
 				LoadScene(m_PendingSceneName);
 				m_PendingSceneName.clear();
 			}

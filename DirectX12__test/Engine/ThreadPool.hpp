@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include "../Defines.hpp"
 #include <thread>
@@ -30,10 +30,10 @@ public:
 		return res;
 	}
 
-	/// @brief ‘S‚Ä‚Ìƒ^ƒXƒNŠ®—¹‚ğ‘Ò‹@
+	/// @brief å…¨ã¦ã®ã‚¿ã‚¹ã‚¯å®Œäº†ã‚’å¾…æ©Ÿ
 	void WaitAll();
 
-	/// @brief ƒXƒŒƒbƒhƒv[ƒ‹’â~
+	/// @brief ã‚¹ãƒ¬ãƒƒãƒ‰ãƒ—ãƒ¼ãƒ«åœæ­¢
 	void ShutDown();
 
 private:

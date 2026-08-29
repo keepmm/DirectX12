@@ -1,4 +1,4 @@
-#include "IconLibrary.hpp"
+ï»¿#include "IconLibrary.hpp"
 #include "DirectX.hpp"
 #include "d3dx12.h"
 #include <DirectXTex.h>
@@ -10,7 +10,7 @@
 
 ImTextureID IconLibrary::GetOrLoad(const std::wstring& path)
 {
-	// ƒLƒƒƒbƒVƒ…‚É‚ ‚ê‚Î‘¦•Ô‚·i¸”sƒLƒƒƒbƒVƒ…=0 ‚àŠÜ‚Şj
+	// ã‚­ãƒ£ãƒƒã‚·ãƒ¥ã«ã‚ã‚Œã°å³è¿”ã™ï¼ˆå¤±æ•—ã‚­ãƒ£ãƒƒã‚·ãƒ¥=0 ã‚‚å«ã‚€ï¼‰
 	auto it = m_Cache.find(path);
 	if (it != m_Cache.end())
 	{
@@ -36,7 +36,7 @@ bool IconLibrary::LoadTexture(const std::wstring& path, ImTextureID& outId)
 		return false;
 	}
 
-	// ‘Š‘ÎƒpƒX‚ÍexeŠî€‚Å‰ğŒˆiMaterial‚Æ“¯‚¶j
+	// ç›¸å¯¾ãƒ‘ã‚¹ã¯exeåŸºæº–ã§è§£æ±ºï¼ˆMaterialã¨åŒã˜ï¼‰
 	std::filesystem::path resolved = path;
 	if (resolved.is_relative())
 	{
@@ -51,7 +51,7 @@ bool IconLibrary::LoadTexture(const std::wstring& path, ImTextureID& outId)
 		return false;
 	}
 
-	// ---- WIC‚Åuk¬‚µ‚È‚ª‚çvƒfƒR[ƒhi4K‚ğ•Û‚µ‚È‚¢j---- //
+	// ---- WICã§ã€Œç¸®å°ã—ãªãŒã‚‰ã€ãƒ‡ã‚³ãƒ¼ãƒ‰ï¼ˆ4Kã‚’ä¿æŒã—ãªã„ï¼‰---- //
 	using Microsoft::WRL::ComPtr;
 	constexpr UINT kThumb = 128;
 
@@ -84,7 +84,7 @@ bool IconLibrary::LoadTexture(const std::wstring& path, ImTextureID& outId)
 		return false;
 	}
 
-	// ƒAƒXƒyƒNƒg”äˆÛ‚ÅÅ‘å•ÓkThumbiŒ³‚ª¬‚³‚¯‚ê‚Î“™”{j
+	// ã‚¢ã‚¹ãƒšã‚¯ãƒˆæ¯”ç¶­æŒã§æœ€å¤§è¾ºkThumbï¼ˆå…ƒãŒå°ã•ã‘ã‚Œã°ç­‰å€ï¼‰
 	UINT tw = ow, th = oh;
 	if (ow > kThumb || oh > kThumb)
 	{
@@ -92,7 +92,7 @@ bool IconLibrary::LoadTexture(const std::wstring& path, ImTextureID& outId)
 		else { tw = std::max<UINT>(1, ow * kThumb / oh); th = kThumb; }
 	}
 
-	// k¬
+	// ç¸®å°
 	ComPtr<IWICBitmapScaler> scaler;
 	if (FAILED(wic->CreateBitmapScaler(scaler.GetAddressOf())))
 	{
@@ -103,7 +103,7 @@ bool IconLibrary::LoadTexture(const std::wstring& path, ImTextureID& outId)
 		return false;
 	}
 
-	// RGBA8‚Ö•ÏŠ·
+	// RGBA8ã¸å¤‰æ›
 	ComPtr<IWICFormatConverter> conv;
 	if (FAILED(wic->CreateFormatConverter(conv.GetAddressOf())))
 	{
@@ -115,7 +115,7 @@ bool IconLibrary::LoadTexture(const std::wstring& path, ImTextureID& outId)
 		return false;
 	}
 
-	// ƒsƒNƒZƒ‹æ“¾i¬ƒTƒCƒYRGBAj
+	// ãƒ”ã‚¯ã‚»ãƒ«å–å¾—ï¼ˆå°ã‚µã‚¤ã‚ºRGBAï¼‰
 	const UINT rowPitch = tw * 4;
 	std::vector<std::uint8_t> pixels(static_cast<size_t>(rowPitch) * th);
 	if (FAILED(conv->CopyPixels(nullptr, rowPitch,
@@ -124,13 +124,13 @@ bool IconLibrary::LoadTexture(const std::wstring& path, ImTextureID& outId)
 		return false;
 	}
 
-	// ˆÈ~‚Åg‚¤ƒƒ^î•ñik¬Œãj
+	// ä»¥é™ã§ä½¿ã†ãƒ¡ã‚¿æƒ…å ±ï¼ˆç¸®å°å¾Œï¼‰
 	DirectX::TexMetadata metadata{};
 	metadata.width = tw;
 	metadata.height = th;
 	metadata.format = DXGI_FORMAT_R8G8B8A8_UNORM;
 
-	// ---- ƒeƒNƒXƒ`ƒƒ–{‘ÌiDEFAULTƒq[ƒvj---- //
+	// ---- ãƒ†ã‚¯ã‚¹ãƒãƒ£æœ¬ä½“ï¼ˆDEFAULTãƒ’ãƒ¼ãƒ—ï¼‰---- //
 	const CD3DX12_RESOURCE_DESC texDesc = CD3DX12_RESOURCE_DESC::Tex2D(
 		metadata.format,
 		static_cast<UINT64>(metadata.width),
@@ -147,7 +147,7 @@ bool IconLibrary::LoadTexture(const std::wstring& path, ImTextureID& outId)
 		return false;
 	}
 
-	// ---- ƒAƒbƒvƒ[ƒhƒoƒbƒtƒ@ ---- //
+	// ---- ã‚¢ãƒƒãƒ—ãƒ­ãƒ¼ãƒ‰ãƒãƒƒãƒ•ã‚¡ ---- //
 	D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint = {};
 	UINT numRows = 0;
 	UINT64 rowSizeInBytes = 0, uploadSize = 0;
@@ -165,7 +165,7 @@ bool IconLibrary::LoadTexture(const std::wstring& path, ImTextureID& outId)
 		return false;
 	}
 
-	// ƒsƒNƒZƒ‹ƒRƒs[ik¬Œãƒoƒbƒtƒ@‚©‚çj
+	// ãƒ”ã‚¯ã‚»ãƒ«ã‚³ãƒ”ãƒ¼ï¼ˆç¸®å°å¾Œãƒãƒƒãƒ•ã‚¡ã‹ã‚‰ï¼‰
 	void* mapped = nullptr;
 	CD3DX12_RANGE readRange(0, 0);
 	if (FAILED(upload->Map(0, &readRange, &mapped)))
@@ -182,7 +182,7 @@ bool IconLibrary::LoadTexture(const std::wstring& path, ImTextureID& outId)
 	}
 	upload->Unmap(0, nullptr);
 
-	// ---- ê—p‚ÌƒRƒ}ƒ“ƒhƒŠƒXƒg‚Å‘¦ƒAƒbƒvƒ[ƒh ---- //
+	// ---- å°‚ç”¨ã®ã‚³ãƒãƒ³ãƒ‰ãƒªã‚¹ãƒˆã§å³ã‚¢ãƒƒãƒ—ãƒ­ãƒ¼ãƒ‰ ---- //
 	ComPtr<ID3D12CommandAllocator> cmdAlloc;
 	ComPtr<ID3D12GraphicsCommandList> cmdList;
 	if (FAILED(device->CreateCommandAllocator(
@@ -220,14 +220,14 @@ bool IconLibrary::LoadTexture(const std::wstring& path, ImTextureID& outId)
 	ID3D12CommandList* lists[] = { cmdList.Get() };
 	APP->GetCommandQueue()->ExecuteCommandLists(1, lists);
 
-	// ƒAƒbƒvƒ[ƒhŠ®—¹‘Ò‚¿iƒGƒfƒBƒ^—p‚É1‰ñ‚«‚èƒ[ƒh‚È‚Ì‚Å“¯Šú‚Å‚æ‚¢j
+	// ã‚¢ãƒƒãƒ—ãƒ­ãƒ¼ãƒ‰å®Œäº†å¾…ã¡ï¼ˆã‚¨ãƒ‡ã‚£ã‚¿ç”¨ã«1å›ãã‚Šãƒ­ãƒ¼ãƒ‰ãªã®ã§åŒæœŸã§ã‚ˆã„ï¼‰
 	APP->WaitForGPUIdle();
 
-	// ---- ƒOƒ[ƒoƒ‹SRVƒq[ƒv‚ÉSRVì¬ ---- //
+	// ---- ã‚°ãƒ­ãƒ¼ãƒãƒ«SRVãƒ’ãƒ¼ãƒ—ã«SRVä½œæˆ ---- //
 	UINT srvIndex = 0;
 	if (!APP->GetSrvAllocator().Allocate(srvIndex))
 	{
-		LOG->LogError("IconLibrary: SRVƒq[ƒv‚ªŒÍŠ‰‚Å‚·");
+		LOG->LogError("IconLibrary: SRVãƒ’ãƒ¼ãƒ—ãŒæ¯æ¸‡ã§ã™");
 		return false;
 	}
 

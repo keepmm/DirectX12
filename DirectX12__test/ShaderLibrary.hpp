@@ -1,11 +1,11 @@
-/*****************************************************************//**
+ï»¿/*****************************************************************//**
  * \file   ShaderLibrary.hpp
- * \brief  ShaderƒLƒƒƒbƒVƒ…ŠÇ—
+ * \brief  Shaderã‚­ãƒ£ãƒƒã‚·ãƒ¥ç®¡ç†
  * 
- * ì¬Ò keeep
- * ì¬“ú 2026/5/8
- * XV—š—ğ	5.8 ì¬
- *			5.8 ƒzƒbƒgƒŠƒ[ƒh‘Î‰
+ * ä½œæˆè€… keeep
+ * ä½œæˆæ—¥ 2026/5/8
+ * æ›´æ–°å±¥æ­´	5.8 ä½œæˆ
+ *			5.8 ãƒ›ãƒƒãƒˆãƒªãƒ­ãƒ¼ãƒ‰å¯¾å¿œ
  * *********************************************************************/
 #pragma once
 
@@ -19,9 +19,9 @@ struct ShaderKey
 	std::string profile;
 	UINT compileFlags = 0;
 
-	/// @brief ShaderKey‚Ì”äŠr‰‰Zq
-	/// @param other ”äŠr‘ÎÛ‚ÌShaderKey
-	/// @return ‚·‚×‚Ä‚Ìƒƒ“ƒo‚ª“™‚µ‚¢ê‡‚ÍtrueA‚»‚êˆÈŠO‚Ífalse
+	/// @brief ShaderKeyã®æ¯”è¼ƒæ¼”ç®—å­
+	/// @param other æ¯”è¼ƒå¯¾è±¡ã®ShaderKey
+	/// @return ã™ã¹ã¦ã®ãƒ¡ãƒ³ãƒãŒç­‰ã—ã„å ´åˆã¯trueã€ãã‚Œä»¥å¤–ã¯false
 	bool operator==(const ShaderKey& other) const
 	{
 		return filePath == other.filePath &&

@@ -1,11 +1,11 @@
-/*****************************************************************//**
+ï»¿/*****************************************************************//**
  * \file   SceneManager.hpp
- * \brief  ƒV[ƒ“‚ğŠÇ—‚·‚éƒNƒ‰ƒX
+ * \brief  ã‚·ãƒ¼ãƒ³ã‚’ç®¡ç†ã™ã‚‹ã‚¯ãƒ©ã‚¹
  * 
- * ì¬Ò keeeeep
- * ì¬“ú 2026/5/22
- * XV—š—ğ	5.10 ì¬
- *			5.22 ƒŠƒtƒ@ƒNƒ^ƒŠƒ“ƒO
+ * ä½œæˆè€… keeeeep
+ * ä½œæˆæ—¥ 2026/5/22
+ * æ›´æ–°å±¥æ­´	5.10 ä½œæˆ
+ *			5.22 ãƒªãƒ•ã‚¡ã‚¯ã‚¿ãƒªãƒ³ã‚°
  * *********************************************************************/
 #pragma once
 
@@ -45,43 +45,43 @@ public:
 
 	bool RegisterScene(_In_ const std::string& name);
 
-	/// @brief ƒV[ƒ“‚Ì“o˜^
+	/// @brief ã‚·ãƒ¼ãƒ³ã®ç™»éŒ²
 	void RegisterScene(_In_ const std::string& name, _In_ std::unique_ptr<Scene> scene);
 
-	/// @brief ƒV[ƒ“’Ç‰Áƒ[ƒh
-	/// @param name ’Ç‰Áƒ[ƒh‚·‚éƒV[ƒ“‚Ì–¼‘O
+	/// @brief ã‚·ãƒ¼ãƒ³è¿½åŠ ãƒ­ãƒ¼ãƒ‰
+	/// @param name è¿½åŠ ãƒ­ãƒ¼ãƒ‰ã™ã‚‹ã‚·ãƒ¼ãƒ³ã®åå‰
 	void LoadScene(_In_ const std::string& name);
 
 	/// @brief 
 	/// @param name 
 	void LoadSceneAdditive(_In_ const std::string& name);
 
-	/// @brief w’èƒV[ƒ“‚ğƒAƒ“ƒ[ƒh
+	/// @brief æŒ‡å®šã‚·ãƒ¼ãƒ³ã‚’ã‚¢ãƒ³ãƒ­ãƒ¼ãƒ‰
 	/// @param name 
 	void UnloadScene(_In_ const std::string& name);
 
-	/// @brief w’è–¼‚ÌƒV[ƒ“‚ğæ“¾
-	/// @param name æ“¾‚·‚éƒV[ƒ“–¼
-	/// @return w’è‚³‚ê‚½ƒV[ƒ“‚Ìƒ|ƒCƒ“ƒ^
+	/// @brief æŒ‡å®šåã®ã‚·ãƒ¼ãƒ³ã‚’å–å¾—
+	/// @param name å–å¾—ã™ã‚‹ã‚·ãƒ¼ãƒ³å
+	/// @return æŒ‡å®šã•ã‚ŒãŸã‚·ãƒ¼ãƒ³ã®ãƒã‚¤ãƒ³ã‚¿
 	Scene* GetScene(_In_ const std::string& name)const;
 
-	/// @brief ƒAƒNƒeƒBƒu‚ÈƒV[ƒ“‚ğæ“¾
-	/// @return ƒAƒNƒeƒBƒu‚ÈƒV[ƒ“‚Ìƒ|ƒCƒ“ƒ^
+	/// @brief ã‚¢ã‚¯ãƒ†ã‚£ãƒ–ãªã‚·ãƒ¼ãƒ³ã‚’å–å¾—
+	/// @return ã‚¢ã‚¯ãƒ†ã‚£ãƒ–ãªã‚·ãƒ¼ãƒ³ã®ãƒã‚¤ãƒ³ã‚¿
 	Scene* GetActiveScene() const;
 
-	/// @brief ƒV[ƒ“‚ÌXVˆ—
+	/// @brief ã‚·ãƒ¼ãƒ³ã®æ›´æ–°å‡¦ç†
 	void Update(_In_ float deltatime);
 	void FixedUpdate(_In_ float fixedDeltatime);
 	void LateUpdate(_In_ float deltatime);
 	void UpdateFade(_In_ float deltatime);
 
-	/// @brief ƒV[ƒ“‚Ì•`‰æˆ—
+	/// @brief ã‚·ãƒ¼ãƒ³ã®æç”»å‡¦ç†
 	void Draw(_In_ const RenderContext& renderContext);
 
-	/// @brief ThreadPool‚Ìæ“¾
+	/// @brief ThreadPoolã®å–å¾—
 	ThreadPool& GetThreadPool() { return m_ThreadPool; }
 
-	/// @brief ƒtƒF[ƒhƒCƒ“ƒAƒEƒg—p‚ÌƒV[ƒ“Ø‚è‘Ö‚¦—v‹
+	/// @brief ãƒ•ã‚§ãƒ¼ãƒ‰ã‚¤ãƒ³ã‚¢ã‚¦ãƒˆç”¨ã®ã‚·ãƒ¼ãƒ³åˆ‡ã‚Šæ›¿ãˆè¦æ±‚
 	void RequestSceneChangeWithFade(const std::string& name);
 
 	void RequestSceneChangeWithString(const std::string& name);
@@ -95,7 +95,7 @@ private:
 		bool isPending = false;
 	};
 	std::unordered_map<std::string,SceneEntry> m_Scenes;
-	std::vector<Scene*> m_LoadedScenes; // •¡”ƒV[ƒ“‚ªƒAƒNƒeƒBƒu‚Èê‡‚É”õ‚¦‚Ävector‚ÅŠÇ—
+	std::vector<Scene*> m_LoadedScenes; // è¤‡æ•°ã‚·ãƒ¼ãƒ³ãŒã‚¢ã‚¯ãƒ†ã‚£ãƒ–ãªå ´åˆã«å‚™ãˆã¦vectorã§ç®¡ç†
 	Scene* m_ActiveScene = nullptr;
 	std::string m_NextSceneName;
 	bool m_SceneChangeRequested = false;
@@ -107,17 +107,17 @@ private:
 	mutable std::mutex m_SceneMutex;
 	ThreadPool m_ThreadPool;
 
-	/// @brief ƒV[ƒ“ƒR[ƒ‹ƒoƒbƒNİ’è
+	/// @brief ã‚·ãƒ¼ãƒ³ã‚³ãƒ¼ãƒ«ãƒãƒƒã‚¯è¨­å®š
 	void ProcessSceneQueue();
 	void SetActiveScene(_In_ const std::string& name);
 	void UpdateLoadedScenes(_In_ float deltatime);
 	void DrawLoadedScenes(_In_ const RenderContext& renderContext);
 	Scene* FindLoadedScene(_In_ const std::string& name) const;
 
-	// ‘JˆÚ‰‰o
+	// é·ç§»æ¼”å‡º
 	TransitionPhase m_Transition;
-	float m_FadeAlpha = 0.0f;	//0 “§–¾ : 1 ^‚Á•
-	float m_FadeSpeed = 2.0f;	//1•b‚Å 0 -> 1‚É‚È‚é 2.0‚È‚ç0.5•b
+	float m_FadeAlpha = 0.0f;	//0 é€æ˜ : 1 çœŸã£é»’
+	float m_FadeSpeed = 2.0f;	//1ç§’ã§ 0 -> 1ã«ãªã‚‹ 2.0ãªã‚‰0.5ç§’
 	std::string m_PendingSceneName;
 	std::string m_PendingScenePath;
 };

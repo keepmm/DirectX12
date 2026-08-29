@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include "Defines.hpp"
 #include "BeamRenderer.hpp"
@@ -13,15 +13,15 @@ class FireworkSystem
 public:
 	enum class Shape : uint8_t
 	{
-		Peony,      // ‰²’O(‹…)
-		Willow,     // –ö(‚‚ê‚é+ƒgƒŒƒCƒ‹)
-		Ring,       // —Ö
-		Heart,      // ƒn[ƒg
-		Senrin,     // ç—Ö(“ñ’i”š”­)
-		Text,       // •¶š‰Ô‰Î
+		Peony,      // ç‰¡ä¸¹(çƒ)
+		Willow,     // æŸ³(å‚ã‚Œã‚‹+ãƒˆãƒ¬ã‚¤ãƒ«)
+		Ring,       // è¼ª
+		Heart,      // ãƒãƒ¼ãƒˆ
+		Senrin,     // åƒè¼ª(äºŒæ®µçˆ†ç™º)
+		Text,       // æ–‡å­—èŠ±ç«
 	};
 
-	// Œø‰Ê‰¹ƒtƒbƒN: (ˆÊ’u, 0=‘Å‚¿ã‚° 1=ày—ô)
+	// åŠ¹æœéŸ³ãƒ•ãƒƒã‚¯: (ä½ç½®, 0=æ‰“ã¡ä¸Šã’ 1=ç‚¸è£‚)
 	using SoundCallback = std::function<void(const float3&, int)>;
 
 	void Init(unsigned seed = 12345u) { m_Rng.seed(seed); }
@@ -41,14 +41,14 @@ public:
 		s.fuse = Rand(1.4f, 1.8f);
 		s.text = text;
 		m_Shells.push_back(s);
-		if (m_OnSound) m_OnSound(groundPos, 0);   // ƒqƒ…[
+		if (m_OnSound) m_OnSound(groundPos, 0);   // ãƒ’ãƒ¥ãƒ¼
 	}
 
 	void Update(float dt)
 	{
 		constexpr float kGravity = 9.8f;
 
-		// --- ‘Å‚¿ã‚°‹Ê ---
+		// --- æ‰“ã¡ä¸Šã’ç‰ ---
 		for (auto& s : m_Shells)
 		{
 			s.velocity.y -= kGravity * dt;
@@ -65,12 +65,12 @@ public:
 		m_Shells.erase(std::remove_if(m_Shells.begin(), m_Shells.end(),
 			[](const Shell& s) { return s.fuse <= 0.0f; }), m_Shells.end());
 
-		// --- ¯ ---
+		// --- æ˜Ÿ ---
 		m_TrailTimer += dt;
 		const bool recordTrail = (m_TrailTimer >= kTrailInterval);
 		if (recordTrail) m_TrailTimer = 0.0f;
 
-		std::vector<Particle> spawned;   // ç—Ö‚Ìq(ƒ‹[ƒv’†‚Ìpush_back‰ñ”ğ)
+		std::vector<Particle> spawned;   // åƒè¼ªã®å­(ãƒ«ãƒ¼ãƒ—ä¸­ã®push_backå›é¿)
 		for (auto& p : m_Particles)
 		{
 			p.velocity.y -= kGravity * dt * p.gravityScale;
@@ -79,7 +79,7 @@ public:
 			p.life -= dt;
 			if (p.willow) p.gravityScale = 1.0f;
 
-			// ƒgƒŒƒCƒ‹: ˆê’èŠÔŠu‚Å‰ß‹ˆÊ’u‚ğ‹L˜^(ƒŠƒ“ƒOƒoƒbƒtƒ@)
+			// ãƒˆãƒ¬ã‚¤ãƒ«: ä¸€å®šé–“éš”ã§éå»ä½ç½®ã‚’è¨˜éŒ²(ãƒªãƒ³ã‚°ãƒãƒƒãƒ•ã‚¡)
 			if (recordTrail)
 			{
 				p.trail[p.trailHead] = p.pos;
@@ -87,7 +87,7 @@ public:
 				if (p.trailCount < kTrailLen) p.trailCount++;
 			}
 
-			// ç—Ö: õ–½‚ªs‚«‚½uŠÔ‚É¬”š”­
+			// åƒè¼ª: å¯¿å‘½ãŒå°½ããŸç¬é–“ã«å°çˆ†ç™º
 			if (p.subShell && p.life <= 0.0f)
 			{
 				for (int i = 0; i < 12; ++i)
@@ -97,7 +97,7 @@ public:
 					const float r = sqrtf(1.0f - u * u);
 					float3 dir{ r * std::cos(th), u, r * std::sin(th) };
 					spawned.push_back(MakeParticle(p.pos, dir * 3.5f,
-						float3{ 1.0f,1.0f,1.0f }, p.color1,   // ”’‘MŒõ¨e‚ÌF
+						float3{ 1.0f,1.0f,1.0f }, p.color1,   // ç™½é–ƒå…‰â†’è¦ªã®è‰²
 						Rand(0.4f, 0.7f), 0.13f, 2.5f, false, false));
 				}
 				if (m_OnSound) m_OnSound(p.pos, 1);
@@ -117,26 +117,26 @@ public:
 	{
 		for (const auto& p : m_Particles)
 		{
-			const float t = p.life / p.maxLife;                    // 1¨0
+			const float t = p.life / p.maxLife;                    // 1â†’0
 			const float flicker = 0.65f + 0.35f * std::sin(p.life * 40.0f + p.seed);
 			const float a = std::sqrt(std::max(t * flicker, 0.0f));
 
-			// F‚ÌŠÔ•Ï‰»: ’a¶’¼Œã‚Í”’‘MŒõ(color0)¨–{—ˆ‚ÌF(color1)
-			const float ct = 1.0f - t;                             // 0¨1
-			const float mix = std::min(ct * 4.0f, 1.0f);           // Å‰‚Ì25%‚Å‘JˆÚ
+			// è‰²ã®æ™‚é–“å¤‰åŒ–: èª•ç”Ÿç›´å¾Œã¯ç™½é–ƒå…‰(color0)â†’æœ¬æ¥ã®è‰²(color1)
+			const float ct = 1.0f - t;                             // 0â†’1
+			const float mix = std::min(ct * 4.0f, 1.0f);           // æœ€åˆã®25%ã§é·ç§»
 
-			// ƒ‰ƒ“ƒ_ƒ€‚ÈF
+			// ãƒ©ãƒ³ãƒ€ãƒ ãªè‰²
 			const float3 col{
 				p.color1.x * Rand(0.1f, 1.0f),
 				p.color1.y * Rand(0.1f, 1.0f),
 				p.color1.z* Rand(0.1f, 1.0f) };
 
 
-			// –{‘Ì: ’†S‚ª–¾‚é‚¢4–‡î(•úËƒOƒ‰ƒf) + ‘å‚«‚­”–‚¢ƒOƒ[‘w
+			// æœ¬ä½“: ä¸­å¿ƒãŒæ˜ã‚‹ã„4æšæ‰‡(æ”¾å°„ã‚°ãƒ©ãƒ‡) + å¤§ããè–„ã„ã‚°ãƒ­ãƒ¼å±¤
 			AddGlowQuad(beam, p.pos, camRight, camUp, p.size, col, a, 3.0f);
 			AddGlowQuad(beam, p.pos, camRight, camUp, p.size * 3.0f, col, a * 0.25f, 3.0f);
 
-			// ƒgƒŒƒCƒ‹(æ’[‚Ù‚Ç×‚­E”–‚­)
+			// ãƒˆãƒ¬ã‚¤ãƒ«(å…ˆç«¯ã»ã©ç´°ããƒ»è–„ã)
 			EmitTrail(beam, p, col, a, camRight, camUp);
 		}
 	}
@@ -145,20 +145,20 @@ public:
 
 private:
 	static constexpr int    kTrailLen = 6;
-	static constexpr float  kTrailInterval = 0.03f;   // ƒgƒŒƒCƒ‹‹L˜^ŠÔŠu(•b)
+	static constexpr float  kTrailInterval = 0.03f;   // ãƒˆãƒ¬ã‚¤ãƒ«è¨˜éŒ²é–“éš”(ç§’)
 	static constexpr size_t kMaxParticles = 1200;
 
 	struct Particle
 	{
 		float3 pos;
 		float3 velocity;
-		float3 color0;                 // ’a¶‚ÌF(”’‘MŒõ)
-		float3 color1;                 // –{—ˆ‚ÌF
+		float3 color0;                 // èª•ç”Ÿæ™‚ã®è‰²(ç™½é–ƒå…‰)
+		float3 color1;                 // æœ¬æ¥ã®è‰²
 		float life, maxLife;
 		float size, drag;
 		float gravityScale, seed;
 		bool  willow;
-		bool  subShell;                // ç—Ö‚Ìe
+		bool  subShell;                // åƒè¼ªã®è¦ª
 		float3 trail[kTrailLen]{};
 		int    trailHead = 0;
 		int    trailCount = 0;
@@ -172,7 +172,7 @@ private:
 		std::string text;
 	};
 
-	// ’†S’¸“_‚ª–¾‚é‚­Al‹÷‚ªƒ¿=0‚ÌîquadBLaserPS‚Ìpow(a,3)‚Å•úËƒOƒ[‚É‚È‚é
+	// ä¸­å¿ƒé ‚ç‚¹ãŒæ˜ã‚‹ãã€å››éš…ãŒÎ±=0ã®æ‰‡quadã€‚LaserPSã®pow(a,3)ã§æ”¾å°„ã‚°ãƒ­ãƒ¼ã«ãªã‚‹
 	void AddGlowQuad(
 		BeamRenderer& beam, const float3& c,
 		const float3& camRight, const float3& camUp,
@@ -180,8 +180,8 @@ private:
 	{
 		constexpr int kSegs = 8;
 		const float hs = size * 0.5f;
-		const float4 cc{ rgb.x * g, rgb.y * g, rgb.z * g, alpha };  // ’†S
-		const float4 ce{ rgb.x * g, rgb.y * g, rgb.z * g, 0.0f };   // ’[
+		const float4 cc{ rgb.x * g, rgb.y * g, rgb.z * g, alpha };  // ä¸­å¿ƒ
+		const float4 ce{ rgb.x * g, rgb.y * g, rgb.z * g, 0.0f };   // ç«¯
 
 		float3 ring[kSegs];
 		for (int i = 0; i < kSegs; ++i)
@@ -202,7 +202,7 @@ private:
 		(void)camUp;
 		const float g = 2.5f;
 
-		// V‚µ‚¢¨ŒÃ‚¢‡‚É’H‚èA×‚­E”–‚­‚µ‚Ä‚¢‚­
+		// æ–°ã—ã„â†’å¤ã„é †ã«è¾¿ã‚Šã€ç´°ããƒ»è–„ãã—ã¦ã„ã
 		float3 prev = p.pos;
 		for (int i = 0; i < p.trailCount; ++i)
 		{
@@ -248,7 +248,7 @@ private:
 
 	void Explode(const Shell& s)
 	{
-		if (m_OnSound) m_OnSound(s.pos, 1);   // ƒh[ƒ“
+		if (m_OnSound) m_OnSound(s.pos, 1);   // ãƒ‰ãƒ¼ãƒ³
 		const float3 white{ 1.0f, 1.0f, 1.0f };
 		switch (s.shape)
 		{
@@ -273,7 +273,7 @@ private:
 			float3 dir{ r * std::cos(th), u, r * std::sin(th) };
 			const float sp = speed * Rand(0.85f, 1.0f);
 			SpawnParticle(s.pos, dir * sp,
-				float3{ 1.0f,1.0f,1.0f }, s.color,        // ”’‘MŒõ¨F
+				float3{ 1.0f,1.0f,1.0f }, s.color,        // ç™½é–ƒå…‰â†’è‰²
 				life * Rand(1.0f, 1.5f), 0.10f, drag, willow, subShell);
 		}
 	}
@@ -305,7 +305,7 @@ private:
 		}
 	}
 
-	// UTF-8‚ÌŸ‚Ì1•¶š(ƒR[ƒhƒ|ƒCƒ“ƒg)‚ğæ‚èo‚·
+	// UTF-8ã®æ¬¡ã®1æ–‡å­—(ã‚³ãƒ¼ãƒ‰ãƒã‚¤ãƒ³ãƒˆ)ã‚’å–ã‚Šå‡ºã™
 	static uint32_t NextCodepoint(const std::string& s, size_t& i)
 	{
 		const unsigned char c = s[i];
@@ -325,7 +325,7 @@ private:
 	{
 		const std::string& txt = s.text.empty() ? "HI" : s.text;
 
-		// UTF-8‚ğƒR[ƒhƒ|ƒCƒ“ƒg—ñ‚É•ª‰ğ
+		// UTF-8ã‚’ã‚³ãƒ¼ãƒ‰ãƒã‚¤ãƒ³ãƒˆåˆ—ã«åˆ†è§£
 		std::vector<uint32_t> cps;
 		for (size_t i = 0; i < txt.size();)
 			cps.push_back(NextCodepoint(txt, i));
@@ -350,7 +350,7 @@ private:
 		}
 	}
 
-	// 5x7‚ÌŠÈˆÕƒOƒŠƒt(•K—v‚È•¶š‚¾‚¯’Ç‰Á‚µ‚Ä‚¢‚­)
+	// 5x7ã®ç°¡æ˜“ã‚°ãƒªãƒ•(å¿…è¦ãªæ–‡å­—ã ã‘è¿½åŠ ã—ã¦ã„ã)
 	static const uint8_t* Glyph5x7(uint32_t cp)
 	{
 		static const uint8_t H[7] = { 0b10001,0b10001,0b10001,0b11111,0b10001,0b10001,0b10001 };
@@ -366,7 +366,7 @@ private:
 			0b10000,
 			0b01000,
 			0b00100,
-			0b00010 };  // ‚­
+			0b00010 };  // ã
 		static const uint8_t DA[7] = {
 			0b01010,
 			0b11101,
@@ -375,9 +375,9 @@ private:
 			0b10000,
 			0b10000,
 			0b00011
-		};  // ‚¾
-		static const uint8_t SA[7] = { 0b00100,0b00110,0b11111,0b00010,0b01100,0b10000,0b01111 };  // ‚³
-		static const uint8_t IH[7] = { 0b10000,0b10010,0b10010,0b10010,0b10000,0b10001,0b01100 };  // ‚¢
+		};  // ã 
+		static const uint8_t SA[7] = { 0b00100,0b00110,0b11111,0b00010,0b01100,0b10000,0b01111 };  // ã•
+		static const uint8_t IH[7] = { 0b10000,0b10010,0b10010,0b10010,0b10000,0b10001,0b01100 };  // ã„
 
 		if (cp < 0x80)
 		{
@@ -390,10 +390,10 @@ private:
 		}
 		switch (cp)
 		{
-		case 0x304F: return KU;   // ‚­
-		case 0x3060: return DA;   // ‚¾
-		case 0x3055: return SA;   // ‚³
-		case 0x3044: return IH;   // ‚¢
+		case 0x304F: return KU;   // ã
+		case 0x3060: return DA;   // ã 
+		case 0x3055: return SA;   // ã•
+		case 0x3044: return IH;   // ã„
 		}
 		return nullptr;
 	}

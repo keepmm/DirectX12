@@ -1,10 +1,10 @@
-/*****************************************************************//**
+ï»¿/*****************************************************************//**
  * \file   Input.cpp
- * \brief  “ü—ÍŠÇ—ƒVƒXƒeƒ€‚ÌÀ‘•
+ * \brief  å…¥åŠ›ç®¡ç†ã‚·ã‚¹ãƒ†ãƒ ã®å®Ÿè£…
  * 
- * ì¬Ò keepmm
- * ì¬“ú 2026/2/26
- * XV—š—ğ 	2/26 ì¬
+ * ä½œæˆè€… keepmm
+ * ä½œæˆæ—¥ 2026/2/26
+ * æ›´æ–°å±¥æ­´ 	2/26 ä½œæˆ
  * *********************************************************************/
 #include "Input.hpp"
 #include <cstring>
@@ -92,7 +92,7 @@ void Input::Init(HWND hWnd)
 {
 	m_hWnd = hWnd;
 
-	// ƒ}ƒEƒXˆÊ’u‰Šú‰»
+	// ãƒã‚¦ã‚¹ä½ç½®åˆæœŸåŒ–
 	POINT pt;
 	GetCursorPos(&pt);
 	ScreenToClient(m_hWnd, &pt);
@@ -102,7 +102,7 @@ void Input::Init(HWND hWnd)
 
 void Input::Update()
 {
-	// ‘OƒtƒŒ[ƒ€‚Ìó‘Ô‚ğ•Û‘¶
+	// å‰ãƒ•ãƒ¬ãƒ¼ãƒ ã®çŠ¶æ…‹ã‚’ä¿å­˜
 	memcpy(m_PrevKeys, m_Keys, sizeof(m_Keys));
 	memcpy(m_PrevMouseButtons, m_MouseButtons, sizeof(m_MouseButtons));
 
@@ -111,7 +111,7 @@ void Input::Update()
 		m_Keys[i] = (GetAsyncKeyState(i) & 0x8000) != 0;
 	}
 
-	// ƒ}ƒEƒXƒ{ƒ^ƒ“ó‘Ôæ“¾
+	// ãƒã‚¦ã‚¹ãƒœã‚¿ãƒ³çŠ¶æ…‹å–å¾—
 	m_MouseButtons[0] = (GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0;
 	m_MouseButtons[1] = (GetAsyncKeyState(VK_RBUTTON) & 0x8000) != 0;
 	m_MouseButtons[2] = (GetAsyncKeyState(VK_MBUTTON) & 0x8000) != 0;
@@ -126,22 +126,22 @@ void Input::Update()
 
 	if (m_CursorLocked)
 	{
-		// ƒƒbƒN’†F’†S‚©‚ç‚ÌƒYƒŒƒ}ƒEƒXˆÚ“®—Ê
+		// ãƒ­ãƒƒã‚¯ä¸­ï¼šä¸­å¿ƒã‹ã‚‰ã®ã‚ºãƒ¬ï¼ãƒã‚¦ã‚¹ç§»å‹•é‡
 		m_MouseDeltaX = pt.x - center.x;
 		m_MouseDeltaY = pt.y - center.y;
 
-		// ƒJ[ƒ\ƒ‹‚ğ’†S‚Ö–ß‚·i‰æ–Êã‚ÍŒÅ’è“®‚©‚È‚¢j
+		// ã‚«ãƒ¼ã‚½ãƒ«ã‚’ä¸­å¿ƒã¸æˆ»ã™ï¼ˆç”»é¢ä¸Šã¯å›ºå®šï¼å‹•ã‹ãªã„ï¼‰
 		POINT sc = center;
 		ClientToScreen(m_hWnd, &sc);
 		SetCursorPos(sc.x, sc.y);
 
-		// â‘ÎˆÊ’u‚Í’†S‚ÉŒÅ’è
+		// çµ¶å¯¾ä½ç½®ã¯ä¸­å¿ƒã«å›ºå®š
 		m_MouseX = m_PrevMouseX = center.x;
 		m_MouseY = m_PrevMouseY = center.y;
 	}
 	else
 	{
-		// ’ÊíF‘O‰ñ‚Æ‚Ì·•ª
+		// é€šå¸¸ï¼šå‰å›ã¨ã®å·®åˆ†
 		m_PrevMouseX = m_MouseX;
 		m_PrevMouseY = m_MouseY;
 
@@ -160,7 +160,7 @@ void Input::Update()
 		m_MouseDeltaY = m_MouseY - m_PrevMouseY;
 	}
 
-	m_MouseWheel = 0;   // ƒzƒC[ƒ‹ƒŠƒZƒbƒg
+	m_MouseWheel = 0;   // ãƒ›ã‚¤ãƒ¼ãƒ«ãƒªã‚»ãƒƒãƒˆ
 }
 
 bool Input::GetKey(int vkCode) const
@@ -212,5 +212,5 @@ void Input::SetCursorLock(bool lock)
 	GetClientRect(m_hWnd, &rect);
 	POINT center = { (rect.right - rect.left) / 2, (rect.bottom - rect.top) / 2 };
 	ClientToScreen(m_hWnd, &center);
-	SetCursorPos(center.x, center.y);   // ƒƒbƒN/ƒAƒ“ƒƒbƒN—¼•û‚Å’†S‚Ö
+	SetCursorPos(center.x, center.y);   // ãƒ­ãƒƒã‚¯/ã‚¢ãƒ³ãƒ­ãƒƒã‚¯ä¸¡æ–¹ã§ä¸­å¿ƒã¸
 }

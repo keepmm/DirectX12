@@ -1,4 +1,4 @@
-#include "DebugLineRenderer.hpp"
+ï»¿#include "DebugLineRenderer.hpp"
 #include "d3dx12.h"
 #include "BeamRenderer.hpp"
 
@@ -6,25 +6,25 @@ void DebugLineRenderer::Init(
 	const ComPtr<ID3D12Device>& device,
 	const ComPtr<ID3D12PipelineState>& linePso)
 {
-	// ƒfƒoƒCƒX or PSO‚ª‚Ê‚é‚Û‚Ìê‡‚Íˆ—‚µ‚È‚¢
+	// ãƒ‡ãƒã‚¤ã‚¹ or PSOãŒã¬ã‚‹ã½ã®å ´åˆã¯å‡¦ç†ã—ãªã„
 	if(device == nullptr || linePso == nullptr)
 	{
 		return;
 	}
 
-	// PSO‚ğ•Û‘¶
+	// PSOã‚’ä¿å­˜
 	m_LinePSO = linePso;
 
-	// ’¸“_ƒoƒbƒtƒ@ì¬—p‚Éƒƒ‚ƒŠ‚ğŠm•Û
+	// é ‚ç‚¹ãƒãƒƒãƒ•ã‚¡ä½œæˆç”¨ã«ãƒ¡ãƒ¢ãƒªã‚’ç¢ºä¿
 	m_Vertices.reserve(MAX_VERTICES);
 
 	const UINT bufferSize = sizeof(LineVertex) * MAX_VERTICES;
 
-	// uploadƒq[ƒv‚Å’¸“_ƒoƒbƒtƒ@‚ğì¬
+	// uploadãƒ’ãƒ¼ãƒ—ã§é ‚ç‚¹ãƒãƒƒãƒ•ã‚¡ã‚’ä½œæˆ
 	CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_UPLOAD);
 	auto vbDesc = CD3DX12_RESOURCE_DESC::Buffer(bufferSize);
 
-	// ¸”sreturn
+	// å¤±æ•—æ™‚return
 	if (FAILED(device->CreateCommittedResource(
 		&heapProps,
 		D3D12_HEAP_FLAG_NONE,
@@ -37,13 +37,13 @@ void DebugLineRenderer::Init(
 	}
 
 	void* Mapped = nullptr;
-	CD3DX12_RANGE readRange(0, 0); //“Ç‚İæ‚èê—p
+	CD3DX12_RANGE readRange(0, 0); //èª­ã¿å–ã‚Šå°‚ç”¨
 	if (FAILED(m_VertexBuffer->Map(0, &readRange, &Mapped)))
 	{
 		return;
 	}
 
-	// ƒ}ƒbƒv‚µ‚½ƒAƒhƒŒƒX‚ğ’¸“_ƒoƒbƒtƒ@—p‚Ìƒ|ƒCƒ“ƒ^‚É•ÏŠ·
+	// ãƒãƒƒãƒ—ã—ãŸã‚¢ãƒ‰ãƒ¬ã‚¹ã‚’é ‚ç‚¹ãƒãƒƒãƒ•ã‚¡ç”¨ã®ãƒã‚¤ãƒ³ã‚¿ã«å¤‰æ›
 	m_MappedVertexBuffer = reinterpret_cast<LineVertex*>(Mapped);
 	m_VertexBufferView.BufferLocation = m_VertexBuffer->GetGPUVirtualAddress();
 	m_VertexBufferView.StrideInBytes = sizeof(LineVertex);
@@ -61,9 +61,9 @@ void DebugLineRenderer::Init(
 		return;
 	}
 
-	// ’è”ƒoƒbƒtƒ@‚ğƒ}ƒbƒv
+	// å®šæ•°ãƒãƒƒãƒ•ã‚¡ã‚’ãƒãƒƒãƒ—
 	void* cbMapped = nullptr;
-	CD3DX12_RANGE cbReadRange(0, 0); //“Ç‚İæ‚èê—p
+	CD3DX12_RANGE cbReadRange(0, 0); //èª­ã¿å–ã‚Šå°‚ç”¨
 	if (FAILED(m_ConstantBuffer->Map(0, &cbReadRange, &cbMapped)))
 	{
 		return;
@@ -81,13 +81,13 @@ void DebugLineRenderer::AddLine(
 	const float3& end,
 	const float4& color)
 {
-	// ’¸“_”‚ªãŒÀ‚ğ’´‚¦‚éê‡‚Í’Ç‰Á‚µ‚È‚¢
+	// é ‚ç‚¹æ•°ãŒä¸Šé™ã‚’è¶…ãˆã‚‹å ´åˆã¯è¿½åŠ ã—ãªã„
 	if (m_Vertices.size() + 2 > MAX_VERTICES)
 	{
 		return;
 	}
 
-	// ƒ‰ƒCƒ“‚Ìn“_‚ÆI“_‚ğ’¸“_ƒoƒbƒtƒ@‚É’Ç‰Á
+	// ãƒ©ã‚¤ãƒ³ã®å§‹ç‚¹ã¨çµ‚ç‚¹ã‚’é ‚ç‚¹ãƒãƒƒãƒ•ã‚¡ã«è¿½åŠ 
 	m_Vertices.push_back({ start, color });
 	m_Vertices.push_back({ end, color });
 }
@@ -99,7 +99,7 @@ void DebugLineRenderer::Draw(const RenderContext& render)
 		return;
 	}
 
-	// ’¸“_ƒoƒbƒtƒ@‚É’¸“_ƒf[ƒ^‚ª‚È‚¢ê‡‚àˆ—‚µ‚È‚¢
+	// é ‚ç‚¹ãƒãƒƒãƒ•ã‚¡ã«é ‚ç‚¹ãƒ‡ãƒ¼ã‚¿ãŒãªã„å ´åˆã‚‚å‡¦ç†ã—ãªã„
 	if (m_Vertices.empty())
 	{
 		return;
@@ -109,13 +109,13 @@ void DebugLineRenderer::Draw(const RenderContext& render)
 	std::memcpy(m_MappedVertexBuffer, m_Vertices.data(), vertexCount * sizeof(LineVertex));
 
 	LineConstantBuffer constants{};
-	// views—ñ‚Æprojections—ñ‚ğŠ|‚¯‡‚í‚¹‚Ä’è”ƒoƒbƒtƒ@‚É•Û‘¶
+	// viewè¡Œåˆ—ã¨projectionè¡Œåˆ—ã‚’æ›ã‘åˆã‚ã›ã¦å®šæ•°ãƒãƒƒãƒ•ã‚¡ã«ä¿å­˜
 	const auto v = DirectX::XMLoadFloat4x4(&render.view);
 	const auto p = DirectX::XMLoadFloat4x4(&render.projection);
 	const auto vp = DirectX::XMMatrixTranspose(v * p);
 	DirectX::XMStoreFloat4x4(&constants.viewProj, vp);
 
-	// ’è”ƒoƒbƒtƒ@‚És—ñƒf[ƒ^‚ğƒRƒs[
+	// å®šæ•°ãƒãƒƒãƒ•ã‚¡ã«è¡Œåˆ—ãƒ‡ãƒ¼ã‚¿ã‚’ã‚³ãƒ”ãƒ¼
 	std::memcpy(m_MappedConstants, &constants, sizeof(constants));
 
 	render.CommandList->SetPipelineState(m_LinePSO.Get());

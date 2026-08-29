@@ -1,4 +1,4 @@
-#include "BuildSystem.hpp"
+ï»¿#include "BuildSystem.hpp"
 #include "Logger.hpp"
 #include "imguiinit.hpp"
 #include <windows.h>
@@ -17,13 +17,13 @@ namespace fs = std::filesystem;
 
 static std::atomic<bool>        s_Building{ false };
 static std::mutex               s_LogMutex;
-static std::vector<std::string> s_PendingLogs;      // ƒ[ƒJ[¨ƒƒCƒ“ƒXƒŒƒbƒhó‚¯“n‚µ
+static std::vector<std::string> s_PendingLogs;      // ãƒ¯ãƒ¼ã‚«ãƒ¼â†’ãƒ¡ã‚¤ãƒ³ã‚¹ãƒ¬ãƒƒãƒ‰å—ã‘æ¸¡ã—
 static std::atomic<bool>        s_HasLogs{ false };
 static std::atomic<float> s_Progress{ 0.0f };
 static std::mutex s_StageMutex;
 static std::string s_Stage;
 
-// vcxproj“à‚Ì <ClCompile Include= ‚Ì” à ƒRƒ“ƒpƒCƒ‹‚³‚ê‚é.cpp‚Ì‘”
+// vcxprojå†…ã® <ClCompile Include= ã®æ•° â‰’ ã‚³ãƒ³ãƒ‘ã‚¤ãƒ«ã•ã‚Œã‚‹.cppã®ç·æ•°
 static int CountCompileUnits(const fs::path& vcxproj)
 {
     std::ifstream ifs(vcxproj);
@@ -55,10 +55,10 @@ static void PushLog(std::string msg)
     s_HasLogs = true;
 }
 
-// ƒoƒCƒg—ñ‚ª³‚µ‚¢UTF-8‚©‚Ç‚¤‚©‚ÌŠÈˆÕ”»’è
+// ãƒã‚¤ãƒˆåˆ—ãŒæ­£ã—ã„UTF-8ã‹ã©ã†ã‹ã®ç°¡æ˜“åˆ¤å®š
 static bool IsValidUtf8(const std::string& s)
 {
-    int remain = 0;   // Œp‘±ƒoƒCƒg‚Ìc‚è”
+    int remain = 0;   // ç¶™ç¶šãƒã‚¤ãƒˆã®æ®‹ã‚Šæ•°
     for (unsigned char c : s)
     {
         if (remain > 0)
@@ -77,7 +77,7 @@ static bool IsValidUtf8(const std::string& s)
     return remain == 0;
 }
 
-// Shift-JIS(CP932) ¨ UTF-8BŠù‚ÉUTF-8‚È‚ç‚»‚Ì‚Ü‚Ü•Ô‚·
+// Shift-JIS(CP932) â†’ UTF-8ã€‚æ—¢ã«UTF-8ãªã‚‰ãã®ã¾ã¾è¿”ã™
 static std::string ToUTF8Smart(const std::string& s)
 {
     if (IsValidUtf8(s)) return s;
@@ -94,8 +94,8 @@ static std::string ToUTF8Smart(const std::string& s)
     return out;
 }
 
-// ScriptHost.cpp:74 LaunchBuild ‚Æ“¯‚¶ƒpƒCƒv•û®‚ÅƒRƒ}ƒ“ƒh‚ğ“¯ŠúÀs
-// ƒRƒ}ƒ“ƒh‚ğÀs‚µAo—Í‚ğ1s‚²‚Æ‚É onLine ‚Ö’Ê’m‚µ‚È‚ª‚çŠ®—¹‚ğ‘Ò‚Â
+// ScriptHost.cpp:74 LaunchBuild ã¨åŒã˜ãƒ‘ã‚¤ãƒ—æ–¹å¼ã§ã‚³ãƒãƒ³ãƒ‰ã‚’åŒæœŸå®Ÿè¡Œ
+// ã‚³ãƒãƒ³ãƒ‰ã‚’å®Ÿè¡Œã—ã€å‡ºåŠ›ã‚’1è¡Œã”ã¨ã« onLine ã¸é€šçŸ¥ã—ãªãŒã‚‰å®Œäº†ã‚’å¾…ã¤
 static int RunCommand(const std::string& cmd, std::string& output,
     const std::function<void(const std::string&)>& onLine = nullptr)
 {
@@ -126,7 +126,7 @@ static int RunCommand(const std::string& cmd, std::string& output,
             output.append(tmp, n);
             if (!onLine) continue;
 
-            // ‰üs’PˆÊ‚ÉØ‚èo‚µ‚Ä’Ê’m
+            // æ”¹è¡Œå˜ä½ã«åˆ‡ã‚Šå‡ºã—ã¦é€šçŸ¥
             lineBuf.append(tmp, n);
             size_t pos;
             while ((pos = lineBuf.find('\n')) != std::string::npos)
@@ -153,12 +153,12 @@ static int RunCommand(const std::string& cmd, std::string& output,
     return exitCode;
 }
 
-// exe‚ÌêŠ‚©‚çƒ\ƒŠƒ…[ƒVƒ‡ƒ“\¬‚ğ‹tZ(ScriptHost::Open‚Æ“¯‚¶”­‘z)
+// exeã®å ´æ‰€ã‹ã‚‰ã‚½ãƒªãƒ¥ãƒ¼ã‚·ãƒ§ãƒ³æ§‹æˆã‚’é€†ç®—(ScriptHost::Openã¨åŒã˜ç™ºæƒ³)
 struct ProjectPaths
 {
-    fs::path exeDir;       // Œ»İ‚Ìexe‚ª‚ ‚éêŠ(x64/Debug “™)
-    fs::path slnDir;       // .sln ‚ª‚ ‚éƒ‹[ƒg
-    fs::path srcDir;       // ƒGƒ“ƒWƒ“ƒ\[ƒX(.hlsl / Assets ‚ª‚ ‚éêŠ)
+    fs::path exeDir;       // ç¾åœ¨ã®exeãŒã‚ã‚‹å ´æ‰€(x64/Debug ç­‰)
+    fs::path slnDir;       // .sln ãŒã‚ã‚‹ãƒ«ãƒ¼ãƒˆ
+    fs::path srcDir;       // ã‚¨ãƒ³ã‚¸ãƒ³ã‚½ãƒ¼ã‚¹(.hlsl / Assets ãŒã‚ã‚‹å ´æ‰€)
 };
 
 static ProjectPaths ResolvePaths()
@@ -169,7 +169,7 @@ static ProjectPaths ResolvePaths()
     ProjectPaths p;
     p.exeDir = fs::path(exePath).parent_path();
 
-    // exeDir ‚©‚çã‚É’H‚Á‚Ä .sln ‚ğ’T‚·
+    // exeDir ã‹ã‚‰ä¸Šã«è¾¿ã£ã¦ .sln ã‚’æ¢ã™
     std::error_code ec;
     for (fs::path d = p.exeDir; !d.empty() && d != d.root_path(); d = d.parent_path())
     {
@@ -183,19 +183,19 @@ static ProjectPaths ResolvePaths()
     return p;
 }
 
-// ‘ƒtƒ@ƒCƒ‹”‚ğ”‚¦‚Ä‚©‚ç1ƒtƒ@ƒCƒ‹‚¸‚ÂƒRƒs[‚µAfrom~to ‹æŠÔ‚Ìi’»‚ği‚ß‚é
+// ç·ãƒ•ã‚¡ã‚¤ãƒ«æ•°ã‚’æ•°ãˆã¦ã‹ã‚‰1ãƒ•ã‚¡ã‚¤ãƒ«ãšã¤ã‚³ãƒ”ãƒ¼ã—ã€from~to åŒºé–“ã®é€²æ—ã‚’é€²ã‚ã‚‹
 static bool CopyTreeWithProgress(const fs::path& from, const fs::path& to,
     float progressFrom, float progressTo)
 {
     std::error_code ec;
 
-    // 1ƒpƒX–Ú: ‘ƒtƒ@ƒCƒ‹”‚ğ”‚¦‚é
+    // 1ãƒ‘ã‚¹ç›®: ç·ãƒ•ã‚¡ã‚¤ãƒ«æ•°ã‚’æ•°ãˆã‚‹
     size_t total = 0;
     for (auto& e : fs::recursive_directory_iterator(from, ec))
         if (e.is_regular_file()) total++;
     if (total == 0) total = 1;
 
-    // 2ƒpƒX–Ú: ƒRƒs[‚µ‚È‚ª‚çi’»XV
+    // 2ãƒ‘ã‚¹ç›®: ã‚³ãƒ”ãƒ¼ã—ãªãŒã‚‰é€²æ—æ›´æ–°
     size_t done = 0;
     for (auto& e : fs::recursive_directory_iterator(from, ec))
     {
@@ -213,7 +213,7 @@ static bool CopyTreeWithProgress(const fs::path& from, const fs::path& to,
         fs::copy_file(e.path(), dest, fs::copy_options::overwrite_existing, ec);
         if (ec)
         {
-            PushLog("[Build] ƒRƒs[¸”s: " + e.path().string() + " (" + ec.message() + ")");
+            PushLog("[Build] ã‚³ãƒ”ãƒ¼å¤±æ•—: " + e.path().string() + " (" + ec.message() + ")");
             return false;
         }
         done++;
@@ -228,20 +228,20 @@ void BuildSystem::Build(const BuildSetting& settings)
     if (s_Building.exchange(true)) return;
 
     std::thread([settings] {
-        SetStage(0.02f, IMGUI::ToUTF8("MSBuild Às’†..."));
-        PushLog("[Build] ƒrƒ‹ƒhŠJn (" + settings.configuration + ")");
+        SetStage(0.02f, IMGUI::ToUTF8("MSBuild å®Ÿè¡Œä¸­..."));
+        PushLog("[Build] ãƒ“ãƒ«ãƒ‰é–‹å§‹ (" + settings.configuration + ")");
         ProjectPaths paths = ResolvePaths();
         std::error_code ec;
 
         if (paths.slnDir.empty())
         {
             SetStage(0.0f, "");
-            PushLog("[Build] .sln ‚ªŒ©‚Â‚©‚è‚Ü‚¹‚ñBƒrƒ‹ƒho—Í”Å‚©‚ç‚ÍÀs‚Å‚«‚Ü‚¹‚ñ");
+            PushLog("[Build] .sln ãŒè¦‹ã¤ã‹ã‚Šã¾ã›ã‚“ã€‚ãƒ“ãƒ«ãƒ‰å‡ºåŠ›ç‰ˆã‹ã‚‰ã¯å®Ÿè¡Œã§ãã¾ã›ã‚“");
             s_Building = false;
             return;
         }
 
-        // ---- 1. ƒGƒ“ƒWƒ“exe ‚Æ Scripts.dll ‚ğ MSBuild ----
+        // ---- 1. ã‚¨ãƒ³ã‚¸ãƒ³exe ã¨ Scripts.dll ã‚’ MSBuild ----
         fs::path stageDir = paths.slnDir / "x64" / "GameBuild";
         std::string cmd =
             "\"" + s_msbuild + "\" \"" + paths.slnDir.string() + "\\DirectX12__test.sln\""
@@ -249,11 +249,11 @@ void BuildSystem::Build(const BuildSetting& settings)
             " /p:OutDir=" + stageDir.string() + "\\"
             " /m /nologo /clp:NoSummary /v:minimal";
 
-        // ---- 1. ƒGƒ“ƒWƒ“exe ‚Æ Scripts.dll ‚ğ MSBuild ----
+        // ---- 1. ã‚¨ãƒ³ã‚¸ãƒ³exe ã¨ Scripts.dll ã‚’ MSBuild ----
         constexpr float kMsBuildFrom = 0.02f;
         constexpr float kMsBuildTo = 0.38f;
 
-        // ƒ\ƒŠƒ…[ƒVƒ‡ƒ“‘S‘Ì‚Ì.cpp‘”(ƒGƒ“ƒWƒ“ + Scripts)
+        // ã‚½ãƒªãƒ¥ãƒ¼ã‚·ãƒ§ãƒ³å…¨ä½“ã®.cppç·æ•°(ã‚¨ãƒ³ã‚¸ãƒ³ + Scripts)
         const int totalUnits =
             CountCompileUnits(paths.srcDir / "DirectX12__test.vcxproj") +
             CountCompileUnits(paths.slnDir / "Scripts" / "Scripts.vcxproj");
@@ -263,13 +263,13 @@ void BuildSystem::Build(const BuildSetting& settings)
 
         std::string out;
         int code = RunCommand(cmd, out, [&](const std::string& line) {
-            // ƒRƒ“ƒpƒCƒ‰‚ªo‚·uƒtƒ@ƒCƒ‹–¼‚¾‚¯‚Ìsv(—á: Material.cpp)‚ğ”‚¦‚é
+            // ã‚³ãƒ³ãƒ‘ã‚¤ãƒ©ãŒå‡ºã™ã€Œãƒ•ã‚¡ã‚¤ãƒ«åã ã‘ã®è¡Œã€(ä¾‹: Material.cpp)ã‚’æ•°ãˆã‚‹
             std::string t = line;
             t.erase(0, t.find_first_not_of(" \t"));
             const bool isCppLine =
                 t.size() > 4 &&
                 t.compare(t.size() - 4, 4, ".cpp") == 0 &&
-                t.find(' ') == std::string::npos;      // ƒGƒ‰[s“™‚ğœŠO
+                t.find(' ') == std::string::npos;      // ã‚¨ãƒ©ãƒ¼è¡Œç­‰ã‚’é™¤å¤–
 
             if (!isCppLine) return;
             doneUnits++;
@@ -282,9 +282,9 @@ void BuildSystem::Build(const BuildSetting& settings)
                     + std::to_string(doneUnits) + "/" + std::to_string(totalUnits) + ") " + t);
             }
             });
-		SetStage(0.4f, IMGUI::ToUTF8("o—ÍƒtƒHƒ‹ƒ_ì¬’†..."));
+		SetStage(0.4f, IMGUI::ToUTF8("å‡ºåŠ›ãƒ•ã‚©ãƒ«ãƒ€ä½œæˆä¸­..."));
 
-        // ---- 2. o—ÍƒtƒHƒ‹ƒ_ì¬ ----
+        // ---- 2. å‡ºåŠ›ãƒ•ã‚©ãƒ«ãƒ€ä½œæˆ ----
         fs::path outDir = fs::path(
             reinterpret_cast<const char8_t*>(settings.outputDir.c_str()));
         fs::path dataDir = outDir / (settings.gameName + "_Data");
@@ -294,13 +294,13 @@ void BuildSystem::Build(const BuildSetting& settings)
         if (ec)
         {
             SetStage(0.0f, "");
-            PushLog("[Build] o—ÍƒtƒHƒ‹ƒ_ì¬¸”s: " + ec.message());
+            PushLog("[Build] å‡ºåŠ›ãƒ•ã‚©ãƒ«ãƒ€ä½œæˆå¤±æ•—: " + ec.message());
             s_Building = false;
             return;
         }
-		SetStage(0.45f, IMGUI::ToUTF8("exe / DLL ƒRƒs[’†..."));
+		SetStage(0.45f, IMGUI::ToUTF8("exe / DLL ã‚³ãƒ”ãƒ¼ä¸­..."));
 
-        // ---- 3. exe ‚Íƒ‹[ƒgADLL ‚Í Bin/ ‚Ö ----
+        // ---- 3. exe ã¯ãƒ«ãƒ¼ãƒˆã€DLL ã¯ Bin/ ã¸ ----
         fs::path binDir = stageDir;
 
         fs::copy_file(binDir / "DirectX12__test.exe",
@@ -309,21 +309,21 @@ void BuildSystem::Build(const BuildSetting& settings)
         if (ec)
         {
             SetStage(0.0f, "");
-            PushLog("[Build] exeƒRƒs[¸”s: " + ec.message());
+            PushLog("[Build] exeã‚³ãƒ”ãƒ¼å¤±æ•—: " + ec.message());
             s_Building = false;
             return;
         }
 
-        // Scripts.dll(Scripts.vcxproj ‚Ìo—Íæ‚ğ Bin/ ‚É•Ï‚¦‚Ä‚¢‚éê‡‚Í‚»‚¿‚ç‚ğ—Dæ)
+        // Scripts.dll(Scripts.vcxproj ã®å‡ºåŠ›å…ˆã‚’ Bin/ ã«å¤‰ãˆã¦ã„ã‚‹å ´åˆã¯ãã¡ã‚‰ã‚’å„ªå…ˆ)
         {
             fs::path scriptsDll = binDir / "Bin" / "Scripts.dll";
             if (!fs::exists(scriptsDll)) scriptsDll = binDir / "Scripts.dll";
             fs::copy_file(scriptsDll, binOutDir / "Scripts.dll",
                 fs::copy_options::overwrite_existing, ec);
-            if (ec) PushLog("[Build] Scripts.dll ‚ªŒ©‚Â‚©‚è‚Ü‚¹‚ñ: " + ec.message());
+            if (ec) PushLog("[Build] Scripts.dll ãŒè¦‹ã¤ã‹ã‚Šã¾ã›ã‚“: " + ec.message());
         }
 
-        // ƒGƒ“ƒWƒ“‚ª‹N“®‚ÉƒCƒ“ƒ|[ƒg‚·‚éDLL(exe‰¡‚É•K{BBin/ ‚Å‚Í‹N“®‚Å‚«‚È‚¢)
+        // ã‚¨ãƒ³ã‚¸ãƒ³ãŒèµ·å‹•æ™‚ã«ã‚¤ãƒ³ãƒãƒ¼ãƒˆã™ã‚‹DLL(exeæ¨ªã«å¿…é ˆã€‚Bin/ ã§ã¯èµ·å‹•ã§ããªã„)
         const bool isDebug = (settings.configuration == "Debug");
 
         std::vector<std::string> engineDlls = {
@@ -331,30 +331,30 @@ void BuildSystem::Build(const BuildSetting& settings)
             "PhysXCommon_64.dll",
             "PhysXFoundation_64.dll",
             "libbulletc.dll",
-            // assimp ‚Í\¬‚Åƒ‰ƒ“ƒ^ƒCƒ€‚ªˆá‚¤(d•t‚«‚ªDebug)
+            // assimp ã¯æ§‹æˆã§ãƒ©ãƒ³ã‚¿ã‚¤ãƒ ãŒé•ã†(dä»˜ããŒDebug)
             isDebug ? "assimp-vc142-mtd.dll" : "assimp-vc142-mt.dll",
         };
 
         for (const std::string& dll : engineDlls)
         {
-            // ƒXƒe[ƒWƒ“ƒOo—Í ¨ Œ»exe‰¡ ¨ ƒvƒƒWƒFƒNƒg’¼‰º ‚Ì‡‚É’T‚·
+            // ã‚¹ãƒ†ãƒ¼ã‚¸ãƒ³ã‚°å‡ºåŠ› â†’ ç¾exeæ¨ª â†’ ãƒ—ãƒ­ã‚¸ã‚§ã‚¯ãƒˆç›´ä¸‹ ã®é †ã«æ¢ã™
             fs::path src = stageDir / dll;
             if (!fs::exists(src)) src = paths.exeDir / dll;
             if (!fs::exists(src)) src = paths.srcDir / dll;
             if (fs::exists(src))
             {
                 fs::copy_file(src, outDir / dll, fs::copy_options::overwrite_existing, ec);
-                if (ec) PushLog("[Build] ƒRƒs[¸”s: " + dll + " (" + ec.message() + ")");
+                if (ec) PushLog("[Build] ã‚³ãƒ”ãƒ¼å¤±æ•—: " + dll + " (" + ec.message() + ")");
             }
             else
             {
-                PushLog("[Build] Œx: " + dll + " ‚ªŒ©‚Â‚©‚è‚Ü‚¹‚ñ");
+                PushLog("[Build] è­¦å‘Š: " + dll + " ãŒè¦‹ã¤ã‹ã‚Šã¾ã›ã‚“");
             }
         }
 
-		SetStage(0.6f, IMGUI::ToUTF8("ƒVƒF[ƒ_[ƒRƒs[’†..."));
+		SetStage(0.6f, IMGUI::ToUTF8("ã‚·ã‚§ãƒ¼ãƒ€ãƒ¼ã‚³ãƒ”ãƒ¼ä¸­..."));
 
-        // ---- 4. ƒVƒF[ƒ_[(.hlsl/.hlsli)‚Í Data/Shaders ‚Ö ----
+        // ---- 4. ã‚·ã‚§ãƒ¼ãƒ€ãƒ¼(.hlsl/.hlsli)ã¯ Data/Shaders ã¸ ----
         for (auto& e : fs::directory_iterator(paths.srcDir, ec))
         {
             auto ext = e.path().extension();
@@ -363,9 +363,9 @@ void BuildSystem::Build(const BuildSetting& settings)
                     fs::copy_options::overwrite_existing, ec);
         }
 
-        // ---- 5. Assets ‚Í Data/Assets ‚Ö ----
-        SetStage(0.55f, IMGUI::ToUTF8("Assets ƒRƒs[’†..."));
-        PushLog("[Build] Assets ‚ğƒRƒs[’†...");
+        // ---- 5. Assets ã¯ Data/Assets ã¸ ----
+        SetStage(0.55f, IMGUI::ToUTF8("Assets ã‚³ãƒ”ãƒ¼ä¸­..."));
+        PushLog("[Build] Assets ã‚’ã‚³ãƒ”ãƒ¼ä¸­...");
         if (!CopyTreeWithProgress(paths.srcDir / "Assets", dataDir / "Assets",
             0.55f, 0.98f))
         {
@@ -374,18 +374,18 @@ void BuildSystem::Build(const BuildSetting& settings)
             return;
         }
 
-        // ---- 6. game.cfg ‘‚«o‚µ ----
-        // ‘¶İ‚·‚é‚ÆƒQ[ƒ€ƒ‚[ƒh‹N“®B1s–Ú=ŠJnƒV[ƒ“, 2s–Ú=DataƒtƒHƒ‹ƒ_–¼
+        // ---- 6. game.cfg æ›¸ãå‡ºã— ----
+        // å­˜åœ¨ã™ã‚‹ã¨ã‚²ãƒ¼ãƒ ãƒ¢ãƒ¼ãƒ‰èµ·å‹•ã€‚1è¡Œç›®=é–‹å§‹ã‚·ãƒ¼ãƒ³, 2è¡Œç›®=Dataãƒ•ã‚©ãƒ«ãƒ€å
         const std::string sceneName =
-            fs::path(settings.startScene).stem().string();   // "Assets/Scenes/Foo.json" ¨ "Foo"
+            fs::path(settings.startScene).stem().string();   // "Assets/Scenes/Foo.json" â†’ "Foo"
         {
             std::ofstream cfg(outDir / "game.cfg");
             cfg << sceneName << "\n";
             cfg << settings.gameName + "_Data" << "\n";
         }
 
-		SetStage(1.0f, IMGUI::ToUTF8("Š®—¹"));
-        PushLog("[Build] Š®—¹: " + fs::absolute(outDir).string());
+		SetStage(1.0f, IMGUI::ToUTF8("å®Œäº†"));
+        PushLog("[Build] å®Œäº†: " + fs::absolute(outDir).string());
         s_Building = false;
         }).detach();
 }
@@ -402,7 +402,7 @@ void BuildSystem::Update()
     for (auto& l : logs)
     {
 		std::string utf8 = ToUTF8Smart(l);
-        if (l.find("¸”s") != std::string::npos ||
+        if (l.find("å¤±æ•—") != std::string::npos ||
             l.find(": error") != std::string::npos ||
             l.find(": fatal") != std::string::npos)
             LOG->LogError(utf8);

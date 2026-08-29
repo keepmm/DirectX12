@@ -1,4 +1,4 @@
-#include "ShadowMap.hpp"
+ï»¿#include "ShadowMap.hpp"
 #include "d3dx12.h"
 #include "DirectX.hpp"
 
@@ -36,7 +36,7 @@ void ShadowMap::BeginRender(ID3D12GraphicsCommandList* cmd)
 		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 	cmd->ResourceBarrier(1, &toDepth);
 
-	cmd->OMSetRenderTargets(0, nullptr, FALSE, &m_DSV);   // RT‚È‚µE[“x‚Ì‚Ý
+	cmd->OMSetRenderTargets(0, nullptr, FALSE, &m_DSV);   // RTãªã—ãƒ»æ·±åº¦ã®ã¿
 	cmd->ClearDepthStencilView(m_DSV, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 	cmd->RSSetViewports(1, &m_Viewport);
 	cmd->RSSetScissorRects(1, &m_Scissor);

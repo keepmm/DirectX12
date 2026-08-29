@@ -1,4 +1,4 @@
-#include "Common.hlsli"
+ï»¿#include "Common.hlsli"
 
 cbuffer BoneMatrices : register(b4)
 {
@@ -12,7 +12,7 @@ cbuffer Material : register(b3)
     float2 _pad;
     float4 rimColor;
     float4 mapFlags;
-    float4 faceParam; // w: ƒAƒEƒgƒ‰ƒCƒ“‚Ì‘¾‚³
+    float4 faceParam; // w: ã‚¢ã‚¦ãƒˆãƒ©ã‚¤ãƒ³ã®å¤ªã•
 }
 
 struct OutlineOut
@@ -44,7 +44,7 @@ OutlineOut Genshin_OutlineVS(VSInput input)
     float4 wp = mul(pos, world);
     float3 wn = normalize(mul(float4(normal, 0.0f), world).xyz);
 
-    // ƒJƒƒ‰‹——£‚Å‘¾‚³‚ğˆê’è‚É•Û‚Â
+    // ã‚«ãƒ¡ãƒ©è·é›¢ã§å¤ªã•ã‚’ä¸€å®šã«ä¿ã¤
     float dist = length(cameraPos.xyz - wp.xyz);
     float width = max(faceParam.w, 0.001f) * dist * 0.015f;
     wp.xyz += wn * width;
@@ -55,5 +55,5 @@ OutlineOut Genshin_OutlineVS(VSInput input)
 
 float4 Genshin_OutlinePS() : SV_TARGET
 {
-    return float4(0.05f, 0.05f, 0.07f, 1.0f); // Š®‘S‚È•‚Å‚Í‚È‚­­‚µÂ‚İ‚ª‚©‚Á‚½”Z®
+    return float4(0.05f, 0.05f, 0.07f, 1.0f); // å®Œå…¨ãªé»’ã§ã¯ãªãå°‘ã—é’ã¿ãŒã‹ã£ãŸæ¿ƒç´º
 }

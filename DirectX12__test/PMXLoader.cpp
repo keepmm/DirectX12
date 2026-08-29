@@ -1,4 +1,4 @@
-#include "PMXLoader.hpp"
+ï»¿#include "PMXLoader.hpp"
 #include "Logger.hpp"
 #include <fstream>
 #include <vector>
@@ -9,7 +9,7 @@
 
 namespace {
 
-	// ƒoƒCƒiƒŠ“Ç‚İæ‚èƒwƒ‹ƒp[
+	// ãƒã‚¤ãƒŠãƒªèª­ã¿å–ã‚Šãƒ˜ãƒ«ãƒ‘ãƒ¼
 	struct Reader
 	{
 		const std::uint8_t* p;
@@ -22,14 +22,14 @@ namespace {
 			p += sizeof(T);
 			return v;
 		}
-		// ‰Â•Ï’·ƒCƒ“ƒfƒbƒNƒXi1/2/4ƒoƒCƒgAsigned‰Âj
+		// å¯å¤‰é•·ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹ï¼ˆ1/2/4ãƒã‚¤ãƒˆã€signedå¯ï¼‰
 		int ReadIndex(int size, bool sign)
 		{
 			if (size == 1) return sign ? (int)Read<std::int8_t>() : (int)Read<std::uint8_t>();
 			if (size == 2) return sign ? (int)Read<std::int16_t>() : (int)Read<std::uint16_t>();
 			return Read<std::int32_t>();
 		}
-		// PMXƒeƒLƒXƒgiint32’· + ƒoƒCƒg—ñAencoding: 0=UTF16LE, 1=UTF8j
+		// PMXãƒ†ã‚­ã‚¹ãƒˆï¼ˆint32é•· + ãƒã‚¤ãƒˆåˆ—ã€encoding: 0=UTF16LE, 1=UTF8ï¼‰
 		std::wstring ReadText(int encoding)
 		{
 			const std::int32_t len = Read<std::int32_t>();
@@ -39,7 +39,7 @@ namespace {
 			{
 				out.assign(reinterpret_cast<const wchar_t*>(p), len / 2);
 			}
-			else // UTF-8 ¨ wstring
+			else // UTF-8 â†’ wstring
 			{
 				int wlen = MultiByteToWideChar(CP_UTF8, 0, (const char*)p, len, nullptr, 0);
 				out.resize(wlen);
@@ -56,19 +56,19 @@ namespace {
 bool PMXLoader::Parse(const std::string& filepath, float scale, ModelCpuData& out)
 {
 	std::ifstream ifs(filepath, std::ios::binary);
-	if (!ifs) { LOG->LogError("PMX: ƒtƒ@ƒCƒ‹‚ğŠJ‚¯‚Ü‚¹‚ñ: " + filepath); return false; }
+	if (!ifs) { LOG->LogError("PMX: ãƒ•ã‚¡ã‚¤ãƒ«ã‚’é–‹ã‘ã¾ã›ã‚“: " + filepath); return false; }
 
-	// pmxƒtƒ@ƒCƒ‹‚ÍÅ‰‚Ì4ƒoƒCƒg‚ªŒÅ’è
+	// pmxãƒ•ã‚¡ã‚¤ãƒ«ã¯æœ€åˆã®4ãƒã‚¤ãƒˆãŒå›ºå®š
 	std::vector<std::uint8_t> buf((std::istreambuf_iterator<char>(ifs)), {});
 
-	// ‚»‚¤‚¶‚á‚È‚¢ê‡pmxƒtƒ@ƒCƒ‹‚Å‚Í‚È‚¢‚Ì‚Å¸”s
+	// ãã†ã˜ã‚ƒãªã„å ´åˆpmxãƒ•ã‚¡ã‚¤ãƒ«ã§ã¯ãªã„ã®ã§å¤±æ•—
 	if (buf.size() < 4) return false;
 
 	Reader r{ buf.data(), buf.data() + buf.size() };
 
-	// --- ƒwƒbƒ_ ---
+	// --- ãƒ˜ãƒƒãƒ€ ---
 	char magic[4]; std::memcpy(magic, r.p, 4); r.Skip(4);
-	if (std::memcmp(magic, "PMX ", 4) != 0) { LOG->LogError("PMX: •s³‚Èƒwƒbƒ_"); return false; }
+	if (std::memcmp(magic, "PMX ", 4) != 0) { LOG->LogError("PMX: ä¸æ­£ãªãƒ˜ãƒƒãƒ€"); return false; }
 
 	const float version = r.Read<float>();
 	const std::uint8_t globalsCount = r.Read<std::uint8_t>();
@@ -82,13 +82,13 @@ bool PMXLoader::Parse(const std::string& filepath, float scale, ModelCpuData& ou
 	const int matIdxSize = g[4];
 	const int boneIdxSize = g[5];
 
-	// --- ƒ‚ƒfƒ‹î•ñi–¼‘OEƒRƒƒ“ƒgj“Ç‚İ”ò‚Î‚µ ---
+	// --- ãƒ¢ãƒ‡ãƒ«æƒ…å ±ï¼ˆåå‰ãƒ»ã‚³ãƒ¡ãƒ³ãƒˆï¼‰èª­ã¿é£›ã°ã— ---
 	r.ReadText(encoding); // name JP
 	r.ReadText(encoding); // name EN
 	r.ReadText(encoding); // comment JP
 	r.ReadText(encoding); // comment EN
 
-	// --- ’¸“_ ---
+	// --- é ‚ç‚¹ ---
 	const std::int32_t vertexCount = r.Read<std::int32_t>();
 	out.vertices.reserve(vertexCount);
 	for (int i = 0; i < vertexCount; ++i)
@@ -100,11 +100,11 @@ bool PMXLoader::Parse(const std::string& filepath, float scale, ModelCpuData& ou
 		v.col = { 1,1,1,1 };
 		v.tangent = { 1,0,0 };
 
-		// ’Ç‰ÁUVi“Ç‚İ”ò‚Î‚µj
+		// è¿½åŠ UVï¼ˆèª­ã¿é£›ã°ã—ï¼‰
 		for (int a = 0; a < addUV; ++a) { r.Read<float>(); r.Read<float>(); r.Read<float>(); r.Read<float>(); }
 
-		// ƒEƒFƒCƒg•ÏŒ`i¡‰ñ‚ÍƒXƒLƒbƒvAŒã‚ÅSkinData‚Éj
-		// ƒEƒFƒCƒg•ÏŒ` ¨ ’¸“_‚ÉŠi”[
+		// ã‚¦ã‚§ã‚¤ãƒˆå¤‰å½¢ï¼ˆä»Šå›ã¯ã‚¹ã‚­ãƒƒãƒ—ã€å¾Œã§SkinDataã«ï¼‰
+		// ã‚¦ã‚§ã‚¤ãƒˆå¤‰å½¢ â†’ é ‚ç‚¹ã«æ ¼ç´
 		const std::uint8_t weightType = r.Read<std::uint8_t>();
 		int   bi[4] = { 0, 0, 0, 0 };
 		float bw[4] = { 0, 0, 0, 0 };
@@ -118,7 +118,7 @@ bool PMXLoader::Parse(const std::string& filepath, float scale, ModelCpuData& ou
 			bi[1] = r.ReadIndex(boneIdxSize, true);
 			bw[0] = r.Read<float>(); bw[1] = 1.0f - bw[0];
 			break;
-		case 3: // SDEFiƒEƒFƒCƒg‚ÍBDEF2ˆµ‚¢AC/R0/R1‚ÍƒXƒLƒbƒvj
+		case 3: // SDEFï¼ˆã‚¦ã‚§ã‚¤ãƒˆã¯BDEF2æ‰±ã„ã€C/R0/R1ã¯ã‚¹ã‚­ãƒƒãƒ—ï¼‰
 			bi[0] = r.ReadIndex(boneIdxSize, true);
 			bi[1] = r.ReadIndex(boneIdxSize, true);
 			bw[0] = r.Read<float>(); bw[1] = 1.0f - bw[0];
@@ -140,13 +140,13 @@ bool PMXLoader::Parse(const std::string& filepath, float scale, ModelCpuData& ou
 		out.vertices.push_back(v);
 	}
 
-	// --- –ÊiƒCƒ“ƒfƒbƒNƒXj---
+	// --- é¢ï¼ˆã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹ï¼‰---
 	const std::int32_t indexCount = r.Read<std::int32_t>();
 	out.indices.reserve(indexCount);
 	for (int i = 0; i < indexCount; ++i)
 		out.indices.push_back((std::uint32_t)r.ReadIndex(vIdxSize, false));
 
-	// --- ƒeƒNƒXƒ`ƒƒƒe[ƒuƒ‹ ---
+	// --- ãƒ†ã‚¯ã‚¹ãƒãƒ£ãƒ†ãƒ¼ãƒ–ãƒ« ---
 	const std::filesystem::path baseDir = std::filesystem::path(filepath).parent_path();
 	const std::int32_t texCount = r.Read<std::int32_t>();
 	std::vector<std::wstring> texPaths(texCount);
@@ -156,7 +156,7 @@ bool PMXLoader::Parse(const std::string& filepath, float scale, ModelCpuData& ou
 		texPaths[i] = (baseDir / rel).wstring();
 	}
 
-	// --- ƒ}ƒeƒŠƒAƒ‹ -> ƒTƒuƒƒbƒVƒ… ---
+	// --- ãƒãƒ†ãƒªã‚¢ãƒ« -> ã‚µãƒ–ãƒ¡ãƒƒã‚·ãƒ¥ ---
 	const std::int32_t matCount = r.Read<std::int32_t>();
 	out.materials.resize(matCount);
 	std::uint32_t indexOffset = 0;
@@ -186,14 +186,14 @@ bool PMXLoader::Parse(const std::string& filepath, float scale, ModelCpuData& ou
 		// morph
 
 
-		// ƒ}ƒeƒŠƒAƒ‹‚Ì–¼‘O‚àƒZƒbƒg
+		// ãƒãƒ†ãƒªã‚¢ãƒ«ã®åå‰ã‚‚ã‚»ãƒƒãƒˆ
 		out.materials[i].name = WideToUtf8(name);
 
-		// diffuseƒeƒNƒXƒ`ƒƒ‚ğƒZƒbƒg
+		// diffuseãƒ†ã‚¯ã‚¹ãƒãƒ£ã‚’ã‚»ãƒƒãƒˆ
 		if (texIndex >= 0 && texIndex < texCount)
 			out.materials[i].diffuse = texPaths[texIndex];
 
-		// ƒTƒuƒƒbƒVƒ…i‚±‚Ì material ‚Ì–Ê”ÍˆÍj
+		// ã‚µãƒ–ãƒ¡ãƒƒã‚·ãƒ¥ï¼ˆã“ã® material ã®é¢ç¯„å›²ï¼‰
 		SubMesh sm{};
 		sm.indexStart = indexOffset;
 		sm.indexCount = (UINT)surfaceCount;
@@ -202,7 +202,7 @@ bool PMXLoader::Parse(const std::string& filepath, float scale, ModelCpuData& ou
 		indexOffset += surfaceCount;
 	}
 
-	// --- ƒ{[ƒ“ ---
+	// --- ãƒœãƒ¼ãƒ³ ---
 	using namespace DirectX;
 	const std::int32_t boneCount = r.Read<std::int32_t>();
 	std::vector<float3> bonePos(boneCount);
@@ -221,11 +221,11 @@ bool PMXLoader::Parse(const std::string& filepath, float scale, ModelCpuData& ou
 		r.Read<std::int32_t>(); // layer
 		std::uint16_t flags = r.Read<std::uint16_t>();
 
-		// Ú‘±æ
-		if (flags & 0x0001) r.ReadIndex(boneIdxSize, true);   // Ú‘±ƒ{[ƒ“index
-		else                r.Skip(sizeof(float) * 3);        // Ú‘±ƒIƒtƒZƒbƒg
+		// æ¥ç¶šå…ˆ
+		if (flags & 0x0001) r.ReadIndex(boneIdxSize, true);   // æ¥ç¶šãƒœãƒ¼ãƒ³index
+		else                r.Skip(sizeof(float) * 3);        // æ¥ç¶šã‚ªãƒ•ã‚»ãƒƒãƒˆ
 
-		// •t—^i‰ñ“]/ˆÚ“®j
+		// ä»˜ä¸ï¼ˆå›è»¢/ç§»å‹•ï¼‰
 		if (flags & (0x0100 | 0x0200))
 		{
 			const int appendParent					= r.ReadIndex(boneIdxSize, true);
@@ -235,37 +235,37 @@ bool PMXLoader::Parse(const std::string& filepath, float scale, ModelCpuData& ou
 			out.skeleton.nodes[i].appendRotation	= (flags & 0x0100) != 0;
 			out.skeleton.nodes[i].appendMove		= (flags & 0x0200) != 0;
 		}
-		// ²ŒÅ’è
+		// è»¸å›ºå®š
 		if (flags & 0x0400) r.Skip(sizeof(float) * 3);
-		// ƒ[ƒJƒ‹²
+		// ãƒ­ãƒ¼ã‚«ãƒ«è»¸
 		if (flags & 0x0800) r.Skip(sizeof(float) * 6);
-		// ŠO•”e•ÏŒ`
+		// å¤–éƒ¨è¦ªå¤‰å½¢
 		if (flags & 0x2000) r.Read<std::int32_t>();
 		// IK
 		if (flags & 0x0020)
 		{
 			IkData ik;
-			ik.boneIndex = i;									// ‚±‚Ìƒ{[ƒ“‚ªIKƒ{[ƒ“
-			ik.targetIndex = r.ReadIndex(boneIdxSize, true);	// ƒ^[ƒQƒbƒg(‘«ñ)
-			ik.loopCount = r.Read<std::int32_t>();				// ”½•œ‰ñ”
-			ik.limitAngle = r.Read<float>();					// §ŒÀŠp
+			ik.boneIndex = i;									// ã“ã®ãƒœãƒ¼ãƒ³ãŒIKãƒœãƒ¼ãƒ³
+			ik.targetIndex = r.ReadIndex(boneIdxSize, true);	// ã‚¿ãƒ¼ã‚²ãƒƒãƒˆ(è¶³é¦–)
+			ik.loopCount = r.Read<std::int32_t>();				// åå¾©å›æ•°
+			ik.limitAngle = r.Read<float>();					// åˆ¶é™è§’
 			const std::int32_t linkCount = r.Read<std::int32_t>();
 			for (int L = 0; L < linkCount; ++L)
 			{
-				// IKƒŠƒ“ƒN
+				// IKãƒªãƒ³ã‚¯
 				IkLink link;
-				// ƒ{[ƒ“ƒCƒ“ƒfƒbƒNƒX
+				// ãƒœãƒ¼ãƒ³ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹
 				link.boneIndex = r.ReadIndex(boneIdxSize, true);
-				// ‰ñ“]§ŒÀ‚Ì—L–³
+				// å›è»¢åˆ¶é™ã®æœ‰ç„¡
 				const std::uint8_t hasLimit = r.Read<std::uint8_t>();
-				// ‰ñ“]§ŒÀ‚Ì—L–³‚ª‚ ‚éê‡‚Í‰ºŒÀEãŒÀ‚ğ“Ç‚İ‚Ş
+				// å›è»¢åˆ¶é™ã®æœ‰ç„¡ãŒã‚ã‚‹å ´åˆã¯ä¸‹é™ãƒ»ä¸Šé™ã‚’èª­ã¿è¾¼ã‚€
 				link.hasLimit = (hasLimit != 0);
 				if (link.hasLimit)
 				{
 					link.lowerLimit = { r.Read<float>(),r.Read<float>(),r.Read<float>() };
 					link.upperLimit = { r.Read<float>(),r.Read<float>(),r.Read<float>() };
 				}
-				// IKƒŠƒ“ƒN‚ğIKƒf[ƒ^‚É’Ç‰Á
+				// IKãƒªãƒ³ã‚¯ã‚’IKãƒ‡ãƒ¼ã‚¿ã«è¿½åŠ 
 				ik.links.push_back(link);
 			}
 			out.skeleton.iks.push_back(ik);
@@ -282,7 +282,7 @@ bool PMXLoader::Parse(const std::string& filepath, float scale, ModelCpuData& ou
 		out.skinData.boneNametoIndex[name] = (std::uint16_t)i;
 	}
 
-	// ƒ[ƒJƒ‹•ÏŠ·ie‚©‚ç‚Ì‘Š‘ÎˆÚ“®j{ offseti‹tƒoƒCƒ“ƒh-worldPosj
+	// ãƒ­ãƒ¼ã‚«ãƒ«å¤‰æ›ï¼ˆè¦ªã‹ã‚‰ã®ç›¸å¯¾ç§»å‹•ï¼‰ï¼‹ offsetï¼ˆé€†ãƒã‚¤ãƒ³ãƒ‰ï¼-worldPosï¼‰
 	for (int i = 0; i < boneCount; ++i)
 	{
 		const float3 p = bonePos[i];
@@ -296,20 +296,20 @@ bool PMXLoader::Parse(const std::string& filepath, float scale, ModelCpuData& ou
 		XMStoreFloat4x4(&out.skinData.offsetMatrices[i], offset);
 	}
 
-	// ---- ƒ‚[ƒt ----
+	// ---- ãƒ¢ãƒ¼ãƒ• ----
 	const int morphIdxSize = g[6];
 	const std::int32_t morphCount = r.Read<std::int32_t>();
 	out.morphs.morphs.resize(morphCount);
 	for (int i = 0; i < morphCount; ++i)
 	{
-		// ƒ‚[ƒt–¼
+		// ãƒ¢ãƒ¼ãƒ•å
 		std::wstring wname = r.ReadText(encoding);
-		r.ReadText(encoding);	//EN‚ÍƒXƒLƒbƒv
+		r.ReadText(encoding);	//ENã¯ã‚¹ã‚­ãƒƒãƒ—
 		const std::uint8_t panel = r.Read<std::uint8_t>();
 		const std::uint8_t type = r.Read<std::uint8_t>();
 		const std::uint32_t offsetCount = r.Read<std::uint32_t>();
 
-		// ƒ‚[ƒt‚Ìí—Ş‚²‚Æ‚ÉƒIƒtƒZƒbƒg‚ğ“Ç‚İ‚Ş
+		// ãƒ¢ãƒ¼ãƒ•ã®ç¨®é¡ã”ã¨ã«ã‚ªãƒ•ã‚»ãƒƒãƒˆã‚’èª­ã¿è¾¼ã‚€
 		MorphData& md = out.morphs.morphs[i];
 		md.name = WideToUtf8(wname);
 		md.panel = panel;
@@ -317,7 +317,7 @@ bool PMXLoader::Parse(const std::string& filepath, float scale, ModelCpuData& ou
 
 		switch (type)
 		{
-		case 0: // ƒOƒ‹[ƒv
+		case 0: // ã‚°ãƒ«ãƒ¼ãƒ—
 			for(uint32_t k = 0;k < offsetCount; ++k)
 			{
 				int mi = r.ReadIndex(morphIdxSize, true);
@@ -325,7 +325,7 @@ bool PMXLoader::Parse(const std::string& filepath, float scale, ModelCpuData& ou
 				md.groupOffsets.push_back({ mi, rate });
 			}
 			break;
-		case 1: // ’¸“_
+		case 1: // é ‚ç‚¹
 			for(uint32_t k = 0; k < offsetCount; ++k)
 			{
 				VertexMorphOffset vo{};
@@ -334,11 +334,11 @@ bool PMXLoader::Parse(const std::string& filepath, float scale, ModelCpuData& ou
 				md.vertexOffsets.push_back(vo);
 			}
 			break;
-		case 2: // ƒ{[ƒ“
+		case 2: // ãƒœãƒ¼ãƒ³
 			for (uint32_t k = 0; k < offsetCount; ++k)
 			{
 				r.ReadIndex(boneIdxSize, true);
-				r.Skip(sizeof(float) * 7); // ˆÚ“®3 + ‰ñ“]4
+				r.Skip(sizeof(float) * 7); // ç§»å‹•3 + å›è»¢4
 			}
 			break;
 		case 3:
@@ -352,47 +352,47 @@ bool PMXLoader::Parse(const std::string& filepath, float scale, ModelCpuData& ou
 				r.Skip(sizeof(float) * 4);
 			}
 			break;
-		case 8: // ƒ}ƒeƒŠƒAƒ‹
+		case 8: // ãƒãƒ†ãƒªã‚¢ãƒ«
 			for (uint32_t k = 0; k < offsetCount; ++k)
 			{
 				r.ReadIndex(matIdxSize, true);
-				r.Read<std::uint8_t>();     // ‰‰Z•û®
+				r.Read<std::uint8_t>();     // æ¼”ç®—æ–¹å¼
 				r.Skip(sizeof(float) * 4);  // diffuse
 				r.Skip(sizeof(float) * 3);  // specular
 				r.Skip(sizeof(float));      // specularity
 				r.Skip(sizeof(float) * 3);  // ambient
 				r.Skip(sizeof(float) * 4);  // edge color
 				r.Skip(sizeof(float));      // edge size
-				r.Skip(sizeof(float) * 4);  // textureŒW”
-				r.Skip(sizeof(float) * 4);  // sphereŒW”
-				r.Skip(sizeof(float) * 4);  // toonŒW”
+				r.Skip(sizeof(float) * 4);  // textureä¿‚æ•°
+				r.Skip(sizeof(float) * 4);  // sphereä¿‚æ•°
+				r.Skip(sizeof(float) * 4);  // toonä¿‚æ•°
 			}
 			break;
 		default:
 			break;
 		}
 
-		// ƒ‚[ƒt–¼‚©‚çƒCƒ“ƒfƒbƒNƒX‚Ö‚Ìƒ}ƒbƒv‚ğì¬
+		// ãƒ¢ãƒ¼ãƒ•åã‹ã‚‰ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹ã¸ã®ãƒãƒƒãƒ—ã‚’ä½œæˆ
 		out.morphs.nameToIndex[md.name] = i;
 	}
 
-	// ---- •\¦˜g ----
+	// ---- è¡¨ç¤ºæ  ----
 	const std::int32_t frameCount = r.Read<std::int32_t>();
 	for (int i = 0; i < frameCount; ++i)
 	{
-		r.ReadText(encoding);   // ˜g–¼JP(–¢g—p)
-		r.ReadText(encoding);   // ˜g–¼EN(–¢g—p)
-		r.Read<std::uint8_t>(); // “Áê˜gƒtƒ‰ƒO(–¢g—p)
+		r.ReadText(encoding);   // æ åJP(æœªä½¿ç”¨)
+		r.ReadText(encoding);   // æ åEN(æœªä½¿ç”¨)
+		r.Read<std::uint8_t>(); // ç‰¹æ®Šæ ãƒ•ãƒ©ã‚°(æœªä½¿ç”¨)
 		const std::int32_t elemCount = r.Read<std::int32_t>();
 		for (int e = 0; e < elemCount; ++e)
 		{
-			const std::uint8_t target = r.Read<std::uint8_t>(); // 0:ƒ{[ƒ“ 1:ƒ‚[ƒt
+			const std::uint8_t target = r.Read<std::uint8_t>(); // 0:ãƒœãƒ¼ãƒ³ 1:ãƒ¢ãƒ¼ãƒ•
 			if (target == 0) r.ReadIndex(boneIdxSize, true);
 			else              r.ReadIndex(morphIdxSize, true);
 		}
 	}
 
-	// ---- „‘Ì ---- //
+	// ---- å‰›ä½“ ---- //
 	const int rbIdxSize = g[7];
 	const std::int32_t rbCount = r.Read<std::int32_t>();
 	out.physics.rigidBodies.resize(rbCount);
@@ -416,7 +416,7 @@ bool PMXLoader::Parse(const std::string& filepath, float scale, ModelCpuData& ou
 		rb.physicsType = r.Read<std::uint8_t>();
 	}
 
-	// ---- ƒWƒ‡ƒCƒ“ƒg ---- //
+	// ---- ã‚¸ãƒ§ã‚¤ãƒ³ãƒˆ ---- //
 	const std::int32_t jointCount = r.Read<std::int32_t>();
 	out.physics.joints.resize(jointCount);
 	for (int i = 0; i < jointCount; ++i)
@@ -424,7 +424,7 @@ bool PMXLoader::Parse(const std::string& filepath, float scale, ModelCpuData& ou
 		PmxJoint& jt = out.physics.joints[i];
 		jt.name = WideToUtf8(r.ReadText(encoding));
 		r.ReadText(encoding);                       // name EN
-		const std::uint8_t jointType = r.Read<std::uint8_t>(); // 0=6DOFƒXƒvƒŠƒ“ƒO(2.0)
+		const std::uint8_t jointType = r.Read<std::uint8_t>(); // 0=6DOFã‚¹ãƒ—ãƒªãƒ³ã‚°(2.0)
 		jt.rigidBodyA = r.ReadIndex(rbIdxSize, true);
 		jt.rigidBodyB = r.ReadIndex(rbIdxSize, true);
 		jt.position = { r.Read<float>() * scale, r.Read<float>() * scale, r.Read<float>() * scale };
@@ -438,12 +438,12 @@ bool PMXLoader::Parse(const std::string& filepath, float scale, ModelCpuData& ou
 		(void)jointType;
 	}
 
-	// ’Pˆêƒ}ƒeƒŠƒAƒ‹ŒİŠ·iæ“ª‚Ìdiffusej
+	// å˜ä¸€ãƒãƒ†ãƒªã‚¢ãƒ«äº’æ›ï¼ˆå…ˆé ­ã®diffuseï¼‰
 	for (auto& m : out.materials)
 		if (!m.diffuse.empty()) { out.diffuseTexturePath = m.diffuse; break; }
 
 	out.success = true;
-	LOG->LogInfo("PMX: “Ç‚İ‚İ¬Œ÷ ’¸“_=" + std::to_string(vertexCount)
-		+ " –Ê=" + std::to_string(indexCount / 3) + " Ş¿=" + std::to_string(matCount) + " „‘Ì=" + std::to_string(rbCount) + " ƒWƒ‡ƒCƒ“ƒg=" + std::to_string(jointCount));
+	LOG->LogInfo("PMX: èª­ã¿è¾¼ã¿æˆåŠŸ é ‚ç‚¹=" + std::to_string(vertexCount)
+		+ " é¢=" + std::to_string(indexCount / 3) + " æè³ª=" + std::to_string(matCount) + " å‰›ä½“=" + std::to_string(rbCount) + " ã‚¸ãƒ§ã‚¤ãƒ³ãƒˆ=" + std::to_string(jointCount));
 	return true;
 }

@@ -1,13 +1,13 @@
-/*****************************************************************//**
+ï»¿/*****************************************************************//**
  * \file   main.cpp
- * \brief  DirectX12‚ÌƒeƒXƒgƒR[ƒh
+ * \brief  DirectX12ã®ãƒ†ã‚¹ãƒˆã‚³ãƒ¼ãƒ‰
  *
- * ì¬Ò keeep
- * ì¬“ú 2026/2/11
- * XV—š—ğ	2/11 ƒEƒBƒ“ƒhƒE‚Ìì¬
- *			2/12 DirectX12‚Ì‰Šú‰»
- *			2/15 APPLICATIONƒNƒ‰ƒX‚Ìì¬
- *			5/02 ‰Šú‰»’Ç‰Á
+ * ä½œæˆè€… keeep
+ * ä½œæˆæ—¥ 2026/2/11
+ * æ›´æ–°å±¥æ­´	2/11 ã‚¦ã‚£ãƒ³ãƒ‰ã‚¦ã®ä½œæˆ
+ *			2/12 DirectX12ã®åˆæœŸåŒ–
+ *			2/15 APPLICATIONã‚¯ãƒ©ã‚¹ã®ä½œæˆ
+ *			5/02 åˆæœŸåŒ–è¿½åŠ 
  * *********************************************************************/
 #include "Application.hpp"
 #include "Defines.hpp"
@@ -21,7 +21,7 @@ int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCm
 		return 0;
 	}
 
-	// exe ‚Æ“¯ŠK‘w‚Ì game.cfg ‚ª‚ ‚ê‚ÎƒQ[ƒ€ƒ‚[ƒh‹N“®
+	// exe ã¨åŒéšå±¤ã® game.cfg ãŒã‚ã‚Œã°ã‚²ãƒ¼ãƒ ãƒ¢ãƒ¼ãƒ‰èµ·å‹•
 	bool gameMode = (lpCmdLine && _tcsstr(lpCmdLine, _T("-game")) != nullptr);
 	{
 		wchar_t exePath[MAX_PATH];
@@ -40,7 +40,7 @@ int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCm
 			if (std::filesystem::exists(binDir))
 				SetDllDirectoryW(binDir.c_str());
 
-			// ‘Š‘ÎƒpƒX("Assets/...", "Shaders/...")‚ÌŠî€‚ğ Data ƒtƒHƒ‹ƒ_‚É‚·‚é
+			// ç›¸å¯¾ãƒ‘ã‚¹("Assets/...", "Shaders/...")ã®åŸºæº–ã‚’ Data ãƒ•ã‚©ãƒ«ãƒ€ã«ã™ã‚‹
 			if (!dataDir.empty())
 				SetCurrentDirectoryW((exeDir / dataDir).c_str());
 			if (!scene.empty())
@@ -58,6 +58,6 @@ int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCm
 	return 0;
 }
 
-// QlƒŠƒ“ƒN : 
-// https://qiita.com/sanoh/items/11b339daf2ff3a4d5e88 DirectX12‚Ì‰Šú‰»
-// https://qiita.com/dpals39/items/773846ab3c8f9abedc79 ƒVƒF[ƒ_[‚©‚ç•`‰æ‚Ü‚Å
+// å‚è€ƒãƒªãƒ³ã‚¯ : 
+// https://qiita.com/sanoh/items/11b339daf2ff3a4d5e88 DirectX12ã®åˆæœŸåŒ–
+// https://qiita.com/dpals39/items/773846ab3c8f9abedc79 ã‚·ã‚§ãƒ¼ãƒ€ãƒ¼ã‹ã‚‰æç”»ã¾ã§

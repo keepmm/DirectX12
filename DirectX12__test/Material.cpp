@@ -1,15 +1,15 @@
-#include "Material.hpp"
+ï»¿#include "Material.hpp"
 #include "d3dx12.h"
 #include <DirectXTex.h>
 #include "Logger.hpp"
 #include "ConstantBufferAllocator.hpp"
 #include "Util.hpp"
 
-/// @brief ƒeƒNƒXƒ`ƒƒ‚Ì“Ç‚İ‚İ(Šg’£q‚É‰‚¶‚Ä©“®”»•Ê)
-/// @param filePath ƒtƒ@ƒCƒ‹‚ÌƒpƒX
+/// @brief ãƒ†ã‚¯ã‚¹ãƒãƒ£ã®èª­ã¿è¾¼ã¿(æ‹¡å¼µå­ã«å¿œã˜ã¦è‡ªå‹•åˆ¤åˆ¥)
+/// @param filePath ãƒ•ã‚¡ã‚¤ãƒ«ã®ãƒ‘ã‚¹
 /// @param meta metadata
 /// @param img scrachimage
-/// @return ¬Œ÷‚ÍS_OKA¸”s‚ÍƒGƒ‰[ƒR[ƒh
+/// @return æˆåŠŸæ™‚ã¯S_OKã€å¤±æ•—æ™‚ã¯ã‚¨ãƒ©ãƒ¼ã‚³ãƒ¼ãƒ‰
 static HRESULT LoadImgAny(
 	_In_ const std::wstring& filePath, 
 	_In_ DirectX::TexMetadata& meta, 
@@ -54,7 +54,7 @@ static HRESULT LoadImgAny(
 
 void Material::Init()
 {
-	// ˆø”‚Ì‚Ç‚ê‚©‚ª‹ó‚Ìê‡‰Šú‰»‚µ‚È‚¢
+	// å¼•æ•°ã®ã©ã‚Œã‹ãŒç©ºã®å ´åˆåˆæœŸåŒ–ã—ãªã„
 	if(APP->GetDevice() == nullptr) return;
 
 	CreateCheckerTexture(APP->GetDevice());
@@ -66,7 +66,7 @@ void Material::Init()
 
 bool Material::SetTextureFromFile(const std::wstring& filePath)
 {
-	// ƒfƒoƒCƒX‚ªnullptr‚Ìê‡‚Íˆ—‚µ‚È‚¢
+	// ãƒ‡ãƒã‚¤ã‚¹ãŒnullptrã®å ´åˆã¯å‡¦ç†ã—ãªã„
 	if (APP->GetDevice() == nullptr) {
 		LOG->LogError("SetTextureFromFile: device is null");
 		return false;
@@ -75,7 +75,7 @@ bool Material::SetTextureFromFile(const std::wstring& filePath)
 	DirectX::TexMetadata metadata{};
 	DirectX::ScratchImage image{};
 
-	// “Ç‚İ‚İ‚É¸”s
+	// èª­ã¿è¾¼ã¿ã«å¤±æ•—
 	if (FAILED(LoadImgAny(filePath, metadata, image))) {
 		LOG->LogError("LoadFromWICFile failed");
 		return false;
@@ -90,7 +90,7 @@ bool Material::SetTextureFromFile(const std::wstring& filePath)
 
 	if (!EnsureSrvHeap()) return false;
 
-	// ƒeƒNƒXƒ`ƒƒ‚ÌƒTƒCƒY‚ÆƒtƒH[ƒ}ƒbƒg‚ğ’è‹`
+	// ãƒ†ã‚¯ã‚¹ãƒãƒ£ã®ã‚µã‚¤ã‚ºã¨ãƒ•ã‚©ãƒ¼ãƒãƒƒãƒˆã‚’å®šç¾©
 	const CD3DX12_RESOURCE_DESC texDesc = CD3DX12_RESOURCE_DESC::Tex2D(
 		metadata.format,
 		static_cast<UINT64>(metadata.width),
@@ -99,7 +99,7 @@ bool Material::SetTextureFromFile(const std::wstring& filePath)
 		static_cast<UINT16>(metadata.mipLevels)
 	);
 
-	// ƒeƒNƒXƒ`ƒƒƒŠƒ\[ƒX‚ğì¬
+	// ãƒ†ã‚¯ã‚¹ãƒãƒ£ãƒªã‚½ãƒ¼ã‚¹ã‚’ä½œæˆ
 	CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_DEFAULT);
 	if (FAILED(APP->GetDevice()->CreateCommittedResource(
 		&heapProps,
@@ -113,7 +113,7 @@ bool Material::SetTextureFromFile(const std::wstring& filePath)
 		return false;
 	}
 
-	// ƒtƒbƒgƒvƒŠƒ“ƒg‚ğæ“¾‚µ‚ÄƒAƒbƒvƒ[ƒh—p‚Ìƒoƒbƒtƒ@‚ğì¬
+	// ãƒ•ãƒƒãƒˆãƒ—ãƒªãƒ³ãƒˆã‚’å–å¾—ã—ã¦ã‚¢ãƒƒãƒ—ãƒ­ãƒ¼ãƒ‰ç”¨ã®ãƒãƒƒãƒ•ã‚¡ã‚’ä½œæˆ
 	D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint = {};
 	UINT numRows = 0;
 	UINT64 rowSizeInBytes = 0;
@@ -144,9 +144,9 @@ bool Material::SetTextureFromFile(const std::wstring& filePath)
 		return false;
 	}
 
-	// ƒ}ƒbƒv‚µ‚ÄƒeƒNƒXƒ`ƒƒƒf[ƒ^‚ğƒRƒs[
+	// ãƒãƒƒãƒ—ã—ã¦ãƒ†ã‚¯ã‚¹ãƒãƒ£ãƒ‡ãƒ¼ã‚¿ã‚’ã‚³ãƒ”ãƒ¼
 	void* mapped = nullptr;
-	CD3DX12_RANGE readRange(0, 0); // “Ç‚İæ‚è‚Í‚µ‚È‚¢‚Ì‚Å”ÍˆÍ‚Í0
+	CD3DX12_RANGE readRange(0, 0); // èª­ã¿å–ã‚Šã¯ã—ãªã„ã®ã§ç¯„å›²ã¯0
 	if (FAILED(m_TextureUpload->Map(0, &readRange, &mapped))) {
 		LOG->LogError("SetTextureFromFile: upload buffer map failed");
 		return false;
@@ -187,7 +187,7 @@ bool Material::SetTextureFromMemory(const std::uint8_t* data, size_t size)
 	if (APP->GetDevice() == nullptr) { LOG->LogError("SetTextureFromMemory: device is null"); return false; }
 	if (data == nullptr || size == 0) { LOG->LogError("SetTextureFromMemory: invalid data"); return false; }
 
-	// WIC‚Å“Ç‚İ‚Şiƒƒ‚ƒŠ‚©‚çj
+	// WICã§èª­ã¿è¾¼ã‚€ï¼ˆãƒ¡ãƒ¢ãƒªã‹ã‚‰ï¼‰
 	DirectX::TexMetadata metadata{};
 	DirectX::ScratchImage image{};
 	if (FAILED(DirectX::LoadFromWICMemory(data, size, DirectX::WIC_FLAGS_NONE, &metadata, image)))
@@ -210,7 +210,7 @@ bool Material::SetToonRampTexture(const std::wstring& filepath)
 
 	if (!std::filesystem::exists(resolved))
 	{
-		LOG->LogError("SetToonRampTexture:ƒtƒ@ƒCƒ‹‚ªŒ©‚Â‚©‚è‚Ü‚¹‚ñ");
+		LOG->LogError("SetToonRampTexture:ãƒ•ã‚¡ã‚¤ãƒ«ãŒè¦‹ã¤ã‹ã‚Šã¾ã›ã‚“");
 		return false;
 	}
 
@@ -220,13 +220,13 @@ bool Material::SetToonRampTexture(const std::wstring& filepath)
 		resolved.c_str(), DirectX::WIC_FLAGS_NONE, &metadata, image);
 	if(FAILED(hr))
 	{
-		LOG->LogError("SetToonRampTexture: LoadFromWICFile‚ª¸”s‚µ‚Ü‚µ‚½");
+		LOG->LogError("SetToonRampTexture: LoadFromWICFileãŒå¤±æ•—ã—ã¾ã—ãŸ");
 		return false;
 	}
 	const DirectX::Image* srcImage = image.GetImage(0, 0, 0);
 	if (srcImage == nullptr) return false;
 
-	// ƒXƒƒbƒg1(t1)‚ÊƒAƒAƒvƒ[ƒh
+	// ã‚¹ãƒ­ãƒƒãƒˆ1(t1)ã¬ã‚¢ã‚¢ãƒ—ãƒ­ãƒ¼ãƒ‰
 	return UploadTextureTo(
 		srcImage,
 		metadata,
@@ -237,16 +237,16 @@ bool Material::SetToonRampTexture(const std::wstring& filepath)
 		m_RampUploadPending);
 }
 
-/// @brief ƒ}ƒeƒŠƒAƒ‹‚ğ“K—p‚·‚é
-/// @param commandList ƒRƒ}ƒ“ƒhƒŠƒXƒg
-/// @param world worlds—ñ
-/// @param view views—ñ
-/// @param projection projs—ñ
-/// @param wireframe wireframe•`‰æ‚·‚é‚©
-/// @param frameIndex •`‰æƒCƒ“ƒfƒbƒNƒX
-/// @param cbAlloc ’è”ƒoƒbƒtƒ@ƒAƒƒP[ƒ^
-/// @param shaderName ƒVƒF[ƒ_[‚Ì–¼‘O
-/// @param overridePso g—p‚·‚éPSO
+/// @brief ãƒãƒ†ãƒªã‚¢ãƒ«ã‚’é©ç”¨ã™ã‚‹
+/// @param commandList ã‚³ãƒãƒ³ãƒ‰ãƒªã‚¹ãƒˆ
+/// @param world worldè¡Œåˆ—
+/// @param view viewè¡Œåˆ—
+/// @param projection projè¡Œåˆ—
+/// @param wireframe wireframeæç”»ã™ã‚‹ã‹
+/// @param frameIndex æç”»ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹
+/// @param cbAlloc å®šæ•°ãƒãƒƒãƒ•ã‚¡ã‚¢ãƒ­ã‚±ãƒ¼ã‚¿
+/// @param shaderName ã‚·ã‚§ãƒ¼ãƒ€ãƒ¼ã®åå‰
+/// @param overridePso ä½¿ç”¨ã™ã‚‹PSO
 void Material::Apply(
 	ID3D12GraphicsCommandList* commandList,
 	const float4x4& world,
@@ -260,7 +260,7 @@ void Material::Apply(
 	)
 {
 
-	// ƒRƒ}ƒ“ƒhƒŠƒXƒg‚ª‹ó‚Ìê‡‚Í“K—p‚µ‚È‚¢
+	// ã‚³ãƒãƒ³ãƒ‰ãƒªã‚¹ãƒˆãŒç©ºã®å ´åˆã¯é©ç”¨ã—ãªã„
 	if (commandList == nullptr) {
 		return;
 	}
@@ -277,24 +277,24 @@ void Material::Apply(
 	}
 
 	// ------------------------------- //
-	// ’è”ƒoƒbƒtƒ@(ƒAƒƒP[ƒ^‚©‚çŠm•Û //
+	// å®šæ•°ãƒãƒƒãƒ•ã‚¡(ã‚¢ãƒ­ã‚±ãƒ¼ã‚¿ã‹ã‚‰ç¢ºä¿ //
 	// ------------------------------- //
 	if (cbAlloc == nullptr)
 	{
 		return;
 	}
 
-	// ƒtƒŒ[ƒ€‚²‚Æ‚Ì’è”ƒoƒbƒtƒ@‚ğ\’z‚µ‚ÄƒAƒbƒvƒ[ƒh
+	// ãƒ•ãƒ¬ãƒ¼ãƒ ã”ã¨ã®å®šæ•°ãƒãƒƒãƒ•ã‚¡ã‚’æ§‹ç¯‰ã—ã¦ã‚¢ãƒƒãƒ—ãƒ­ãƒ¼ãƒ‰
 	const UINT frameSlot = frameIndex % FRAME_COUNT;
 
 	// -------------------- //
-	//  ’è”ƒoƒbƒtƒ@‚ğ\’z  //
+	//  å®šæ•°ãƒãƒƒãƒ•ã‚¡ã‚’æ§‹ç¯‰  //
 	// -------------------- //
 
 	// b0
 	FrameCB fdata = {};
 	BuildPerFrame(view, projection, &fdata);
-	// ’è”ƒoƒbƒtƒ@ƒAƒƒP[ƒ^‚©‚çGPU‰¼‘zƒAƒhƒŒƒX‚ğæ“¾
+	// å®šæ•°ãƒãƒƒãƒ•ã‚¡ã‚¢ãƒ­ã‚±ãƒ¼ã‚¿ã‹ã‚‰GPUä»®æƒ³ã‚¢ãƒ‰ãƒ¬ã‚¹ã‚’å–å¾—
 	const D3D12_GPU_VIRTUAL_ADDRESS b0 = cbAlloc->Allocate(frameSlot, &fdata, sizeof(FrameCB));
 
 	// b1
@@ -305,7 +305,7 @@ void Material::Apply(
 	// b3
 	MaterialCB mdata{};
 	mdata.mapFlags = { m_HasNormal ? 1.f : 0.f, m_HasMetal ? 1.f : 0.f,
-					   m_HasRough ? 1.f : 0.f, m_EnvMaxMip };   // w>0 ‚È‚çŠÂ‹«‚ ‚è
+					   m_HasRough ? 1.f : 0.f, m_EnvMaxMip };   // w>0 ãªã‚‰ç’°å¢ƒã‚ã‚Š
 	mdata.roughness = roughness;
 	mdata.faceParam.y = baseAlpha;
 	mdata.metallic = metallic;
@@ -318,21 +318,21 @@ void Material::Apply(
 
 	if (b0 == 0 || b1 == 0 || b3 == 0)
 	{
-		// ƒŠƒ“ƒO‚ªˆì‚ê‚½“™‚ÅŠm•Û‚Å‚«‚È‚¢ê‡‚Í•`‰æ‚µ‚È‚¢
+		// ãƒªãƒ³ã‚°ãŒæº¢ã‚ŒãŸç­‰ã§ç¢ºä¿ã§ããªã„å ´åˆã¯æç”»ã—ãªã„
 		return;
 	}
 
-	// ƒ‹[ƒgƒpƒ‰ƒ[ƒ^‚É’è”ƒoƒbƒtƒ@‚ÌGPU‰¼‘zƒAƒhƒŒƒX‚ğƒZƒbƒg
+	// ãƒ«ãƒ¼ãƒˆãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿ã«å®šæ•°ãƒãƒƒãƒ•ã‚¡ã®GPUä»®æƒ³ã‚¢ãƒ‰ãƒ¬ã‚¹ã‚’ã‚»ãƒƒãƒˆ
 	commandList->SetGraphicsRootConstantBufferView(0, b0);
 	commandList->SetGraphicsRootConstantBufferView(1, b1);
 	commandList->SetGraphicsRootConstantBufferView(3, b3);
 
-	// PSO‚Ì‘I‘ğ
+	// PSOã®é¸æŠ
 	ID3D12PipelineState* pso = overridePso;
 	std::string name = "Basic";
 	if (!pso && wireframe)            pso = m_WirePso.Get();
 	if (!pso)                         pso = APP->GetPipelineStateByName(shaderName);
-	if (!pso)                         pso = APP->GetPipelineStateByName(name); // ˆÀ‘S–Ô
+	if (!pso)                         pso = APP->GetPipelineStateByName(name); // å®‰å…¨ç¶²
 	if (!pso) return;
 	commandList->SetPipelineState(pso);
 }
@@ -341,8 +341,8 @@ void Material::ShareDiffuseTexture(const Material& src)
 {
 	if (!src.m_Texture || !EnsureSrvHeap()) return;
 
-	m_Texture = src.m_Texture;   // ƒŠƒ\[ƒX‹¤—L(ComPtr‚È‚Ì‚ÅQÆƒJƒEƒ“ƒg)
-	m_TextureUploadPending = false;   // ƒAƒbƒvƒ[ƒh‚Í‹¤—LŒ³‚ªÀ{Ï‚İ
+	m_Texture = src.m_Texture;   // ãƒªã‚½ãƒ¼ã‚¹å…±æœ‰(ComPtrãªã®ã§å‚ç…§ã‚«ã‚¦ãƒ³ãƒˆ)
+	m_TextureUploadPending = false;   // ã‚¢ãƒƒãƒ—ãƒ­ãƒ¼ãƒ‰ã¯å…±æœ‰å…ƒãŒå®Ÿæ–½æ¸ˆã¿
 
 	const auto desc = m_Texture->GetDesc();
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
@@ -362,7 +362,7 @@ void Material::BuildPerFrame(const float4x4& view, const float4x4& projection, F
 	const auto p = DirectX::XMLoadFloat4x4(&projection);
 	DirectX::XMStoreFloat4x4(&data.viewProj, DirectX::XMMatrixTranspose(v * p));
 
-	// ƒJƒƒ‰‚Ìƒ[ƒ‹ƒhÀ•W = view ‚Ì‹ts—ñ‚Ì•½sˆÚ“®
+	// ã‚«ãƒ¡ãƒ©ã®ãƒ¯ãƒ¼ãƒ«ãƒ‰åº§æ¨™ = view ã®é€†è¡Œåˆ—ã®å¹³è¡Œç§»å‹•
 	const auto invV = DirectX::XMMatrixInverse(nullptr, v);
 	DirectX::XMFLOAT4X4 iv; DirectX::XMStoreFloat4x4(&iv, invV);
 	data.cameraPos = { iv._41, iv._42, iv._43, 1.0f };
@@ -374,10 +374,10 @@ void Material::BuildPerObject(const float4x4& world, ObjectCB* out) const
 {
 	ObjectCB data{};
 
-	// s—ñ‚Ìì¬
+	// è¡Œåˆ—ã®ä½œæˆ
 	const auto w = DirectX::XMLoadFloat4x4(&world);
 
-	// “]’u‚µ‚ÄŠi”[
+	// è»¢ç½®ã—ã¦æ ¼ç´
 	DirectX::XMStoreFloat4x4(&data.world, DirectX::XMMatrixTranspose(w));
 
 	*out = data;
@@ -385,21 +385,21 @@ void Material::BuildPerObject(const float4x4& world, ObjectCB* out) const
 
 void Material::CreateCheckerTexture(const ComPtr<ID3D12Device>& device)
 {
-	// device‚ªnullptr‚Ìê‡‚Íˆ—‚µ‚È‚¢
+	// deviceãŒnullptrã®å ´åˆã¯å‡¦ç†ã—ãªã„
 	if(device == nullptr) {
 		return;
 	}
 
-	// ƒVƒF[ƒ_[‚©‚çƒAƒNƒZƒX‚·‚é‚½‚ß‚ÌSRV‚ğì¬‚·‚é‚½‚ß‚ÌƒfƒBƒXƒNƒŠƒvƒ^ƒq[ƒv‚ğì¬;
+	// ã‚·ã‚§ãƒ¼ãƒ€ãƒ¼ã‹ã‚‰ã‚¢ã‚¯ã‚»ã‚¹ã™ã‚‹ãŸã‚ã®SRVã‚’ä½œæˆã™ã‚‹ãŸã‚ã®ãƒ‡ã‚£ã‚¹ã‚¯ãƒªãƒ—ã‚¿ãƒ’ãƒ¼ãƒ—ã‚’ä½œæˆ;
 	if (!EnsureSrvHeap()) return ;
 
-	// ƒeƒNƒXƒ`ƒƒ‚ÌƒTƒCƒY‚ÆƒtƒH[ƒ}ƒbƒg‚ğ’è‹`
+	// ãƒ†ã‚¯ã‚¹ãƒãƒ£ã®ã‚µã‚¤ã‚ºã¨ãƒ•ã‚©ãƒ¼ãƒãƒƒãƒˆã‚’å®šç¾©
 	constexpr UINT width = 2;
 	constexpr UINT height = 2;
 	constexpr DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM;
-	constexpr UINT pixelSize = 4; // RGBA8‚È‚Ì‚Å1ƒsƒNƒZƒ‹‚ ‚½‚è4ƒoƒCƒg
+	constexpr UINT pixelSize = 4; // RGBA8ãªã®ã§1ãƒ”ã‚¯ã‚»ãƒ«ã‚ãŸã‚Š4ãƒã‚¤ãƒˆ
 
-	// ƒ`ƒFƒbƒJ[ƒeƒNƒXƒ`ƒƒ‚ÌƒsƒNƒZƒ‹ƒf[ƒ^i”’‚Æ•‚Ì2x2j
+	// ãƒã‚§ãƒƒã‚«ãƒ¼ãƒ†ã‚¯ã‚¹ãƒãƒ£ã®ãƒ”ã‚¯ã‚»ãƒ«ãƒ‡ãƒ¼ã‚¿ï¼ˆç™½ã¨é»’ã®2x2ï¼‰
 	//std::array < std::uint8_t, width* height* pixelSize> pixels =
 	//{
 	//	255,255,255,255, 30,30,30,255,
@@ -411,10 +411,10 @@ void Material::CreateCheckerTexture(const ComPtr<ID3D12Device>& device)
 		255,255,255,255, 255,255,255,255
 	};
 
-	// ƒeƒNƒXƒ`ƒƒƒŠƒ\[ƒX‚ğì¬
+	// ãƒ†ã‚¯ã‚¹ãƒãƒ£ãƒªã‚½ãƒ¼ã‚¹ã‚’ä½œæˆ
 	CD3DX12_RESOURCE_DESC texDesc = CD3DX12_RESOURCE_DESC::Tex2D(format, width, height);
 
-	// ƒeƒNƒXƒ`ƒƒƒŠƒ\[ƒX‚Ìì¬‚É¸”s‚µ‚½ê‡‚Íˆ—‚µ‚È‚¢
+	// ãƒ†ã‚¯ã‚¹ãƒãƒ£ãƒªã‚½ãƒ¼ã‚¹ã®ä½œæˆã«å¤±æ•—ã—ãŸå ´åˆã¯å‡¦ç†ã—ãªã„
 	CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_DEFAULT);
 	if (FAILED(device->CreateCommittedResource(
 		&heapProps,
@@ -427,7 +427,7 @@ void Material::CreateCheckerTexture(const ComPtr<ID3D12Device>& device)
 		return;
 	}
 
-	// ƒeƒNƒXƒ`ƒƒ‚Éƒf[ƒ^‚ğƒAƒbƒvƒ[ƒh‚·‚é‚½‚ß‚ÌƒAƒbƒvƒ[ƒhƒoƒbƒtƒ@‚ğì¬
+	// ãƒ†ã‚¯ã‚¹ãƒãƒ£ã«ãƒ‡ãƒ¼ã‚¿ã‚’ã‚¢ãƒƒãƒ—ãƒ­ãƒ¼ãƒ‰ã™ã‚‹ãŸã‚ã®ã‚¢ãƒƒãƒ—ãƒ­ãƒ¼ãƒ‰ãƒãƒƒãƒ•ã‚¡ã‚’ä½œæˆ
 	D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint = {};
 	UINT numRows = 0;
 	UINT64 rowSizeInBytes = 0;
@@ -436,7 +436,7 @@ void Material::CreateCheckerTexture(const ComPtr<ID3D12Device>& device)
 
 	m_TextureFootprint = footprint;
 
-	// ƒAƒbƒvƒ[ƒhƒoƒbƒtƒ@‚Ìì¬‚É¸”s‚µ‚½ê‡‚Íˆ—‚µ‚È‚¢
+	// ã‚¢ãƒƒãƒ—ãƒ­ãƒ¼ãƒ‰ãƒãƒƒãƒ•ã‚¡ã®ä½œæˆã«å¤±æ•—ã—ãŸå ´åˆã¯å‡¦ç†ã—ãªã„
 	CD3DX12_HEAP_PROPERTIES uploadHeap(D3D12_HEAP_TYPE_UPLOAD);
 	CD3DX12_RESOURCE_DESC uploadDesc = CD3DX12_RESOURCE_DESC::Buffer(uploadSize);
 	if (FAILED(device->CreateCommittedResource(
@@ -451,8 +451,8 @@ void Material::CreateCheckerTexture(const ComPtr<ID3D12Device>& device)
 	}
 
 	void* mapped = nullptr;
-	CD3DX12_RANGE readRange(0, 0); // “Ç‚İæ‚è‚Í‚µ‚È‚¢‚Ì‚Å”ÍˆÍ‚Í04
-	// ¬Œ÷
+	CD3DX12_RANGE readRange(0, 0); // èª­ã¿å–ã‚Šã¯ã—ãªã„ã®ã§ç¯„å›²ã¯04
+	// æˆåŠŸæ™‚
 	if (SUCCEEDED(m_TextureUpload->Map(0, &readRange, &mapped)))
 	{
 		auto* dst = reinterpret_cast<std::uint8_t*>(mapped);
@@ -486,7 +486,7 @@ void Material::UpdateTextureIfNeeded(ID3D12GraphicsCommandList* commandList)
 	if (commandList == nullptr) return;
 
 
-	// --- diffuseipending‚Ì‚İƒRƒs[j---
+	// --- diffuseï¼ˆpendingæ™‚ã®ã¿ã‚³ãƒ”ãƒ¼ï¼‰---
 	if (m_TextureUploadPending && m_Texture != nullptr && m_TextureUpload != nullptr)
 	{
 		D3D12_TEXTURE_COPY_LOCATION dst = {};
@@ -507,11 +507,11 @@ void Material::UpdateTextureIfNeeded(ID3D12GraphicsCommandList* commandList)
 			D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		commandList->ResourceBarrier(1, &barrier);
 
-		m_TextureUploadPending = false;   // © ƒRƒs[‚µ‚½‚¾‚¯false
+		m_TextureUploadPending = false;   // â† ã‚³ãƒ”ãƒ¼ã—ãŸæ™‚ã ã‘false
 		APP->DeferRelease(std::move(m_TextureUpload));
 	}
 
-	// --- ƒ‰ƒ“ƒv ---
+	// --- ãƒ©ãƒ³ãƒ— ---
 	if (m_RampUploadPending && m_RampTexture != nullptr && m_RampUpload != nullptr)
 	{
 		D3D12_TEXTURE_COPY_LOCATION dst = {};
@@ -536,7 +536,7 @@ void Material::UpdateTextureIfNeeded(ID3D12GraphicsCommandList* commandList)
 		APP->DeferRelease(std::move(m_RampUpload));
 	}
 
-	// --- normal / metal / roughi‹¤’Êflushj---
+	// --- normal / metal / roughï¼ˆå…±é€šflushï¼‰---
 	auto flush = [&](bool& pending,
 		const ComPtr<ID3D12Resource>& tex,
 		ComPtr<ID3D12Resource>& upload,
@@ -580,7 +580,7 @@ bool Material::CreateTextureFromRGBA(
 	constexpr DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	constexpr UINT pixelSize = 4;
 
-	// SRVƒq[ƒvi–³‚¯‚ê‚Îì‚éj
+	// SRVãƒ’ãƒ¼ãƒ—ï¼ˆç„¡ã‘ã‚Œã°ä½œã‚‹ï¼‰
 	if (!EnsureSrvHeap()) return false;
 
 	CD3DX12_RESOURCE_DESC texDesc = CD3DX12_RESOURCE_DESC::Tex2D(format, width, height);
@@ -633,12 +633,12 @@ bool Material::CreateMapFromRGBA(
 {
 	auto device = APP->GetDevice();
 	if (device == nullptr || rgba == nullptr || width == 0 || height == 0) return false;
-	if (!EnsureSrvHeap()) return false;   // 7–‡ƒq[ƒvŠm•Ûit0..t6j
+	if (!EnsureSrvHeap()) return false;   // 7æšãƒ’ãƒ¼ãƒ—ç¢ºä¿ï¼ˆt0..t6ï¼‰
 
 	constexpr DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	constexpr UINT pixelSize = 4;
 
-	// ƒeƒNƒXƒ`ƒƒ–{‘ÌiDEFAULTƒq[ƒvj
+	// ãƒ†ã‚¯ã‚¹ãƒãƒ£æœ¬ä½“ï¼ˆDEFAULTãƒ’ãƒ¼ãƒ—ï¼‰
 	CD3DX12_RESOURCE_DESC texDesc = CD3DX12_RESOURCE_DESC::Tex2D(format, width, height);
 	CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_DEFAULT);
 	if (FAILED(device->CreateCommittedResource(
@@ -647,7 +647,7 @@ bool Material::CreateMapFromRGBA(
 		IID_PPV_ARGS(outTexture.ReleaseAndGetAddressOf()))))
 		return false;
 
-	// ƒtƒbƒgƒvƒŠƒ“ƒgæ“¾•ƒAƒbƒvƒ[ƒhƒoƒbƒtƒ@
+	// ãƒ•ãƒƒãƒˆãƒ—ãƒªãƒ³ãƒˆå–å¾—ï¼†ã‚¢ãƒƒãƒ—ãƒ­ãƒ¼ãƒ‰ãƒãƒƒãƒ•ã‚¡
 	D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint = {};
 	UINT numRows = 0; UINT64 rowSize = 0, uploadSize = 0;
 	device->GetCopyableFootprints(&texDesc, 0, 1, 0, &footprint, &numRows, &rowSize, &uploadSize);
@@ -661,7 +661,7 @@ bool Material::CreateMapFromRGBA(
 		IID_PPV_ARGS(outUpload.ReleaseAndGetAddressOf()))))
 		return false;
 
-	// ƒsƒNƒZƒ‹‚ğƒAƒbƒvƒ[ƒhƒoƒbƒtƒ@‚Öisƒsƒbƒ`‚ğ‡‚í‚¹‚ÄƒRƒs[j
+	// ãƒ”ã‚¯ã‚»ãƒ«ã‚’ã‚¢ãƒƒãƒ—ãƒ­ãƒ¼ãƒ‰ãƒãƒƒãƒ•ã‚¡ã¸ï¼ˆè¡Œãƒ”ãƒƒãƒã‚’åˆã‚ã›ã¦ã‚³ãƒ”ãƒ¼ï¼‰
 	void* mapped = nullptr;
 	CD3DX12_RANGE readRange(0, 0);
 	if (SUCCEEDED(outUpload->Map(0, &readRange, &mapped)))
@@ -672,10 +672,10 @@ bool Material::CreateMapFromRGBA(
 			std::memcpy(dst + y * footprint.Footprint.RowPitch,
 				rgba + y * srcRowPitch, srcRowPitch);
 		outUpload->Unmap(0, nullptr);
-		outPending = true;   // ÀƒRƒs[‚Í UpdateTextureIfNeeded ‚Å
+		outPending = true;   // å®Ÿã‚³ãƒ”ãƒ¼ã¯ UpdateTextureIfNeeded ã§
 	}
 
-	// SRV ‚ğ slot ”Ô–Ú‚Éì¬
+	// SRV ã‚’ slot ç•ªç›®ã«ä½œæˆ
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.Format = format;
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -750,7 +750,7 @@ bool Material::EnsureSrvHeap()
 	if (FAILED(device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(m_TextureSrvHeap.GetAddressOf()))))
 		return false;
 
-	// ‘Sslot‚ğ1x1”’‚Ìƒ_ƒ~[SRV‚Å‰Šú‰»i–¢İ’èslot‚ğƒTƒ“ƒvƒ‹‚µ‚Ä‚àˆÀ‘S‚Éj
+	// å…¨slotã‚’1x1ç™½ã®ãƒ€ãƒŸãƒ¼SRVã§åˆæœŸåŒ–ï¼ˆæœªè¨­å®šslotã‚’ã‚µãƒ³ãƒ—ãƒ«ã—ã¦ã‚‚å®‰å…¨ã«ï¼‰
 	D3D12_SHADER_RESOURCE_VIEW_DESC nullSrv = {};
 	nullSrv.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	nullSrv.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
@@ -760,7 +760,7 @@ bool Material::EnsureSrvHeap()
 	auto cpu = m_TextureSrvHeap->GetCPUDescriptorHandleForHeapStart();
 	for (UINT i = 0; i < 5; ++i)
 	{
-		device->CreateShaderResourceView(nullptr, &nullSrv, cpu);  // null descriptoriƒTƒ“ƒvƒ‹‚·‚é‚Æ0j
+		device->CreateShaderResourceView(nullptr, &nullSrv, cpu);  // null descriptorï¼ˆã‚µãƒ³ãƒ—ãƒ«ã™ã‚‹ã¨0ï¼‰
 		cpu.ptr += inc;
 	}
 	return true;
@@ -769,12 +769,12 @@ bool Material::EnsureSrvHeap()
 bool Material::UploadTextureData(const DirectX::Image* srcImage, const DirectX::TexMetadata& metadata)
 {
 	// ----------------------- //
-	// SRVƒq[ƒv‚ª‚È‚¯‚ê‚Îì¬ //
+	// SRVãƒ’ãƒ¼ãƒ—ãŒãªã‘ã‚Œã°ä½œæˆ //
 	// ----------------------- //
 	if (!EnsureSrvHeap()) return false;
 
 	// ----------------------- //
-	//   ƒeƒNƒXƒ`ƒƒ–{‘Ì‚Ìì¬  //
+	//   ãƒ†ã‚¯ã‚¹ãƒãƒ£æœ¬ä½“ã®ä½œæˆ  //
 	// ----------------------- //
 	const CD3DX12_RESOURCE_DESC texDesc = CD3DX12_RESOURCE_DESC::Tex2D(
 		metadata.format,
@@ -794,7 +794,7 @@ bool Material::UploadTextureData(const DirectX::Image* srcImage, const DirectX::
 	}
 
 	// ----------------------------- //
-	//   ƒAƒbƒvƒ[ƒhƒoƒbƒtƒ@‚Ìì¬  //
+	//   ã‚¢ãƒƒãƒ—ãƒ­ãƒ¼ãƒ‰ãƒãƒƒãƒ•ã‚¡ã®ä½œæˆ  //
 	// ----------------------------- //
 	UINT numRows = 0;
 	UINT64 rowSizeInBytes = 0, uploadSize = 0;
@@ -813,7 +813,7 @@ bool Material::UploadTextureData(const DirectX::Image* srcImage, const DirectX::
 	}
 
 	// ---------------- //
-	// ƒsƒNƒZƒ‹‚ğƒRƒs[ //
+	// ãƒ”ã‚¯ã‚»ãƒ«ã‚’ã‚³ãƒ”ãƒ¼ //
 	// ---------------- //
 	void* mapped = nullptr;
 	CD3DX12_RANGE readRange(0, 0);
@@ -835,7 +835,7 @@ bool Material::UploadTextureData(const DirectX::Image* srcImage, const DirectX::
 	m_TextureUpload->Unmap(0, nullptr);
 
 	// --------- //
-	// SRV‚Ìì¬ //
+	// SRVã®ä½œæˆ //
 	// --------- //
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.Format = metadata.format;
@@ -875,7 +875,7 @@ bool Material::UploadTextureTo(const DirectX::Image* srcImage, const DirectX::Te
 		return false;
 	}
 
-	// ƒAƒbƒvƒ[ƒhƒoƒbƒtƒ@ + ƒsƒNƒZƒ‹ƒRƒs[
+	// ã‚¢ãƒƒãƒ—ãƒ­ãƒ¼ãƒ‰ãƒãƒƒãƒ•ã‚¡ + ãƒ”ã‚¯ã‚»ãƒ«ã‚³ãƒ”ãƒ¼
 	UINT numRows = 0;
 	UINT64 rowSizeInBytes = 0, uploadSize = 0;
 	device->GetCopyableFootprints(
@@ -895,9 +895,9 @@ bool Material::UploadTextureTo(const DirectX::Image* srcImage, const DirectX::Te
 		return false;
 	}
 
-	// ƒsƒNƒZƒ‹‚ğƒRƒs[
+	// ãƒ”ã‚¯ã‚»ãƒ«ã‚’ã‚³ãƒ”ãƒ¼
 	void* mapped = nullptr;
-	CD3DX12_RANGE readRange(0, 0);	// “Ç‚İæ‚è‚Í‚µ‚È‚¢‚Ì‚Å”ÍˆÍ‚Í0
+	CD3DX12_RANGE readRange(0, 0);	// èª­ã¿å–ã‚Šã¯ã—ãªã„ã®ã§ç¯„å›²ã¯0
 	if (FAILED(outUpload->Map(0, &readRange, &mapped)))
 	{
 		return false;
@@ -915,7 +915,7 @@ bool Material::UploadTextureTo(const DirectX::Image* srcImage, const DirectX::Te
 	}
 	outUpload->Unmap(0, nullptr);
 
-	// SRV‚ğw’è
+	// SRVã‚’æŒ‡å®š
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
 	srvDesc.Format = metadata.format;
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
@@ -930,12 +930,12 @@ bool Material::UploadTextureTo(const DirectX::Image* srcImage, const DirectX::Te
 	return true;
 }
 
-// Šù’è‚Ì2’iŠKƒ‰ƒ“ƒv(ˆÃ¨–¾)‚ğì‚Á‚Ä t1 ‚É“ü‚ê‚é
+// æ—¢å®šã®2æ®µéšãƒ©ãƒ³ãƒ—(æš—â†’æ˜)ã‚’ä½œã£ã¦ t1 ã«å…¥ã‚Œã‚‹
 void Material::CreateDefaultRampTexture()
 {
-	if (m_TextureSrvHeap == nullptr) return;	// CreateCheckerTexture‚Åƒq[ƒvì¬Ï‚İ‚Ì‘O’ñ
+	if (m_TextureSrvHeap == nullptr) return;	// CreateCheckerTextureã§ãƒ’ãƒ¼ãƒ—ä½œæˆæ¸ˆã¿ã®å‰æ
 
-	// 4x1ƒsƒNƒZƒ‹: ¶”¼•ª=‰eFA‰E”¼•ª=–¾F
+	// 4x1ãƒ”ã‚¯ã‚»ãƒ«: å·¦åŠåˆ†=å½±è‰²ã€å³åŠåˆ†=æ˜è‰²
 	constexpr UINT rampW = 4;
 	static const std::uint8_t rampPixels[rampW * 4] = {
 		 60,  60,  70, 255,
@@ -973,7 +973,7 @@ void Material::BindEnvironmentIfNeeded()
 	if (!env || !m_TextureSrvHeap) return;
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srv = {};
-	srv.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;   // HDR‚ÌƒtƒH[ƒ}ƒbƒg‚É‡‚í‚¹‚é
+	srv.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;   // HDRã®ãƒ•ã‚©ãƒ¼ãƒãƒƒãƒˆã«åˆã‚ã›ã‚‹
 	srv.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	srv.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	srv.Texture2D.MipLevels = APP->GetEnvMipLevels();
@@ -995,7 +995,7 @@ void Material::BindShadowMapIfNeeded()
 	if (!sm || !m_TextureSrvHeap) return;
 
 	D3D12_SHADER_RESOURCE_VIEW_DESC srv = {};
-	srv.Format = DXGI_FORMAT_R32_FLOAT;      // TYPELESS[“x‚ğR32‚Æ‚µ‚Ä“Ç‚Ş
+	srv.Format = DXGI_FORMAT_R32_FLOAT;      // TYPELESSæ·±åº¦ã‚’R32ã¨ã—ã¦èª­ã‚€
 	srv.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	srv.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	srv.Texture2D.MipLevels = 1;

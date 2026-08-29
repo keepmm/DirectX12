@@ -1,4 +1,4 @@
-#include "MmdPhysics.hpp"
+ï»¿#include "MmdPhysics.hpp"
 #include "Logger.hpp"
 #include <PxPhysicsAPI.h>
 #include <algorithm>
@@ -6,7 +6,7 @@
 using namespace physx;
 using namespace DirectX;
 
-// ---- •ÏŠ·ƒwƒ‹ƒp(”½“]‚È‚µ: Šù‘¶PhysicsWorld‚É‡‚í‚¹‚é) ----
+// ---- å¤‰æ›ãƒ˜ãƒ«ãƒ‘(åè»¢ãªã—: æ—¢å­˜PhysicsWorldã«åˆã‚ã›ã‚‹) ----
 static PxTransform ToPx(const XMMATRIX& m)
 {
     XMVECTOR s, q, t;
@@ -24,13 +24,13 @@ static XMMATRIX FromPx(const PxTransform& t)
     return r;
 }
 
-// ”ñÕ“ËƒOƒ‹[ƒv‚ğˆµ‚¤ƒtƒBƒ‹ƒ^ƒVƒF[ƒ_
+// éè¡çªã‚°ãƒ«ãƒ¼ãƒ—ã‚’æ‰±ã†ãƒ•ã‚£ãƒ«ã‚¿ã‚·ã‚§ãƒ¼ãƒ€
 static PxFilterFlags MmdFilter(
     PxFilterObjectAttributes a0, PxFilterData fd0,
     PxFilterObjectAttributes a1, PxFilterData fd1,
     PxPairFlags& pairFlags, const void*, PxU32)
 {
-    // fd.word0 = 1<<group, fd.word1 = ”ñÕ“Ëƒ}ƒXƒN
+    // fd.word0 = 1<<group, fd.word1 = éè¡çªãƒã‚¹ã‚¯
     if ((fd0.word1 & fd1.word0) || (fd1.word1 & fd0.word0))
         return PxFilterFlag::eSUPPRESS;
     pairFlags = PxPairFlag::eCONTACT_DEFAULT;
@@ -41,7 +41,7 @@ void MmdPhysics::Init(PxPhysics* physics, const PmxPhysics& phys, const Skeleton
 {
     if (!physics || phys.rigidBodies.empty()) return;
 
-    // --- ê—pƒV[ƒ“(ƒQ[ƒ€ƒvƒŒƒC•¨—‚Æ•ª—£) ---
+    // --- å°‚ç”¨ã‚·ãƒ¼ãƒ³(ã‚²ãƒ¼ãƒ ãƒ—ãƒ¬ã‚¤ç‰©ç†ã¨åˆ†é›¢) ---
     PxSceneDesc desc(physics->getTolerancesScale());
     desc.gravity = PxVec3(0.0f, -9.8f, 0.0f);
     m_Dispatcher = PxDefaultCpuDispatcherCreate(8);
@@ -54,7 +54,7 @@ void MmdPhysics::Init(PxPhysics* physics, const PmxPhysics& phys, const Skeleton
     m_Scene = physics->createScene(desc);
     m_Material = physics->createMaterial(0.5f, 0.5f, 0.0f);
 
-    // --- Šeƒ{[ƒ“‚ÌƒoƒCƒ“ƒhƒ[ƒ‹ƒh(•½sˆÚ“®‚Ì‚İ) ---
+    // --- å„ãƒœãƒ¼ãƒ³ã®ãƒã‚¤ãƒ³ãƒ‰ãƒ¯ãƒ¼ãƒ«ãƒ‰(å¹³è¡Œç§»å‹•ã®ã¿) ---
     const size_t nodeCount = skel.nodes.size();
     std::vector<XMMATRIX> bindGlobal(nodeCount);
     for (size_t i = 0; i < nodeCount; ++i)
@@ -64,7 +64,7 @@ void MmdPhysics::Init(PxPhysics* physics, const PmxPhysics& phys, const Skeleton
         bindGlobal[i] = (p >= 0) ? local * bindGlobal[p] : local;
     }
 
-    // --- „‘Ì ---
+    // --- å‰›ä½“ ---
     m_Bodies.resize(phys.rigidBodies.size());
     for (size_t i = 0; i < phys.rigidBodies.size(); ++i)
     {
@@ -73,7 +73,7 @@ void MmdPhysics::Init(PxPhysics* physics, const PmxPhysics& phys, const Skeleton
         b.boneIndex = rb.boneIndex;
         b.physicsType = rb.physicsType;
 
-        // „‘Ì‚ÌƒoƒCƒ“ƒhƒ[ƒ‹ƒh = R(euler) * T(pos)
+        // å‰›ä½“ã®ãƒã‚¤ãƒ³ãƒ‰ãƒ¯ãƒ¼ãƒ«ãƒ‰ = R(euler) * T(pos)
         XMMATRIX rbWorld =
             XMMatrixRotationRollPitchYaw(rb.rotation.x, rb.rotation.y, rb.rotation.z) *
             XMMatrixTranslation(rb.position.x, rb.position.y, rb.position.z);
@@ -83,19 +83,19 @@ void MmdPhysics::Init(PxPhysics* physics, const PmxPhysics& phys, const Skeleton
         b.offset = rbWorld * XMMatrixInverse(nullptr, boneBind);
         b.invOffset = XMMatrixInverse(nullptr, b.offset);
 
-        // Œ`ó(MMDƒJƒvƒZƒ‹‚ÍY²¨PhysX‚ÍX²‚È‚Ì‚ÅZ‰ñ‚è‚É90“x)
+        // å½¢çŠ¶(MMDã‚«ãƒ—ã‚»ãƒ«ã¯Yè»¸â†’PhysXã¯Xè»¸ãªã®ã§Zå›ã‚Šã«90åº¦)
         PxShape* shape = nullptr;
         const PxQuat capRot(PxHalfPi, PxVec3(0, 0, 1));
         switch (rb.shape)
         {
-        case 0: // ‹…
+        case 0: // çƒ
             shape = physics->createShape(PxSphereGeometry(std::max(rb.size.x, 0.01f)), *m_Material);
             break;
-        case 1: // ” 
+        case 1: // ç®±
             shape = physics->createShape(PxBoxGeometry(
                 std::max(rb.size.x, 0.01f), std::max(rb.size.y, 0.01f), std::max(rb.size.z, 0.01f)), *m_Material);
             break;
-        case 2: // ƒJƒvƒZƒ‹
+        case 2: // ã‚«ãƒ—ã‚»ãƒ«
             shape = physics->createShape(PxCapsuleGeometry(
                 std::max(rb.size.x, 0.01f), std::max(rb.size.y * 0.5f, 0.01f)), *m_Material);
             if (shape) shape->setLocalPose(PxTransform(capRot));
@@ -103,7 +103,7 @@ void MmdPhysics::Init(PxPhysics* physics, const PmxPhysics& phys, const Skeleton
         }
         if (!shape) continue;
 
-        // Õ“ËƒtƒBƒ‹ƒ^
+        // è¡çªãƒ•ã‚£ãƒ«ã‚¿
         PxFilterData fd;
         fd.word0 = (1u << rb.group);
         fd.word1 = rb.noCollisionMask;
@@ -115,7 +115,7 @@ void MmdPhysics::Init(PxPhysics* physics, const PmxPhysics& phys, const Skeleton
         PxRigidActor* actor = nullptr;
         if (rb.physicsType == 0)
         {
-            // ƒ{[ƒ“’Ç]: ƒLƒlƒ}ƒeƒBƒbƒN
+            // ãƒœãƒ¼ãƒ³è¿½å¾“: ã‚­ãƒãƒãƒ†ã‚£ãƒƒã‚¯
             PxRigidDynamic* dyn = physics->createRigidDynamic(pose);
             dyn->setRigidBodyFlag(PxRigidBodyFlag::eKINEMATIC, true);
             dyn->attachShape(*shape);
@@ -123,16 +123,16 @@ void MmdPhysics::Init(PxPhysics* physics, const PmxPhysics& phys, const Skeleton
         }
         else
         {
-            // •¨—: ƒ_ƒCƒiƒ~ƒbƒN
+            // ç‰©ç†: ãƒ€ã‚¤ãƒŠãƒŸãƒƒã‚¯
             PxRigidDynamic* dyn = physics->createRigidDynamic(pose);
             dyn->attachShape(*shape);
             PxRigidBodyExt::updateMassAndInertia(*dyn, std::max(rb.mass, 0.01f));
             dyn->setSolverIterationCounts(4, 2);
             dyn->setLinearDamping(std::max(rb.linearDamping, 0.3f));
-            dyn->setAngularDamping(std::max(rb.angularDamping, 0.4f));   // ŠpŒ¸Š‚ğ‹­‚ß‚Äƒpƒ^ƒpƒ^—}§
+            dyn->setAngularDamping(std::max(rb.angularDamping, 0.4f));   // è§’æ¸›è¡°ã‚’å¼·ã‚ã¦ãƒ‘ã‚¿ãƒ‘ã‚¿æŠ‘åˆ¶
             dyn->setMaxLinearVelocity(40.0f);
             dyn->setMaxAngularVelocity(30.0f);
-            dyn->setSleepThreshold(0.02f);          // Ã~‚É–°‚ç‚¹‚ÄŒvZƒXƒLƒbƒv
+            dyn->setSleepThreshold(0.02f);          // é™æ­¢æ™‚ã«çœ ã‚‰ã›ã¦è¨ˆç®—ã‚¹ã‚­ãƒƒãƒ—
             dyn->setStabilizationThreshold(0.002f);
 			dyn->setMaxDepenetrationVelocity(1.0f);
             actor = dyn;
@@ -142,7 +142,7 @@ void MmdPhysics::Init(PxPhysics* physics, const PmxPhysics& phys, const Skeleton
         m_Scene->addActor(*actor);
     }
 
-    // --- ƒWƒ‡ƒCƒ“ƒg(6DOF) ---
+    // --- ã‚¸ãƒ§ã‚¤ãƒ³ãƒˆ(6DOF) ---
     for (const PmxJoint& jt : phys.joints)
     {
         if (jt.rigidBodyA < 0 || jt.rigidBodyB < 0) continue;
@@ -161,7 +161,7 @@ void MmdPhysics::Init(PxPhysics* physics, const PmxPhysics& phys, const Skeleton
         PxD6Joint* joint = PxD6JointCreate(*physics, a, localA, bd, localB);
         if (!joint) continue;
 
-        // ˆÚ“®: 0”ÍˆÍ‚ÍLOCKA”ÍˆÍ‚ ‚è‚ÍLIMIT
+        // ç§»å‹•: 0ç¯„å›²ã¯LOCKã€ç¯„å›²ã‚ã‚Šã¯LIMIT
         auto linMotion = [&](PxD6Axis::Enum ax, float lo, float hi)
             {
                 joint->setMotion(ax, (lo == 0.0f && hi == 0.0f) ? PxD6Motion::eLOCKED : PxD6Motion::eLIMITED);
@@ -170,7 +170,7 @@ void MmdPhysics::Init(PxPhysics* physics, const PmxPhysics& phys, const Skeleton
         linMotion(PxD6Axis::eY, jt.moveLimitLower.y, jt.moveLimitUpper.y);
         linMotion(PxD6Axis::eZ, jt.moveLimitLower.z, jt.moveLimitUpper.z);
 
-        // ‰ñ“]: 0”ÍˆÍ‚ÍLOCKA”ÍˆÍ‚ ‚è‚ÍLIMIT
+        // å›è»¢: 0ç¯„å›²ã¯LOCKã€ç¯„å›²ã‚ã‚Šã¯LIMIT
         auto angMotion = [&](PxD6Axis::Enum ax, float lo, float hi)
             {
                 joint->setMotion(ax, (lo == 0.0f && hi == 0.0f) ? PxD6Motion::eLOCKED : PxD6Motion::eLIMITED);
@@ -179,11 +179,11 @@ void MmdPhysics::Init(PxPhysics* physics, const PmxPhysics& phys, const Skeleton
         angMotion(PxD6Axis::eSWING1, jt.rotLimitLower.y, jt.rotLimitUpper.y);
         angMotion(PxD6Axis::eSWING2, jt.rotLimitLower.z, jt.rotLimitUpper.z);
 
-        // ƒcƒCƒXƒg§ŒÀ(X‰ñ“])‚ğÀÛ‚Éİ’è
+        // ãƒ„ã‚¤ã‚¹ãƒˆåˆ¶é™(Xå›è»¢)ã‚’å®Ÿéš›ã«è¨­å®š
         if (!(jt.rotLimitLower.x == 0.0f && jt.rotLimitUpper.x == 0.0f))
             joint->setTwistLimit(PxJointAngularLimitPair(jt.rotLimitLower.x, jt.rotLimitUpper.x));
 
-        // ƒXƒCƒ“ƒO§ŒÀ(Y/Z‰ñ“], ƒR[ƒ“‚Å‘ÎÌ‹ß—)
+        // ã‚¹ã‚¤ãƒ³ã‚°åˆ¶é™(Y/Zå›è»¢, ã‚³ãƒ¼ãƒ³ã§å¯¾ç§°è¿‘ä¼¼)
         {
             float y = std::max(std::fabs(jt.rotLimitLower.y), std::fabs(jt.rotLimitUpper.y));
             float z = std::max(std::fabs(jt.rotLimitLower.z), std::fabs(jt.rotLimitUpper.z));
@@ -195,7 +195,7 @@ void MmdPhysics::Init(PxPhysics* physics, const PmxPhysics& phys, const Skeleton
             }
         }
 
-        // ˆÚ“®§ŒÀ(”ÍˆÍ‚ª‚ ‚éê‡‚Ì‚İBMMD‚Í‘å’ï0‚È‚Ì‚Å’Êí•s—v)
+        // ç§»å‹•åˆ¶é™(ç¯„å›²ãŒã‚ã‚‹å ´åˆã®ã¿ã€‚MMDã¯å¤§æŠµ0ãªã®ã§é€šå¸¸ä¸è¦)
         {
             float mx = std::max(std::fabs(jt.moveLimitLower.x), std::fabs(jt.moveLimitUpper.x));
             float my = std::max(std::fabs(jt.moveLimitLower.y), std::fabs(jt.moveLimitUpper.y));
@@ -207,7 +207,7 @@ void MmdPhysics::Init(PxPhysics* physics, const PmxPhysics& phys, const Skeleton
 
 
 
-        // ƒWƒ‡ƒCƒ“ƒg‚ÅŒq‚ª‚Á‚½„‘Ì“¯m‚ÍÕ“Ë‚³‚¹‚È‚¢
+        // ã‚¸ãƒ§ã‚¤ãƒ³ãƒˆã§ç¹‹ãŒã£ãŸå‰›ä½“åŒå£«ã¯è¡çªã•ã›ãªã„
         joint->setConstraintFlag(PxConstraintFlag::eCOLLISION_ENABLED, false);
         linMotion(PxD6Axis::eX, jt.moveLimitLower.x, jt.moveLimitUpper.x);
         linMotion(PxD6Axis::eY, jt.moveLimitLower.y, jt.moveLimitUpper.y);
@@ -226,7 +226,7 @@ void MmdPhysics::Step(std::vector<XMMATRIX>& global, float dt)
 {
     if (!m_Scene) return;
 
-    // ‘S„‘Ì‚ğŒ»İ‚Ìƒ{[ƒ“p¨‚Ö‘µ‚¦‚éƒwƒ‹ƒp
+    // å…¨å‰›ä½“ã‚’ç¾åœ¨ã®ãƒœãƒ¼ãƒ³å§¿å‹¢ã¸æƒãˆã‚‹ãƒ˜ãƒ«ãƒ‘
     auto resyncAll = [&]()
         {
             for (Body& b : m_Bodies)
@@ -253,10 +253,10 @@ void MmdPhysics::Step(std::vector<XMMATRIX>& global, float dt)
             }
         };
 
-    // ‰‰ñ: ‘S„‘Ì‚ğŒ»İp¨‚Å‰Šú‰»
+    // åˆå›: å…¨å‰›ä½“ã‚’ç¾åœ¨å§¿å‹¢ã§åˆæœŸåŒ–
     if (m_FirstStep) { resyncAll(); m_FirstStep = false; return; }
 
-    // ƒqƒbƒ`–hŒä: dt‚ª‘å‚«‚·‚¬‚é(ƒ[ƒh’¼Œã/ˆê’â~–¾‚¯“™)‚ÍÄ“¯Šú‚µ‚Ä”­U‰ñ”ğ
+    // ãƒ’ãƒƒãƒé˜²å¾¡: dtãŒå¤§ãã™ãã‚‹(ãƒ­ãƒ¼ãƒ‰ç›´å¾Œ/ä¸€æ™‚åœæ­¢æ˜ã‘ç­‰)ã¯å†åŒæœŸã—ã¦ç™ºæ•£å›é¿
     if (dt > 1.0f / 20.0f)
     {
         resyncAll();
@@ -265,7 +265,7 @@ void MmdPhysics::Step(std::vector<XMMATRIX>& global, float dt)
         return;
     }
 
-    // ŒÅ’è60Hz‚ÅƒTƒuƒXƒeƒbƒv(Å‘å4‰ñ)
+    // å›ºå®š60Hzã§ã‚µãƒ–ã‚¹ãƒ†ãƒƒãƒ—(æœ€å¤§4å›)
     const float step = 1.0f / 60.0f;
     m_Accum += dt;
     int guard = 0;
@@ -281,7 +281,7 @@ void MmdPhysics::Step(std::vector<XMMATRIX>& global, float dt)
         m_Scene->fetchResults(true);
         m_Accum -= step;
 
-		if (m_Accum > step) m_Accum = step; // 2ƒXƒeƒbƒvˆÈã—­‚Ü‚éê‡‚Í1ƒXƒeƒbƒv‚É—}‚¦‚é
+		if (m_Accum > step) m_Accum = step; // 2ã‚¹ãƒ†ãƒƒãƒ—ä»¥ä¸Šæºœã¾ã‚‹å ´åˆã¯1ã‚¹ãƒ†ãƒƒãƒ—ã«æŠ‘ãˆã‚‹
     }
 
     writeback();
@@ -290,7 +290,7 @@ void MmdPhysics::Step(std::vector<XMMATRIX>& global, float dt)
 void MmdPhysics::StepBegin(std::vector<DirectX::XMMATRIX>& global, float dt)
 {
     if (!m_Scene)return;
-    // ‘S„‘Ì‚ğŒ»İ‚Ìƒ{[ƒ“p¨‚Ö‘µ‚¦‚é(‰Šú‰»Eƒqƒbƒ`•œ‹A—p)
+    // å…¨å‰›ä½“ã‚’ç¾åœ¨ã®ãƒœãƒ¼ãƒ³å§¿å‹¢ã¸æƒãˆã‚‹(åˆæœŸåŒ–ãƒ»ãƒ’ãƒƒãƒå¾©å¸°ç”¨)
     auto resyncAll = [&]()
         {
             for (Body& b : m_Bodies)
@@ -308,7 +308,7 @@ void MmdPhysics::StepBegin(std::vector<DirectX::XMMATRIX>& global, float dt)
                 }
             }
         };
-    // •¨—„‘Ì‚Ìglobal‚ğŒ»İ‚Ì„‘Ìp¨‚ÅXV(ƒqƒbƒ`‚ÉƒƒbƒVƒ…‚ğ‡‚í‚¹‚é)
+    // ç‰©ç†å‰›ä½“ã®globalã‚’ç¾åœ¨ã®å‰›ä½“å§¿å‹¢ã§æ›´æ–°(ãƒ’ãƒƒãƒæ™‚ã«ãƒ¡ãƒƒã‚·ãƒ¥ã‚’åˆã‚ã›ã‚‹)
     auto writeback = [&]()
         {
             for (Body& b : m_Bodies)
@@ -320,7 +320,7 @@ void MmdPhysics::StepBegin(std::vector<DirectX::XMMATRIX>& global, float dt)
 
     const float step = 1.0f / 60.0f;
 
-    // ‰‰ñ: ‘S„‘Ì‚ğŒ»İp¨‚Å‰Šú‰»(simulate‚Í“Š‚°‚È‚¢)
+    // åˆå›: å…¨å‰›ä½“ã‚’ç¾åœ¨å§¿å‹¢ã§åˆæœŸåŒ–(simulateã¯æŠ•ã’ãªã„)
     if (m_FirstStep)
     {
         resyncAll();
@@ -329,10 +329,10 @@ void MmdPhysics::StepBegin(std::vector<DirectX::XMMATRIX>& global, float dt)
         return;
     }
 
-    // ƒqƒbƒ`–hŒä: dt‚ª‘å‚«‚·‚¬‚é(ƒ[ƒh’¼Œã/ˆê’â~–¾‚¯)‚ÍÄ“¯Šú‚µ‚Ä”­U‰ñ”ğ
+    // ãƒ’ãƒƒãƒé˜²å¾¡: dtãŒå¤§ãã™ãã‚‹(ãƒ­ãƒ¼ãƒ‰ç›´å¾Œ/ä¸€æ™‚åœæ­¢æ˜ã‘)ã¯å†åŒæœŸã—ã¦ç™ºæ•£å›é¿
     if (dt > 1.0f / 20.0f)
     {
-        // –¢‰ñû‚Ìsimulate‚ª‚ ‚ê‚ÎÌ‚Ä‚é
+        // æœªå›åã®simulateãŒã‚ã‚Œã°æ¨ã¦ã‚‹
         if (m_SimPending) { m_Scene->fetchResults(true); m_SimPending = false; }
         resyncAll();
         writeback();
@@ -340,11 +340,11 @@ void MmdPhysics::StepBegin(std::vector<DirectX::XMMATRIX>& global, float dt)
         return;
     }
 
-    // ŒÅ’è60Hz: 1ƒXƒeƒbƒv•ª—­‚Ü‚Á‚½‚ç’Ç]ƒ^[ƒQƒbƒgİ’è‚µ‚Äsimulate‚ğ“Š‚°‚é
+    // å›ºå®š60Hz: 1ã‚¹ãƒ†ãƒƒãƒ—åˆ†æºœã¾ã£ãŸã‚‰è¿½å¾“ã‚¿ãƒ¼ã‚²ãƒƒãƒˆè¨­å®šã—ã¦simulateã‚’æŠ•ã’ã‚‹
     m_Accum += dt;
     if (m_Accum >= step)
     {
-        // ’¼‘O‚É“Š‚°‚½‚à‚Ì‚ª–¢‰ñû‚È‚çæ‚É‰ñû(’Êí‚ÍStepFetch‚Å‰ñûÏ‚İ)
+        // ç›´å‰ã«æŠ•ã’ãŸã‚‚ã®ãŒæœªå›åãªã‚‰å…ˆã«å›å(é€šå¸¸ã¯StepFetchã§å›åæ¸ˆã¿)
         if (m_SimPending) { m_Scene->fetchResults(true); m_SimPending = false; }
 
         for (Body& b : m_Bodies)
@@ -358,7 +358,7 @@ void MmdPhysics::StepBegin(std::vector<DirectX::XMMATRIX>& global, float dt)
         m_SimPending = true;
 
         m_Accum -= step;
-        if (m_Accum > step) m_Accum = step;   // —­‚ß‚İ‰ß‚¬–h~
+        if (m_Accum > step) m_Accum = step;   // æºœã‚è¾¼ã¿éãé˜²æ­¢
     }
 }
 
@@ -366,7 +366,7 @@ void MmdPhysics::StepFetch(std::vector<DirectX::XMMATRIX>& global)
 {
     if(!m_Scene || !m_SimPending) return;
 
-    m_Scene->fetchResults(true);   // — ‚ÅŠ®—¹Ï‚İ‚È‚Ì‚Å‚Ù‚Ú‘Ò‚½‚È‚¢
+    m_Scene->fetchResults(true);   // è£ã§å®Œäº†æ¸ˆã¿ãªã®ã§ã»ã¼å¾…ãŸãªã„
     m_SimPending = false;
 
     for (Body& b : m_Bodies)
@@ -379,9 +379,9 @@ void MmdPhysics::StepFetch(std::vector<DirectX::XMMATRIX>& global)
 void MmdPhysics::Reset()
 {
     if (!m_Scene) return;
-    // “Š‚°‚Á‚Ï‚È‚µ‚Ìsimulate‚ª‚ ‚ê‚Î‰ñû‚µ‚Ä‚©‚çÌ‚Ä‚é
+    // æŠ•ã’ã£ã±ãªã—ã®simulateãŒã‚ã‚Œã°å›åã—ã¦ã‹ã‚‰æ¨ã¦ã‚‹
     if (m_SimPending) { m_Scene->fetchResults(true); m_SimPending = false; }
-    m_FirstStep = true;   // Ÿ‚ÌStepBegin‚ÅresyncAll()‚ª‘–‚é
+    m_FirstStep = true;   // æ¬¡ã®StepBeginã§resyncAll()ãŒèµ°ã‚‹
     m_Accum = 0.0f;
 }
 

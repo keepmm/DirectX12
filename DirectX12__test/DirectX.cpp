@@ -1,4 +1,4 @@
-#include "DirectX.hpp"
+ï»¿#include "DirectX.hpp"
 #include "Vertex.hpp"
 #include <algorithm>
 #include "d3dx12.h"
@@ -46,7 +46,7 @@ DirectXApp::DirectXApp(HWND hWnd, int Window_Width, int Window_Height) :
 	}
 
 	// ----------------------------------------------//
-	//					ƒfƒoƒCƒX‚Ìì¬				 //
+	//					ãƒ‡ãƒã‚¤ã‚¹ã®ä½œæˆ				 //
 	// ----------------------------------------------//
 
 	ComPtr<IDXGIAdapter> adapter;
@@ -91,7 +91,7 @@ DirectXApp::DirectXApp(HWND hWnd, int Window_Width, int Window_Height) :
 	}
 
 	// -----------------------------------------------//
-	//	  ƒRƒ}ƒ“ƒhƒAƒƒP[ƒ^‚ÆƒRƒ}ƒ“ƒhƒLƒ…[‚Ìì¬	  //
+	//	  ã‚³ãƒãƒ³ãƒ‰ã‚¢ãƒ­ã‚±ãƒ¼ã‚¿ã¨ã‚³ãƒãƒ³ãƒ‰ã‚­ãƒ¥ãƒ¼ã®ä½œæˆ	  //
 	// -----------------------------------------------//
 	for (int i = 0; i < RTV_NUM; ++i)
 	{
@@ -107,7 +107,7 @@ DirectXApp::DirectXApp(HWND hWnd, int Window_Width, int Window_Height) :
 
 
 	// ---------------------------------//
-	//		   ƒRƒ}ƒ“ƒhƒLƒ…[‚Ìì¬			//
+	//		   ã‚³ãƒãƒ³ãƒ‰ã‚­ãƒ¥ãƒ¼ã®ä½œæˆ			//
 	// ---------------------------------//
 	D3D12_COMMAND_QUEUE_DESC desc_command_queue;
 	ZeroMemory(&desc_command_queue, sizeof(desc_command_queue));
@@ -132,7 +132,7 @@ DirectXApp::DirectXApp(HWND hWnd, int Window_Width, int Window_Height) :
 		return;
 	}
 	// --------------------------------------//
-	//			ƒXƒƒbƒvƒ`ƒF[ƒ“‚Ìì¬		 //
+	//			ã‚¹ãƒ¯ãƒƒãƒ—ãƒã‚§ãƒ¼ãƒ³ã®ä½œæˆ		 //
 	// --------------------------------------//
 	DXGI_SWAP_CHAIN_DESC desc_swap_chain;
 	ZeroMemory(&desc_swap_chain, sizeof(desc_swap_chain));
@@ -197,8 +197,8 @@ DirectXApp::DirectXApp(HWND hWnd, int Window_Width, int Window_Height) :
 	}
 #endif
 
-	// ƒfƒBƒXƒNƒŠƒvƒ^ƒq[ƒv‚Ìì¬
-	// RenderTargetView ‚ğ3‚Â
+	// ãƒ‡ã‚£ã‚¹ã‚¯ãƒªãƒ—ã‚¿ãƒ’ãƒ¼ãƒ—ã®ä½œæˆ
+	// RenderTargetView ã‚’3ã¤
 	m_RtvAllocator.Init(
 		m_Device.Get(),
 		D3D12_DESCRIPTOR_HEAP_TYPE_RTV,
@@ -213,9 +213,9 @@ DirectXApp::DirectXApp(HWND hWnd, int Window_Width, int Window_Height) :
 		);
 
 		UINT rtvIndex = 0;
-		m_RtvAllocator.Allocate(rtvIndex);	// RTVƒXƒƒbƒg‚ğŠm•Û
+		m_RtvAllocator.Allocate(rtvIndex);	// RTVã‚¹ãƒ­ãƒƒãƒˆã‚’ç¢ºä¿
 
-		m_RTV_Handle[i] = m_RtvAllocator.Cpu(rtvIndex);	// RTV‚ÌCPUƒnƒ“ƒhƒ‹‚ğæ“¾
+		m_RTV_Handle[i] = m_RtvAllocator.Cpu(rtvIndex);	// RTVã®CPUãƒãƒ³ãƒ‰ãƒ«ã‚’å–å¾—
 		m_Device->CreateRenderTargetView(
 			m_RenderTargets[i].Get(),
 			nullptr,
@@ -226,7 +226,7 @@ DirectXApp::DirectXApp(HWND hWnd, int Window_Width, int Window_Height) :
 	}
 
 	// ------------------------------------//
-	//	 [“xƒoƒbƒtƒ@‚Æ DSV ƒq[ƒv‚Ìì¬   //
+	//	 æ·±åº¦ãƒãƒƒãƒ•ã‚¡ã¨ DSV ãƒ’ãƒ¼ãƒ—ã®ä½œæˆ   //
 	// ------------------------------------//
 	m_DsvAllocator.Init(m_Device.Get(),
 		D3D12_DESCRIPTOR_HEAP_TYPE_DSV,
@@ -238,7 +238,7 @@ DirectXApp::DirectXApp(HWND hWnd, int Window_Width, int Window_Height) :
 		m_Window_Width, m_Window_Height,
 		1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
 
-	// ClearValue‚ÍÀƒtƒH[ƒ}ƒbƒg‚Åw’è
+	// ClearValueã¯å®Ÿãƒ•ã‚©ãƒ¼ãƒãƒƒãƒˆã§æŒ‡å®š
 	CD3DX12_CLEAR_VALUE DepthClearValue(DXGI_FORMAT_D32_FLOAT, 1.0f, 0);
 
 	CD3DX12_HEAP_PROPERTIES depthHeapProp(D3D12_HEAP_TYPE_DEFAULT);
@@ -251,7 +251,7 @@ DirectXApp::DirectXApp(HWND hWnd, int Window_Width, int Window_Height) :
 		&DepthClearValue,
 		IID_PPV_ARGS(m_Depthbuffer.GetAddressOf()));
 
-	// DSVƒXƒƒbƒg‚ğŠm•Û‚µ‚Ä[“xƒoƒbƒtƒ@¶¬
+	// DSVã‚¹ãƒ­ãƒƒãƒˆã‚’ç¢ºä¿ã—ã¦æ·±åº¦ãƒãƒƒãƒ•ã‚¡ç”Ÿæˆ
 	UINT dsvIndex = 0;
 	m_DsvAllocator.Allocate(dsvIndex);
 	m_DSV_Handle = m_DsvAllocator.Cpu(dsvIndex);
@@ -267,7 +267,7 @@ DirectXApp::DirectXApp(HWND hWnd, int Window_Width, int Window_Height) :
 	);
 
 	// =======================================================
-	//		ƒOƒ[ƒoƒ‹ SRV ƒq[ƒviCBV/SRV/UAVE256ƒXƒƒbƒgj
+	//		ã‚°ãƒ­ãƒ¼ãƒãƒ« SRV ãƒ’ãƒ¼ãƒ—ï¼ˆCBV/SRV/UAVãƒ»256ã‚¹ãƒ­ãƒƒãƒˆï¼‰
 	// ======================================================
 	m_SrvAllocator.Init(
 		m_Device.Get(),
@@ -276,7 +276,7 @@ DirectXApp::DirectXApp(HWND hWnd, int Window_Width, int Window_Height) :
 		true
 	);
 
-	// [“xSRV
+	// æ·±åº¦SRV
 	UINT depthdsvIndex = 0;
 	m_SrvAllocator.Allocate(depthdsvIndex);
 	m_DepthSrvHandleCpu = m_SrvAllocator.Cpu(depthdsvIndex);
@@ -321,15 +321,15 @@ bool DirectXApp::CreateShadeFromSource(const std::string& name, const std::strin
 	fs::create_directories(L"Assets/Shaders");
 	const std::wstring& path = L"Assets/Shaders/" + std::wstring(name.begin(), name.end()) + L".hlsl";
 
-	// 1,•Û‘¶
+	// 1,ä¿å­˜
 	std::ofstream ofs(path, std::ios::binary);
 	ofs << hlslCode;
 
-	//2 ‹­§ƒRƒ“ƒpƒCƒ‹
+	//2 å¼·åˆ¶ã‚³ãƒ³ãƒ‘ã‚¤ãƒ«
 	const Shader* ps = m_ShaderLibrary.Reload(path, psEntry, "ps_5_0", outError);
 	if (ps == nullptr) return false;
 
-	// 3 PSO“o˜^
+	// 3 PSOç™»éŒ²
 	WaitForGPUIdle();
 	ShaderPassDef def;
 	def.psFile = path;
@@ -345,7 +345,7 @@ void DirectXApp::DeferredLightingPass(const RenderContext& ctx,
 	auto* cmd = Cmd();
 	const UINT slot = RecordSlot();
 
-	// G-Buffer + [“x‚ğ SRV ‚Ö
+	// G-Buffer + æ·±åº¦ã‚’ SRV ã¸
 	m_GBuffer.TransitionToRead(cmd);
 	SetResourceBarrier(cmd, m_Depthbuffer.Get(),
 		D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -353,7 +353,7 @@ void DirectXApp::DeferredLightingPass(const RenderContext& ctx,
 	ID3D12DescriptorHeap* heaps[] = { m_SrvAllocator.heap.Get() };
 	cmd->SetDescriptorHeaps(_countof(heaps), heaps);
 
-	// o—Íæiƒrƒ…[ƒ|[ƒgRT, DSV‚È‚µj
+	// å‡ºåŠ›å…ˆï¼ˆãƒ“ãƒ¥ãƒ¼ãƒãƒ¼ãƒˆRT, DSVãªã—ï¼‰
 	cmd->OMSetRenderTargets(1, &targetRtv, FALSE, nullptr);
 	cmd->RSSetViewports(1, &vp);
 	cmd->RSSetScissorRects(1, &sc);
@@ -414,7 +414,7 @@ void DirectXApp::DeferredLightingPass(const RenderContext& ctx,
 
 	if(hasVolumetric)
 	{
-		// ---- ƒ{ƒŠƒ…[ƒ€ƒ‰ƒCƒg: ƒn[ƒt‰ğ‘œ“x‚Å•`‚¢‚Ä‰ÁZƒAƒbƒvƒTƒ“ƒvƒ‹ ----
+		// ---- ãƒœãƒªãƒ¥ãƒ¼ãƒ ãƒ©ã‚¤ãƒˆ: ãƒãƒ¼ãƒ•è§£åƒåº¦ã§æã„ã¦åŠ ç®—ã‚¢ãƒƒãƒ—ã‚µãƒ³ãƒ—ãƒ« ----
 		const UINT hw = m_Window_Width / 2, hh = m_Window_Height / 2;
 
 		m_VolumetricHalf.Transition(cmd, D3D12_RESOURCE_STATE_RENDER_TARGET);
@@ -426,10 +426,10 @@ void DirectXApp::DeferredLightingPass(const RenderContext& ctx,
 		D3D12_RECT     hsc{ 0,0,(LONG)hw,(LONG)hh };
 		cmd->RSSetViewports(1, &hvp);
 		cmd->RSSetScissorRects(1, &hsc);
-		cmd->SetPipelineState(m_VolumetricPso.Get());   // Šù‘¶‚ÌƒŒƒCƒ}[ƒ`PSO(‰ÁZ¨0ƒNƒŠƒAã‚È‚Ì‚ÅÀ¿ã‘‚«)
+		cmd->SetPipelineState(m_VolumetricPso.Get());   // æ—¢å­˜ã®ãƒ¬ã‚¤ãƒãƒ¼ãƒPSO(åŠ ç®—â†’0ã‚¯ãƒªã‚¢ä¸Šãªã®ã§å®Ÿè³ªä¸Šæ›¸ã)
 		cmd->DrawInstanced(3, 1, 0, 0);
 
-		// ƒn[ƒtRT ¨ HDR ‚Ö‰ÁZƒAƒbƒvƒTƒ“ƒvƒ‹(ƒoƒCƒŠƒjƒA‚ÅŠŠ‚ç‚©‚ÉŠg‘å)
+		// ãƒãƒ¼ãƒ•RT â†’ HDR ã¸åŠ ç®—ã‚¢ãƒƒãƒ—ã‚µãƒ³ãƒ—ãƒ«(ãƒã‚¤ãƒªãƒ‹ã‚¢ã§æ»‘ã‚‰ã‹ã«æ‹¡å¤§)
 		m_VolumetricHalf.Transition(cmd, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 		FrameCB dummy{};
 		auto cbDummy = m_CBAllocator.Allocate(slot, &dummy, sizeof(dummy));
@@ -437,7 +437,7 @@ void DirectXApp::DeferredLightingPass(const RenderContext& ctx,
 			targetRtv, (UINT)vp.Width, (UINT)vp.Height);
 	}
 
-	// [“x‚ğ‘‚«–ß‚µ
+	// æ·±åº¦ã‚’æ›¸ãæˆ»ã—
 	SetResourceBarrier(cmd, m_Depthbuffer.Get(),
 		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 }
@@ -448,14 +448,14 @@ void DirectXApp::PostProcessCopy(RenderTexture& src,
 {
 	auto* cmd = Cmd();
 
-	// src(HDR) ‚ğ SRV ‚Ö‘JˆÚ
+	// src(HDR) ã‚’ SRV ã¸é·ç§»
 	src.Transition(cmd, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
-	// ’¼‘OƒpƒX‚Åƒ}ƒeƒŠƒAƒ‹©‘Oƒq[ƒv‚ª‘©”›‚³‚ê‚Ä‚¢‚é‰Â”\«‚ª‚ ‚é‚Ì‚ÅƒOƒ[ƒoƒ‹‚Ö–ß‚·
+	// ç›´å‰ãƒ‘ã‚¹ã§ãƒãƒ†ãƒªã‚¢ãƒ«è‡ªå‰ãƒ’ãƒ¼ãƒ—ãŒæŸç¸›ã•ã‚Œã¦ã„ã‚‹å¯èƒ½æ€§ãŒã‚ã‚‹ã®ã§ã‚°ãƒ­ãƒ¼ãƒãƒ«ã¸æˆ»ã™
 	ID3D12DescriptorHeap* heaps[] = { m_SrvAllocator.heap.Get() };
 	cmd->SetDescriptorHeaps(_countof(heaps), heaps);
 
-	// o—ÍæiDSV‚È‚µj
+	// å‡ºåŠ›å…ˆï¼ˆDSVãªã—ï¼‰
 	cmd->OMSetRenderTargets(1, &dstRtv, FALSE, nullptr);
 	cmd->RSSetViewports(1, &vp);
 	cmd->RSSetScissorRects(1, &sc);
@@ -476,7 +476,7 @@ void DirectXApp::PostProcessBloom(D3D12_CPU_DESCRIPTOR_HANDLE dstRtv, const D3D1
 	const UINT bw = m_Window_Width / 2, bh = m_Window_Height / 2;
 
 	PostCB pcb{};
-	pcb.threshold = 1.0f;   // 1.0’´iHDR‚‹P“xj‚ğ’Šo
+	pcb.threshold = 1.0f;   // 1.0è¶…ï¼ˆï¼HDRé«˜è¼åº¦ï¼‰ã‚’æŠ½å‡º
 	pcb.intensity = 1.0f;
 
 	m_HdrScene.Transition(cmd, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
@@ -661,17 +661,17 @@ void DirectXApp::CreateRootSignature()
 	// t2 normal
 	// t3 metal
 	// t4 roughness
-	// t5 ŠÂ‹«
+	// t5 ç’°å¢ƒ
 
-	// ”z—ñ‚Ì”‚ª‚»‚Ì‚Ü‚Ü’è”ƒoƒbƒtƒ@‚âSRV‚Ì”‚É‚È‚é
+	// é…åˆ—ã®æ•°ãŒãã®ã¾ã¾å®šæ•°ãƒãƒƒãƒ•ã‚¡ã‚„SRVã®æ•°ã«ãªã‚‹
 	CD3DX12_ROOT_PARAMETER rootParameters[7] = {};
-	// b0 ~ b3 ‚ÉCBV‚ğŠ„‚è“–‚Ä‚é
+	// b0 ~ b3 ã«CBVã‚’å‰²ã‚Šå½“ã¦ã‚‹
 	rootParameters[0].InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_ALL);
 	rootParameters[1].InitAsConstantBufferView(1, 0, D3D12_SHADER_VISIBILITY_ALL);
 	rootParameters[2].InitAsConstantBufferView(2, 0, D3D12_SHADER_VISIBILITY_ALL);
 	rootParameters[3].InitAsConstantBufferView(3, 0, D3D12_SHADER_VISIBILITY_ALL);
 
-	// t0 ‚ÉSRV‚ğŠ„‚è“–‚Ä‚é
+	// t0 ã«SRVã‚’å‰²ã‚Šå½“ã¦ã‚‹
 	rootParameters[4].InitAsDescriptorTable(1, &srvRange, D3D12_SHADER_VISIBILITY_PIXEL);
 	rootParameters[5].InitAsConstantBufferView(4,0,D3D12_SHADER_VISIBILITY_VERTEX);
 	rootParameters[6].InitAsShaderResourceView(7,0,D3D12_SHADER_VISIBILITY_VERTEX);
@@ -832,7 +832,7 @@ void DirectXApp::CreatePipelineStateObject()
 	BeamDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
 
 	auto& brt = BeamDesc.BlendState.RenderTarget[0];
-	// ƒAƒ‹ƒtƒ@ƒuƒŒƒ“ƒh—LŒø
+	// ã‚¢ãƒ«ãƒ•ã‚¡ãƒ–ãƒ¬ãƒ³ãƒ‰æœ‰åŠ¹
 	brt.BlendEnable				= TRUE;
 	brt.SrcBlend				= D3D12_BLEND_SRC_ALPHA;
 	brt.DestBlend				= D3D12_BLEND_ONE;
@@ -848,7 +848,7 @@ void DirectXApp::CreatePipelineStateObject()
 	BeamDesc.VS = BeamVS->GetByteCode();
 	BeamDesc.PS = BeamPS->GetByteCode();
 
-	// --- R8—piforwardŒo˜H / BeamRenderer.Init ‚É“n‚·PSOj---
+	// --- R8ç”¨ï¼ˆforwardçµŒè·¯ / BeamRenderer.Init ã«æ¸¡ã™PSOï¼‰---
 	m_BeamPso = m_PsoCache.GetOrCreate("BeamVS_BeamPS",
 		m_Device.Get(),
 		BeamDesc
@@ -857,7 +857,7 @@ void DirectXApp::CreatePipelineStateObject()
 		assert(false);
 	}
 
-	// --- HDR—pideferred‚ÌBloom‘O•`‰æj---
+	// --- HDRç”¨ï¼ˆdeferredã®Bloomå‰æç”»ï¼‰---
 	auto BeamHdrDesc = BeamDesc;
 	BeamHdrDesc.RTVFormats[0] = DXGI_FORMAT_R16G16B16A16_FLOAT;
 	m_BeamHdrPso = m_PsoCache.GetOrCreate("BeamVS_BeamPS_HDR",
@@ -871,17 +871,17 @@ void DirectXApp::CreatePipelineStateObject()
 	auto FireworkDesc = BeamDesc;
 	FireworkDesc.PS = FireworkPS->GetByteCode();
 	auto& frt = FireworkDesc.BlendState.RenderTarget[0];
-	frt.SrcBlend = D3D12_BLEND_ONE;   // PS‘¤‚Åƒ¿‚ğæZÏ‚İ(pre-multiplied)
+	frt.SrcBlend = D3D12_BLEND_ONE;   // PSå´ã§Î±ã‚’ä¹—ç®—æ¸ˆã¿(pre-multiplied)
 	frt.DestBlend = D3D12_BLEND_ONE;
 	m_FireworkPso = m_PsoCache.GetOrCreate("BeamVS_FireworkPS",
 		m_Device.Get(), FireworkDesc);
 	if (m_FireworkPso == nullptr) { assert(false); }
 
 
-	auto iconDesc = psoDesc;                 // BASICƒx[ƒX
+	auto iconDesc = psoDesc;                 // BASICãƒ™ãƒ¼ã‚¹
 	iconDesc.PS = iconPS->GetByteCode();
 
-	// ƒAƒ‹ƒtƒ@ƒuƒŒƒ“ƒh—LŒø
+	// ã‚¢ãƒ«ãƒ•ã‚¡ãƒ–ãƒ¬ãƒ³ãƒ‰æœ‰åŠ¹
 	auto& rt = iconDesc.BlendState.RenderTarget[0];
 	rt.BlendEnable = TRUE;
 	rt.SrcBlend = D3D12_BLEND_SRC_ALPHA;
@@ -898,7 +898,7 @@ void DirectXApp::CreatePipelineStateObject()
 	if (m_IconPso == nullptr) { assert(false); }
 
 	// ---------------------------------- //
-	//			UI—p‚ÌPSO‚ğì¬			  //
+	//			UIç”¨ã®PSOã‚’ä½œæˆ			  //
 	// ---------------------------------- //
 	auto uiDesc = iconDesc;
 	auto& uirt = uiDesc.BlendState.RenderTarget[0];
@@ -914,7 +914,7 @@ void DirectXApp::CreatePipelineStateObject()
 	if (m_UIPso == nullptr) { assert(false); }
 
 	// ---------------------------------- //
-	//			SkyBox—p‚ÌPSO‚ğì¬		  //
+	//			SkyBoxç”¨ã®PSOã‚’ä½œæˆ		  //
 	// ---------------------------------- //
 	auto skyDesc = psoDesc;
 	skyDesc.VS = skyVS->GetByteCode();
@@ -926,16 +926,16 @@ void DirectXApp::CreatePipelineStateObject()
 	if (m_SkyPso == nullptr) { assert(false); }
 
 	// ---------------------------------- //
-	// 		Shadow—p‚ÌPSO‚ğì¬			  //
+	// 		Shadowç”¨ã®PSOã‚’ä½œæˆ			  //
 	// ---------------------------------- //
 	auto sd = MakeBasePsoDesc();
 	sd.VS = shadowVS->GetByteCode();
-	sd.PS = D3D12_SHADER_BYTECODE{ nullptr, 0 };   // PS‚È‚µ
+	sd.PS = D3D12_SHADER_BYTECODE{ nullptr, 0 };   // PSãªã—
 	sd.NumRenderTargets = 0;
 	sd.RTVFormats[0] = DXGI_FORMAT_UNKNOWN;
 	sd.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 	sd.RasterizerState.CullMode = D3D12_CULL_MODE_FRONT;
-	sd.RasterizerState.DepthBias = 10000;               // ƒs[ƒ^[ƒpƒ“/ƒAƒNƒl‘Îô
+	sd.RasterizerState.DepthBias = 10000;               // ãƒ”ãƒ¼ã‚¿ãƒ¼ãƒ‘ãƒ³/ã‚¢ã‚¯ãƒå¯¾ç­–
 	sd.RasterizerState.SlopeScaledDepthBias = 1.5f;
 	m_ShadowPso = m_PsoCache.GetOrCreate("ShadowPSO", m_Device.Get(), sd);
 
@@ -949,10 +949,10 @@ void DirectXApp::CreatePipelineStateObject()
 
 	m_GBuffer.Init(
 		m_Window_Width, m_Window_Height,
-		m_Depthbuffer.Get(),          // [“xƒŠƒ\[ƒX
-		m_EnvTexture.Get(),           // null‰Â
+		m_Depthbuffer.Get(),          // æ·±åº¦ãƒªã‚½ãƒ¼ã‚¹
+		m_EnvTexture.Get(),           // nullå¯
 		m_ShadowMap.GetResource(),
-		m_EnvMipLevels);   // ƒVƒƒƒhƒEƒŠƒ\[ƒX
+		m_EnvMipLevels);   // ã‚·ãƒ£ãƒ‰ã‚¦ãƒªã‚½ãƒ¼ã‚¹
 
 	m_HdrScene.Init(m_Window_Width, m_Window_Height, DXGI_FORMAT_R16G16B16A16_FLOAT);
 	UINT bw = m_Window_Width, bh = m_Window_Height;
@@ -1043,7 +1043,7 @@ void DirectXApp::CreateGbufferPSO()
 	desc.RTVFormats[2] = DXGI_FORMAT_R8G8B8A8_UNORM;     // ORM
 	desc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 
-	// [“x‚Íu‘‚«‚İ‚ ‚èEƒeƒXƒg‚ ‚èvi•s“§–¾‚ğ‘O‚©‚çè‘O”»’èj
+	// æ·±åº¦ã¯ã€Œæ›¸ãè¾¼ã¿ã‚ã‚Šãƒ»ãƒ†ã‚¹ãƒˆã‚ã‚Šã€ï¼ˆä¸é€æ˜ã‚’å‰ã‹ã‚‰æ‰‹å‰åˆ¤å®šï¼‰
 	desc.DepthStencilState.DepthEnable = TRUE;
 	desc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ALL;
 
@@ -1135,7 +1135,7 @@ void DirectXApp::CreateCopyPSO()
 
 	m_Device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(m_CopyPso.GetAddressOf()));
 
-	//ƒ{ƒŠƒ…[ƒ€‰ÁZ
+	//ãƒœãƒªãƒ¥ãƒ¼ãƒ åŠ ç®—
 	{
 		D3D12_GRAPHICS_PIPELINE_STATE_DESC ad = desc;
 		ad.pRootSignature = m_PostRootSignature.Get();
@@ -1185,7 +1185,7 @@ void DirectXApp::CreateVolumetricPSO()
 
 	D3D12_RENDER_TARGET_BLEND_DESC& rt = desc.BlendState.RenderTarget[0];
 	rt.BlendEnable = TRUE;
-	rt.SrcBlend = D3D12_BLEND_ONE;   // ‰ÁZ‡¬
+	rt.SrcBlend = D3D12_BLEND_ONE;   // åŠ ç®—åˆæˆ
 	rt.DestBlend = D3D12_BLEND_ONE;
 	rt.BlendOp = D3D12_BLEND_OP_ADD;
 	rt.SrcBlendAlpha = D3D12_BLEND_ONE;
@@ -1323,7 +1323,7 @@ HRESULT DirectXApp::BeginRender()
 		m_Fence->SetEventOnCompletion(fenceToWait, m_Fence_Event);
 		WaitForSingleObject(m_Fence_Event, INFINITE);
 	}
-	m_DeferredReleases[m_FrameIndex].clear();	// ‘OƒtƒŒ[ƒ€‚Ì‰ğ•ú—\–ñ‚ğƒNƒŠƒA
+	m_DeferredReleases[m_FrameIndex].clear();	// å‰ãƒ•ãƒ¬ãƒ¼ãƒ ã®è§£æ”¾äºˆç´„ã‚’ã‚¯ãƒªã‚¢
 
 	HRESULT hr = m_CommandAllocator[targetIndex]->Reset();
 	if (FAILED(hr)) {
@@ -1344,14 +1344,14 @@ HRESULT DirectXApp::BeginRender()
 		D3D12_RESOURCE_STATE_RENDER_TARGET
 	);
 
-	// ƒOƒ[ƒoƒ‹ SRV ƒq[ƒv‚ğƒtƒŒ[ƒ€ŠJn‚É 1 ‰ñ‚¾‚¯ƒoƒCƒ“ƒh
+	// ã‚°ãƒ­ãƒ¼ãƒãƒ« SRV ãƒ’ãƒ¼ãƒ—ã‚’ãƒ•ãƒ¬ãƒ¼ãƒ é–‹å§‹æ™‚ã« 1 å›ã ã‘ãƒã‚¤ãƒ³ãƒ‰
 	if (m_SrvAllocator.heap)
 	{
 		ID3D12DescriptorHeap* heaps[] = { m_SrvAllocator.heap.Get() };
 		m_CommandList->SetDescriptorHeaps(_countof(heaps), heaps);
 	}
 
-	m_CBAllocator.Reset(m_FrameIndex);	// ’è”ƒoƒbƒtƒ@ƒAƒƒP[ƒ^‚ğƒŠƒZƒbƒg
+	m_CBAllocator.Reset(m_FrameIndex);	// å®šæ•°ãƒãƒƒãƒ•ã‚¡ã‚¢ãƒ­ã‚±ãƒ¼ã‚¿ã‚’ãƒªã‚»ãƒƒãƒˆ
 
 	m_CommandList->SetGraphicsRootSignature(m_rootSignature.Get());
 
@@ -1433,7 +1433,7 @@ void DirectXApp::BeginGeometryPass()
 {
 	auto* cmd = Cmd();
 
-	// [“x‚ğ‘‚«‚İó‘Ô‚Ö
+	// æ·±åº¦ã‚’æ›¸ãè¾¼ã¿çŠ¶æ…‹ã¸
 	m_GBuffer.TransitionToWrite(cmd);
 
 	D3D12_CPU_DESCRIPTOR_HANDLE rtvs[3] =
@@ -1459,12 +1459,12 @@ void DirectXApp::DeferredLightingPass(const RenderContext& ctx)
 	auto* cmd = Cmd();
 	const UINT slot = RecordSlot();
 
-	// --- G-Buffer + [“x‚ğ SRV ‚Ö ---
+	// --- G-Buffer + æ·±åº¦ã‚’ SRV ã¸ ---
 	m_GBuffer.TransitionToRead(cmd);
 	SetResourceBarrier(cmd, m_Depthbuffer.Get(),
 		D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
-	// --- o—Íæ: ƒoƒbƒNƒoƒbƒtƒ@(DSV‚È‚µ) ---
+	// --- å‡ºåŠ›å…ˆ: ãƒãƒƒã‚¯ãƒãƒƒãƒ•ã‚¡(DSVãªã—) ---
 	const UINT backbuffer = BackbufferIndex();
 	cmd->OMSetRenderTargets(1, &m_RTV_Handle[backbuffer], FALSE, nullptr);
 	cmd->ClearRenderTargetView(m_RTV_Handle[backbuffer], ClearColor, 0, nullptr);
@@ -1472,7 +1472,7 @@ void DirectXApp::DeferredLightingPass(const RenderContext& ctx)
 	cmd->SetGraphicsRootSignature(m_DeferredRootSignature.Get());
 	cmd->SetPipelineState(m_DeferredPso.Get());
 
-	// ===== b0 FrameiviewProj/cameraPosj=====
+	// ===== b0 Frameï¼ˆviewProj/cameraPosï¼‰=====
 	FrameCB fdata{};
 	{
 		const auto v = XMLoadFloat4x4(&ctx.view);
@@ -1487,20 +1487,20 @@ void DirectXApp::DeferredLightingPass(const RenderContext& ctx)
 	// ===== b2 Light =====
 	const auto b2 = m_CBAllocator.Allocate(slot, &ctx.lightCb, sizeof(LightCB));
 
-	// ===== b3 invViewProji[“x¨ƒ[ƒ‹ƒh•œŒ³—pj=====
+	// ===== b3 invViewProjï¼ˆæ·±åº¦â†’ãƒ¯ãƒ¼ãƒ«ãƒ‰å¾©å…ƒç”¨ï¼‰=====
 	DeferredCB dcb{};
 	{
 		const auto v = XMLoadFloat4x4(&ctx.view);
 		const auto p = XMLoadFloat4x4(&ctx.projection);
 		const auto inv = XMMatrixInverse(nullptr, v * p);
-		// ƒVƒF[ƒ_‚Å mul(clip, invViewProj) ‚ÆsƒxƒNƒgƒ‹‰^—p‚È‚Ì‚Å“]’u‚µ‚ÄŠi”[
+		// ã‚·ã‚§ãƒ¼ãƒ€ã§ mul(clip, invViewProj) ã¨è¡Œãƒ™ã‚¯ãƒˆãƒ«é‹ç”¨ãªã®ã§è»¢ç½®ã—ã¦æ ¼ç´
 		XMStoreFloat4x4(&dcb.invViewProj, XMMatrixTranspose(inv));
 	}
 	const auto b3 = m_CBAllocator.Allocate(slot, &dcb, sizeof(dcb));
 
-	if (b0 == 0 || b2 == 0 || b3 == 0) return; // ƒŠƒ“ƒOŒÍŠ‰ƒK[ƒh
+	if (b0 == 0 || b2 == 0 || b3 == 0) return; // ãƒªãƒ³ã‚°æ¯æ¸‡ã‚¬ãƒ¼ãƒ‰
 
-	// ƒ‹[ƒgƒpƒ‰ƒ[ƒ^: 0=b0, 1=b2, 2=b3, 3=SRVƒe[ƒuƒ‹
+	// ãƒ«ãƒ¼ãƒˆãƒ‘ãƒ©ãƒ¡ãƒ¼ã‚¿: 0=b0, 1=b2, 2=b3, 3=SRVãƒ†ãƒ¼ãƒ–ãƒ«
 	cmd->SetGraphicsRootConstantBufferView(0, b0);
 	cmd->SetGraphicsRootConstantBufferView(1, b2);
 	cmd->SetGraphicsRootConstantBufferView(2, b3);
@@ -1508,10 +1508,10 @@ void DirectXApp::DeferredLightingPass(const RenderContext& ctx)
 
 	cmd->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 	cmd->DrawInstanced(3, 1, 0, 0);
-	cmd->SetPipelineState(m_VolumetricPso.Get()); // ‰ÁZƒuƒŒƒ“ƒhPSOi‰º‹L‚Åì¬j
+	cmd->SetPipelineState(m_VolumetricPso.Get()); // åŠ ç®—ãƒ–ãƒ¬ãƒ³ãƒ‰PSOï¼ˆä¸‹è¨˜ã§ä½œæˆï¼‰
 	cmd->DrawInstanced(3, 1, 0, 0);
 
-	// [“x‚ğ‘‚«–ß‚µiƒXƒJƒC/”¼“§–¾‚Åg‚¤‚È‚çj
+	// æ·±åº¦ã‚’æ›¸ãæˆ»ã—ï¼ˆã‚¹ã‚«ã‚¤/åŠé€æ˜ã§ä½¿ã†ãªã‚‰ï¼‰
 	SetResourceBarrier(cmd, m_Depthbuffer.Get(),
 		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
 }
@@ -1543,14 +1543,14 @@ void DirectXApp::Present()
 
 HRESULT DirectXApp::BeginFrameRecord(UINT64 frameNumber)
 {
-	// ¸”s‚ğƒƒCƒ“ƒ‹[ƒv‚Ö“`”À(ExecƒXƒŒƒbƒh‚Å‹N‚«‚½ƒGƒ‰[)
+	// å¤±æ•—ã‚’ãƒ¡ã‚¤ãƒ³ãƒ«ãƒ¼ãƒ—ã¸ä¼æ¬(Execã‚¹ãƒ¬ãƒƒãƒ‰ã§èµ·ããŸã‚¨ãƒ©ãƒ¼)
 	if (FAILED(m_GpuExecResult.load()))
 	{
 		return m_GpuExecResult.load();
 	}
 
-	// ‚±‚ÌƒXƒƒbƒg‚Ì‘O‰ñg—pÒ Exec(N - RTV_NUM) ‚ÌŠ®—¹‘Ò‚¿
-	// (m_FenceValue[slot] ‚Ì‘‚«‚İŠ®—¹•ÛØ + ƒRƒ}ƒ“ƒhƒŠƒXƒg‚ÌExecuteÏ‚İ•ÛØ)
+	// ã“ã®ã‚¹ãƒ­ãƒƒãƒˆã®å‰å›ä½¿ç”¨è€… Exec(N - RTV_NUM) ã®å®Œäº†å¾…ã¡
+	// (m_FenceValue[slot] ã®æ›¸ãè¾¼ã¿å®Œäº†ä¿è¨¼ + ã‚³ãƒãƒ³ãƒ‰ãƒªã‚¹ãƒˆã®Executeæ¸ˆã¿ä¿è¨¼)
 	if (frameNumber >= RTV_NUM)
 	{
 		std::unique_lock lk(m_GpuExecMutex);
@@ -1561,20 +1561,20 @@ HRESULT DirectXApp::BeginFrameRecord(UINT64 frameNumber)
 	m_RecordFrameNumber = frameNumber;
 	m_RecordSlot = static_cast<UINT>(frameNumber % RTV_NUM);
 
-	// Ä“¯Šú“_(ExecƒXƒŒƒbƒh‚ªXV)‚©‚ç—\‘ª
+	// å†åŒæœŸç‚¹(Execã‚¹ãƒ¬ãƒƒãƒ‰ãŒæ›´æ–°)ã‹ã‚‰äºˆæ¸¬
 	const UINT64 packed = m_SyncPacked.load();
 	const UINT64 syncFrame = packed >> 8;
 	const UINT   syncIndex = static_cast<UINT>(packed & 0xFF);
 	m_RecordBackbuffer = static_cast<UINT>((syncIndex + (frameNumber - syncFrame)) % RTV_NUM);
 
-	// q‚ÌƒXƒƒbƒg‚ğÅŒã‚Ég‚Á‚½ƒtƒŒ[ƒ€‚ÌGPUŠ®—¹‚ğ‘Ò‚Â
+	// å­ã®ã‚¹ãƒ­ãƒƒãƒˆã‚’æœ€å¾Œã«ä½¿ã£ãŸãƒ•ãƒ¬ãƒ¼ãƒ ã®GPUå®Œäº†ã‚’å¾…ã¤
 	const UINT64 fenceToWait = m_FenceValue[m_RecordSlot];
 	if (m_Fence->GetCompletedValue() < fenceToWait)
 	{
 		m_Fence->SetEventOnCompletion(fenceToWait, m_Fence_Event);
 		WaitForSingleObject(m_Fence_Event, INFINITE);
 	}
-	m_DeferredReleases[m_RecordSlot].clear();	// ‘OƒtƒŒ[ƒ€‚Ì‰ğ•ú—\–ñ‚ğƒNƒŠƒA
+	m_DeferredReleases[m_RecordSlot].clear();	// å‰ãƒ•ãƒ¬ãƒ¼ãƒ ã®è§£æ”¾äºˆç´„ã‚’ã‚¯ãƒªã‚¢
 
 	HRESULT hr = m_CommandAllocator[m_RecordSlot]->Reset();
 	if (FAILED(hr)) {
@@ -1597,7 +1597,7 @@ HRESULT DirectXApp::BeginFrameRecord(UINT64 frameNumber)
 		cmd->SetDescriptorHeaps(_countof(heaps), heaps);
 	}
 
-	m_CBAllocator.Reset(m_RecordSlot);	// ’è”ƒoƒbƒtƒ@ƒAƒƒP[ƒ^‚ğƒŠƒZƒbƒg
+	m_CBAllocator.Reset(m_RecordSlot);	// å®šæ•°ãƒãƒƒãƒ•ã‚¡ã‚¢ãƒ­ã‚±ãƒ¼ã‚¿ã‚’ãƒªã‚»ãƒƒãƒˆ
 
 	cmd->SetGraphicsRootSignature(m_rootSignature.Get());
 
@@ -1673,7 +1673,7 @@ HRESULT DirectXApp::ExecuteFrame(const GPUExecJob& job)
 
 	m_FrameIndex = m_SwapChain->GetCurrentBackBufferIndex();
 
-	// —\‘ª‚ÆÀ‘ª‚ÌÆ‡
+	// äºˆæ¸¬ã¨å®Ÿæ¸¬ã®ç…§åˆ
 	const UINT expected = static_cast<UINT>((job.backbuffer + 1) % RTV_NUM);
 	if (m_FrameIndex != expected)
 	{
@@ -1682,7 +1682,7 @@ HRESULT DirectXApp::ExecuteFrame(const GPUExecJob& job)
 			+ " frame=" + std::to_string(job.frameNumber));
 	}
 
-	// Ä“¯Šú“_‚ğXV: uƒtƒŒ[ƒ€ job.frameNumber+1 ‚Í index m_FrameIndex ‚É•`‚©‚ê‚év
+	// å†åŒæœŸç‚¹ã‚’æ›´æ–°: ã€Œãƒ•ãƒ¬ãƒ¼ãƒ  job.frameNumber+1 ã¯ index m_FrameIndex ã«æã‹ã‚Œã‚‹ã€
 	m_SyncPacked.store(((job.frameNumber + 1) << 8) | m_FrameIndex);
 
 	return S_OK;
@@ -1719,18 +1719,18 @@ bool DirectXApp::LoadEnvironment(const std::wstring& hdrpath)
 	if (FAILED(DirectX::LoadFromHDRFile(resolved.c_str(), &meta, img)))
 		return false;
 
-	// ƒ~ƒbƒv¶¬iƒ‰ƒtƒlƒX”½Ë‚Ìƒ{ƒP—pj
+	// ãƒŸãƒƒãƒ—ç”Ÿæˆï¼ˆãƒ©ãƒ•ãƒã‚¹åå°„ã®ãƒœã‚±ç”¨ï¼‰
 	DirectX::ScratchImage mipped{};
 	if (FAILED(DirectX::GenerateMipMaps(*img.GetImage(0, 0, 0),
 		DirectX::TEX_FILTER_LINEAR, 0, mipped)))
-		mipped = std::move(img);   // ¸”s‚Íƒ~ƒbƒv–³‚µ‚Å‘±s
+		mipped = std::move(img);   // å¤±æ•—æ™‚ã¯ãƒŸãƒƒãƒ—ç„¡ã—ã§ç¶šè¡Œ
 	const DirectX::TexMetadata& mm = mipped.GetMetadata();
 	m_EnvMipLevels = static_cast<UINT>(mm.mipLevels);
 	{
 		const DirectX::Image* top = mipped.GetImage(m_EnvMipLevels - 1, 0, 0);
 		if (top && top->pixels)
 		{
-			// HDR‚Í R32G32B32A32_FLOAT ‘z’è
+			// HDRã¯ R32G32B32A32_FLOAT æƒ³å®š
 			const float* p = reinterpret_cast<const float*>(top->pixels);
 			m_EnvAmbient = { p[0], p[1], p[2] };
 		}

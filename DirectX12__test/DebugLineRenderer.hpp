@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include "Defines.hpp"
 #include "RenderContext.hpp"
@@ -6,37 +6,37 @@
 class DebugLineRenderer
 {
 public:
-	/// @brief ‰Šú‰»
-	/// @param device ƒfƒoƒCƒX 
-	/// @param linePso •`‰æ—p‚ÌPSO
+	/// @brief åˆæœŸåŒ–
+	/// @param device ãƒ‡ãƒã‚¤ã‚¹ 
+	/// @param linePso æç”»ç”¨ã®PSO
 	void Init(
 		_In_ const ComPtr<ID3D12Device>& device,
 		_In_ const ComPtr<ID3D12PipelineState>& linePso);
 
 	void Begin();
 
-	/// @brief ƒ‰ƒCƒ“‚Ì’Ç‰Á
-	/// @param start ’Ç‰ÁˆÊ’u
-	/// @param end I—¹ˆÊ’u
-	/// @param color ƒ‰ƒCƒ“‚ÌF
+	/// @brief ãƒ©ã‚¤ãƒ³ã®è¿½åŠ 
+	/// @param start è¿½åŠ ä½ç½®
+	/// @param end çµ‚äº†ä½ç½®
+	/// @param color ãƒ©ã‚¤ãƒ³ã®è‰²
 	void AddLine(
 		_In_ const float3& start,
 		_In_ const float3& end,
 		_In_ const float4& color);
 
-	/// @brief •`‰æ
-	/// @param context •`‰æ‚É•K—v‚Èî•ñ 
+	/// @brief æç”»
+	/// @param context æç”»ã«å¿…è¦ãªæƒ…å ± 
 	void Draw(
 		_In_ const RenderContext& context);
 private:
-	/// @brief ƒ‰ƒCƒ“—p’¸“_ƒf[ƒ^
+	/// @brief ãƒ©ã‚¤ãƒ³ç”¨é ‚ç‚¹ãƒ‡ãƒ¼ã‚¿
 	struct LineVertex
 	{
 		float3 pos;
 		float4 color;
 	};
 
-	/// @brief VS—p’è”ƒoƒbƒtƒ@‚Ìƒf[ƒ^\‘¢
+	/// @brief VSç”¨å®šæ•°ãƒãƒƒãƒ•ã‚¡ã®ãƒ‡ãƒ¼ã‚¿æ§‹é€ 
 	struct alignas(256) LineConstantBuffer
 	{
 		float4x4 viewProj;

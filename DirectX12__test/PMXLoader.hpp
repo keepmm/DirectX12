@@ -1,10 +1,10 @@
-#pragma once
+ï»¿#pragma once
 #include "ModelData.hpp"
 #include <string>
 
 class PMXLoader
 {
 public:
-	// PMX‚ğ“Ç‚ñ‚Å ModelCpuData ‚É—¬‚µ‚Ş
+	// PMXã‚’èª­ã‚“ã§ ModelCpuData ã«æµã—è¾¼ã‚€
 	static bool Parse(const std::string& filepath, float scale, ModelCpuData& out);
 };

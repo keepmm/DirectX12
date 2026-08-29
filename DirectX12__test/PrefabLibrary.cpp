@@ -1,4 +1,4 @@
-#include "PrefabLibrary.hpp"
+ï»¿#include "PrefabLibrary.hpp"
 #include "Components.hpp"
 #include "Systems.hpp"
 
@@ -54,7 +54,7 @@ Entity PrefabLibrary::Instantiate(const std::string& name, Scene& scene,World& w
 		world.AddComponent<NameComponent>(entity, NameComponent{ name });
 	}
 
-	// –¼‘O‚©‚Ô‚è‚ğ‘Îô
+	// åå‰ã‹ã¶ã‚Šã‚’å¯¾ç­–
 	NameSytem::SetName(world, entity, name);
 
 	world.AddComponent<PrefabComponent>(entity, PrefabComponent{ name });

@@ -1,10 +1,10 @@
-/*****************************************************************//**
+ï»¿/*****************************************************************//**
  * \file   Polygon.cpp
- * \brief  ƒ|ƒŠƒSƒ“•`‰æƒNƒ‰ƒX
+ * \brief  ãƒãƒªã‚´ãƒ³æç”»ã‚¯ãƒ©ã‚¹
  * 
- * ì¬Ò keeeep
- * ì¬“ú 2026/3/12
- * XV—š—ğ	3/12 ì¬
+ * ä½œæˆè€… keeeep
+ * ä½œæˆæ—¥ 2026/3/12
+ * æ›´æ–°å±¥æ­´	3/12 ä½œæˆ
  * *********************************************************************/
 #include "Polygon.hpp"
 #include "d3dx12.h"
@@ -49,7 +49,7 @@ Polygon::~Polygon()
 void Polygon::Init(ComPtr<ID3D12Device> device, ComPtr<ID3D12GraphicsCommandList> commandList,
 	ComPtr<ID3D12PipelineState> pipelineState, ComPtr<ID3D12PipelineState> pipelineStateWireFrame)
 {
-	/* ‰Šú‰» */
+	/* åˆæœŸåŒ– */
 	m_Device = device;
 	m_CommandList = commandList;
 	m_PipelineState = pipelineState;
@@ -61,7 +61,7 @@ void Polygon::Init(ComPtr<ID3D12Device> device, ComPtr<ID3D12GraphicsCommandList
 
 void Polygon::CreatePolygon()
 {
-	// alignas ... DirectX12‚Ì’è”ƒoƒbƒtƒ@—v‹‚É‡‚í‚·‚½‚ß‚ÌƒAƒ‰ƒCƒƒ“ƒg
+	// alignas ... DirectX12ã®å®šæ•°ãƒãƒƒãƒ•ã‚¡è¦æ±‚ã«åˆã‚ã™ãŸã‚ã®ã‚¢ãƒ©ã‚¤ãƒ¡ãƒ³ãƒˆ
 	struct alignas(256) Transform
 	{
 		DirectX::XMFLOAT4X4 worldViewProj;
@@ -74,31 +74,31 @@ void Polygon::CreatePolygon()
 		{ { -0.5f, -0.5f, -0.5f},{0.0f, 0.0f, -1.0f},PolygonColor },
 		{ {  0.5f, -0.5f, -0.5f},{0.0f, 0.0f, -1.0f},PolygonColor },
 
-		// +Z–Ê (Front)
+		// +Zé¢ (Front)
 		{ { 0.5f,  0.5f,  0.5f},{0.0f,0.0f,1.0f}, PolygonColor },
 		{ {-0.5f,  0.5f,  0.5f},{0.0f,0.0f,1.0f}, PolygonColor },
 		{ { 0.5f, -0.5f,  0.5f},{0.0f,0.0f,1.0f}, PolygonColor },
 		{ {-0.5f, -0.5f,  0.5f},{0.0f,0.0f,1.0f}, PolygonColor },
 
-		// -X–Ê (Left)
+		// -Xé¢ (Left)
 		{ {-0.5f,  0.5f,  0.5f}, {-1.0f,0.0f,0.0f}, PolygonColor },
 		{ {-0.5f,  0.5f, -0.5f}, {-1.0f,0.0f,0.0f}, PolygonColor },
 		{ {-0.5f, -0.5f,  0.5f}, {-1.0f,0.0f,0.0f}, PolygonColor },
 		{ {-0.5f, -0.5f, -0.5f}, {-1.0f,0.0f,0.0f}, PolygonColor },
 
-		// +X–Ê (Right)
+		// +Xé¢ (Right)
 		{ { 0.5f,  0.5f, -0.5f}, {1.0f,0.0f,0.0f}, PolygonColor },
 		{ { 0.5f,  0.5f,  0.5f}, {1.0f,0.0f,0.0f}, PolygonColor },
 		{ { 0.5f, -0.5f, -0.5f}, {1.0f,0.0f,0.0f}, PolygonColor },
 		{ { 0.5f, -0.5f,  0.5f}, {1.0f,0.0f,0.0f}, PolygonColor },
 
-		// +Y–Ê (Top)
+		// +Yé¢ (Top)
 		{ { -0.5f,  0.5f,  0.5f},{0.0f,1.0f,0.0f}, PolygonColor },
 		{ {  0.5f,  0.5f,  0.5f},{0.0f,1.0f,0.0f}, PolygonColor },
 		{ { -0.5f,  0.5f, -0.5f},{0.0f,1.0f,0.0f}, PolygonColor },
 		{ {  0.5f,  0.5f, -0.5f},{0.0f,1.0f,0.0f}, PolygonColor },
 
-		// -Y–Ê (Bottom)	
+		// -Yé¢ (Bottom)	
 		{ { 0.5f, -0.5f,  0.5f}, {0.0f,-1.0f,0.0f}, PolygonColor },
 		{ {-0.5f, -0.5f,  0.5f}, {0.0f,-1.0f,0.0f}, PolygonColor },
 		{ { 0.5f, -0.5f, -0.5f}, {0.0f,-1.0f,0.0f}, PolygonColor },
@@ -106,15 +106,15 @@ void Polygon::CreatePolygon()
 	};
 
 	int index[] = {
-		0,1,2, 1,3,2,			// -Z–Ê
-		4,5,6, 5,7,6,			// +Z–Ê
-		8,9,10, 9,11,10,		// -X–Ê
-		12,13,14, 13,15,14,		// +X–Ê
-		16,17,18, 17,19,18,		// +Y–Ê
-		20,21,22, 21,23,22		// -Y–Ê
+		0,1,2, 1,3,2,			// -Zé¢
+		4,5,6, 5,7,6,			// +Zé¢
+		8,9,10, 9,11,10,		// -Xé¢
+		12,13,14, 13,15,14,		// +Xé¢
+		16,17,18, 17,19,18,		// +Yé¢
+		20,21,22, 21,23,22		// -Yé¢
 	};
 
-	// ƒCƒ“ƒfƒbƒNƒXƒoƒbƒtƒ@‚ğì¬
+	// ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹ãƒãƒƒãƒ•ã‚¡ã‚’ä½œæˆ
 	CD3DX12_HEAP_PROPERTIES HeapProp(D3D12_HEAP_TYPE_UPLOAD);
 	CD3DX12_RESOURCE_DESC ResourceDesc = CD3DX12_RESOURCE_DESC::Buffer(sizeof(index));
 	m_Device->CreateCommittedResource(
@@ -135,10 +135,10 @@ void Polygon::CreatePolygon()
 	m_IndexBufferView.SizeInBytes = sizeof(index);
 	m_IndexBufferView.Format = DXGI_FORMAT_R32_UINT;
 
-	// ’è”ƒoƒbƒtƒ@—pƒf[ƒ^‰Šú‰»
+	// å®šæ•°ãƒãƒƒãƒ•ã‚¡ç”¨ãƒ‡ãƒ¼ã‚¿åˆæœŸåŒ–
 	Transform transformData{};
 
-	// ’è”ƒoƒbƒtƒ@ì¬(CPU‚ªƒAƒbƒvƒ[ƒh‰Â”\)
+	// å®šæ•°ãƒãƒƒãƒ•ã‚¡ä½œæˆ(CPUãŒã‚¢ãƒƒãƒ—ãƒ­ãƒ¼ãƒ‰å¯èƒ½)
 	CD3DX12_HEAP_PROPERTIES constantHeapProp(D3D12_HEAP_TYPE_UPLOAD);
 	CD3DX12_RESOURCE_DESC  constantResouceDesc(CD3DX12_RESOURCE_DESC::Buffer(sizeof(Transform)));
 	m_Device->CreateCommittedResource(
@@ -150,13 +150,13 @@ void Polygon::CreatePolygon()
 		IID_PPV_ARGS(&m_ConstantBuffer)
 	);
 
-	// ’è”ƒoƒbƒtƒ@‚Éƒf[ƒ^‚ğƒ}ƒbƒsƒ“ƒO
+	// å®šæ•°ãƒãƒƒãƒ•ã‚¡ã«ãƒ‡ãƒ¼ã‚¿ã‚’ãƒãƒƒãƒ”ãƒ³ã‚°
 	Transform* MappedData = nullptr;
 	m_ConstantBuffer->Map(0, nullptr, reinterpret_cast<void**>(&MappedData));
 	*MappedData = transformData;
 	m_ConstantBuffer->Unmap(0, nullptr);
 
-	// ’¸“_ƒoƒbƒtƒ@‚Ìì¬
+	// é ‚ç‚¹ãƒãƒƒãƒ•ã‚¡ã®ä½œæˆ
 	const UINT vbSize = sizeof(vertices);
 	CD3DX12_HEAP_PROPERTIES heapProp(D3D12_HEAP_TYPE_UPLOAD);
 	CD3DX12_RESOURCE_DESC resourceDesc = CD3DX12_RESOURCE_DESC::Buffer(vbSize);
@@ -170,15 +170,15 @@ void Polygon::CreatePolygon()
 		IID_PPV_ARGS(&m_VertexBuffer)
 	);
 
-	//@’¸“_ƒoƒbƒtƒ@‚Éƒf[ƒ^‚ğƒRƒs[
+	//ã€€é ‚ç‚¹ãƒãƒƒãƒ•ã‚¡ã«ãƒ‡ãƒ¼ã‚¿ã‚’ã‚³ãƒ”ãƒ¼
 	UINT8* pVertexDataBegin = nullptr;
-	CD3DX12_RANGE readRange(0, 0);	// “Ç‚İ‚İ‚È‚µ
+	CD3DX12_RANGE readRange(0, 0);	// èª­ã¿è¾¼ã¿ãªã—
 	m_VertexBuffer->Map(0, &readRange, reinterpret_cast<void**>(&pVertexDataBegin));
 	memcpy(pVertexDataBegin, vertices, vbSize);
 	m_VertexBuffer->Unmap(0, nullptr);
 
-	// ’¸“_ƒoƒbƒtƒ@ƒrƒ…[‚Ìİ’è
-	m_VertexBufferView.BufferLocation = m_VertexBuffer->GetGPUVirtualAddress();	// ‰¼‘z‚ÌGPUƒf[ƒ^ƒAƒhƒŒƒX‚ğ‘—M
+	// é ‚ç‚¹ãƒãƒƒãƒ•ã‚¡ãƒ“ãƒ¥ãƒ¼ã®è¨­å®š
+	m_VertexBufferView.BufferLocation = m_VertexBuffer->GetGPUVirtualAddress();	// ä»®æƒ³ã®GPUãƒ‡ãƒ¼ã‚¿ã‚¢ãƒ‰ãƒ¬ã‚¹ã‚’é€ä¿¡
 	m_VertexBufferView.StrideInBytes = sizeof(Vertex);
 	m_VertexBufferView.SizeInBytes = vbSize;
 }
@@ -210,7 +210,7 @@ void Polygon::DrawPolygon(bool b)
 
 void Polygon::Draw()
 {
-	// s—ñ‚ğ’è”ƒoƒbƒtƒ@‚É‘—M
+	// è¡Œåˆ—ã‚’å®šæ•°ãƒãƒƒãƒ•ã‚¡ã«é€ä¿¡
 	Transform transformData{};
 	const auto world = DirectX::XMLoadFloat4x4(&m_wvp[0]);
 	const auto wvp =
@@ -233,16 +233,16 @@ void Polygon::Draw()
 	m_ConstantBuffer->Unmap(0, nullptr);
 
 
-	/* ƒRƒ}ƒ“ƒhƒŠƒXƒg‚ª–³Œø‚Èê‡‚Í‰½‚à‚µ‚È‚¢ */
+	/* ã‚³ãƒãƒ³ãƒ‰ãƒªã‚¹ãƒˆãŒç„¡åŠ¹ãªå ´åˆã¯ä½•ã‚‚ã—ãªã„ */
 	if (!m_CommandList) return;
 
-	// GPU‚É’è”ƒoƒbƒtƒ@‚ğ‘—M
+	// GPUã«å®šæ•°ãƒãƒƒãƒ•ã‚¡ã‚’é€ä¿¡
 	m_CommandList->SetGraphicsRootConstantBufferView(
 		0,
 		m_ConstantBuffer->GetGPUVirtualAddress()
 	);
 
-	/* ’¸“_ / ƒCƒ“ƒfƒbƒNƒX‚ªì¬‚³‚ê‚Ä‚¢‚ê‚ÎƒoƒCƒ“ƒh‚µ‚Ä•`‰æ‚·‚é */
+	/* é ‚ç‚¹ / ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹ãŒä½œæˆã•ã‚Œã¦ã„ã‚Œã°ãƒã‚¤ãƒ³ãƒ‰ã—ã¦æç”»ã™ã‚‹ */
 	if (m_VertexBuffer) {
 		m_CommandList->IASetVertexBuffers(0, 1, &m_VertexBufferView);
 	}
@@ -255,7 +255,7 @@ void Polygon::Draw()
 			m_CommandList->DrawIndexedInstanced(36, 1, 0, 0, 0);
 		}
 
-		// ƒƒCƒ„[ƒtƒŒ[ƒ€‚Å•`‰æ
+		// ãƒ¯ã‚¤ãƒ¤ãƒ¼ãƒ•ãƒ¬ãƒ¼ãƒ ã§æç”»
 		if (m_IsDrawWireFrame) {
 			m_CommandList->SetPipelineState(m_PipelineStateWireFrame.Get());
 			m_CommandList->DrawIndexedInstanced(36, 1, 0, 0, 0);

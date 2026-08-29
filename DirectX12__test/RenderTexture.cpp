@@ -1,10 +1,10 @@
-/*****************************************************************//**
+ï»¿/*****************************************************************//**
  * \file   RenderTexture.cpp
- * \brief  ƒIƒtƒXƒNƒŠ[ƒ“•`‰æ—p
+ * \brief  ã‚ªãƒ•ã‚¹ã‚¯ãƒªãƒ¼ãƒ³æç”»ç”¨
  *
- * ì¬Ò
- * ì¬“ú 2026/5/25
- * XV—š—ğ 5.29 À‘•
+ * ä½œæˆè€…
+ * ä½œæˆæ—¥ 2026/5/25
+ * æ›´æ–°å±¥æ­´ 5.29 å®Ÿè£…
  * *********************************************************************/
 #include "RenderTexture.hpp"
 #include "DirectX.hpp"
@@ -16,16 +16,16 @@ HRESULT RenderTexture::Init(
 	_In_ DXGI_FORMAT format)
 {
 	// -------------------------------//
-	//				‰Šú‰»			  //
+	//				åˆæœŸåŒ–			  //
 	// -------------------------------//
 
-	// ƒTƒCƒY0ƒK[ƒh
+	// ã‚µã‚¤ã‚º0ã‚¬ãƒ¼ãƒ‰
 	if (width == 0 || height == 0)
 	{
 		return E_INVALIDARG;
 	}
 
-	// ì‚è’¼‚µ‘Î‰
+	// ä½œã‚Šç›´ã—å¯¾å¿œ
 	Release();
 	
 	m_Width = width;
@@ -35,7 +35,7 @@ HRESULT RenderTexture::Init(
 	auto device = APP->GetDevice();
 
 	// -----------------------//
-	//		ƒŠƒ\[ƒX‚Ì‹Lq	  //
+	//		ãƒªã‚½ãƒ¼ã‚¹ã®è¨˜è¿°	  //
 	// -----------------------//
 	D3D12_RESOURCE_DESC resourceDesc{};
 	resourceDesc.Dimension				= D3D12_RESOURCE_DIMENSION_TEXTURE2D;
@@ -49,7 +49,7 @@ HRESULT RenderTexture::Init(
 	resourceDesc.Flags				= D3D12_RESOURCE_FLAG_ALLOW_RENDER_TARGET;
 	resourceDesc.Layout				= D3D12_TEXTURE_LAYOUT_UNKNOWN;
 
-	// ƒŠƒ\[ƒX‚Ì‰Šúó‘Ô
+	// ãƒªã‚½ãƒ¼ã‚¹ã®åˆæœŸçŠ¶æ…‹
 	D3D12_CLEAR_VALUE clearValue{};
 	clearValue.Format = format;
 	clearValue.Color[0] = 0.0f;
@@ -57,7 +57,7 @@ HRESULT RenderTexture::Init(
 	clearValue.Color[2] = 0.7f;
 	clearValue.Color[3] = 1.0f;
 
-	// ƒŠƒ\[ƒX‚Ì¶¬
+	// ãƒªã‚½ãƒ¼ã‚¹ã®ç”Ÿæˆ
 	CD3DX12_HEAP_PROPERTIES heapProperties(D3D12_HEAP_TYPE_DEFAULT);
 
 	HRESULT hr = device->CreateCommittedResource(
@@ -73,25 +73,25 @@ HRESULT RenderTexture::Init(
 	}
 
 	// ------------------------------ //
-	// RTVê—pƒq[ƒv‚©‚çƒXƒƒbƒgŠm•Û  //
+	// RTVå°‚ç”¨ãƒ’ãƒ¼ãƒ—ã‹ã‚‰ã‚¹ãƒ­ãƒƒãƒˆç¢ºä¿  //
 	// ------------------------------ //
 	if(!APP->GetRtvAllocator().Allocate(m_RTVIndex))
 	{
-		// Šm•Û‚Å‚«‚È‚©‚Á‚½ê‡‚ÍƒŠƒ\[ƒX‚ğ‰ğ•ú‚µ‚ÄI—¹
+		// ç¢ºä¿ã§ããªã‹ã£ãŸå ´åˆã¯ãƒªã‚½ãƒ¼ã‚¹ã‚’è§£æ”¾ã—ã¦çµ‚äº†
 		Release();
 		return E_OUTOFMEMORY;
 	}
-	// RTV ƒnƒ“ƒhƒ‹‚Ìæ“¾
+	// RTV ãƒãƒ³ãƒ‰ãƒ«ã®å–å¾—
 	m_RTVHandle = APP->GetRtvAllocator().Cpu(m_RTVIndex);
-	// RTV ‚Ì¶¬
+	// RTV ã®ç”Ÿæˆ
 	device->CreateRenderTargetView(m_Resource.Get(), nullptr, m_RTVHandle);
 
 	// ------------------------------ //
-	// SRVê—pƒq[ƒv‚©‚çƒXƒƒbƒgŠm•Û  //
+	// SRVå°‚ç”¨ãƒ’ãƒ¼ãƒ—ã‹ã‚‰ã‚¹ãƒ­ãƒƒãƒˆç¢ºä¿  //
 	// ------------------------------ //
 	if(!APP->GetSrvAllocator().Allocate(m_SRVIndex))
 	{
-		// Šm•Û‚Å‚«‚È‚©‚Á‚½ê‡‚ÍƒŠƒ\[ƒX‚ğ‰ğ•ú‚µ‚ÄI—¹
+		// ç¢ºä¿ã§ããªã‹ã£ãŸå ´åˆã¯ãƒªã‚½ãƒ¼ã‚¹ã‚’è§£æ”¾ã—ã¦çµ‚äº†
 		Release();
 		return E_OUTOFMEMORY;
 	}
@@ -107,7 +107,7 @@ HRESULT RenderTexture::Init(
 	m_SRVHandle = APP->GetSrvAllocator().Gpu(m_SRVIndex);
 
 	// -------------------------------------//
-	// ƒrƒ…[ƒ|[ƒg‚Ìİ’èEƒVƒU[‹éŒ`‚Ìİ’è //
+	// ãƒ“ãƒ¥ãƒ¼ãƒãƒ¼ãƒˆã®è¨­å®šãƒ»ã‚·ã‚¶ãƒ¼çŸ©å½¢ã®è¨­å®š //
 	// -------------------------------------//
 	m_Viewport.TopLeftX		= 0.0f;
 	m_Viewport.TopLeftY		= 0.0f;
@@ -135,7 +135,7 @@ void RenderTexture::Clear(
 		return;
 	}
 
-	// ƒŒƒ“ƒ_[ƒ^[ƒQƒbƒg‚ğƒNƒŠƒA
+	// ãƒ¬ãƒ³ãƒ€ãƒ¼ã‚¿ãƒ¼ã‚²ãƒƒãƒˆã‚’ã‚¯ãƒªã‚¢
 	commandList->ClearRenderTargetView(
 		m_RTVHandle,
 		reinterpret_cast<const float*>(&clearColor),
@@ -179,14 +179,14 @@ void RenderTexture::SetResourceBarrier(
 void RenderTexture::Transition(ID3D12GraphicsCommandList* cmd, D3D12_RESOURCE_STATES after)
 {
 	if (!cmd || !m_Resource) return;
-	// “¯‚¶ó‘Ô‚È‚ç‰½‚à‚µ‚È‚¢
+	// åŒã˜çŠ¶æ…‹ãªã‚‰ä½•ã‚‚ã—ãªã„
 	if (m_CurrentState == after) return;
 
 	D3D12_RESOURCE_BARRIER b{};
 	b.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
 	b.Transition.pResource = m_Resource.Get();
 	b.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-	b.Transition.StateBefore = m_CurrentState;	// ÀÛ‚ÌŒ»İó‘Ô‚ğg‚¤
+	b.Transition.StateBefore = m_CurrentState;	// å®Ÿéš›ã®ç¾åœ¨çŠ¶æ…‹ã‚’ä½¿ã†
 	b.Transition.StateAfter = after;
 	cmd->ResourceBarrier(1, &b);
 
@@ -194,5 +194,5 @@ void RenderTexture::Transition(ID3D12GraphicsCommandList* cmd, D3D12_RESOURCE_ST
 	//	" cur=" + std::to_string(m_CurrentState) + " ->" + std::to_string(after) +
 	//	(m_CurrentState == after ? " SKIP" : " EMIT"));
 
-	m_CurrentState = after;	// ’ÇÕXV
+	m_CurrentState = after;	// è¿½è·¡æ›´æ–°
 }

@@ -1,4 +1,4 @@
-#include "Logger.hpp"
+ï»¿#include "Logger.hpp"
 #include <iostream>
 #include "Engine/ThreadPool.hpp"
 
@@ -10,14 +10,14 @@ Logger* Logger::GetInstance()
 
 void Logger::WriteLog(LogLevel level, const std::string& message)
 {
-    // ‰Šú‰»‚ª‚³‚ê‚Ä‚¢‚È‚¢ê‡‚±‚êˆÈãˆ—‚µ‚È‚¢
+    // åˆæœŸåŒ–ãŒã•ã‚Œã¦ã„ãªã„å ´åˆã“ã‚Œä»¥ä¸Šå‡¦ç†ã—ãªã„
     if (!m_Init) return;
 
 	std::string TimeStamp = GetCurrentTime();
 	std::string LevelStr = GetLogLevelString(level);
     //std::string FullMessage = "[" + TimeStamp + "] [" + LevelStr + "] " + message;
 
-    // ’¼‘O‚Æ“¯‚¶ƒŒƒxƒ‹‚È‚çs‚ğ‘‚â‚³‚¸ƒJƒEƒ“ƒg‚µ‚Ä––”ö‚ÌXV
+    // ç›´å‰ã¨åŒã˜ãƒ¬ãƒ™ãƒ«ãªã‚‰è¡Œã‚’å¢—ã‚„ã•ãšã‚«ã‚¦ãƒ³ãƒˆã—ã¦æœ«å°¾ã®æ›´æ–°
     const bool isDup = !m_RecentLogs.empty() &&
         level == m_LastLogLevel &&
         message == m_LastRawMessage;
@@ -28,10 +28,10 @@ void Logger::WriteLog(LogLevel level, const std::string& message)
         std::string full = "[" + TimeStamp + "] [" + LevelStr + "] "
             + message + " (" + std::to_string(m_LastCount) + ")";
         m_RecentLogs.back() = full;
-        return;                       // ƒRƒ“ƒ\[ƒ‹/ƒtƒ@ƒCƒ‹‚Ö‚Ìd•¡o—Í‚Í—}§iƒXƒpƒ€–h~j
+        return;                       // ã‚³ãƒ³ã‚½ãƒ¼ãƒ«/ãƒ•ã‚¡ã‚¤ãƒ«ã¸ã®é‡è¤‡å‡ºåŠ›ã¯æŠ‘åˆ¶ï¼ˆã‚¹ãƒ‘ãƒ é˜²æ­¢ï¼‰
     }
 
-    // V‹KƒƒbƒZ[ƒW
+    // æ–°è¦ãƒ¡ãƒƒã‚»ãƒ¼ã‚¸
     m_LastLogLevel = level;
     m_LastRawMessage = message;
     m_LastCount = 1;
@@ -43,10 +43,10 @@ void Logger::WriteLog(LogLevel level, const std::string& message)
         m_RecentLogs.pop_front();
 	}
 
-    // ƒRƒ“ƒ\[ƒ‹o—Í
+    // ã‚³ãƒ³ã‚½ãƒ¼ãƒ«å‡ºåŠ›
     if (m_ConsoleOutput)
     {
-        // ƒŒƒxƒ‹‚É‰‚¶‚ÄF‚ğ•Ï‚¦‚é(WindowsƒRƒ“ƒ\[ƒ‹)
+        // ãƒ¬ãƒ™ãƒ«ã«å¿œã˜ã¦è‰²ã‚’å¤‰ãˆã‚‹(Windowsã‚³ãƒ³ã‚½ãƒ¼ãƒ«)
         HANDLE hConsole = GetStdHandle(STD_OUTPUT_HANDLE);
         switch (level)
         {
@@ -65,15 +65,15 @@ void Logger::WriteLog(LogLevel level, const std::string& message)
         }
 
 		std::cout << FullMessage << std::endl;
-        // F‚ğŒ³‚É–ß‚·
+        // è‰²ã‚’å…ƒã«æˆ»ã™
 		SetConsoleTextAttribute(hConsole, FOREGROUND_RED | FOREGROUND_GREEN | FOREGROUND_BLUE);
     }
 
-    // ƒtƒ@ƒCƒ‹o—Í
+    // ãƒ•ã‚¡ã‚¤ãƒ«å‡ºåŠ›
     if(m_FileOutput && m_LogFile.is_open())
     {
         m_LogFile << FullMessage << std::endl;
-		m_LogFile.flush(); // ‚·‚®‚É‘‚«‚Ş
+		m_LogFile.flush(); // ã™ãã«æ›¸ãè¾¼ã‚€
 	}
 }
 
@@ -81,16 +81,16 @@ std::string Logger::GetCurrentTime() const
 {
 	using namespace std::chrono;
 
-    // Œ»İ‚Ìæ“¾
+    // ç¾åœ¨æ™‚åˆ»ã®å–å¾—
 	const auto now = system_clock::now();
-	// ‚ğtime_t‚É•ÏŠ·
+	// æ™‚åˆ»ã‚’time_tã«å¤‰æ›
 	const std::time_t time = system_clock::to_time_t(now);
 
-	// time_t‚ğtm\‘¢‘Ì‚É•ÏŠ·
+	// time_tã‚’tmæ§‹é€ ä½“ã«å¤‰æ›
     std::tm tm = {};
 	localtime_s(&tm, &time);
 
-	// tm\‘¢‘Ì‚ğƒtƒH[ƒ}ƒbƒg‚µ‚Ä•¶š—ñ‚É•ÏŠ·
+	// tmæ§‹é€ ä½“ã‚’ãƒ•ã‚©ãƒ¼ãƒãƒƒãƒˆã—ã¦æ–‡å­—åˆ—ã«å¤‰æ›
     std::ostringstream oss;
     oss << std::put_time(&tm, "%Y-%m-%d %H:%M:%S");
 	return oss.str();
@@ -98,7 +98,7 @@ std::string Logger::GetCurrentTime() const
 
 std::string Logger::GetLogLevelString(LogLevel level) const
 {
-	// ƒƒOƒŒƒxƒ‹‚ğ•¶š—ñ‚É•ÏŠ·
+	// ãƒ­ã‚°ãƒ¬ãƒ™ãƒ«ã‚’æ–‡å­—åˆ—ã«å¤‰æ›
     switch (level)
     {
 	case LogLevel::Info: return "INFO";
@@ -123,7 +123,7 @@ void Logger::Init(const std::string& logFilePath)
             m_LogFile << "=============================================================" << std::endl;
         }
 
-        // ƒfƒoƒbƒOƒrƒ‹ƒh‚ÍƒRƒ“ƒ\[ƒ‹‚É‚ào—Í
+        // ãƒ‡ãƒãƒƒã‚°ãƒ“ãƒ«ãƒ‰æ™‚ã¯ã‚³ãƒ³ã‚½ãƒ¼ãƒ«ã«ã‚‚å‡ºåŠ›
 #ifdef _DEBUG
         AllocConsole();
         FILE* fp;
@@ -162,7 +162,7 @@ void Logger::LogHRESULT(HRESULT hr, const std::string& context)
 {
     std::ostringstream oss;
 
-	// HRESULT‚Ì’l‚ğ16i”‚Å•\¦
+	// HRESULTã®å€¤ã‚’16é€²æ•°ã§è¡¨ç¤º
     oss << context << " (hr=0x" << std::hex << std::uppercase
         << static_cast<unsigned long>(hr) << ")";
     WriteLog(FAILED(hr) ? LogLevel::Error : LogLevel::Info, oss.str());

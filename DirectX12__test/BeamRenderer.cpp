@@ -1,4 +1,4 @@
-#include "BeamRenderer.hpp"
+ï»¿#include "BeamRenderer.hpp"
 #include "d3dx12.h"
 
 void BeamRenderer::Init(
@@ -113,11 +113,11 @@ void BeamRenderer::Draw(const RenderContext& render, ID3D12PipelineState* psoOve
 
 	const UINT vertexCount = static_cast<UINT>(m_Vertices.size());
 
-	// --- ƒtƒŒ[ƒ€‚²‚Æ‚É•Ê‹æ‰æ‚Ö‘‚­iGPU“Ç‚ÝŽæ‚è’†‚Ìã‘‚«‚ð–hŽ~j---
+	// --- ãƒ•ãƒ¬ãƒ¼ãƒ ã”ã¨ã«åˆ¥åŒºç”»ã¸æ›¸ãï¼ˆGPUèª­ã¿å–ã‚Šä¸­ã®ä¸Šæ›¸ãã‚’é˜²æ­¢ï¼‰---
 	const UINT slot = m_DrawCursor % SLOT_NUM;
 	m_DrawCursor++;
-	const UINT vbBase = slot * MAX_VERTICES;   // ’¸“_ƒCƒ“ƒfƒbƒNƒX‚ÌƒIƒtƒZƒbƒg
-	const UINT cbOffset = slot * CB_SIZE;      // ’è”ƒoƒbƒtƒ@‚ÌƒoƒCƒgƒIƒtƒZƒbƒg
+	const UINT vbBase = slot * MAX_VERTICES;   // é ‚ç‚¹ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹ã®ã‚ªãƒ•ã‚»ãƒƒãƒˆ
+	const UINT cbOffset = slot * CB_SIZE;      // å®šæ•°ãƒãƒƒãƒ•ã‚¡ã®ãƒã‚¤ãƒˆã‚ªãƒ•ã‚»ãƒƒãƒˆ
 
 	std::memcpy(m_MappedVertexBuffer + vbBase,
 		m_Vertices.data(), vertexCount * sizeof(BeamVertex));
@@ -130,7 +130,7 @@ void BeamRenderer::Draw(const RenderContext& render, ID3D12PipelineState* psoOve
 
 	std::memcpy(m_MappedConstants + cbOffset, &constants, sizeof(constants));
 
-	// ‚±‚ÌƒtƒŒ[ƒ€‹æ‰æ‚ðŽw‚·’¸“_ƒoƒbƒtƒ@ƒrƒ…[
+	// ã“ã®ãƒ•ãƒ¬ãƒ¼ãƒ åŒºç”»ã‚’æŒ‡ã™é ‚ç‚¹ãƒãƒƒãƒ•ã‚¡ãƒ“ãƒ¥ãƒ¼
 	D3D12_VERTEX_BUFFER_VIEW vbv = m_VertexBufferView;
 	vbv.BufferLocation = m_VertexBuffer->GetGPUVirtualAddress()
 		+ static_cast<UINT64>(vbBase) * sizeof(BeamVertex);

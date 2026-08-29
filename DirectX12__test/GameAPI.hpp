@@ -1,4 +1,4 @@
-#pragma once
+Ôªø#pragma once
 #include "Defines.hpp"
 
 namespace GameAPI
@@ -6,7 +6,7 @@ namespace GameAPI
 	inline void (*g_LaunchFirework)(float, float, float, int,
 		float, float, float, const char*) = nullptr;
 
-	// FireworkSystem::Shape Ç∆ìØÇ∂ï¿Ç—
+	// FireworkSystem::Shape „Å®Âêå„Åò‰∏¶„Å≥
 	enum FireworkShape { Peony = 0, Willow, Ring, Heart, Senrin, Text };
 
 	inline void LaunchFirework(const float3& pos, FireworkShape shape,

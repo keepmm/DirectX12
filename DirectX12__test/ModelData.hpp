@@ -1,13 +1,13 @@
-/*****************************************************************//**
+ï»¿/*****************************************************************//**
  * \file   ModelData.hpp
- * \brief  ƒ‚ƒfƒ‹ƒf[ƒ^‚Ì’è‹`
+ * \brief  ãƒ¢ãƒ‡ãƒ«ãƒ‡ãƒ¼ã‚¿ã®å®šç¾©
  * 
- * ì¬Ò keeep
- * ì¬“ú 2026/5/4
- * XV—š—ğ	5.4 ì¬
- *			7.3 –@üƒ}ƒbƒvAƒƒ^ƒ‹ƒ}ƒbƒvAƒ‰ƒtƒlƒXƒ}ƒbƒv‚Ì’Ç‰Á
- *			7.4 ƒXƒPƒ‹ƒgƒ“AƒXƒLƒjƒ“ƒOƒf[ƒ^AƒAƒjƒ[ƒVƒ‡ƒ“ƒf[ƒ^‚Ì’Ç‰Á
- *			7.5 Morphƒf[ƒ^A•¨—ƒf[ƒ^‚Ì’Ç‰Á
+ * ä½œæˆè€… keeep
+ * ä½œæˆæ—¥ 2026/5/4
+ * æ›´æ–°å±¥æ­´	5.4 ä½œæˆ
+ *			7.3 æ³•ç·šãƒãƒƒãƒ—ã€ãƒ¡ã‚¿ãƒ«ãƒãƒƒãƒ—ã€ãƒ©ãƒ•ãƒã‚¹ãƒãƒƒãƒ—ã®è¿½åŠ 
+ *			7.4 ã‚¹ã‚±ãƒ«ãƒˆãƒ³ã€ã‚¹ã‚­ãƒ‹ãƒ³ã‚°ãƒ‡ãƒ¼ã‚¿ã€ã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³ãƒ‡ãƒ¼ã‚¿ã®è¿½åŠ 
+ *			7.5 Morphãƒ‡ãƒ¼ã‚¿ã€ç‰©ç†ãƒ‡ãƒ¼ã‚¿ã®è¿½åŠ 
  * *********************************************************************/
 #pragma once
 
@@ -26,7 +26,7 @@ struct DecodedImage
 };
 
  /*
-  *	1ƒ}ƒeƒŠƒAƒ‹•ª‚ÌƒeƒNƒXƒ`ƒƒƒpƒX
+  *	1ãƒãƒ†ãƒªã‚¢ãƒ«åˆ†ã®ãƒ†ã‚¯ã‚¹ãƒãƒ£ãƒ‘ã‚¹
   */
 struct MaterialTextureSet
 {
@@ -45,79 +45,79 @@ struct MaterialTextureSet
 };
 
 /*
-*	ƒ{[ƒ“ƒm[ƒh‚Ì’è‹`
+*	ãƒœãƒ¼ãƒ³ãƒãƒ¼ãƒ‰ã®å®šç¾©
 */
 struct BoneNode
 {
-	std::string name;			// ƒ{[ƒ“‚Ì–¼‘O
-	int parentIndex = -1;		// eƒ{[ƒ“‚ÌƒCƒ“ƒfƒbƒNƒXi-1‚Íƒ‹[ƒgƒ{[ƒ“j
-	float4x4 localTransform{};	// ƒ[ƒJƒ‹•ÏŠ·s—ñ
-	std::vector<int> children;	// qƒ{[ƒ“‚ÌƒCƒ“ƒfƒbƒNƒX
+	std::string name;			// ãƒœãƒ¼ãƒ³ã®åå‰
+	int parentIndex = -1;		// è¦ªãƒœãƒ¼ãƒ³ã®ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹ï¼ˆ-1ã¯ãƒ«ãƒ¼ãƒˆãƒœãƒ¼ãƒ³ï¼‰
+	float4x4 localTransform{};	// ãƒ­ãƒ¼ã‚«ãƒ«å¤‰æ›è¡Œåˆ—
+	std::vector<int> children;	// å­ãƒœãƒ¼ãƒ³ã®ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹
 
-	// ‰ñ“] / ˆÚ“®Œp³
-	int appendParentIndex = -1;	// Œp³Œ³‚Ìƒ{[ƒ“ƒCƒ“ƒfƒbƒNƒX(-1‚ÍŒp³‚È‚µ)
+	// å›è»¢ / ç§»å‹•ç¶™æ‰¿
+	int appendParentIndex = -1;	// ç¶™æ‰¿å…ƒã®ãƒœãƒ¼ãƒ³ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹(-1ã¯ç¶™æ‰¿ãªã—)
 	float appendRate = 0.0f;
 	bool appendRotation = false;
 	bool appendMove = false;
 };
 
 /**
- * .IKƒŠƒ“ƒN‚Ì’è‹`
+ * .IKãƒªãƒ³ã‚¯ã®å®šç¾©
  */
 struct IkLink
 {
-	int boneIndex = -1;	// ƒ{[ƒ“‚ÌƒCƒ“ƒfƒbƒNƒX(-1‚Í–³Œø)
-	bool hasLimit = false;	// ‰ñ“]§ŒÀ‚ª‚ ‚é‚©
-	float3 lowerLimit{ 0.0f, 0.0f, 0.0f };	// ‰ñ“]§ŒÀ‚Ì‰ºŒÀiƒ‰ƒWƒAƒ“j
-	float3 upperLimit{ 0.0f, 0.0f, 0.0f };	// ‰ñ“]§ŒÀ‚ÌãŒÀiƒ‰ƒWƒAƒ“j
+	int boneIndex = -1;	// ãƒœãƒ¼ãƒ³ã®ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹(-1ã¯ç„¡åŠ¹)
+	bool hasLimit = false;	// å›è»¢åˆ¶é™ãŒã‚ã‚‹ã‹
+	float3 lowerLimit{ 0.0f, 0.0f, 0.0f };	// å›è»¢åˆ¶é™ã®ä¸‹é™ï¼ˆãƒ©ã‚¸ã‚¢ãƒ³ï¼‰
+	float3 upperLimit{ 0.0f, 0.0f, 0.0f };	// å›è»¢åˆ¶é™ã®ä¸Šé™ï¼ˆãƒ©ã‚¸ã‚¢ãƒ³ï¼‰
 };
 
 /**
- *	Ik‚É•K—v‚Èƒf[ƒ^‚Ì’è‹`
+ *	Ikã«å¿…è¦ãªãƒ‡ãƒ¼ã‚¿ã®å®šç¾©
  */
 struct IkData
 {
-	int boneIndex	= -1;		// IK‚Ìƒ{[ƒ“‚ÌƒCƒ“ƒfƒbƒNƒX(-1‚Í–³Œø)
-	int targetIndex = -1;		// ƒGƒtƒFƒNƒ^(‘«ñ)
-	int loopCount = 0;			// IK‚Ì”½•œ‰ñ”
-	float limitAngle = 0.0f;	// 1”½•œ“–‚½‚è‚Ì§ŒÀŠp
-	std::vector<IkLink> links;	// ‚Ğ‚´A‘«(ƒGƒtƒFƒNƒ^‚É‹ß‚¢‡)
+	int boneIndex	= -1;		// IKã®ãƒœãƒ¼ãƒ³ã®ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹(-1ã¯ç„¡åŠ¹)
+	int targetIndex = -1;		// ã‚¨ãƒ•ã‚§ã‚¯ã‚¿(è¶³é¦–)
+	int loopCount = 0;			// IKã®åå¾©å›æ•°
+	float limitAngle = 0.0f;	// 1åå¾©å½“ãŸã‚Šã®åˆ¶é™è§’
+	std::vector<IkLink> links;	// ã²ã–ã€è¶³(ã‚¨ãƒ•ã‚§ã‚¯ã‚¿ã«è¿‘ã„é †)
 };
 
 /*
-*	ƒXƒPƒ‹ƒgƒ“‚Ì’è‹`
+*	ã‚¹ã‚±ãƒ«ãƒˆãƒ³ã®å®šç¾©
 */
 struct Skeleton
 {
-	std::vector<BoneNode> nodes;						// ƒ{[ƒ“ƒm[ƒh‚ÌƒŠƒXƒg
-	std::unordered_map<std::string,int> nameToIndex;	// ƒ{[ƒ“–¼‚©‚çƒCƒ“ƒfƒbƒNƒX‚Ö‚Ìƒ}ƒbƒv
-	std::vector<IkData> iks;							// IKƒf[ƒ^‚ÌƒŠƒXƒg
+	std::vector<BoneNode> nodes;						// ãƒœãƒ¼ãƒ³ãƒãƒ¼ãƒ‰ã®ãƒªã‚¹ãƒˆ
+	std::unordered_map<std::string,int> nameToIndex;	// ãƒœãƒ¼ãƒ³åã‹ã‚‰ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹ã¸ã®ãƒãƒƒãƒ—
+	std::vector<IkData> iks;							// IKãƒ‡ãƒ¼ã‚¿ã®ãƒªã‚¹ãƒˆ
 };
 
 /*
- *	ƒ{[ƒ“‚Ì‰e‹¿ƒf[ƒ^‚Ì’è‹`
+ *	ãƒœãƒ¼ãƒ³ã®å½±éŸ¿ãƒ‡ãƒ¼ã‚¿ã®å®šç¾©
  */
 struct BoneInfuence
 {
-	std::array<std::uint16_t, 4> indices{};	// ƒ{[ƒ“‚ÌƒCƒ“ƒfƒbƒNƒX
-	std::array<float, 4> weights{};			// ƒ{[ƒ“‚Ì‰e‹¿“x	
+	std::array<std::uint16_t, 4> indices{};	// ãƒœãƒ¼ãƒ³ã®ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹
+	std::array<float, 4> weights{};			// ãƒœãƒ¼ãƒ³ã®å½±éŸ¿åº¦	
 };
 
 /**
- *  ƒXƒLƒjƒ“ƒOƒf[ƒ^‚Ì’è‹`
+ *  ã‚¹ã‚­ãƒ‹ãƒ³ã‚°ãƒ‡ãƒ¼ã‚¿ã®å®šç¾©
  */
 struct SkinData
 {
-	std::vector<BoneInfuence> infuences;							// ’¸“_‚²‚Æ‚Ìƒ{[ƒ“‚Ì‰e‹¿ƒf[ƒ^
-	std::vector<std::string> boneNames;								// ƒ{[ƒ“‚Ì–¼‘O
-	std::vector<float4x4> offsetMatrices;							// ƒ{[ƒ“‚ÌƒIƒtƒZƒbƒgs—ñ
-	std::unordered_map<std::string, std::uint16_t> boneNametoIndex;	// ƒ{[ƒ“–¼‚©‚çƒCƒ“ƒfƒbƒNƒX‚Ö‚Ìƒ}ƒbƒv
+	std::vector<BoneInfuence> infuences;							// é ‚ç‚¹ã”ã¨ã®ãƒœãƒ¼ãƒ³ã®å½±éŸ¿ãƒ‡ãƒ¼ã‚¿
+	std::vector<std::string> boneNames;								// ãƒœãƒ¼ãƒ³ã®åå‰
+	std::vector<float4x4> offsetMatrices;							// ãƒœãƒ¼ãƒ³ã®ã‚ªãƒ•ã‚»ãƒƒãƒˆè¡Œåˆ—
+	std::unordered_map<std::string, std::uint16_t> boneNametoIndex;	// ãƒœãƒ¼ãƒ³åã‹ã‚‰ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹ã¸ã®ãƒãƒƒãƒ—
 };
 
 #pragma region Morph
 
 /**
- * .’¸“_‚à[‚Ó‚Ì1ƒIƒtƒZƒbƒg‚Ì’è‹`
+ * .é ‚ç‚¹ã‚‚ãƒ¼ãµã®1ã‚ªãƒ•ã‚»ãƒƒãƒˆã®å®šç¾©
  */
 struct VertexMorphOffset
 {
@@ -126,13 +126,13 @@ struct VertexMorphOffset
 };
 
 /**
- * .‚à[ƒt1‚Â•ª‚Ìƒf[ƒ^
+ * .ã‚‚ãƒ¼ãƒ•1ã¤åˆ†ã®ãƒ‡ãƒ¼ã‚¿
  */
 struct MorphData
 {
 	std::string name;
-	int panel = 0;	// 0: •\¦‚È‚µ, 1: Šç, 2: ‘Ì, 3: ‚»‚Ì‘¼
-	int type = 1;	// 1: ’¸“_, 2: ƒ{[ƒ“, 3: UV, 4: Ş¿
+	int panel = 0;	// 0: è¡¨ç¤ºãªã—, 1: é¡”, 2: ä½“, 3: ãã®ä»–
+	int type = 1;	// 1: é ‚ç‚¹, 2: ãƒœãƒ¼ãƒ³, 3: UV, 4: æè³ª
 	std::vector<VertexMorphOffset> vertexOffsets;
 	std::vector<std::pair<int, float>> groupOffsets;
 };
@@ -148,21 +148,21 @@ struct MorphSet
 
 #pragma endregion
 
-#pragma region ƒAƒjƒ[ƒVƒ‡ƒ“ƒf[ƒ^
+#pragma region ã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³ãƒ‡ãƒ¼ã‚¿
 
 /**
- *	ƒL[ƒtƒŒ[ƒ€‚Ì’è‹`
+ *	ã‚­ãƒ¼ãƒ•ãƒ¬ãƒ¼ãƒ ã®å®šç¾©
  */
 struct KeyFrame
 {
-	float time = 0.0f;	// ‚«[‚Ó‚ê‚Ş‚ÌŠÔ(•b)
+	float time = 0.0f;	// ããƒ¼ãµã‚Œã‚€ã®æ™‚é–“(ç§’)
 	POSITION position{0.0f, 0.0f, 0.0f};
 	QUATERNION rotation{0.0f, 0.0f, 0.0f, 1.0f};
 	SCALE scale{ 1.0f, 1.0f, 1.0f };
 };
 
 /**
- *	ƒ{[ƒ“ƒAƒjƒ[ƒVƒ‡ƒ“ƒ`ƒƒƒ“ƒlƒ‹‚Ì’è‹`
+ *	ãƒœãƒ¼ãƒ³ã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³ãƒãƒ£ãƒ³ãƒãƒ«ã®å®šç¾©
  */
 struct BoneAnimationChannel
 {
@@ -173,18 +173,18 @@ struct BoneAnimationChannel
 struct AnimationClip
 {
 	std::string name;
-	float duration = 0.0f;	// ƒAƒjƒ[ƒVƒ‡ƒ“‚Ì’·‚³(•b)
-	float tickPerSecond = 0.0f;	// 1•b‚ ‚½‚è‚ÌƒeƒBƒbƒN”
+	float duration = 0.0f;	// ã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³ã®é•·ã•(ç§’)
+	float tickPerSecond = 0.0f;	// 1ç§’ã‚ãŸã‚Šã®ãƒ†ã‚£ãƒƒã‚¯æ•°
 	std::vector<BoneAnimationChannel> channels;
 };
 
 struct CameraKeyFrame
 {
-	float time;			// •b(frame/30)
-	float distance;		// ’ˆÓ‹“_‚©‚ç‚Ì‹——£(‘O•û‚É‚ ‚é‚Æ‚«•‰’l)
-	float3 target;		// ’‹“_
-	float3 rotation;	// ƒIƒCƒ‰[Šp(rad)
-	float fovY;			// “x
+	float time;			// ç§’(frame/30)
+	float distance;		// æ³¨æ„è¦–ç‚¹ã‹ã‚‰ã®è·é›¢(å‰æ–¹ã«ã‚ã‚‹ã¨ãè² å€¤)
+	float3 target;		// æ³¨è¦–ç‚¹
+	float3 rotation;	// ã‚ªã‚¤ãƒ©ãƒ¼è§’(rad)
+	float fovY;			// åº¦
 };
 
 struct CameraClip
@@ -195,31 +195,31 @@ struct CameraClip
 
 #pragma endregion
 
-#pragma region „‘ÌƒAƒjƒ[ƒVƒ‡ƒ“ƒf[ƒ^
+#pragma region å‰›ä½“ã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³ãƒ‡ãƒ¼ã‚¿
 
 /**
- *	PMX„‘Ì.
+ *	PMXå‰›ä½“.
  */
 struct PmxRigidBody
 {
 	std::string name;
-	int boneIndex = -1;						// ŠÖ˜Aƒ{[ƒ“
-	uint8_t group = 0;						// Õ“ËƒOƒ‹[ƒv
-	uint16_t noCollisionMask = 0;			// ”ñÕ“ËƒOƒ‹[ƒv
-	uint8_t shape = 0;						// 0: ‹…, 1: ” , 2: ƒJƒvƒZƒ‹
-	SCALE size{ 1.0f, 1.0f, 1.0f };			// ‹…:x=”¼Œa ” :xyz”¼Œa ƒJƒvƒZƒ‹:x=”¼Œa,y=‚‚³
-	POSITION position{ 0.0f, 0.0f, 0.0f };	// „‘Ì‚ÌˆÊ’u(ƒ‚ƒfƒ‹€‹’)
-	float3 rotation{ 0.0f, 0.0f, 0.0f };	// „‘Ì‚Ì‰ñ“](ƒ‚ƒfƒ‹€‹’Aƒ‰ƒWƒAƒ“)
+	int boneIndex = -1;						// é–¢é€£ãƒœãƒ¼ãƒ³
+	uint8_t group = 0;						// è¡çªã‚°ãƒ«ãƒ¼ãƒ—
+	uint16_t noCollisionMask = 0;			// éè¡çªã‚°ãƒ«ãƒ¼ãƒ—
+	uint8_t shape = 0;						// 0: çƒ, 1: ç®±, 2: ã‚«ãƒ—ã‚»ãƒ«
+	SCALE size{ 1.0f, 1.0f, 1.0f };			// çƒ:x=åŠå¾„ ç®±:xyzåŠå¾„ ã‚«ãƒ—ã‚»ãƒ«:x=åŠå¾„,y=é«˜ã•
+	POSITION position{ 0.0f, 0.0f, 0.0f };	// å‰›ä½“ã®ä½ç½®(ãƒ¢ãƒ‡ãƒ«æº–æ‹ )
+	float3 rotation{ 0.0f, 0.0f, 0.0f };	// å‰›ä½“ã®å›è»¢(ãƒ¢ãƒ‡ãƒ«æº–æ‹ ã€ãƒ©ã‚¸ã‚¢ãƒ³)
 	float mass				= 1.0f;			// 
 	float linearDamping		= 0.0f;			//
 	float angularDamping	= 0.0f;			//
 	float restitution		= 0.0f;			//
 	float friction			= 0.05f;		// 
-	uint8_t physicsType = 0;				// 0: ƒ{[ƒ“’Ç], 1: •¨—‰‰Z, 2: •¨— + ƒ{[ƒ“
+	uint8_t physicsType = 0;				// 0: ãƒœãƒ¼ãƒ³è¿½å¾“, 1: ç‰©ç†æ¼”ç®—, 2: ç‰©ç† + ãƒœãƒ¼ãƒ³
 };
 
 /**
- * .PMXƒWƒ‡ƒCƒ“ƒg(6DOF)‚Ì’è‹`
+ * .PMXã‚¸ãƒ§ã‚¤ãƒ³ãƒˆ(6DOF)ã®å®šç¾©
  */
 struct PmxJoint
 {
@@ -237,7 +237,7 @@ struct PmxJoint
 };
 
 /**
- * ƒ‚ƒfƒ‹‚Ì•¨—ƒf[ƒ^ˆê®.
+ * ãƒ¢ãƒ‡ãƒ«ã®ç‰©ç†ãƒ‡ãƒ¼ã‚¿ä¸€å¼.
  */
 struct PmxPhysics
 {
@@ -247,32 +247,32 @@ struct PmxPhysics
 
 #pragma endregion
 
-#pragma region ƒ‚ƒfƒ‹ƒ[ƒh
+#pragma region ãƒ¢ãƒ‡ãƒ«ãƒ­ãƒ¼ãƒ‰
 
 /**
- *	ƒ‚ƒfƒ‹‚Ìƒ[ƒhŒ‹‰Ê‚Ì’è‹`
+ *	ãƒ¢ãƒ‡ãƒ«ã®ãƒ­ãƒ¼ãƒ‰çµæœã®å®šç¾©
  */
 struct ModelLoadResult
 {
-	std::shared_ptr<Mesh> mesh;						// ƒƒbƒVƒ…ƒf[ƒ^
+	std::shared_ptr<Mesh> mesh;						// ãƒ¡ãƒƒã‚·ãƒ¥ãƒ‡ãƒ¼ã‚¿
 
 	std::vector<SubMesh> subMeshes;
-	std::vector<MaterialTextureSet> materials;		// ƒ}ƒeƒŠƒAƒ‹‚²‚Æ‚ÌƒeƒNƒXƒ`ƒƒƒpƒX
+	std::vector<MaterialTextureSet> materials;		// ãƒãƒ†ãƒªã‚¢ãƒ«ã”ã¨ã®ãƒ†ã‚¯ã‚¹ãƒãƒ£ãƒ‘ã‚¹
 
-	std::wstring diffuseTexturePath;				//ƒeƒNƒXƒ`ƒƒ‚Ìƒtƒ@ƒCƒ‹ƒpƒX
-	std::wstring normalTexturePath;					// –@üƒ}ƒbƒv‚Ìƒtƒ@ƒCƒ‹ƒpƒX
-	std::wstring metalTexturePath;					// ƒƒ^ƒ‹ƒ}ƒbƒv‚Ìƒtƒ@ƒCƒ‹ƒpƒX
-	std::wstring roughTexturePath;					// ƒ‰ƒtƒlƒXƒ}ƒbƒv‚Ìƒtƒ@ƒCƒ‹ƒpƒX
-	std::vector<std::uint8_t> diffusetextureData;	// –„‚ß‚İƒeƒNƒXƒ`ƒƒ
-	Skeleton skeleton;								// ƒXƒPƒ‹ƒgƒ“ƒf[ƒ^
-	SkinData skinData;								// ƒXƒLƒjƒ“ƒOƒf[ƒ^
-	std::vector<AnimationClip> clips;				// ƒAƒjƒ[ƒVƒ‡ƒ“ƒf[ƒ^
-	MorphSet morphs;								// ƒ‚[ƒtƒf[ƒ^
+	std::wstring diffuseTexturePath;				//ãƒ†ã‚¯ã‚¹ãƒãƒ£ã®ãƒ•ã‚¡ã‚¤ãƒ«ãƒ‘ã‚¹
+	std::wstring normalTexturePath;					// æ³•ç·šãƒãƒƒãƒ—ã®ãƒ•ã‚¡ã‚¤ãƒ«ãƒ‘ã‚¹
+	std::wstring metalTexturePath;					// ãƒ¡ã‚¿ãƒ«ãƒãƒƒãƒ—ã®ãƒ•ã‚¡ã‚¤ãƒ«ãƒ‘ã‚¹
+	std::wstring roughTexturePath;					// ãƒ©ãƒ•ãƒã‚¹ãƒãƒƒãƒ—ã®ãƒ•ã‚¡ã‚¤ãƒ«ãƒ‘ã‚¹
+	std::vector<std::uint8_t> diffusetextureData;	// åŸ‹ã‚è¾¼ã¿ãƒ†ã‚¯ã‚¹ãƒãƒ£
+	Skeleton skeleton;								// ã‚¹ã‚±ãƒ«ãƒˆãƒ³ãƒ‡ãƒ¼ã‚¿
+	SkinData skinData;								// ã‚¹ã‚­ãƒ‹ãƒ³ã‚°ãƒ‡ãƒ¼ã‚¿
+	std::vector<AnimationClip> clips;				// ã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³ãƒ‡ãƒ¼ã‚¿
+	MorphSet morphs;								// ãƒ¢ãƒ¼ãƒ•ãƒ‡ãƒ¼ã‚¿
 	PmxPhysics					physics;
 };
 
 /*
- *	CPU‘¤‚¾‚¯‚Å•Û‚·‚éƒ‚ƒfƒ‹ƒf[ƒ^‚Ì’è‹`
+ *	CPUå´ã ã‘ã§ä¿æŒã™ã‚‹ãƒ¢ãƒ‡ãƒ«ãƒ‡ãƒ¼ã‚¿ã®å®šç¾©
  */
 struct ModelCpuData
 {
@@ -280,12 +280,12 @@ struct ModelCpuData
 	std::vector<std::uint32_t>  indices;
 
 	std::vector<SubMesh> subMeshes;
-	std::vector<MaterialTextureSet> materials;		// ƒ}ƒeƒŠƒAƒ‹‚²‚Æ‚ÌƒeƒNƒXƒ`ƒƒƒpƒX
+	std::vector<MaterialTextureSet> materials;		// ãƒãƒ†ãƒªã‚¢ãƒ«ã”ã¨ã®ãƒ†ã‚¯ã‚¹ãƒãƒ£ãƒ‘ã‚¹
 
 	std::wstring                diffuseTexturePath;
-	std::wstring				normalTexturePath;	// –@üƒ}ƒbƒv‚Ìƒtƒ@ƒCƒ‹ƒpƒX
-	std::wstring				metalTexturePath;	// ƒƒ^ƒ‹ƒ}ƒbƒv‚Ìƒtƒ@ƒCƒ‹ƒpƒX
-	std::wstring				roughTexturePath;	// ƒ‰ƒtƒlƒXƒ}ƒbƒv‚Ìƒtƒ@ƒCƒ‹ƒpƒX
+	std::wstring				normalTexturePath;	// æ³•ç·šãƒãƒƒãƒ—ã®ãƒ•ã‚¡ã‚¤ãƒ«ãƒ‘ã‚¹
+	std::wstring				metalTexturePath;	// ãƒ¡ã‚¿ãƒ«ãƒãƒƒãƒ—ã®ãƒ•ã‚¡ã‚¤ãƒ«ãƒ‘ã‚¹
+	std::wstring				roughTexturePath;	// ãƒ©ãƒ•ãƒã‚¹ãƒãƒƒãƒ—ã®ãƒ•ã‚¡ã‚¤ãƒ«ãƒ‘ã‚¹
 	std::vector<std::uint8_t>   diffuseTextureData;
 	std::vector<AnimationClip> 	clips;	
 	Skeleton                    skeleton;

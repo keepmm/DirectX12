@@ -1,4 +1,4 @@
-#include "EditorWindow.hpp"
+ï»¿#include "EditorWindow.hpp"
 #include "SceneSerializer.hpp"
 #include "Components.hpp"
 #include "PrefabLibrary.hpp"
@@ -21,13 +21,13 @@
 
 #pragma comment(lib, "psapi.lib")
 
-// ƒƒCƒh•¶š—ñ ¨ UTF-8(ƒtƒHƒ‹ƒ_‘I‘ğƒ_ƒCƒAƒƒO‚ÌŒ‹‰Ê—p)
+// ãƒ¯ã‚¤ãƒ‰æ–‡å­—åˆ— â†’ UTF-8(ãƒ•ã‚©ãƒ«ãƒ€é¸æŠãƒ€ã‚¤ã‚¢ãƒ­ã‚°ã®çµæœç”¨)
 static std::string WideToUTF8(const wchar_t* w)
 {
 	if (!w) return {};
 	int len = WideCharToMultiByte(CP_UTF8, 0, w, -1, nullptr, 0, nullptr, nullptr);
 	if (len <= 1) return {};
-	std::string result(len - 1, '\0');   // len ‚ÍI’[NUL‚İ
+	std::string result(len - 1, '\0');   // len ã¯çµ‚ç«¯NULè¾¼ã¿
 	WideCharToMultiByte(CP_UTF8, 0, w, -1, result.data(), len, nullptr, nullptr);
 	return result;
 }
@@ -55,7 +55,7 @@ static void SetParentKeepWorld(World& world, Entity child, Entity newParent)
 	if (!world.HasComponent<TransformComponent>(child)) return;
 	auto& ct = world.GetComponent<TransformComponent>(child);
 
-	// q‚Ì¡‚Ìƒ[ƒ‹ƒhs—ñiTransformSystemŒvZÏ‚İj
+	// å­ã®ä»Šã®ãƒ¯ãƒ¼ãƒ«ãƒ‰è¡Œåˆ—ï¼ˆTransformSystemè¨ˆç®—æ¸ˆã¿ï¼‰
 	XMMATRIX childWorld = XMLoadFloat4x4(&ct.world);
 
 	if (newParent != INVALID_ENTITY && world.HasComponent<TransformComponent>(newParent))
@@ -63,7 +63,7 @@ static void SetParentKeepWorld(World& world, Entity child, Entity newParent)
 		auto& pt = world.GetComponent<TransformComponent>(newParent);
 		XMMATRIX parentWorld = XMLoadFloat4x4(&pt.world);
 
-		// Vƒ[ƒJƒ‹ = qƒ[ƒ‹ƒh x eƒ[ƒ‹ƒh‚Ì‹t
+		// æ–°ãƒ­ãƒ¼ã‚«ãƒ« = å­ãƒ¯ãƒ¼ãƒ«ãƒ‰ x è¦ªãƒ¯ãƒ¼ãƒ«ãƒ‰ã®é€†
 		XMVECTOR det;
 		XMMATRIX newLocal = childWorld * XMMatrixInverse(&det, parentWorld);
 
@@ -91,16 +91,16 @@ static bool IsAncestor(World& world, Entity maybeAncestor, Entity child)
 EditorWindow::EditorWindow(DirectXApp& app, SceneManager& sceneManager)
 	: m_App(app)
 {
-	// ƒtƒ@ƒCƒ‹ƒpƒX‚Ì‰Šú’l‚ğİ’è
+	// ãƒ•ã‚¡ã‚¤ãƒ«ãƒ‘ã‚¹ã®åˆæœŸå€¤ã‚’è¨­å®š
 	if (Scene* s = sceneManager.GetActiveScene())
 	{
 		std::snprintf(m_SceneRegisterName.data(), m_SceneRegisterName.size(),
 			"%s", s->GetSceneName().c_str());
 		std::snprintf(m_SceneRegisterPath.data(), m_SceneRegisterPath.size(),
-			"%s", s->GetSceneName().c_str());   // Scene‚ªƒpƒX‚ğ‚Á‚Ä‚¢‚È‚¯‚ê‚Î’Ç‰Á
+			"%s", s->GetSceneName().c_str());   // SceneãŒãƒ‘ã‚¹ã‚’æŒã£ã¦ã„ãªã‘ã‚Œã°è¿½åŠ 
 	}
 
-	// ƒQ[ƒ€‰æ–Ê—p‚ÌƒŒƒ“ƒ_[ƒeƒNƒXƒ`ƒƒ‰Šú‰»
+	// ã‚²ãƒ¼ãƒ ç”»é¢ç”¨ã®ãƒ¬ãƒ³ãƒ€ãƒ¼ãƒ†ã‚¯ã‚¹ãƒãƒ£åˆæœŸåŒ–
 	m_GameRenderTexture = std::make_unique<RenderTexture>();
 	if (FAILED(m_GameRenderTexture->Init(1280, 720)))
 	{
@@ -112,7 +112,7 @@ EditorWindow::EditorWindow(DirectXApp& app, SceneManager& sceneManager)
 		m_GameTextureHandleValid = true;
 	}
 
-	// ƒGƒfƒBƒ^—p‚ÌƒŒƒ“ƒ_[ƒeƒNƒXƒ`ƒƒ‰Šú‰»
+	// ã‚¨ãƒ‡ã‚£ã‚¿ç”¨ã®ãƒ¬ãƒ³ãƒ€ãƒ¼ãƒ†ã‚¯ã‚¹ãƒãƒ£åˆæœŸåŒ–
 	m_EditorRenderTexture = std::make_unique<RenderTexture>();
 	if (FAILED(m_EditorRenderTexture->Init(1280, 720)))
 	{
@@ -128,25 +128,25 @@ EditorWindow::EditorWindow(DirectXApp& app, SceneManager& sceneManager)
 void EditorWindow::Draw(SceneManager& sceneManager)
 {
 	BuildSystem::Update();
-	// ƒrƒ‹ƒh’†‚Í‰E‰º‚Éi’»ƒI[ƒo[ƒŒƒC‚ğ•\¦
+	// ãƒ“ãƒ«ãƒ‰ä¸­ã¯å³ä¸‹ã«é€²æ—ã‚ªãƒ¼ãƒãƒ¼ãƒ¬ã‚¤ã‚’è¡¨ç¤º
 	if (BuildSystem::IsBuilding() || (BuildSystem::GetProgress() >= 1.0f && m_BuildOverlayTimer > 0.0f))
 	{
-		if (BuildSystem::IsBuilding()) m_BuildOverlayTimer = 2.0f;      // Š®—¹Œã2•b‚¾‚¯c‚·
+		if (BuildSystem::IsBuilding()) m_BuildOverlayTimer = 2.0f;      // å®Œäº†å¾Œ2ç§’ã ã‘æ®‹ã™
 		else                           m_BuildOverlayTimer -= ImGui::GetIO().DeltaTime;
 
 		ImGuiViewport* vp = ImGui::GetMainViewport();
 		ImGui::SetNextWindowPos(
 			ImVec2(vp->WorkPos.x + vp->WorkSize.x - 10.0f,
 				vp->WorkPos.y + vp->WorkSize.y - 10.0f),
-			ImGuiCond_Always, ImVec2(1.0f, 1.0f));   // ‰E‰ºŠî€
+			ImGuiCond_Always, ImVec2(1.0f, 1.0f));   // å³ä¸‹åŸºæº–
 		ImGui::SetNextWindowBgAlpha(0.85f);
-		ImGui::Begin(u8("ƒrƒ‹ƒhi’»"), nullptr,
+		ImGui::Begin(u8("ãƒ“ãƒ«ãƒ‰é€²æ—"), nullptr,
 			ImGuiWindowFlags_NoDecoration | ImGuiWindowFlags_AlwaysAutoResize |
 			ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_NoFocusOnAppearing |
 			ImGuiWindowFlags_NoNav | ImGuiWindowFlags_NoDocking);
 
 		float p = BuildSystem::GetProgress();
-		// MSBuild ‹æŠÔ(i’»‚ª“®‚©‚È‚¢)‚Íƒo[‚ğ—¬‚ê‚éƒAƒjƒ[ƒVƒ‡ƒ“‚É‚·‚é
+		// MSBuild åŒºé–“(é€²æ—ãŒå‹•ã‹ãªã„)ã¯ãƒãƒ¼ã‚’æµã‚Œã‚‹ã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³ã«ã™ã‚‹
 		if (BuildSystem::IsBuilding() && p <= 0.05f)
 			ImGui::ProgressBar(-1.0f * (float)ImGui::GetTime(), ImVec2(260, 0), u8("MSBuild..."));
 		else
@@ -157,15 +157,15 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 	}
 	ImGuizmo::BeginFrame();
 
-	// ƒAƒNƒeƒBƒu‚ÈƒV[ƒ“‚ğæ“¾
+	// ã‚¢ã‚¯ãƒ†ã‚£ãƒ–ãªã‚·ãƒ¼ãƒ³ã‚’å–å¾—
 	Scene* activeScene = sceneManager.GetActiveScene();
 
-	// ƒƒjƒ…[ƒo[
+	// ãƒ¡ãƒ‹ãƒ¥ãƒ¼ãƒãƒ¼
 	if (ImGui::BeginMainMenuBar())
 	{
-		if (ImGui::BeginMenu(u8("ƒtƒ@ƒCƒ‹")))
+		if (ImGui::BeginMenu(u8("ãƒ•ã‚¡ã‚¤ãƒ«")))
 		{
-			if (ImGui::MenuItem(u8("ƒV[ƒ“‚ğ•Û‘¶"), "Ctrl+S"))
+			if (ImGui::MenuItem(u8("ã‚·ãƒ¼ãƒ³ã‚’ä¿å­˜"), "Ctrl+S"))
 			{
 				if (activeScene)
 				{
@@ -176,23 +176,23 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 			ImGui::EndMenu();
 		}
 
-		if (ImGui::BeginMenu(u8("ƒEƒBƒ“ƒhƒE")))
+		if (ImGui::BeginMenu(u8("ã‚¦ã‚£ãƒ³ãƒ‰ã‚¦")))
 		{
-			ImGui::Checkbox(u8("ƒAƒEƒgƒ‰ƒCƒi[‚ğ•\¦"), &m_ShowOutliner);
-			ImGui::Checkbox(u8("ƒrƒ…[ƒ|[ƒg‚ğ•\¦"), &m_ShowViewport);
-			ImGui::Checkbox(u8("ƒvƒƒpƒeƒB‚ğ•\¦"), &m_ShowProperties);
-			ImGui::Checkbox(u8("ƒƒ‚ƒŠÁ”ï—Ê‚ğ•\¦"), &m_ShowMemory);
-			ImGui::Checkbox(u8("Ú×‚ğ•\¦"), &m_ShowDetails);
-			ImGui::Checkbox(u8("ƒRƒ“ƒ\[ƒ‹‚ğ•\¦"), &m_ShowConsole);
-			ImGui::Checkbox(u8("ƒXƒ^ƒCƒ‹İ’è‚ğ•\¦"), &m_ShowStyleSetting);
+			ImGui::Checkbox(u8("ã‚¢ã‚¦ãƒˆãƒ©ã‚¤ãƒŠãƒ¼ã‚’è¡¨ç¤º"), &m_ShowOutliner);
+			ImGui::Checkbox(u8("ãƒ“ãƒ¥ãƒ¼ãƒãƒ¼ãƒˆã‚’è¡¨ç¤º"), &m_ShowViewport);
+			ImGui::Checkbox(u8("ãƒ—ãƒ­ãƒ‘ãƒ†ã‚£ã‚’è¡¨ç¤º"), &m_ShowProperties);
+			ImGui::Checkbox(u8("ãƒ¡ãƒ¢ãƒªæ¶ˆè²»é‡ã‚’è¡¨ç¤º"), &m_ShowMemory);
+			ImGui::Checkbox(u8("è©³ç´°ã‚’è¡¨ç¤º"), &m_ShowDetails);
+			ImGui::Checkbox(u8("ã‚³ãƒ³ã‚½ãƒ¼ãƒ«ã‚’è¡¨ç¤º"), &m_ShowConsole);
+			ImGui::Checkbox(u8("ã‚¹ã‚¿ã‚¤ãƒ«è¨­å®šã‚’è¡¨ç¤º"), &m_ShowStyleSetting);
 			ImGui::EndMenu();
 		}
 
-		if (ImGui::BeginMenu(u8("ƒrƒ‹ƒh")))
+		if (ImGui::BeginMenu(u8("ãƒ“ãƒ«ãƒ‰")))
 		{
-			ImGui::InputText(u8("o—Íæ"), m_BuildOutputDir.data(), m_BuildOutputDir.size());
+			ImGui::InputText(u8("å‡ºåŠ›å…ˆ"), m_BuildOutputDir.data(), m_BuildOutputDir.size());
 			ImGui::SameLine();
-			if (ImGui::Button(u8("QÆ...###BuildOutputDir")))
+			if (ImGui::Button(u8("å‚ç…§...###BuildOutputDir")))
 			{
 				ComPtr<IFileOpenDialog> dialog;
 				if (SUCCEEDED(CoCreateInstance(CLSID_FileOpenDialog, nullptr,
@@ -216,11 +216,11 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 				}
 			}
 			static int configIndex = 0;
-			ImGui::Combo(u8("\¬"), &configIndex, "Release\0Debug\0");
-			ImGui::InputText(u8("ƒQ[ƒ€–¼"), m_BuildGameName.data(), m_BuildGameName.size());
-			ImGui::InputText(u8("ŠJnƒV[ƒ“"), m_BuildStartScene.data(), m_BuildStartScene.size());
+			ImGui::Combo(u8("æ§‹æˆ"), &configIndex, "Release\0Debug\0");
+			ImGui::InputText(u8("ã‚²ãƒ¼ãƒ å"), m_BuildGameName.data(), m_BuildGameName.size());
+			ImGui::InputText(u8("é–‹å§‹ã‚·ãƒ¼ãƒ³"), m_BuildStartScene.data(), m_BuildStartScene.size());
 			ImGui::SameLine();
-			if(ImGui::Button(u8("QÆ...###BuildStartScene")))
+			if(ImGui::Button(u8("å‚ç…§...###BuildStartScene")))
 			{
 				ComPtr<IFileOpenDialog> dialog;
 				if (SUCCEEDED(CoCreateInstance(CLSID_FileOpenDialog, nullptr,
@@ -245,7 +245,7 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 			}
 
 			ImGui::BeginDisabled(BuildSystem::IsBuilding());
-			if (ImGui::MenuItem(u8("ƒQ[ƒ€‚ğƒrƒ‹ƒh")))
+			if (ImGui::MenuItem(u8("ã‚²ãƒ¼ãƒ ã‚’ãƒ“ãƒ«ãƒ‰")))
 			{
 				BuildSetting s;
 				s.outputDir = m_BuildOutputDir.data();
@@ -257,14 +257,14 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 			ImGui::EndDisabled();
 
 			if (BuildSystem::IsBuilding())
-				ImGui::TextUnformatted(u8("ƒrƒ‹ƒh’†..."));
+				ImGui::TextUnformatted(u8("ãƒ“ãƒ«ãƒ‰ä¸­..."));
 			ImGui::EndMenu();
 		}
 
 		ImGui::EndMainMenuBar();
 	}
 
-	// ƒhƒbƒLƒ“ƒOƒXƒy[ƒX‚ÌƒZƒbƒgƒAƒbƒv
+	// ãƒ‰ãƒƒã‚­ãƒ³ã‚°ã‚¹ãƒšãƒ¼ã‚¹ã®ã‚»ãƒƒãƒˆã‚¢ãƒƒãƒ—
 	ImGuiViewport* viewport = ImGui::GetMainViewport();
 	float h = ImGui::GetFrameHeight();
 	if (ImGui::BeginViewportSideBar("##PlayToolbar", viewport, ImGuiDir_Up, h,
@@ -298,7 +298,7 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 	ImGuiID dockspaceID = ImGui::GetID("EditorDockSpace");
 	ImGui::DockSpace(dockspaceID, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
 
-	// ƒhƒbƒLƒ“ƒOƒŒƒCƒAƒEƒg‚Ì‰Šúİ’è
+	// ãƒ‰ãƒƒã‚­ãƒ³ã‚°ãƒ¬ã‚¤ã‚¢ã‚¦ãƒˆã®åˆæœŸè¨­å®š
 	if (!m_DockLayout || ImGui::DockBuilderGetNode(dockspaceID) == nullptr)
 	{
 		ImGui::DockBuilderRemoveNode(dockspaceID);
@@ -310,24 +310,24 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 		ImGuiID dockRightID = ImGui::DockBuilderSplitNode(dockMainID, ImGuiDir_Right, 0.15f, nullptr, &dockMainID);
 		ImGuiID dockBottomID = ImGui::DockBuilderSplitNode(dockMainID, ImGuiDir_Down, 0.20f, nullptr, &dockMainID);
 
-		ImGui::DockBuilderDockWindow(u8("ƒAƒEƒgƒ‰ƒCƒi["), dockLeftID);
-		ImGui::DockBuilderDockWindow(u8("ƒQ[ƒ€‰æ–Ê"), dockMainID);
-		ImGui::DockBuilderDockWindow(u8("ƒGƒfƒBƒ^‰æ–Ê"), dockMainID);
-		ImGui::DockBuilderDockWindow(u8("ƒvƒƒpƒeƒBƒpƒlƒ‹"), dockRightID);
-		ImGui::DockBuilderDockWindow(u8("Ú×ƒpƒlƒ‹"), dockBottomID);
-		ImGui::DockBuilderDockWindow(u8("ƒRƒ“ƒ\[ƒ‹"), dockBottomID);
+		ImGui::DockBuilderDockWindow(u8("ã‚¢ã‚¦ãƒˆãƒ©ã‚¤ãƒŠãƒ¼"), dockLeftID);
+		ImGui::DockBuilderDockWindow(u8("ã‚²ãƒ¼ãƒ ç”»é¢"), dockMainID);
+		ImGui::DockBuilderDockWindow(u8("ã‚¨ãƒ‡ã‚£ã‚¿ç”»é¢"), dockMainID);
+		ImGui::DockBuilderDockWindow(u8("ãƒ—ãƒ­ãƒ‘ãƒ†ã‚£ãƒ‘ãƒãƒ«"), dockRightID);
+		ImGui::DockBuilderDockWindow(u8("è©³ç´°ãƒ‘ãƒãƒ«"), dockBottomID);
+		ImGui::DockBuilderDockWindow(u8("ã‚³ãƒ³ã‚½ãƒ¼ãƒ«"), dockBottomID);
 
 		ImGui::DockBuilderFinish(dockspaceID);
 		m_DockLayout = true;
 	}
 	ImGui::End();
 
-	// ---- ƒAƒEƒgƒ‰ƒCƒi[ƒpƒlƒ‹ ---- //
-	if (ImGui::Begin(u8("ƒAƒEƒgƒ‰ƒCƒi[")) && m_ShowOutliner)
+	// ---- ã‚¢ã‚¦ãƒˆãƒ©ã‚¤ãƒŠãƒ¼ãƒ‘ãƒãƒ« ---- //
+	if (ImGui::Begin(u8("ã‚¢ã‚¦ãƒˆãƒ©ã‚¤ãƒŠãƒ¼")) && m_ShowOutliner)
 	{
 		if (activeScene == nullptr)
 		{
-			ImGui::Text(u8("ƒAƒNƒeƒBƒu‚ÈƒV[ƒ“‚ª‚ ‚è‚Ü‚¹‚ñ"));
+			ImGui::Text(u8("ã‚¢ã‚¯ãƒ†ã‚£ãƒ–ãªã‚·ãƒ¼ãƒ³ãŒã‚ã‚Šã¾ã›ã‚“"));
 		}
 		else
 		{
@@ -339,15 +339,15 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 	ImGui::End();
 
 	INPUT->SetViewportHovered(false);
-	// ---- ƒrƒ…[ƒ|[ƒgƒpƒlƒ‹ ---- //
-	if (ImGui::Begin(u8("ƒQ[ƒ€‰æ–Ê")) && m_ShowViewport)
+	// ---- ãƒ“ãƒ¥ãƒ¼ãƒãƒ¼ãƒˆãƒ‘ãƒãƒ« ---- //
+	if (ImGui::Begin(u8("ã‚²ãƒ¼ãƒ ç”»é¢")) && m_ShowViewport)
 	{
 		ImVec2 availableSize = ImGui::GetContentRegionAvail();
 		if (ImGui::IsWindowHovered())
 			INPUT->SetViewportHovered(true);
 
 		// -------------------------------------------------------------------- //
-		//	ƒrƒ…[ƒ|[ƒg‚ÌƒTƒCƒY‚ª•ÏX‚³‚ê‚½ê‡AƒŒƒ“ƒ_[ƒeƒNƒXƒ`ƒƒ‚àƒŠƒTƒCƒY  //
+		//	ãƒ“ãƒ¥ãƒ¼ãƒãƒ¼ãƒˆã®ã‚µã‚¤ã‚ºãŒå¤‰æ›´ã•ã‚ŒãŸå ´åˆã€ãƒ¬ãƒ³ãƒ€ãƒ¼ãƒ†ã‚¯ã‚¹ãƒãƒ£ã‚‚ãƒªã‚µã‚¤ã‚º  //
 		// -------------------------------------------------------------------- //
 		const UINT newWidth = static_cast<UINT>(availableSize.x);
 		const UINT newHeight = static_cast<UINT>(availableSize.y);
@@ -361,13 +361,13 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 		m_ViewportPos = ImGui::GetCursorScreenPos();
 		m_ViewportSize = availableSize;
 
-		// ƒŒƒ“ƒ_[ƒeƒNƒXƒ`ƒƒ‚ª—LŒø‚Èê‡‚ÍAImGui‚É•`‰æ
+		// ãƒ¬ãƒ³ãƒ€ãƒ¼ãƒ†ã‚¯ã‚¹ãƒãƒ£ãŒæœ‰åŠ¹ãªå ´åˆã¯ã€ImGuiã«æç”»
 		if (m_GameRenderTexture && m_GameTextureHandleValid)
 		{
 			ImGui::Image(static_cast<ImTextureID>(m_GameRenderTexture->GetSRV().ptr),
 				availableSize, ImVec2(0, 0), ImVec2(1, 1));
 
-			// ---- ƒV[ƒ“ƒtƒFƒCƒhˆ— ---- //
+			// ---- ã‚·ãƒ¼ãƒ³ãƒ•ã‚§ã‚¤ãƒ‰å‡¦ç† ---- //
 			const float fade = sceneManager.GetFadeAlpha();
 			if (fade > 0.0f)
 			{
@@ -383,10 +383,10 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 					ImGui::AcceptDragDropPayload("ASSET_MODEL");
 				if(payload != nullptr && activeScene != nullptr)
 				{
-					// ‰^‚Î‚ê‚Ä‚«‚½ƒtƒ@ƒCƒ‹ƒpƒX‚ğæ‚èo‚·
+					// é‹ã°ã‚Œã¦ããŸãƒ•ã‚¡ã‚¤ãƒ«ãƒ‘ã‚¹ã‚’å–ã‚Šå‡ºã™
 					std::string modelpath(static_cast<const char*>(payload->Data));
 
-					// ‚Æ‚è‚ ‚¦‚¸Œ´“_‚É
+					// ã¨ã‚Šã‚ãˆãšåŸç‚¹ã«
 					float3 fragPosition = float3(0.0f, 0.0f, 0.0f);
 
 					SpawnModelFromFile(activeScene->GetWorld(), modelpath, fragPosition,activeScene);
@@ -396,7 +396,7 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 		}
 		else
 		{
-			LOG->LogError("ƒŒƒ“ƒ_[ƒeƒNƒXƒ`ƒƒ‚ª–¢‰Šú‰»‚Å‚·");
+			LOG->LogError("ãƒ¬ãƒ³ãƒ€ãƒ¼ãƒ†ã‚¯ã‚¹ãƒãƒ£ãŒæœªåˆæœŸåŒ–ã§ã™");
 			ImDrawList* drawList = ImGui::GetWindowDrawList();
 			ImU32 backgroundColor = ImGui::GetColorU32(ImGuiCol_WindowBg);
 			drawList->AddRectFilled(
@@ -408,37 +408,37 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 	}
 	ImGui::End();
 
-	// ---- ƒGƒfƒBƒ^‰æ–Êƒpƒlƒ‹ ---- //
-	if (ImGui::Begin(u8("ƒGƒfƒBƒ^‰æ–Ê")) && m_ShowViewport)
+	// ---- ã‚¨ãƒ‡ã‚£ã‚¿ç”»é¢ãƒ‘ãƒãƒ« ---- //
+	if (ImGui::Begin(u8("ã‚¨ãƒ‡ã‚£ã‚¿ç”»é¢")) && m_ShowViewport)
 	{
 		ImVec2 availableSize = ImGui::GetContentRegionAvail();
 		if (ImGui::IsWindowHovered())
 			INPUT->SetViewportHovered(true);
-		// ƒŒƒ“ƒ_[ƒeƒNƒXƒ`ƒƒ‚ª—LŒø‚Èê‡‚ÍAImGui‚É•`‰æ
+		// ãƒ¬ãƒ³ãƒ€ãƒ¼ãƒ†ã‚¯ã‚¹ãƒãƒ£ãŒæœ‰åŠ¹ãªå ´åˆã¯ã€ImGuiã«æç”»
 		if (m_EditorRenderTexture && m_EditorTextureHandleValid)
 		{
 			ImGui::Image(static_cast<ImTextureID>(m_EditorRenderTexture->GetSRV().ptr),
 				availableSize, ImVec2(0, 0), ImVec2(1, 1));
 
-			// ---- Gizmo‚Ì•`‰æ ---- //
+			// ---- Gizmoã®æç”» ---- //
 			if (activeScene && m_SelectedEntity != INVALID_ENTITY)
 			{
 				World& gw = activeScene->GetWorld();
 				if (gw.IsEntityAlive(m_SelectedEntity) &&
 					gw.HasComponent<TransformComponent>(m_SelectedEntity))
 				{
-					// ƒGƒfƒBƒ^‰æ–Ê‚Ì•`‰æ‚Ég‚¤ƒJƒƒ‰iMain¨Secondary‚Ì‡j
+					// ã‚¨ãƒ‡ã‚£ã‚¿ç”»é¢ã®æç”»ã«ä½¿ã†ã‚«ãƒ¡ãƒ©ï¼ˆMainâ†’Secondaryã®é †ï¼‰
 					const CameraComponent* cam = nullptr;
 					const CameraComponent* fallback = nullptr;
 					gw.Each<CameraComponent>([&](Entity, CameraComponent& c) {
 						if (c.cameraType == CameraComponent::CameraType::Secondary) cam = &c;
 						else                                                        fallback = &c;
 						});
-					if (cam == nullptr) cam = fallback;   // Secondary‚ª–³‚¯‚ê‚ÎMain‚Å‘ã—p
+					if (cam == nullptr) cam = fallback;   // SecondaryãŒç„¡ã‘ã‚Œã°Mainã§ä»£ç”¨
 
 					if (cam)
 					{
-						// ƒMƒYƒ‚‚Ì•`‰ææ‚Æ—Ìˆæ‚ğA’¼‘O‚ÌImage‚É‡‚í‚¹‚é
+						// ã‚®ã‚ºãƒ¢ã®æç”»å…ˆã¨é ˜åŸŸã‚’ã€ç›´å‰ã®Imageã«åˆã‚ã›ã‚‹
 						ImGuizmo::SetOrthographic(false);
 						ImGuizmo::SetDrawlist();
 						const ImVec2 imgPos = ImGui::GetItemRectMin();
@@ -456,7 +456,7 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 						{
 							DirectX::XMMATRIX newLocal = DirectX::XMLoadFloat4x4(&world);
 
-							// e‚ª‚¢‚éê‡‚Íe‹óŠÔ‚Ö–ß‚·
+							// è¦ªãŒã„ã‚‹å ´åˆã¯è¦ªç©ºé–“ã¸æˆ»ã™
 							if (tr.parent != INVALID_ENTITY && tr.parent != m_SelectedEntity &&
 								gw.HasComponent<TransformComponent>(tr.parent))
 							{
@@ -479,7 +479,7 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 								tr.RebuildWorld();
 							}
 
-							//// s—ñ‚ğˆÊ’uA‰ñ“]AƒTƒCƒY‚É•ª‰ğ
+							//// è¡Œåˆ—ã‚’ä½ç½®ã€å›è»¢ã€ã‚µã‚¤ã‚ºã«åˆ†è§£
 							//float t[3], r[3], s[3];
 							//ImGuizmo::DecomposeMatrixToComponents(&world._11, t, r, s);
 
@@ -490,8 +490,8 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 							//	DirectX::XMConvertToRadians(r[2]));
 							//DirectX::XMStoreFloat4(&tr.rotation, q);
 							//tr.scale = float3(s[0], s[1], s[2]);
-							//tr.ApplyEuler(); // EulerŠp‚ğXV
-							//tr.RebuildWorld(); // ƒ[ƒ‹ƒhs—ñ‚ğXV
+							//tr.ApplyEuler(); // Eulerè§’ã‚’æ›´æ–°
+							//tr.RebuildWorld(); // ãƒ¯ãƒ¼ãƒ«ãƒ‰è¡Œåˆ—ã‚’æ›´æ–°
 						}
 					}
 				}
@@ -506,7 +506,7 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 		}
 		else
 		{
-			LOG->LogError("ƒGƒfƒBƒ^—pƒŒƒ“ƒ_[ƒeƒNƒXƒ`ƒƒ‚ª–¢‰Šú‰»‚Å‚·");
+			LOG->LogError("ã‚¨ãƒ‡ã‚£ã‚¿ç”¨ãƒ¬ãƒ³ãƒ€ãƒ¼ãƒ†ã‚¯ã‚¹ãƒãƒ£ãŒæœªåˆæœŸåŒ–ã§ã™");
 			ImDrawList* drawList = ImGui::GetWindowDrawList();
 			ImU32 backgroundColor = ImGui::GetColorU32(ImGuiCol_WindowBg);
 			drawList->AddRectFilled(
@@ -518,12 +518,12 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 	}
 	ImGui::End();
 
-	// ---- ƒvƒƒpƒeƒBƒpƒlƒ‹iƒCƒ“ƒXƒyƒNƒ^j---- //
-	if (ImGui::Begin(u8("ƒvƒƒpƒeƒBƒpƒlƒ‹")) && m_ShowProperties)
+	// ---- ãƒ—ãƒ­ãƒ‘ãƒ†ã‚£ãƒ‘ãƒãƒ«ï¼ˆã‚¤ãƒ³ã‚¹ãƒšã‚¯ã‚¿ï¼‰---- //
+	if (ImGui::Begin(u8("ãƒ—ãƒ­ãƒ‘ãƒ†ã‚£ãƒ‘ãƒãƒ«")) && m_ShowProperties)
 	{
 		if (activeScene == nullptr)
 		{
-			ImGui::Text(u8("ƒAƒNƒeƒBƒu‚ÈƒV[ƒ“‚ª‚ ‚è‚Ü‚¹‚ñ"));
+			ImGui::Text(u8("ã‚¢ã‚¯ãƒ†ã‚£ãƒ–ãªã‚·ãƒ¼ãƒ³ãŒã‚ã‚Šã¾ã›ã‚“"));
 		}
 		else
 		{
@@ -533,30 +533,30 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 	}
 	ImGui::End();
 
-	if(ImGui::Begin(u8("ƒRƒ“ƒ\[ƒ‹")) && m_ShowConsole)
+	if(ImGui::Begin(u8("ã‚³ãƒ³ã‚½ãƒ¼ãƒ«")) && m_ShowConsole)
 	{
 		DrawConsole();
 	}
 	ImGui::End();
 
-	if(ImGui::Begin(u8("MMDƒRƒ“ƒgƒ[ƒ‰[")) && m_ShowMmdPlayer)
+	if(ImGui::Begin(u8("MMDã‚³ãƒ³ãƒˆãƒ­ãƒ¼ãƒ©ãƒ¼")) && m_ShowMmdPlayer)
 	{
 		DrawMmdPlayer(sceneManager.GetActiveScene()->GetWorld());
 	}
 	ImGui::End();
 
-	// ---- Ú×ƒpƒlƒ‹ ---- //
-	if (ImGui::Begin(u8("Ú×ƒpƒlƒ‹")) && m_ShowDetails)
+	// ---- è©³ç´°ãƒ‘ãƒãƒ« ---- //
+	if (ImGui::Begin(u8("è©³ç´°ãƒ‘ãƒãƒ«")) && m_ShowDetails)
 	{
-		if (ImGui::BeginTabBar(u8("Ú×ƒpƒlƒ‹ƒ^ƒu")))
+		if (ImGui::BeginTabBar(u8("è©³ç´°ãƒ‘ãƒãƒ«ã‚¿ãƒ–")))
 		{
-			if (ImGui::BeginTabItem(u8("ƒAƒZƒbƒg")))
+			if (ImGui::BeginTabItem(u8("ã‚¢ã‚»ãƒƒãƒˆ")))
 			{
 				DrawAssetPanel(sceneManager);
 				ImGui::EndTabItem();
 			}
 
-			if (ImGui::BeginTabItem(u8("ƒV[ƒ“İ’è")))
+			if (ImGui::BeginTabItem(u8("ã‚·ãƒ¼ãƒ³è¨­å®š")))
 			{
 				if (activeScene)
 				{
@@ -565,7 +565,7 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 				ImGui::EndTabItem();
 			}
 
-			if (ImGui::BeginTabBar(u8("ƒƒ‚ƒŠÁ”ï—Ê")))
+			if (ImGui::BeginTabBar(u8("ãƒ¡ãƒ¢ãƒªæ¶ˆè²»é‡")))
 			{
 				if (m_ShowMemory)
 				{
@@ -589,7 +589,7 @@ void EditorWindow::ReleaseRenderTextures()
 
 void EditorWindow::DrawSceneInfo(Scene& scene)
 {
-	ImGui::Text(u8("ƒV[ƒ“: %s"), scene.GetSceneName().c_str());
+	ImGui::Text(u8("ã‚·ãƒ¼ãƒ³: %s"), scene.GetSceneName().c_str());
 	ImGui::Separator();
 	ImGui::Checkbox("Deferred Rendering", &RenderSettings::Get().deferred);
 	ImGui::Separator();
@@ -597,19 +597,19 @@ void EditorWindow::DrawSceneInfo(Scene& scene)
 
 void EditorWindow::DrawEntityList(World& world)
 {
-	ImGui::Text(u8("ƒGƒ“ƒeƒBƒeƒBˆê——"));
+	ImGui::Text(u8("ã‚¨ãƒ³ãƒ†ã‚£ãƒ†ã‚£ä¸€è¦§"));
 	ImGui::InputText(u8("##FilterEntity"), m_EntityFilyer.data(), m_EntityFilyer.size());
 
 	if (ImGui::BeginChild("EntityList", ImVec2(0.0f, 0.0f), true))
 	{
-		//   Transform‚àRectTransform‚à–³‚¢ƒGƒ“ƒeƒBƒeƒB‚àE‚¤
+		//   Transformã‚‚RectTransformã‚‚ç„¡ã„ã‚¨ãƒ³ãƒ†ã‚£ãƒ†ã‚£ã‚‚æ‹¾ã†
 		for (Entity e : world.GetEntities())
 		{
-			if (GetParent(world, e) == INVALID_ENTITY)   // ƒ‹[ƒg‚¾‚¯
+			if (GetParent(world, e) == INVALID_ENTITY)   // ãƒ«ãƒ¼ãƒˆã ã‘
 				DrawEntityNode(world, e);
 		}
 
-		// —]”’‚Ö‚Ìƒhƒƒbƒvƒ‹[ƒg‚É–ß‚·
+		// ä½™ç™½ã¸ã®ãƒ‰ãƒ­ãƒƒãƒ—ï¼ãƒ«ãƒ¼ãƒˆã«æˆ»ã™
 		ImGui::Dummy(ImGui::GetContentRegionAvail());
 		if (ImGui::BeginDragDropTarget())
 		{
@@ -623,9 +623,9 @@ void EditorWindow::DrawEntityList(World& world)
 
 		if (ImGui::BeginPopupContextWindow())
 		{
-			if (ImGui::BeginMenu(u8("ì¬")))
+			if (ImGui::BeginMenu(u8("ä½œæˆ")))
 			{
-				if (ImGui::MenuItem(u8("‹ó‚ÌƒGƒ“ƒeƒBƒeƒB")))
+				if (ImGui::MenuItem(u8("ç©ºã®ã‚¨ãƒ³ãƒ†ã‚£ãƒ†ã‚£")))
 				{
 					static int entityCount = 1;
 					Entity e = world.CreateEntity();
@@ -641,7 +641,7 @@ void EditorWindow::DrawEntityList(World& world)
 				}
 				ImGui::EndMenu();
 			}
-			if (ImGui::MenuItem(u8("ƒGƒ“ƒeƒBƒeƒB‚ğíœ")) && m_SelectedEntity != INVALID_ENTITY)
+			if (ImGui::MenuItem(u8("ã‚¨ãƒ³ãƒ†ã‚£ãƒ†ã‚£ã‚’å‰Šé™¤")) && m_SelectedEntity != INVALID_ENTITY)
 			{
 				APP->WaitForGPUIdle();
 				world.DestroyEntity(m_SelectedEntity);
@@ -659,7 +659,7 @@ void EditorWindow::DrawEntityNode(World& world, Entity entity)
 		? world.GetComponent<NameComponent>(entity).name
 		: ("Entity " + std::to_string(entity));
 
-	// q‚ğ‚Á‚Ä‚¢‚é‚©’²‚×‚é
+	// å­ã‚’æŒã£ã¦ã„ã‚‹ã‹èª¿ã¹ã‚‹
 	bool hasChildren = false;
 	world.Each<TransformComponent>([&](Entity e, TransformComponent& t) {
 		if (t.parent == entity) hasChildren = true;
@@ -668,23 +668,23 @@ void EditorWindow::DrawEntityNode(World& world, Entity entity)
 	ImGuiTreeNodeFlags flags =
 		ImGuiTreeNodeFlags_OpenOnArrow | ImGuiTreeNodeFlags_SpanAvailWidth;
 	if (m_SelectedEntity == entity) flags |= ImGuiTreeNodeFlags_Selected;
-	if (!hasChildren)               flags |= ImGuiTreeNodeFlags_Leaf;  // q–³‚µ‚Í?‚ğo‚³‚È‚¢
+	if (!hasChildren)               flags |= ImGuiTreeNodeFlags_Leaf;  // å­ç„¡ã—ã¯?ã‚’å‡ºã•ãªã„
 
 	ImGui::PushID((int)entity);
 	bool open = ImGui::TreeNodeEx(label.c_str(), flags);
 
-	// ƒNƒŠƒbƒN‚Å‘I‘ğ
+	// ã‚¯ãƒªãƒƒã‚¯ã§é¸æŠ
 	if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen())
 		m_SelectedEntity = entity;
 
-	// ƒhƒ‰ƒbƒOƒ\[ƒX
+	// ãƒ‰ãƒ©ãƒƒã‚°ã‚½ãƒ¼ã‚¹
 	if (ImGui::BeginDragDropSource())
 	{
 		ImGui::SetDragDropPayload("ENTITY", &entity, sizeof(Entity));
 		ImGui::Text("%s", label.c_str());
 		ImGui::EndDragDropSource();
 	}
-	// ƒhƒƒbƒvƒ^[ƒQƒbƒgi‚±‚Ìã‚Éƒhƒƒbƒv = ‚±‚Ìq‚É‚È‚éj
+	// ãƒ‰ãƒ­ãƒƒãƒ—ã‚¿ãƒ¼ã‚²ãƒƒãƒˆï¼ˆã“ã®ä¸Šã«ãƒ‰ãƒ­ãƒƒãƒ— = ã“ã®å­ã«ãªã‚‹ï¼‰
 	if (ImGui::BeginDragDropTarget())
 	{
 		if (const ImGuiPayload* p = ImGui::AcceptDragDropPayload("ENTITY"))
@@ -696,7 +696,7 @@ void EditorWindow::DrawEntityNode(World& world, Entity entity)
 		ImGui::EndDragDropTarget();
 	}
 
-	// ŠJ‚¢‚Ä‚¢‚ê‚Îq‚ğÄ‹A•`‰æ
+	// é–‹ã„ã¦ã„ã‚Œã°å­ã‚’å†å¸°æç”»
 	if (open)
 	{
 		world.Each<TransformComponent>([&](Entity e, TransformComponent& t) {
@@ -715,7 +715,7 @@ void EditorWindow::DrawPrefabPanel(Scene& scene, World& world)
 
 	if (prefabNames.empty())
 	{
-		ImGui::Text(u8("Prefab ‚ª“o˜^‚³‚ê‚Ä‚¢‚Ü‚¹‚ñ"));
+		ImGui::Text(u8("Prefab ãŒç™»éŒ²ã•ã‚Œã¦ã„ã¾ã›ã‚“"));
 		return;
 	}
 
@@ -741,7 +741,7 @@ void EditorWindow::DrawPrefabPanel(Scene& scene, World& world)
 		ImGui::EndCombo();
 	}
 
-	if (ImGui::Button(u8("ƒCƒ“ƒXƒ^ƒ“ƒX##Instantiate")))
+	if (ImGui::Button(u8("ã‚¤ãƒ³ã‚¹ã‚¿ãƒ³ã‚¹##Instantiate")))
 	{
 		Entity created = library.Instantiate(m_SelectedPrefab, scene, world);
 		if (created != INVALID_ENTITY)
@@ -823,7 +823,7 @@ void EditorWindow::DrawMemoryPanel()
 {
 	const HANDLE process = GetCurrentProcess();
 
-	// ƒƒ‚ƒŠg—p—Ê‚Ì•\¦
+	// ãƒ¡ãƒ¢ãƒªä½¿ç”¨é‡ã®è¡¨ç¤º
 	PROCESS_MEMORY_COUNTERS_EX pmc = {};
 	if (GetProcessMemoryInfo(
 		process,
@@ -836,18 +836,18 @@ void EditorWindow::DrawMemoryPanel()
 		const SIZE_T privateWsBytes = GetPrivateWorkingSetBytes(process);
 		const double privateWorkingSetMB = static_cast<double>(privateWsBytes) * BYTES_TO_MB;
 
-		ImGui::Text(u8("ƒƒ‚ƒŠ(Private Working Set): %.1f MB"), privateWorkingSetMB);
-		ImGui::Text(u8("Working Set(‹¤—LŠÜ‚Ş): %.1f MB"), workingSetMB);
+		ImGui::Text(u8("ãƒ¡ãƒ¢ãƒª(Private Working Set): %.1f MB"), privateWorkingSetMB);
+		ImGui::Text(u8("Working Set(å…±æœ‰å«ã‚€): %.1f MB"), workingSetMB);
 		ImGui::Text(u8("Commit Size(PrivateUsage): %.1f MB"), privateCommitMB);
 	}
 }
 
 void EditorWindow::DrawConsole()
 {
-	if (ImGui::Button(u8("ƒNƒŠƒA"))) { /* Œãq: Logger‘¤‚ÉClear’Ç‰Á */ }
+	if (ImGui::Button(u8("ã‚¯ãƒªã‚¢"))) { /* å¾Œè¿°: Loggerå´ã«Clearè¿½åŠ  */ }
 	ImGui::SameLine();
 	static bool autoScroll = true;
-	ImGui::Checkbox(u8("©“®ƒXƒNƒ[ƒ‹"), &autoScroll);
+	ImGui::Checkbox(u8("è‡ªå‹•ã‚¹ã‚¯ãƒ­ãƒ¼ãƒ«"), &autoScroll);
 
 	ImGui::Separator();
 	ImGui::BeginChild("ConsoleScroll", ImVec2(0, 0), false,
@@ -911,37 +911,37 @@ void EditorWindow::DrawPlayControl(Scene* activeScene)
 
 void EditorWindow::DrawScenePanel(SceneManager& sceneManager)
 {
-	ImGui::Text(u8("ƒV[ƒ“ƒRƒ“ƒgƒ[ƒ‹"));
+	ImGui::Text(u8("ã‚·ãƒ¼ãƒ³ã‚³ãƒ³ãƒˆãƒ­ãƒ¼ãƒ«"));
 	ImGui::Separator();
 
 	auto activeScene = sceneManager.GetActiveScene();
 	if (!activeScene) return;
 
-	if (ImGui::InputText(u8("ƒV[ƒ“–¼##SceneName"), m_SceneRegisterName.data(), m_SceneRegisterName.size()))
+	if (ImGui::InputText(u8("ã‚·ãƒ¼ãƒ³å##SceneName"), m_SceneRegisterName.data(), m_SceneRegisterName.size()))
 	{
 
 	}
 
-	if (ImGui::Button(u8("“o˜^##RegisterScene")))
+	if (ImGui::Button(u8("ç™»éŒ²##RegisterScene")))
 	{
 		std::string name = m_SceneRegisterName.data();
 		if (!name.empty())
 		{
-			sceneManager.RegisterScene(name);   // ƒpƒX‚Í‹K–ñ‚©‚ç©“®
+			sceneManager.RegisterScene(name);   // ãƒ‘ã‚¹ã¯è¦ç´„ã‹ã‚‰è‡ªå‹•
 		}
 	}
 	ImGui::SameLine();
-	if (ImGui::Button(u8("ƒ[ƒh##LoadScene")))
+	if (ImGui::Button(u8("ãƒ­ãƒ¼ãƒ‰##LoadScene")))
 	{
 		std::string name = m_SceneRegisterName.data();
 		if (!name.empty())
 		{
-			sceneManager.RegisterScene(name);   // –¢“o˜^‚È‚ç“o˜^‚µ‚Ä‚©‚ç
+			sceneManager.RegisterScene(name);   // æœªç™»éŒ²ãªã‚‰ç™»éŒ²ã—ã¦ã‹ã‚‰
 			sceneManager.LoadScene(name);
 		}
 	}
 	ImGui::SameLine();
-	if (ImGui::Button(u8("•Û‘¶##SaveScene")))
+	if (ImGui::Button(u8("ä¿å­˜##SaveScene")))
 	{
 		if (activeScene)
 		{
@@ -953,9 +953,9 @@ void EditorWindow::DrawScenePanel(SceneManager& sceneManager)
 	ImGui::Separator();
 	if (activeScene)
 	{
-		ImGui::Text(u8("ƒXƒJƒCƒ{ƒbƒNƒX: %s"), activeScene->GetSkyboxPath().c_str());
+		ImGui::Text(u8("ã‚¹ã‚«ã‚¤ãƒœãƒƒã‚¯ã‚¹: %s"), activeScene->GetSkyboxPath().c_str());
 		ImGui::SameLine();
-		if (ImGui::Button(u8("QÆ...##PickSkybox")))
+		if (ImGui::Button(u8("å‚ç…§...##PickSkybox")))
 		{
 			std::wstring picked;
 			if (OpenFileDialog(picked, L"HDR/Sky Texture\0*.hdr;*.dds;*.png;*.jpg\0All\0*.*\0"))
@@ -965,7 +965,7 @@ void EditorWindow::DrawScenePanel(SceneManager& sceneManager)
 				if (pos != std::string::npos)
 				{
 					p = p.substr(pos);
-					for (auto& c : p) if (c == '\\') c = '/';   // JSON‚Å‚ÌŒ©‚½–Ú“ˆê
+					for (auto& c : p) if (c == '\\') c = '/';   // JSONã§ã®è¦‹ãŸç›®çµ±ä¸€
 				}
 				if (auto* rs = dynamic_cast<RuntimeScene*>(activeScene))
 					rs->SetSkybox(p);
@@ -975,19 +975,19 @@ void EditorWindow::DrawScenePanel(SceneManager& sceneManager)
 
 	ImGui::Separator();
 
-	if (ImGui::Button(u8("World ƒŠƒZƒbƒg##ResetWorld")))
+	if (ImGui::Button(u8("World ãƒªã‚»ãƒƒãƒˆ##ResetWorld")))
 	{
 		activeScene->ResetWorld();
 	}
 
 	ImGui::SameLine();
-	if (ImGui::Button(u8("PhysicsWorld ƒŠƒZƒbƒg##ResetPhysicsWorld")))
+	if (ImGui::Button(u8("PhysicsWorld ãƒªã‚»ãƒƒãƒˆ##ResetPhysicsWorld")))
 	{
 		activeScene->ResetPhysicsWorld();
 	}
 
 	ImGui::SameLine();
-	if (ImGui::Button(u8("PhysicsWorld ‰Šú‰»##InitPhysicsWorld")))
+	if (ImGui::Button(u8("PhysicsWorld åˆæœŸåŒ–##InitPhysicsWorld")))
 	{
 		auto& physicsWorld = activeScene->EnsurePhysicsWorld();
 		physicsWorld.Init();
@@ -995,7 +995,7 @@ void EditorWindow::DrawScenePanel(SceneManager& sceneManager)
 
 	ImGui::Separator();
 
-	if (ImGui::Button(u8("ƒ‰ƒCƒg’Ç‰Á##AddLight")))
+	if (ImGui::Button(u8("ãƒ©ã‚¤ãƒˆè¿½åŠ ##AddLight")))
 	{
 		World& world = activeScene->GetWorld();
 		Entity entity = world.CreateEntity();
@@ -1019,24 +1019,24 @@ void EditorWindow::DrawScenePanel(SceneManager& sceneManager)
 }
 
 #pragma region Canvas
-// todo eq‰»
-// todo Canvas‚Ì•`‰æ‡˜‚ğl—¶‚·‚é
-// todo image, text‚Ì–¼‘O”í‚è‚Ì‰ğÁ
+// todo è¦ªå­åŒ–
+// todo Canvasã®æç”»é †åºã‚’è€ƒæ…®ã™ã‚‹
+// todo image, textã®åå‰è¢«ã‚Šã®è§£æ¶ˆ
 
 Entity EditorWindow::EnsureCanvas(World& world)
 {
-	// éŒ¾
+	// å®£è¨€
 	Entity canvas = INVALID_ENTITY;
 
-	// Šù‚ÉéŒ¾‚³‚ê‚é‚©Šm”F
+	// æ—¢ã«å®£è¨€ã•ã‚Œã‚‹ã‹ç¢ºèª
 	world.Each<CanvasComponent>([&](Entity e, CanvasComponent&)
 		{
-			// ‚·‚Å‚ÉCanvas‚ª‘¶İ‚·‚éê‡‚Í‚»‚ê‚ğ•Ô‚·
+			// ã™ã§ã«CanvasãŒå­˜åœ¨ã™ã‚‹å ´åˆã¯ãã‚Œã‚’è¿”ã™
 			if(canvas == INVALID_ENTITY)
 				canvas = e;
 		});
 
-	// Œ©‚Â‚©‚ç‚È‚¢ê‡‚ÍV‹Kì¬
+	// è¦‹ã¤ã‹ã‚‰ãªã„å ´åˆã¯æ–°è¦ä½œæˆ
 	if (canvas == INVALID_ENTITY)
 	{
 		canvas = world.CreateEntity();
@@ -1045,14 +1045,14 @@ Entity EditorWindow::EnsureCanvas(World& world)
 		world.AddComponent<CanvasComponent>(canvas, CanvasComponent{});
 	}
 
-	// ’l‚ğ•Ô‚·
+	// å€¤ã‚’è¿”ã™
 	return canvas;
 }
 
 Entity EditorWindow::CreateImage(World& world)
 {
-	// canvas‚ª‚ ‚é‚©Šm”F
-	// ‚È‚¢ê‡‚Íì¬
+	// canvasãŒã‚ã‚‹ã‹ç¢ºèª
+	// ãªã„å ´åˆã¯ä½œæˆ
 	EnsureCanvas(world);
 	Entity e = world.CreateEntity();
 	static int num = 1;
@@ -1066,7 +1066,7 @@ Entity EditorWindow::CreateImage(World& world)
 
 Entity EditorWindow::CreateText(World& world)
 {
-	// canvas‚ª‚ ‚é‚©Šm”F
+	// canvasãŒã‚ã‚‹ã‹ç¢ºèª
 	EnsureCanvas(world);
 	Entity e = world.CreateEntity();
 
@@ -1089,7 +1089,7 @@ void EditorWindow::DrawColliderDebug(const ColliderComponent& collider, const Tr
 
 	if (collider.shapeType == ColliderComponent::ShapeType::Box)
 	{
-		// Box‚Ì’¸“_ŒvZiTransform‚ÌƒXƒP[ƒ‹‚ğColliderƒTƒCƒY‚É“K—pj
+		// Boxã®é ‚ç‚¹è¨ˆç®—ï¼ˆTransformã®ã‚¹ã‚±ãƒ¼ãƒ«ã‚’Colliderã‚µã‚¤ã‚ºã«é©ç”¨ï¼‰
 		const float3 scaledSize = {
 			collider.size.x * transform.scale.x * 0.5f,
 			collider.size.y * transform.scale.y * 0.5f,
@@ -1106,7 +1106,7 @@ void EditorWindow::DrawColliderDebug(const ColliderComponent& collider, const Tr
 			pos + float3(-scaledSize.x, scaledSize.y, scaledSize.z)
 		};
 
-		// —§•û‘Ì‚Ì12–{‚ÌƒGƒbƒW‚ğ‹L˜^
+		// ç«‹æ–¹ä½“ã®12æœ¬ã®ã‚¨ãƒƒã‚¸ã‚’è¨˜éŒ²
 		m_DebugLines.push_back({ verticex[0], verticex[1], debugColor });
 		m_DebugLines.push_back({ verticex[1], verticex[2], debugColor });
 		m_DebugLines.push_back({ verticex[2], verticex[3], debugColor });
@@ -1124,7 +1124,7 @@ void EditorWindow::DrawColliderDebug(const ColliderComponent& collider, const Tr
 	}
 	else if (collider.shapeType == ColliderComponent::ShapeType::Sphere)
 	{
-		// ‹…‘Ì‚Ì”¼Œa‚ÉƒXƒP[ƒ‹‚ğ“K—p
+		// çƒä½“ã®åŠå¾„ã«ã‚¹ã‚±ãƒ¼ãƒ«ã‚’é©ç”¨
 		const float radius = collider.radius * ((transform.scale.x + transform.scale.y + transform.scale.z) / 3.0f);
 		const int segments = 16;
 		const float pi = 3.14159265f;
@@ -1133,17 +1133,17 @@ void EditorWindow::DrawColliderDebug(const ColliderComponent& collider, const Tr
 			float angle1 = (2.0f * pi * i) / segments;
 			float angle2 = (2.0f * pi * (i + 1)) / segments;
 
-			// XZ•½–Ê
+			// XZå¹³é¢
 			float3 p1 = pos + float3(radius * cosf(angle1), 0.0f, radius * sinf(angle1));
 			float3 p2 = pos + float3(radius * cosf(angle2), 0.0f, radius * sinf(angle2));
 			m_DebugLines.push_back({ p1, p2, debugColor });
 
-			// YZ•½–Ê
+			// YZå¹³é¢
 			p1 = pos + float3(radius * cosf(angle1), radius * sinf(angle1), 0.0f);
 			p2 = pos + float3(radius * cosf(angle2), radius * sinf(angle2), 0.0f);
 			m_DebugLines.push_back({ p1, p2, debugColorY });
 
-			// XY•½–Ê
+			// XYå¹³é¢
 			p1 = pos + float3(0.0f, radius * cosf(angle1), radius * sinf(angle1));
 			p2 = pos + float3(0.0f, radius * cosf(angle2), radius * sinf(angle2));
 			m_DebugLines.push_back({ p1, p2, debugColorY });
@@ -1151,7 +1151,7 @@ void EditorWindow::DrawColliderDebug(const ColliderComponent& collider, const Tr
 	}
 	else if (collider.shapeType == ColliderComponent::ShapeType::Capsule)
 	{
-		// ƒJƒvƒZƒ‹‚Ì”¼Œa‚ÉƒXƒP[ƒ‹‚ğ“K—p
+		// ã‚«ãƒ—ã‚»ãƒ«ã®åŠå¾„ã«ã‚¹ã‚±ãƒ¼ãƒ«ã‚’é©ç”¨
 		const float radius = collider.radius * ((transform.scale.x + transform.scale.z) * 0.5f);
 		const float height = collider.radius * 4.0f * transform.scale.y;
 		const int segments = 16;
@@ -1162,12 +1162,12 @@ void EditorWindow::DrawColliderDebug(const ColliderComponent& collider, const Tr
 			float angle1 = (2.0f * pi * i) / segments;
 			float angle2 = (2.0f * pi * (i + 1)) / segments;
 
-			// ’†‰›‚Ì‰~
+			// ä¸­å¤®ã®å††
 			float3 p1 = pos + float3(radius * cosf(angle1), 0.0f, radius * sinf(angle1));
 			float3 p2 = pos + float3(radius * cosf(angle2), 0.0f, radius * sinf(angle2));
 			m_DebugLines.push_back({ p1, p2, debugColor });
 
-			// ã‰º‚Ìcü
+			// ä¸Šä¸‹ã®ç¸¦ç·š
 			p1 = pos + float3(radius * cosf(angle1), height * 0.5f, radius * sinf(angle1));
 			p2 = pos + float3(radius * cosf(angle1), -height * 0.5f, radius * sinf(angle1));
 			m_DebugLines.push_back({ p1, p2, debugColor });
@@ -1178,26 +1178,26 @@ void EditorWindow::DrawColliderDebug(const ColliderComponent& collider, const Tr
 #include "Theme.hpp"
 void EditorWindow::DrawStyleSetting()
 {
-	//---- ƒXƒ^ƒCƒ‹İ’è ---- //
+	//---- ã‚¹ã‚¿ã‚¤ãƒ«è¨­å®š ---- //
 	if (!m_ShowStyleSetting) return;
 
-	// “Æ—§ƒEƒBƒ“ƒhƒE
-	if (ImGui::Begin(u8("ƒXƒ^ƒCƒ‹İ’è"), &m_ShowStyleSetting))
+	// ç‹¬ç«‹ã‚¦ã‚£ãƒ³ãƒ‰ã‚¦
+	if (ImGui::Begin(u8("ã‚¹ã‚¿ã‚¤ãƒ«è¨­å®š"), &m_ShowStyleSetting))
 	{
-		// ---- ƒe[ƒ} ---- //
+		// ---- ãƒ†ãƒ¼ãƒ ---- //
 		static int themeIdx = 0;
 		static ImVec4 accent = ImVec4(0.26f, 0.59f, 0.98f, 1.0f);
 		const char* themes[] = { "Dark", "Light", "Classic" };
-		if (ImGui::Combo(u8("ƒe[ƒ}"), &themeIdx, themes, IM_ARRAYSIZE(themes)))
+		if (ImGui::Combo(u8("ãƒ†ãƒ¼ãƒ"), &themeIdx, themes, IM_ARRAYSIZE(themes)))
 			ApplyTheme((uiTheme)themeIdx, accent);
-		if (ImGui::ColorEdit3(u8("ƒAƒNƒZƒ“ƒgF"), &accent.x))
+		if (ImGui::ColorEdit3(u8("ã‚¢ã‚¯ã‚»ãƒ³ãƒˆè‰²"), &accent.x))
 			ApplyTheme((uiTheme)themeIdx, accent);
 
 		ImGui::Separator();
 
-		// ---- ƒtƒHƒ“ƒgØ‘Ö ----
+		// ---- ãƒ•ã‚©ãƒ³ãƒˆåˆ‡æ›¿ ----
 		ImGuiIO& io = ImGui::GetIO();
-		if (ImGui::BeginCombo(u8("ƒtƒHƒ“ƒg"),
+		if (ImGui::BeginCombo(u8("ãƒ•ã‚©ãƒ³ãƒˆ"),
 			io.FontDefault ? "current" : "default"))
 		{
 			for (int i = 0; i < io.Fonts->Fonts.Size; ++i)
@@ -1205,7 +1205,7 @@ void EditorWindow::DrawStyleSetting()
 				ImFont* f = io.Fonts->Fonts[i];
 				ImGui::PushID(i);
 				bool sel = (io.FontDefault == f);
-				// ƒtƒHƒ“ƒg–¼‚Í“o˜^‚ÌƒfƒoƒbƒO–¼‚ª“ü‚é
+				// ãƒ•ã‚©ãƒ³ãƒˆåã¯ç™»éŒ²æ™‚ã®ãƒ‡ãƒãƒƒã‚°åãŒå…¥ã‚‹
 				if (ImGui::Selectable(u8(f->GetDebugName()), sel))
 					io.FontDefault = f;
 				ImGui::PopID();
@@ -1223,7 +1223,7 @@ void EditorWindow::DrawStyleSetting()
 void EditorWindow::SpawnModelFromFile(World& world, const std::string& modelpath, const float3& pos, Scene* scene)
 {
 	Entity e = world.CreateEntity();
-	// æ‚ÉTransform/–¼‘O‚¾‚¯•t‚¯‚Ä‚¨‚­iƒƒbƒVƒ…‚ÍŒã‚©‚ç·‚µ‚Şj
+	// å…ˆã«Transform/åå‰ã ã‘ä»˜ã‘ã¦ãŠãï¼ˆãƒ¡ãƒƒã‚·ãƒ¥ã¯å¾Œã‹ã‚‰å·®ã—è¾¼ã‚€ï¼‰
 	TransformComponent tr{}; tr.position = pos; tr.RebuildWorld();
 	world.AddComponent<TransformComponent>(e, tr);
 	world.AddComponent<NameComponent>(e, NameComponent{ "Model_" + std::to_string(e) });
@@ -1239,11 +1239,11 @@ void EditorWindow::CreateScriptFile(const std::string& die, const std::string& n
 	fs::path cpp = fs::absolute(fs::path(die)) / (name + ".cpp");
 	if (fs::exists(hpp))
 	{
-		LOG->LogWarning("ƒXƒNƒŠƒvƒgƒtƒ@ƒCƒ‹‚ªŠù‚É‘¶İ‚µ‚Ü‚·: " + hpp.string());
+		LOG->LogWarning("ã‚¹ã‚¯ãƒªãƒ—ãƒˆãƒ•ã‚¡ã‚¤ãƒ«ãŒæ—¢ã«å­˜åœ¨ã—ã¾ã™: " + hpp.string());
 	}
 	if(fs::exists(cpp))
 	{
-		LOG->LogWarning("ƒXƒNƒŠƒvƒgƒtƒ@ƒCƒ‹‚ªŠù‚É‘¶İ‚µ‚Ü‚·: " + cpp.string());
+		LOG->LogWarning("ã‚¹ã‚¯ãƒªãƒ—ãƒˆãƒ•ã‚¡ã‚¤ãƒ«ãŒæ—¢ã«å­˜åœ¨ã—ã¾ã™: " + cpp.string());
 	}
 
 	std::ofstream out(hpp);
@@ -1269,7 +1269,7 @@ void EditorWindow::CreateScriptFile(const std::string& die, const std::string& n
 		"#include \"RegisterScript.hpp\"\n\n"
 		"REGISTER_SCRIPT(" << name << ");\n";
 
-	// vsproj ‚É‚à’Ç‰Á
+	// vsproj ã«ã‚‚è¿½åŠ 
 	auto toProjRel = [](const fs::path& p)
 		{
 			std::string s = p.lexically_normal().string();
@@ -1279,17 +1279,17 @@ void EditorWindow::CreateScriptFile(const std::string& die, const std::string& n
 	out.close();
 	outcpp.close();
 
-	// ƒvƒƒWƒFƒNƒg‚É’Ç‰Á
+	// ãƒ—ãƒ­ã‚¸ã‚§ã‚¯ãƒˆã«è¿½åŠ 
 	AddToProject(toProjRel(cpp), toProjRel(hpp));
 
-	LOG->LogInfo("ƒXƒNƒŠƒvƒg¶¬: " + hpp.string());
+	LOG->LogInfo("ã‚¹ã‚¯ãƒªãƒ—ãƒˆç”Ÿæˆ: " + hpp.string());
 }
 
 void EditorWindow::OpenInEditor(const std::string& path)
 {
 	namespace fs = std::filesystem;
 
-	// exe‚©‚çƒ\ƒŠƒ…[ƒVƒ‡ƒ“‚ğ‹tZ‚µ‚Ä .sln‚ğ’Tõ
+	// exeã‹ã‚‰ã‚½ãƒªãƒ¥ãƒ¼ã‚·ãƒ§ãƒ³ã‚’é€†ç®—ã—ã¦ .slnã‚’æ¢ç´¢
 	char exePath[MAX_PATH];
 	GetModuleFileNameA(NULL, exePath, MAX_PATH);
 	fs::path slnDir = fs::path(exePath).parent_path().parent_path().parent_path();
@@ -1304,7 +1304,7 @@ void EditorWindow::AddToProject(const std::string cppPath, const std::string hpp
 {
 	namespace fs = std::filesystem;
 
-	// exe ‚ÌêŠ‚©‚ç solutionDir ‚ğ‹tZisln\x64\Debug\exe -> slnj
+	// exe ã®å ´æ‰€ã‹ã‚‰ solutionDir ã‚’é€†ç®—ï¼ˆsln\x64\Debug\exe -> slnï¼‰
 	char exePath[MAX_PATH];
 	GetModuleFileNameA(nullptr, exePath, MAX_PATH);
 	fs::path slnDir = fs::path(exePath).parent_path().parent_path().parent_path();
@@ -1312,16 +1312,16 @@ void EditorWindow::AddToProject(const std::string cppPath, const std::string hpp
 
 	if (!fs::exists(scriptProj))
 	{
-		LOG->LogWarning("ƒvƒƒWƒFƒNƒg‚ªŒ©‚Â‚©‚è‚Ü‚¹‚ñ: " + scriptProj.string());
+		LOG->LogWarning("ãƒ—ãƒ­ã‚¸ã‚§ã‚¯ãƒˆãŒè¦‹ã¤ã‹ã‚Šã¾ã›ã‚“: " + scriptProj.string());
 		return;
 	}
 
-	// vcxproj “Ç‚İ‚İ
+	// vcxproj èª­ã¿è¾¼ã¿
 	std::ifstream in(scriptProj);
 	std::string xml((std::istreambuf_iterator<char>(in)), {});
 	in.close();
 
-	// â‘ÎƒpƒXiWindows‹æØ‚èj
+	// çµ¶å¯¾ãƒ‘ã‚¹ï¼ˆWindowsåŒºåˆ‡ã‚Šï¼‰
 	auto toWin = [](const std::string& p)
 		{
 			return fs::absolute(p).make_preferred().string();
@@ -1329,10 +1329,10 @@ void EditorWindow::AddToProject(const std::string cppPath, const std::string hpp
 	const std::string cppAbs = toWin(cppPath);
 	const std::string hppAbs = toWin(hppPath);
 
-	// Šù‚É“o˜^Ï‚İ‚È‚ç‰½‚à‚µ‚È‚¢i“ñd“o˜^–h~j
+	// æ—¢ã«ç™»éŒ²æ¸ˆã¿ãªã‚‰ä½•ã‚‚ã—ãªã„ï¼ˆäºŒé‡ç™»éŒ²é˜²æ­¢ï¼‰
 	if (xml.find(cppAbs) != std::string::npos) return;
 
-	// ‘}“ü‚·‚és
+	// æŒ¿å…¥ã™ã‚‹è¡Œ
 	const std::string includeEntry =
 		"    <ClInclude Include=\"" + hppAbs + "\" />\r\n";
 	const std::string compileEntry =
@@ -1340,34 +1340,34 @@ void EditorWindow::AddToProject(const std::string cppPath, const std::string hpp
 		"      <PrecompiledHeader>NotUsing</PrecompiledHeader>\r\n"
 		"    </ClCompile>\r\n";
 
-	// s“ªˆÊ’u‚ğ‹‚ß‚éƒwƒ‹ƒp
+	// è¡Œé ­ä½ç½®ã‚’æ±‚ã‚ã‚‹ãƒ˜ãƒ«ãƒ‘
 	auto lineHead = [&](size_t pos)
 		{
 			size_t nl = xml.rfind('\n', pos);
 			return (nl == std::string::npos) ? size_t(0) : nl + 1;
 		};
 
-	// <ClInclude Include="framework.h" /> ‚Ì‘O‚É hpp ‚ğ‘}“ü
+	// <ClInclude Include="framework.h" /> ã®å‰ã« hpp ã‚’æŒ¿å…¥
 	if (size_t p = xml.find("<ClInclude Include=\"framework.h\" />"); p != std::string::npos)
 		xml.insert(lineHead(p), includeEntry);
 
-	// <ClCompile Include="cr_main.cpp" /> ‚Ì‘O‚É cpp ‚ğ‘}“ü
+	// <ClCompile Include="cr_main.cpp" /> ã®å‰ã« cpp ã‚’æŒ¿å…¥
 	if (size_t p = xml.find("<ClCompile Include=\"cr_main.cpp\" />"); p != std::string::npos)
 		xml.insert(lineHead(p), compileEntry);
 
-	// ‘‚«–ß‚µiBOM‚È‚µE‰üs‚»‚Ì‚Ü‚Üj
+	// æ›¸ãæˆ»ã—ï¼ˆBOMãªã—ãƒ»æ”¹è¡Œãã®ã¾ã¾ï¼‰
 	std::ofstream out(scriptProj, std::ios::binary | std::ios::trunc);
 	out << xml;
 	out.close();
 
-	LOG->LogInfo("Scripts.vcxproj ‚É’Ç‰Á: " + fs::path(cppPath).filename().string());
+	LOG->LogInfo("Scripts.vcxproj ã«è¿½åŠ : " + fs::path(cppPath).filename().string());
 }
 
 void EditorWindow::CreateFolder(const std::string& dir)
 {
 	namespace fs = std::filesystem;
 
-	// "New Folder", "New Folder 1", ... ‚Æd•¡‰ñ”ğ
+	// "New Folder", "New Folder 1", ... ã¨é‡è¤‡å›é¿
 	fs::path target = fs::path(dir) / u8("New Folder");
 	int n = 1;
 	while (fs::exists(target))
@@ -1375,8 +1375,8 @@ void EditorWindow::CreateFolder(const std::string& dir)
 
 	std::error_code ec;
 	fs::create_directory(target, ec);
-	if (ec) LOG->LogWarning("ƒtƒHƒ‹ƒ_ì¬¸”s: " + ec.message());
-	else    LOG->LogInfo("ƒtƒHƒ‹ƒ_ì¬: " + target.string());
+	if (ec) LOG->LogWarning("ãƒ•ã‚©ãƒ«ãƒ€ä½œæˆå¤±æ•—: " + ec.message());
+	else    LOG->LogInfo("ãƒ•ã‚©ãƒ«ãƒ€ä½œæˆ: " + target.string());
 }
 
 void EditorWindow::DrawMmdPlayer(World& world)
@@ -1399,7 +1399,7 @@ void EditorWindow::DrawMmdPlayer(World& world)
 
 	if (target == INVALID_ENTITY)
 	{
-		ImGui::TextDisabled(u8("Animator‚ğ‚ÂƒGƒ“ƒeƒBƒeƒB‚ª‚ ‚è‚Ü‚¹‚ñ"));
+		ImGui::TextDisabled(u8("Animatorã‚’æŒã¤ã‚¨ãƒ³ãƒ†ã‚£ãƒ†ã‚£ãŒã‚ã‚Šã¾ã›ã‚“"));
 		return;
 	}
 

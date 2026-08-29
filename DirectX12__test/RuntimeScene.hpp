@@ -1,10 +1,10 @@
-/*****************************************************************//**
+ï»¿/*****************************************************************//**
  * \file   RuntimeScene.hpp
- * \brief  “®“I‚ÉƒV[ƒ“‚ğg‚¤ƒNƒ‰ƒX
+ * \brief  å‹•çš„ã«ã‚·ãƒ¼ãƒ³ã‚’ä½¿ã†ã‚¯ãƒ©ã‚¹
  * 
- * ì¬Ò keeeeep
- * ì¬“ú 2026/5/26
- * XV—š—ğ 5.26 ì¬
+ * ä½œæˆè€… keeeeep
+ * ä½œæˆæ—¥ 2026/5/26
+ * æ›´æ–°å±¥æ­´ 5.26 ä½œæˆ
  * *********************************************************************/
 #pragma once
 
@@ -55,14 +55,14 @@ public:
 	}
 	void EditorUpdate(float dt);
 
-	/// @brief ƒXƒJƒCƒ{ƒbƒNƒX‚ğ·‚µ‘Ö‚¦‚Ä‘¦”½‰f
+	/// @brief ã‚¹ã‚«ã‚¤ãƒœãƒƒã‚¯ã‚¹ã‚’å·®ã—æ›¿ãˆã¦å³åæ˜ 
 	void SetSkybox(_In_ const std::string& path)
 	{
 		SetSkyboxPath(path);
 		ApplySkybox();
 	}
 
-	/// @brief ƒXƒNƒŠƒvƒg‚©‚ç‰Ô‰Î‚ğ‘Å‚¿ã‚°‚é‚½‚ß‚Ì‹´“n‚µ
+	/// @brief ã‚¹ã‚¯ãƒªãƒ—ãƒˆã‹ã‚‰èŠ±ç«ã‚’æ‰“ã¡ä¸Šã’ã‚‹ãŸã‚ã®æ©‹æ¸¡ã—
 	void LaunchFirework(const float3& pos, int shape, const float3& color, const char* text)
 	{
 		m_FireworkSystem.Launch(pos,
@@ -80,7 +80,7 @@ private:
 
 	void DrawLaserBeams(const RenderContext& renderContext, ID3D12PipelineState* psoOverride = nullptr,bool emitFirework = false);
 
-	/// @brief Œ»İ‚ÌƒXƒJƒCƒ{ƒbƒNƒXƒpƒX‚Åƒ}ƒeƒŠƒAƒ‹‚ğ(Ä)¶¬
+	/// @brief ç¾åœ¨ã®ã‚¹ã‚«ã‚¤ãƒœãƒƒã‚¯ã‚¹ãƒ‘ã‚¹ã§ãƒãƒ†ãƒªã‚¢ãƒ«ã‚’(å†)ç”Ÿæˆ
 	void ApplySkybox();
 
 

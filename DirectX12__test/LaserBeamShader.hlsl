@@ -1,9 +1,9 @@
-#include "Common.hlsli"
+ï»¿#include "Common.hlsli"
 
 struct BeamVSInput
 {
     float3 pos : POSITION;
-    float4 col : COLOR; // rgb: ƒr[ƒ€‚ÌF, a: c‚©‚ç‚Ì‹——£ŒW”(1=’†S, 0=‰)
+    float4 col : COLOR; // rgb: ãƒ“ãƒ¼ãƒ ã®è‰², a: èŠ¯ã‹ã‚‰ã®è·é›¢ä¿‚æ•°(1=ä¸­å¿ƒ, 0=ç¸)
 };
 
 struct BeamVSOutput
@@ -22,13 +22,13 @@ BeamVSOutput LaserVS(BeamVSInput input)
 
 float4 LaserPS(BeamVSOutput input) : SV_TARGET
 {
-    // ’†S‚Ù‚Ç–¾‚é‚­A‰‚ÍŠŠ‚ç‚©‚ÉÁ‚¦‚éƒOƒ[•\Œ»
+    // ä¸­å¿ƒã»ã©æ˜ã‚‹ãã€ç¸ã¯æ»‘ã‚‰ã‹ã«æ¶ˆãˆã‚‹ã‚°ãƒ­ãƒ¼è¡¨ç¾
     const float core = pow(saturate(input.col.a), 3.0f);
     return float4(input.col.rgb * core, core);
 }
 
 float4 FireworkPS(BeamVSOutput input) : SV_TARGET
 {
-    const float core = input.col.a * input.col.a; // 2æ‚ÅŠÛ‚­_‚ç‚©‚¢‹Ê‚É
+    const float core = input.col.a * input.col.a; // 2ä¹—ã§ä¸¸ãæŸ”ã‚‰ã‹ã„ç‰ã«
     return float4(input.col.rgb * core, 1.0f);
 }

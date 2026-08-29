@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include "RenderContext.hpp"
 #include "World.hpp"
@@ -8,7 +8,7 @@
 #include "ScriptField.hpp"
 
 
-/// @brief unityƒ‰ƒCƒN‚ÌƒVƒŠƒAƒ‰ƒCƒYƒtƒB[ƒ‹ƒh
+/// @brief unityãƒ©ã‚¤ã‚¯ã®ã‚·ãƒªã‚¢ãƒ©ã‚¤ã‚ºãƒ•ã‚£ãƒ¼ãƒ«ãƒ‰
 struct SerializeField
 {
 	std::string name;
@@ -33,7 +33,7 @@ struct EntityRef
 };
 
 /*
-*	‰æ–Êã‚É”z’u‚·‚éƒIƒuƒWƒFƒNƒg
+*	ç”»é¢ä¸Šã«é…ç½®ã™ã‚‹ã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆ
 */
 class MonoBehavior
 {
@@ -50,7 +50,7 @@ public:
 	MonoBehavior() = default;
 
 	/*
-	*	ƒ‰ƒCƒtƒTƒCƒNƒ‹
+	*	ãƒ©ã‚¤ãƒ•ã‚µã‚¤ã‚¯ãƒ«
 	*/
 
 	virtual ~MonoBehavior() = default;
@@ -61,7 +61,7 @@ public:
 	virtual void OnDraw(_In_ const RenderContext& context) {}
 
 	/*
-	*	“–‚½‚è”»’è 
+	*	å½“ãŸã‚Šåˆ¤å®š 
 	*/
 
 	virtual void OnCollisionEnter(_In_ Entity other) {}
@@ -69,49 +69,49 @@ public:
 	virtual void OnTriggerEnter(_In_ Entity other) {}
 	virtual void OnTriggerExit(_In_ Entity other) {}
 
-	/// @brief Behavior‚ª•R‚Ã‚¢‚Ä‚¢‚éEntity‚©‚çw’è‚µ‚½ƒRƒ“ƒ|[ƒlƒ“ƒg‚ğæ“¾‚·‚é
-	/// @tparam T æ“¾‚·‚éƒRƒ“ƒ|[ƒlƒ“ƒg‚ÌŒ^
-	/// @return æ“¾‚µ‚½ƒRƒ“ƒ|[ƒlƒ“ƒg‚ÌQÆ
+	/// @brief BehaviorãŒç´ã¥ã„ã¦ã„ã‚‹Entityã‹ã‚‰æŒ‡å®šã—ãŸã‚³ãƒ³ãƒãƒ¼ãƒãƒ³ãƒˆã‚’å–å¾—ã™ã‚‹
+	/// @tparam T å–å¾—ã™ã‚‹ã‚³ãƒ³ãƒãƒ¼ãƒãƒ³ãƒˆã®å‹
+	/// @return å–å¾—ã—ãŸã‚³ãƒ³ãƒãƒ¼ãƒãƒ³ãƒˆã®å‚ç…§
 	template<typename T>
 	T& GetComponent()
 	{
 		return m_World->GetComponent<T>(m_Entity);
 	}
 
-	/// @brief Behavior‚ª•R‚Ã‚¢‚Ä‚¢‚éEntity‚Éw’è‚µ‚½ƒRƒ“ƒ|[ƒlƒ“ƒg‚ª‘¶İ‚·‚é‚©Šm”F‚·‚é
-	/// @tparam T Šm”F‚·‚éƒRƒ“ƒ|[ƒlƒ“ƒg‚ÌŒ^
-	/// @return ‘¶İ‚·‚éê‡‚ÍtrueA‘¶İ‚µ‚È‚¢ê‡‚Ífalse
+	/// @brief BehaviorãŒç´ã¥ã„ã¦ã„ã‚‹Entityã«æŒ‡å®šã—ãŸã‚³ãƒ³ãƒãƒ¼ãƒãƒ³ãƒˆãŒå­˜åœ¨ã™ã‚‹ã‹ç¢ºèªã™ã‚‹
+	/// @tparam T ç¢ºèªã™ã‚‹ã‚³ãƒ³ãƒãƒ¼ãƒãƒ³ãƒˆã®å‹
+	/// @return å­˜åœ¨ã™ã‚‹å ´åˆã¯trueã€å­˜åœ¨ã—ãªã„å ´åˆã¯false
 	template<typename T>
 	bool HasComponent() const
 	{
 		return m_World->HasComponent<T>(m_Entity);
 	}
 
-	/// @brief Behavior‚ª•R‚Ã‚¢‚Ä‚¢‚éEntity‚ğæ“¾‚·‚é
-	/// @return Entity‚ÌID
+	/// @brief BehaviorãŒç´ã¥ã„ã¦ã„ã‚‹Entityã‚’å–å¾—ã™ã‚‹
+	/// @return Entityã®ID
 	Entity GetEntity() const { return m_Entity; }
 
-	/// @brief Behavior‚ª•R‚Ã‚¢‚Ä‚¢‚éWorld‚ğæ“¾‚·‚é
-	/// @return World‚ÌQÆ
+	/// @brief BehaviorãŒç´ã¥ã„ã¦ã„ã‚‹Worldã‚’å–å¾—ã™ã‚‹
+	/// @return Worldã®å‚ç…§
 	World& GetWorld() const { return *m_World; }
 
-	/// @brief transformƒRƒ“ƒ|[ƒlƒ“ƒg‚ğæ“¾‚·‚é
-	/// @return transformƒRƒ“ƒ|[ƒlƒ“ƒg‚ÌQÆ
+	/// @brief transformã‚³ãƒ³ãƒãƒ¼ãƒãƒ³ãƒˆã‚’å–å¾—ã™ã‚‹
+	/// @return transformã‚³ãƒ³ãƒãƒ¼ãƒãƒ³ãƒˆã®å‚ç…§
 	TransformComponent& transform() { return GetComponent<TransformComponent>(); }
 
-	/// @brief Behavior‚ÉƒRƒ“ƒ|[ƒlƒ“ƒg‚ğ’Ç‰Á‚·‚é
-	/// @tparam T ’Ç‰Á‚·‚éƒRƒ“ƒ|[ƒlƒ“ƒg‚ÌŒ^
-	/// @param component ’Ç‰Á‚·‚éƒRƒ“ƒ|[ƒlƒ“ƒg‚Ìƒf[ƒ^
-	/// @return ¬Œ÷‚Í’Ç‰Á‚µ‚½ƒRƒ“ƒ|[ƒlƒ“ƒg‚ÌQÆ‚ğ•Ô‚·
+	/// @brief Behaviorã«ã‚³ãƒ³ãƒãƒ¼ãƒãƒ³ãƒˆã‚’è¿½åŠ ã™ã‚‹
+	/// @tparam T è¿½åŠ ã™ã‚‹ã‚³ãƒ³ãƒãƒ¼ãƒãƒ³ãƒˆã®å‹
+	/// @param component è¿½åŠ ã™ã‚‹ã‚³ãƒ³ãƒãƒ¼ãƒãƒ³ãƒˆã®ãƒ‡ãƒ¼ã‚¿
+	/// @return æˆåŠŸæ™‚ã¯è¿½åŠ ã—ãŸã‚³ãƒ³ãƒãƒ¼ãƒãƒ³ãƒˆã®å‚ç…§ã‚’è¿”ã™
 	template <typename T>
 	T& AddComponent(const T& component)
 	{
 		return m_World->AddComponent<T>(m_Entity, component);
 	}
 
-	/// @brief Behavior‚ÉWolrd‚ÆEntity‚ğ•R‚Ã‚¯‚é
-	/// @param world •R‚Ã‚¯‚éWolrd‚Ìƒ|ƒCƒ“ƒ^
-	/// @param entity Entity‚ÌID
+	/// @brief Behaviorã«Wolrdã¨Entityã‚’ç´ã¥ã‘ã‚‹
+	/// @param world ç´ã¥ã‘ã‚‹Wolrdã®ãƒã‚¤ãƒ³ã‚¿
+	/// @param entity Entityã®ID
 	void Attach(World* world, Entity entity)
 	{
 		m_World = world;
@@ -119,8 +119,8 @@ public:
 	}
 
 
-	/// @brief Behavior‚É“o˜^‚³‚ê‚Ä‚¢‚éƒVƒŠƒAƒ‰ƒCƒYƒtƒB[ƒ‹ƒh‚ğæ“¾‚·‚é
-	/// @return ƒVƒŠƒAƒ‰ƒCƒYƒtƒB[ƒ‹ƒh‚Ì”z—ñ‚ÌQÆ
+	/// @brief Behaviorã«ç™»éŒ²ã•ã‚Œã¦ã„ã‚‹ã‚·ãƒªã‚¢ãƒ©ã‚¤ã‚ºãƒ•ã‚£ãƒ¼ãƒ«ãƒ‰ã‚’å–å¾—ã™ã‚‹
+	/// @return ã‚·ãƒªã‚¢ãƒ©ã‚¤ã‚ºãƒ•ã‚£ãƒ¼ãƒ«ãƒ‰ã®é…åˆ—ã®å‚ç…§
 	inline const std::vector<SerializeField>& GetField() noexcept
 	{
 		if (m_FieldsBuilt == false)
@@ -134,7 +134,7 @@ public:
 	inline std::string	GetName() const noexcept { return m_ScriptName; }
 
 public:
-	// exe‘¤‚Ì’l‚ğ¶¬’¼Œã‚ÌƒIƒuƒWƒFƒNƒg‚Ö—¬‚µ‚Ş
+	// exeå´ã®å€¤ã‚’ç”Ÿæˆç›´å¾Œã®ã‚ªãƒ–ã‚¸ã‚§ã‚¯ãƒˆã¸æµã—è¾¼ã‚€
 	void ApplyValues(const std::unordered_map<std::string, FieldValue>& vals)
 	{
 		for (auto& f : GetField())
@@ -143,7 +143,7 @@ public:
 			if (it != vals.end()) WriteField(f, it->second);
 		}
 	}
-	// Œ»İ‚Ìƒƒ“ƒo’l‚ğ exe‘¤‚Ö‹z‚¢o‚·i‰‰ñƒfƒtƒHƒ‹ƒgæ“¾—pj
+	// ç¾åœ¨ã®ãƒ¡ãƒ³ãƒå€¤ã‚’ exeå´ã¸å¸ã„å‡ºã™ï¼ˆåˆå›ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆå–å¾—ç”¨ï¼‰
 	void CaptureValues(std::unordered_map<std::string, FieldValue>& out)
 	{
 		for (auto& f : GetField()) out[f.name] = ReadField(f);
@@ -204,43 +204,43 @@ protected:
 	void RegisterFieldPtr(const std::string& name, T* ptr)
 	{
 		m_SerializeFields.push_back({ name, FieldTypeOf<T>(), ptr });
-		m_FieldsBuilt = true;   // ƒRƒ“ƒXƒgƒ‰ƒNƒ^“o˜^Ï‚İƒtƒ‰ƒO
+		m_FieldsBuilt = true;   // ã‚³ãƒ³ã‚¹ãƒˆãƒ©ã‚¯ã‚¿ç™»éŒ²æ¸ˆã¿ãƒ•ãƒ©ã‚°
 	}
 
 	template<typename T>
 	void Field(_In_ const std::string& name, _In_ T& value)
 	{
-		// intŒ^
+		// intå‹
 		if constexpr (std::is_same_v<T, int>)
 		{
 			m_SerializeFields.push_back({ name, SerializeField::Type::Int, &value });
 		}
-		// floatŒ^
+		// floatå‹
 		else if constexpr (std::is_same_v<T, float>)
 		{
 			m_SerializeFields.push_back({ name, SerializeField::Type::Float, &value });
 		}
-		// float2Œ^
+		// float2å‹
 		else if constexpr (std::is_same_v<T, float2>)
 		{
 			m_SerializeFields.push_back({ name, SerializeField::Type::Float2, &value });
 		}
-		// float3Œ^
+		// float3å‹
 		else if constexpr (std::is_same_v<T, float3>)
 		{
 			m_SerializeFields.push_back({ name, SerializeField::Type::Float3, &value });
 		}
-		// float4Œ^
+		// float4å‹
 		else if constexpr (std::is_same_v<T, float4>)
 		{
 			m_SerializeFields.push_back({ name, SerializeField::Type::Float4, &value });
 		}
-		// stringŒ^
+		// stringå‹
 		else if constexpr (std::is_same_v<T, std::string>)
 		{
 			m_SerializeFields.push_back({ name, SerializeField::Type::String, &value });
 		}
-		// boolŒ^
+		// boolå‹
 		else if constexpr (std::is_same_v<T, bool>)
 		{
 			m_SerializeFields.push_back({ name, SerializeField::Type::Bool, &value });
@@ -249,7 +249,7 @@ protected:
 		{
 			m_SerializeFields.push_back({ name, SerializeField::Type::Entity, &value });
 		}
-		// •s–¾
+		// ä¸æ˜
 		else
 		{
 			static_assert(sizeof(T) == 0, "Unsupported type for Field");

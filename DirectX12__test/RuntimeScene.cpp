@@ -1,4 +1,4 @@
-#include "RuntimeScene.hpp"
+ï»¿#include "RuntimeScene.hpp"
 #include "SceneSerializer.hpp"
 #include "Logger.hpp"
 #include "RenderTexture.hpp"
@@ -14,8 +14,8 @@ RuntimeScene::RuntimeScene(std::string sceneFilePath, const ComPtr<ID3D12Device>
 
 void RuntimeScene::OnLoad()
 {
-	// Šù‚É‰Šú‰»‚ªI‚í‚Á‚Ä‚éê‡‚Í
-	// “ñdƒ[ƒh‚ğ–h‚®‚½‚ß‚Éˆ—‚µ‚È‚¢
+	// æ—¢ã«åˆæœŸåŒ–ãŒçµ‚ã‚ã£ã¦ã‚‹å ´åˆã¯
+	// äºŒé‡ãƒ­ãƒ¼ãƒ‰ã‚’é˜²ããŸã‚ã«å‡¦ç†ã—ãªã„
 	if (m_Initialized)
 	{
 		return;
@@ -32,7 +32,7 @@ void RuntimeScene::OnLoad()
 	{
 		if (!SceneSerializer::Load(*this, m_SceneFilePath))
 		{
-			LOG->LogWarning("RuntimeScene : ƒV[ƒ““Ç‚İ‚İ‚É¸”s‚µ‚Ü‚µ‚½ : " + m_SceneFilePath);
+			LOG->LogWarning("RuntimeScene : ã‚·ãƒ¼ãƒ³èª­ã¿è¾¼ã¿ã«å¤±æ•—ã—ã¾ã—ãŸ : " + m_SceneFilePath);
 		}
 	}
 
@@ -46,7 +46,7 @@ void RuntimeScene::OnLoad()
 	if(!hasMain)
 	{
 		// -------------------------------------//
-		//	ƒƒCƒ“ƒJƒƒ‰‚ÆƒƒCƒ“ƒ‰ƒCƒg‚Ìì¬	//
+		//	ãƒ¡ã‚¤ãƒ³ã‚«ãƒ¡ãƒ©ã¨ãƒ¡ã‚¤ãƒ³ãƒ©ã‚¤ãƒˆã®ä½œæˆ	//
 		// -------------------------------------//
 		auto camera = m_World.CreateEntity();
 		auto& tr = m_World.AddComponent(camera, TransformComponent{});
@@ -60,7 +60,7 @@ void RuntimeScene::OnLoad()
 
 	if(!hasLight)
 	{
-		// ƒ‰ƒCƒg‚Ìì¬
+		// ãƒ©ã‚¤ãƒˆã®ä½œæˆ
 		auto light = m_World.CreateEntity();
 		m_World.AddComponent(light, TransformComponent{});
 		m_World.AddComponent(light, NameComponent{ "MainLight" });
@@ -75,7 +75,7 @@ void RuntimeScene::OnLoad()
 	if(!hasEditor)
 	{
 		// -------------------------- //
-		//  ƒGƒfƒBƒ^[—pƒJƒƒ‰‚Ìì¬  //
+		//  ã‚¨ãƒ‡ã‚£ã‚¿ãƒ¼ç”¨ã‚«ãƒ¡ãƒ©ã®ä½œæˆ  //
 		// -------------------------- //
 		auto editcam = m_World.CreateEntity();
 		auto& t = m_World.AddComponent(editcam, TransformComponent{});
@@ -89,7 +89,7 @@ void RuntimeScene::OnLoad()
 	}
 
 	// -----------------------------//
-	//  ƒAƒCƒRƒ“—pƒ}ƒeƒŠƒAƒ‹‚Ìì¬  //
+	//  ã‚¢ã‚¤ã‚³ãƒ³ç”¨ãƒãƒ†ãƒªã‚¢ãƒ«ã®ä½œæˆ  //
 	// -----------------------------//
 	m_IconQuad.CreateQuad(APP->GetDevice());
 
@@ -105,13 +105,13 @@ void RuntimeScene::OnLoad()
 	n_IconReady = true;
 
 	// -----------------------------//
-	//      ƒXƒJƒCƒ{ƒbƒNƒX‚Ì—pˆÓ     //
+	//      ã‚¹ã‚«ã‚¤ãƒœãƒƒã‚¯ã‚¹ã®ç”¨æ„     //
 	// -----------------------------//
 	m_SkyboxCube.CreateCube(APP->GetDevice());
 	ApplySkybox();
 
 	// -----------------------------//
-	// ‰Ô‰Î‚ÌƒVƒXƒeƒ€‚Ì‰Šú‰»		// 
+	// èŠ±ç«ã®ã‚·ã‚¹ãƒ†ãƒ ã®åˆæœŸåŒ–		// 
 	// -----------------------------//
 	m_FireworkSystem.Init();
 	m_FireworkSystem.SetSoundCallback(
@@ -153,9 +153,9 @@ void RuntimeScene::Update(float deltatime)
 	m_AnimatorSystem.Update(m_World, deltatime);
 	m_FireworkSystem.Update(deltatime);
 
-	//// --- ƒ[ƒ‹ƒhŠeŠ‚Ö‰Ô‰Î‚ğ‘Å‚¿ã‚°‚é ---
+	//// --- ãƒ¯ãƒ¼ãƒ«ãƒ‰å„æ‰€ã¸èŠ±ç«ã‚’æ‰“ã¡ä¸Šã’ã‚‹ ---
 	//static float acc = 0.0f; acc += deltatime;
-	//if (acc > 0.7f) {                       // 0.7•b‚²‚Æ‚Éˆê”­
+	//if (acc > 0.7f) {                       // 0.7ç§’ã”ã¨ã«ä¸€ç™º
 	//	acc = 0.0f;
 
 	//	const FireworkSystem::Shape shapes[] = {
@@ -163,13 +163,13 @@ void RuntimeScene::Update(float deltatime)
 	//		FireworkSystem::Shape::Ring,   FireworkSystem::Shape::Heart,
 	//		FireworkSystem::Shape::Senrin, FireworkSystem::Shape::Text };
 
-	//	// ”­ËˆÊ’u‚ğƒ[ƒ‹ƒh‚ÉU‚ç‚·(”¼Œa R ‚Ì‰~“àA’n–Ê y=0 ‚©‚çj
+	//	// ç™ºå°„ä½ç½®ã‚’ãƒ¯ãƒ¼ãƒ«ãƒ‰ã«æ•£ã‚‰ã™(åŠå¾„ R ã®å††å†…ã€åœ°é¢ y=0 ã‹ã‚‰ï¼‰
 	//	const float R = 10.0f;
 	//	const float px = ((rand() % 2000) / 1000.0f - 1.0f) * R; // -R..R
 	//	const float pz = ((rand() % 2000) / 1000.0f - 1.0f) * R;
 	//	const float3 launchPos{ px, 0.0f, pz };
 
-	//	// ‘N‚â‚©‚ÈF‚ÉŠñ‚¹‚é(Ê“x’á‚¢ˆÃF‚ğ”ğ‚¯‚é)
+	//	// é®®ã‚„ã‹ãªè‰²ã«å¯„ã›ã‚‹(å½©åº¦ä½ã„æš—è‰²ã‚’é¿ã‘ã‚‹)
 	//	static const float3 palette[] = {
 	//		{1.0f, 0.25f, 0.25f}, {0.25f, 0.6f, 1.0f}, {1.0f, 0.85f, 0.2f},
 	//		{0.4f, 1.0f, 0.4f},   {1.0f, 0.4f, 1.0f},  {0.3f, 1.0f, 1.0f} };
@@ -219,17 +219,17 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 		context.projection = cam->proj;
 	}
 
-	// ƒrƒ…[ƒ|[ƒg—pƒŒƒ“ƒ_[ƒeƒNƒXƒ`ƒƒ‚Ö‚Ì•`‰æİ’è
+	// ãƒ“ãƒ¥ãƒ¼ãƒãƒ¼ãƒˆç”¨ãƒ¬ãƒ³ãƒ€ãƒ¼ãƒ†ã‚¯ã‚¹ãƒãƒ£ã¸ã®æç”»è¨­å®š
 	if (renderContext.viewportRenderTexture != nullptr &&
 		renderContext.viewportRenderTexture->IsValid())
 	{
 		auto renderTexture = renderContext.viewportRenderTexture;
 		auto* commandList = context.CommandList;
 
-		// ƒsƒNƒZƒ‹ƒVƒF[ƒ_[ƒŠƒ\[ƒX ¨ ƒŒƒ“ƒ_[ƒ^[ƒQƒbƒg
+		// ãƒ”ã‚¯ã‚»ãƒ«ã‚·ã‚§ãƒ¼ãƒ€ãƒ¼ãƒªã‚½ãƒ¼ã‚¹ â†’ ãƒ¬ãƒ³ãƒ€ãƒ¼ã‚¿ãƒ¼ã‚²ãƒƒãƒˆ
 		renderTexture->Transition(commandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
 
-		// ƒVƒƒƒhƒEƒ}ƒbƒv‚Ì•`‰æ
+		// ã‚·ãƒ£ãƒ‰ã‚¦ãƒãƒƒãƒ—ã®æç”»
 		if (context.lightCb.shadowParams.y > 0.5f)
 		{
 			APP->GetShadowMap().BeginRender(commandList);
@@ -242,7 +242,7 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 
 		commandList->SetGraphicsRootSignature(APP->GetRootSignature().Get());
 
-		// --- ƒ{[ƒ“s—ñƒpƒŒƒbƒg(b4)‚ğ’PˆÊs—ñ‚ÅƒoƒCƒ“ƒhi—¼ƒ‚[ƒh‹¤’Êj---
+		// --- ãƒœãƒ¼ãƒ³è¡Œåˆ—ãƒ‘ãƒ¬ãƒƒãƒˆ(b4)ã‚’å˜ä½è¡Œåˆ—ã§ãƒã‚¤ãƒ³ãƒ‰ï¼ˆä¸¡ãƒ¢ãƒ¼ãƒ‰å…±é€šï¼‰---
 		if (renderContext.cbAllocator)
 		{
 			static BoneCB s_IdentityBones = [] {
@@ -262,7 +262,7 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 
 		if (deferred)
 		{
-			// ---- •s“§–¾ -> G-Buffer ----
+			// ---- ä¸é€æ˜ -> G-Buffer ----
 			const UINT fw = APP->GetHdrScene().GetWidth();
 			const UINT fh = APP->GetHdrScene().GetHeight();
 			D3D12_VIEWPORT fullvp{ 0.0f,0.0f, (float)fw, (float)fh, 0.0f, 1.0f };
@@ -276,7 +276,7 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 			commandList->RSSetScissorRects(1, &fullsc);
 			m_RenderSystem.Draw(m_World, context, APP->GetGBufferPso(), DrawFilter::OPAQUEONLY);
 
-			// ---- ƒ‰ƒCƒeƒBƒ“ƒO -> HDR(R16F) ----
+			// ---- ãƒ©ã‚¤ãƒ†ã‚£ãƒ³ã‚° -> HDR(R16F) ----
 			APP->DeferredLightingPass(context, hdrRtv, fullvp, fullsc);
 
 			commandList->OMSetRenderTargets(1, &hdrRtv, FALSE, nullptr);
@@ -285,7 +285,7 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 			commandList->SetGraphicsRootSignature(APP->GetRootSignature().Get());
 			DrawLaserBeams(context, APP->GetBeamHdrPso());
 
-			// ---- Bloom + ƒg[ƒ“ƒ}ƒbƒv‡¬ -> renderTexture(R8) ----
+			// ---- Bloom + ãƒˆãƒ¼ãƒ³ãƒãƒƒãƒ—åˆæˆ -> renderTexture(R8) ----
 			APP->PostProcessBloom(rtvHandle,
 				*renderContext.viewport, *renderContext.scissorRect);
 
@@ -294,7 +294,7 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 			if (renderContext.scissorRect) commandList->RSSetScissorRects(1, renderContext.scissorRect);
 			commandList->SetGraphicsRootSignature(APP->GetRootSignature().Get());
 
-			// b4 ÄƒoƒCƒ“ƒh
+			// b4 å†ãƒã‚¤ãƒ³ãƒ‰
 			if (renderContext.cbAllocator)
 			{
 				static BoneCB s_IdentityBones = [] {
@@ -309,7 +309,7 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 				if (b4) commandList->SetGraphicsRootConstantBufferView(5, b4);
 			}
 
-			// skyboxi[“x==1‚Ì”wŒi‚ÖB[“x‚Í•s“§–¾ƒWƒIƒƒgƒŠ‚Ì‚à‚Ì‚ª“ü‚Á‚Ä‚¢‚éj
+			// skyboxï¼ˆæ·±åº¦==1ã®èƒŒæ™¯ã¸ã€‚æ·±åº¦ã¯ä¸é€æ˜ã‚¸ã‚ªãƒ¡ãƒˆãƒªã®ã‚‚ã®ãŒå…¥ã£ã¦ã„ã‚‹ï¼‰
 			if (m_SkyBox)
 			{
 				float4x4 identity;
@@ -319,12 +319,12 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 				m_SkyboxCube.Draw(context.CommandList);
 			}
 
-			// ”¼“§–¾
+			// åŠé€æ˜
 			m_RenderSystem.Draw(m_World, context, nullptr, DrawFilter::TRANSPARENTONLY);
 		}
 		else
 		{
-			// ===== ƒtƒHƒ[ƒhi]—ˆj=====
+			// ===== ãƒ•ã‚©ãƒ¯ãƒ¼ãƒ‰ï¼ˆå¾“æ¥ï¼‰=====
 			commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
 			commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 			if (renderContext.viewport)    commandList->RSSetViewports(1, renderContext.viewport);
@@ -341,7 +341,7 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 				m_SkyboxCube.Draw(context.CommandList);
 			}
 
-			m_RenderSystem.Draw(m_World, context);   // ]—ˆ’Ê‚è‘S•”
+			m_RenderSystem.Draw(m_World, context);   // å¾“æ¥é€šã‚Šå…¨éƒ¨
 		}
 
 		//{
@@ -353,10 +353,10 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 
 		//	m_FireworkBeamRenderer.Begin();
 		//	m_FireworkSystem.Emit(m_FireworkBeamRenderer, camRight, camUp);
-		//	m_FireworkBeamRenderer.Draw(context);   // Init‚ÌBeamPso([“x‚È‚µ)
+		//	m_FireworkBeamRenderer.Draw(context);   // Initæ™‚ã®BeamPso(æ·±åº¦ãªã—)
 		//}
 
-		// ===== ƒfƒoƒbƒOƒ‰ƒCƒ“ / ƒr[ƒ€ / UIi—¼ƒ‚[ƒh‹¤’ÊEŒ»İƒoƒCƒ“ƒh’†‚ÌRT‚Öj=====
+		// ===== ãƒ‡ãƒãƒƒã‚°ãƒ©ã‚¤ãƒ³ / ãƒ“ãƒ¼ãƒ  / UIï¼ˆä¸¡ãƒ¢ãƒ¼ãƒ‰å…±é€šãƒ»ç¾åœ¨ãƒã‚¤ãƒ³ãƒ‰ä¸­ã®RTã¸ï¼‰=====
 		m_DebugLineRenderer.Begin();
 		if (context.isSceneView) { DrawGrid(); DrawLight(); DrawGizmos(context); DrawColliders(); }
 		for (const auto& line : m_DebugLines)
@@ -367,12 +367,12 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 		m_CanvasRenderSystem.Draw(m_World, context, m_UIQuad, APP->GetUIPso(),
 			(float)WINDOW_WIDTH, (float)WINDOW_HEIGHT);
 
-		// renderTexture ¨ PIXEL_SHADER_RESOURCEiImGui•\¦—pj
+		// renderTexture â†’ PIXEL_SHADER_RESOURCEï¼ˆImGuiè¡¨ç¤ºç”¨ï¼‰
 		renderTexture->Transition(commandList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 	}
 	else
 	{
-		// skybox•`‰æ
+		// skyboxæç”»
 		if (m_SkyBox)
 		{
 			float4x4 identity;
@@ -384,10 +384,10 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 			m_SkyboxCube.Draw(context.CommandList);
 		}
 
-		// ’Êí•`‰æiƒƒCƒ“ƒŒƒ“ƒ_[ƒ^[ƒQƒbƒgj
+		// é€šå¸¸æç”»ï¼ˆãƒ¡ã‚¤ãƒ³ãƒ¬ãƒ³ãƒ€ãƒ¼ã‚¿ãƒ¼ã‚²ãƒƒãƒˆï¼‰
 		m_RenderSystem.Draw(m_World, context,nullptr);
 
-		// ƒfƒoƒbƒOƒ‰ƒCƒ“‚Ì•`‰æ
+		// ãƒ‡ãƒãƒƒã‚°ãƒ©ã‚¤ãƒ³ã®æç”»
 		m_DebugLineRenderer.Begin();
 		if (context.isSceneView) {
 			DrawGrid();
@@ -426,7 +426,7 @@ void RuntimeScene::DrawGizmos(const RenderContext& renderContext)
 {
 	if (!n_IconReady || renderContext.CommandList == nullptr) return;
 
-	// views—ñ‚©‚çƒJƒƒ‰‚Ìƒ[ƒ‹ƒh²‚ğ•œŒ³iƒrƒ‹ƒ{[ƒh—pj
+	// viewè¡Œåˆ—ã‹ã‚‰ã‚«ãƒ¡ãƒ©ã®ãƒ¯ãƒ¼ãƒ«ãƒ‰è»¸ã‚’å¾©å…ƒï¼ˆãƒ“ãƒ«ãƒœãƒ¼ãƒ‰ç”¨ï¼‰
 	const float4x4& v = renderContext.view;
 	const float3 right = { v._11, v._21, v._31 };
 	const float3 up = { v._12, v._22, v._32 };
@@ -446,7 +446,7 @@ void RuntimeScene::DrawGizmos(const RenderContext& renderContext)
 
 	auto* iconPso = DirectXApp::GetCurrent()->GetIconPso().Get();
 
-	// ƒJƒƒ‰ƒAƒCƒRƒ“iFreeLook‚ğ‚ÂEditorƒJƒƒ‰‚ÍœŠOj
+	// ã‚«ãƒ¡ãƒ©ã‚¢ã‚¤ã‚³ãƒ³ï¼ˆFreeLookã‚’æŒã¤Editorã‚«ãƒ¡ãƒ©ã¯é™¤å¤–ï¼‰
 	m_World.Each<TransformComponent, CameraComponent>(
 		[&](Entity e, TransformComponent& tr, CameraComponent&)
 		{
@@ -457,7 +457,7 @@ void RuntimeScene::DrawGizmos(const RenderContext& renderContext)
 			m_IconQuad.Draw(renderContext.CommandList);
 		});
 
-	// ƒ‰ƒCƒgƒAƒCƒRƒ“
+	// ãƒ©ã‚¤ãƒˆã‚¢ã‚¤ã‚³ãƒ³
 	m_World.Each<TransformComponent, LightComponent>(
 		[&](Entity, TransformComponent& tr, LightComponent&)
 		{
@@ -473,7 +473,7 @@ void RuntimeScene::DrawGrid()
 	constexpr int gridCount = 10;
 	constexpr float gridSize = 1.0f;
 
-	const float4 gridColor = { 0.5f, 0.5f, 0.5f, 1.0f };  // ƒOƒŠƒbƒh‚Í”–‚­‚·‚é
+	const float4 gridColor = { 0.5f, 0.5f, 0.5f, 1.0f };  // ã‚°ãƒªãƒƒãƒ‰ã¯è–„ãã™ã‚‹
 	const float half = (gridSize * gridCount) * 0.5f;
 
 	for (int i = 0; i <= gridCount; ++i)
@@ -496,13 +496,13 @@ void RuntimeScene::DrawLight()
 			}
 
 
-			// ƒfƒoƒbƒOline‚ÌF‚ğİ’è
+			// ãƒ‡ãƒãƒƒã‚°lineã®è‰²ã‚’è¨­å®š
 			COLOR color = { 1.0f,1.0f,1.0f,1.0f };
 
-			// ˆÊ’uæ“¾
+			// ä½ç½®å–å¾—
 			const POSITION pos = transform.position;
 
-			// •ûŒü‚ğ³‹K‰»
+			// æ–¹å‘ã‚’æ­£è¦åŒ–
 			vector V = DirectX::XMVector3Normalize(
 				DirectX::XMLoadFloat3(&light.direction));
 			float3 dir;
@@ -512,7 +512,7 @@ void RuntimeScene::DrawLight()
 			const float pi = 3.14159265f;
 
 			// --------//
-			//	 í—Ş•Ê //
+			//	 ç¨®é¡åˆ¥ //
 			// --------//
 			switch (light.type)
 			{
@@ -521,14 +521,14 @@ void RuntimeScene::DrawLight()
 				// --------------------------//
 			case LightComponent::LightType::Directional:
 			{
-				const float4 arrowColor = { 1.0f, 0.9f, 0.2f, 1.0f };  // ‰©F‚Å–Ú—§‚½‚¹‚é
+				const float4 arrowColor = { 1.0f, 0.9f, 0.2f, 1.0f };  // é»„è‰²ã§ç›®ç«‹ãŸã›ã‚‹
 				const float len = 3.0f;
 				const float3 tip = pos + float3{ dir.x * len, dir.y * len, dir.z * len };
 
-				// ²üiŒõŒ¹ˆÊ’u -> is•ûŒüj
+				// è»¸ç·šï¼ˆå…‰æºä½ç½® -> é€²è¡Œæ–¹å‘ï¼‰
 				m_DebugLines.push_back({ pos, tip, arrowColor });
 
-				// dir‚É’¼Œğ‚·‚é2²i–î‚¶‚è—pj
+				// dirã«ç›´äº¤ã™ã‚‹2è»¸ï¼ˆçŸ¢ã˜ã‚Šç”¨ï¼‰
 				float3 upv = (fabsf(dir.y) > 0.99f) ? float3{ 1,0,0 } : float3{ 0,1,0 };
 				vector rV = DirectX::XMVector3Normalize(
 					DirectX::XMVector3Cross(V, DirectX::XMLoadFloat3(&upv)));
@@ -537,7 +537,7 @@ void RuntimeScene::DrawLight()
 				DirectX::XMStoreFloat3(&r, rV);
 				DirectX::XMStoreFloat3(&u, uV);
 
-				// –î‚¶‚èiæ’[‚©‚çè‘O‚Ö4–{j
+				// çŸ¢ã˜ã‚Šï¼ˆå…ˆç«¯ã‹ã‚‰æ‰‹å‰ã¸4æœ¬ï¼‰
 				const float head = 0.4f;
 				const float3 back = tip - float3{ dir.x * head, dir.y * head, dir.z * head };
 				m_DebugLines.push_back({ tip, back + r * head, arrowColor });
@@ -586,11 +586,11 @@ void RuntimeScene::DrawLight()
 			{
 				const float len = light.range;
 				const float half = DirectX::XMConvertToRadians(light.spotAngle * 0.5f);
-				const float rEnd = tanf(half) * len;	// ’ê–Ê”¼Œa
-				const float3 apex = pos;	// ’¸“_	
+				const float rEnd = tanf(half) * len;	// åº•é¢åŠå¾„
+				const float3 apex = pos;	// é ‚ç‚¹	
 				const float3 center = pos + dir * len;
 
-				// dir‚É’¼s‚·‚é2²
+				// dirã«ç›´è¡Œã™ã‚‹2è»¸
 				float3 up = (fabsf(dir.y) > 0.99f) ? float3{ 1,0,0 } : float3{ 0,1,0 };
 				vector rV = DirectX::XMVector3Normalize(
 					DirectX::XMVector3Cross(V, DirectX::XMLoadFloat3(&up)));
@@ -606,9 +606,9 @@ void RuntimeScene::DrawLight()
 					float a = (float)i / seg * 2 * pi;
 					float3 rim = center + r * (cosf(a) * rEnd) + u * (sinf(a) * rEnd);
 					if (i > 0)
-						m_DebugLines.push_back({ prev,rim,color });	// ’ê–Ê
+						m_DebugLines.push_back({ prev,rim,color });	// åº•é¢
 					if (i % (seg / 4) == 0)
-						m_DebugLines.push_back({ apex,rim,color });	// ’¸“_‚©‚ç’ê–Ê‚Ö‚Ìü
+						m_DebugLines.push_back({ apex,rim,color });	// é ‚ç‚¹ã‹ã‚‰åº•é¢ã¸ã®ç·š
 					prev = rim;
 				}
 			}
@@ -617,13 +617,13 @@ void RuntimeScene::DrawLight()
 			{
 				const float len = light.range;
 				const float r = std::max(light.beamWidth, 0.01f);
-				const float4 laserColor = { 1.0f, 0.15f, 0.15f, 1.0f }; // –Ú—§‚ÂÔŒn
+				const float4 laserColor = { 1.0f, 0.15f, 0.15f, 1.0f }; // ç›®ç«‹ã¤èµ¤ç³»
 				const float3 tip = pos + dir * len;
 
-				// ’†S‚Ì1–{
+				// ä¸­å¿ƒã®1æœ¬
 				m_DebugLines.push_back({ pos, tip, laserColor });
 
-				// ‘¾‚³‚ğ•\Œ»‚·‚é×‚¢‰~’ŒƒAƒEƒgƒ‰ƒCƒ“
+				// å¤ªã•ã‚’è¡¨ç¾ã™ã‚‹ç´°ã„å††æŸ±ã‚¢ã‚¦ãƒˆãƒ©ã‚¤ãƒ³
 				float3 up = (fabsf(dir.y) > 0.99f) ? float3{ 1,0,0 } : float3{ 0,1,0 };
 				vector rV = DirectX::XMVector3Normalize(DirectX::XMVector3Cross(V, DirectX::XMLoadFloat3(&up)));
 				vector uV = DirectX::XMVector3Normalize(DirectX::XMVector3Cross(V, rV));
@@ -645,17 +645,17 @@ void RuntimeScene::DrawLight()
 
 void RuntimeScene::DrawColliders()
 {
-	const float4 green = { 0.0f, 1.0f, 0.0f, 1.0f };   // ƒRƒ‰ƒCƒ_[‚Í—Î
+	const float4 green = { 0.0f, 1.0f, 0.0f, 1.0f };   // ã‚³ãƒ©ã‚¤ãƒ€ãƒ¼ã¯ç·‘
 
 	m_World.Each<TransformComponent, ColliderComponent>(
 		[&](Entity, TransformComponent& tr, ColliderComponent& col)
 		{
-			// ‰ñ“]ƒNƒH[ƒ^ƒjƒIƒ“‚ğƒ[ƒh
+			// å›è»¢ã‚¯ã‚©ãƒ¼ã‚¿ãƒ‹ã‚ªãƒ³ã‚’ãƒ­ãƒ¼ãƒ‰
 			const auto rot = DirectX::XMQuaternionNormalize(
 				DirectX::XMLoadFloat4(&tr.rotation));
 			const DirectX::XMVECTOR origin = DirectX::XMLoadFloat3(&tr.position);
 
-			// ƒ[ƒJƒ‹À•W ¨ ƒ[ƒ‹ƒhÀ•W‚É•ÏŠ·‚·‚éƒwƒ‹ƒp[
+			// ãƒ­ãƒ¼ã‚«ãƒ«åº§æ¨™ â†’ ãƒ¯ãƒ¼ãƒ«ãƒ‰åº§æ¨™ã«å¤‰æ›ã™ã‚‹ãƒ˜ãƒ«ãƒ‘ãƒ¼
 			auto toWorld = [&](float x, float y, float z) -> float3
 				{
 					DirectX::XMVECTOR p = DirectX::XMVectorSet(x, y, z, 0.0f);
@@ -679,27 +679,27 @@ void RuntimeScene::DrawColliders()
 				const float hy = col.size.y * 0.5f;
 				const float hz = col.size.z * 0.5f;
 
-				// 8’¸“_
+				// 8é ‚ç‚¹
 				float3 v[8] = {
 					toWorld(-hx, -hy, -hz), toWorld(hx, -hy, -hz),
 					toWorld(hx, -hy,  hz), toWorld(-hx, -hy,  hz),
 					toWorld(-hx,  hy, -hz), toWorld(hx,  hy, -hz),
 					toWorld(hx,  hy,  hz), toWorld(-hx,  hy,  hz),
 				};
-				// ‰º–Ê
+				// ä¸‹é¢
 				line(v[0], v[1]); line(v[1], v[2]); line(v[2], v[3]); line(v[3], v[0]);
-				// ã–Ê
+				// ä¸Šé¢
 				line(v[4], v[5]); line(v[5], v[6]); line(v[6], v[7]); line(v[7], v[4]);
-				// c
+				// ç¸¦
 				line(v[0], v[4]); line(v[1], v[5]); line(v[2], v[6]); line(v[3], v[7]);
 				break;
 			}
 			case ColliderComponent::ShapeType::Sphere:
-			case ColliderComponent::ShapeType::Mesh:   // Mesh‚Íb’è‚ÅSphereˆµ‚¢
+			case ColliderComponent::ShapeType::Mesh:   // Meshã¯æš«å®šã§Sphereæ‰±ã„
 			{
 				const float r = col.radius;
 				constexpr int seg = 24;
-				// XY / YZ / XZ ‚Ì3ƒŠƒ“ƒO
+				// XY / YZ / XZ ã®3ãƒªãƒ³ã‚°
 				for (int i = 0; i < seg; ++i)
 				{
 					const float a = DirectX::XM_2PI * i / seg;
@@ -713,10 +713,10 @@ void RuntimeScene::DrawColliders()
 			case ColliderComponent::ShapeType::Capsule:
 			{
 				const float r = col.radius;
-				const float hh = col.size.y * 0.5f;   // ”¼•ª‚Ì‰~’Œ‚‚³
+				const float hh = col.size.y * 0.5f;   // åŠåˆ†ã®å††æŸ±é«˜ã•
 				constexpr int seg = 24;
 
-				// ã‰º‚Ì‰~iY²•ûŒü‚ÌƒJƒvƒZƒ‹j
+				// ä¸Šä¸‹ã®å††ï¼ˆYè»¸æ–¹å‘ã®ã‚«ãƒ—ã‚»ãƒ«ï¼‰
 				for (int i = 0; i < seg; ++i)
 				{
 					const float a = DirectX::XM_2PI * i / seg;
@@ -724,21 +724,21 @@ void RuntimeScene::DrawColliders()
 					line(toWorld(cosf(a) * r, hh, sinf(a) * r), toWorld(cosf(b) * r, hh, sinf(b) * r));
 					line(toWorld(cosf(a) * r, -hh, sinf(a) * r), toWorld(cosf(b) * r, -hh, sinf(b) * r));
 				}
-				// ‘¤–Ê‚Ì4–{
+				// å´é¢ã®4æœ¬
 				line(toWorld(r, -hh, 0), toWorld(r, hh, 0));
 				line(toWorld(-r, -hh, 0), toWorld(-r, hh, 0));
 				line(toWorld(0, -hh, r), toWorld(0, hh, r));
 				line(toWorld(0, -hh, -r), toWorld(0, hh, -r));
 
-				// ã‰º‚Ì”¼‹…icƒA[ƒ`j
+				// ä¸Šä¸‹ã®åŠçƒï¼ˆç¸¦ã‚¢ãƒ¼ãƒï¼‰
 				for (int i = 0; i < seg / 2; ++i)
 				{
 					const float a = DirectX::XM_PI * i / (seg / 2);
 					const float b = DirectX::XM_PI * (i + 1) / (seg / 2);
-					// ã”¼‹…
+					// ä¸ŠåŠçƒ
 					line(toWorld(cosf(a) * r, hh + sinf(a) * r, 0), toWorld(cosf(b) * r, hh + sinf(b) * r, 0));
 					line(toWorld(0, hh + sinf(a) * r, cosf(a) * r), toWorld(0, hh + sinf(b) * r, cosf(b) * r));
-					// ‰º”¼‹…
+					// ä¸‹åŠçƒ
 					line(toWorld(cosf(a) * r, -hh - sinf(a) * r, 0), toWorld(cosf(b) * r, -hh - sinf(b) * r, 0));
 					line(toWorld(0, -hh - sinf(a) * r, cosf(a) * r), toWorld(0, -hh - sinf(b) * r, cosf(b) * r));
 				}
@@ -750,7 +750,7 @@ void RuntimeScene::DrawColliders()
 
 void RuntimeScene::DrawLaserBeams(const RenderContext& context, ID3D12PipelineState* psoOverride, bool emitFirework)
 {
-	// ƒJƒƒ‰ƒ[ƒ‹ƒhˆÊ’u‚ğviews—ñ‚©‚ç•œŒ³iƒrƒ‹ƒ{[ƒhŒvZ—pj
+	// ã‚«ãƒ¡ãƒ©ãƒ¯ãƒ¼ãƒ«ãƒ‰ä½ç½®ã‚’viewè¡Œåˆ—ã‹ã‚‰å¾©å…ƒï¼ˆãƒ“ãƒ«ãƒœãƒ¼ãƒ‰è¨ˆç®—ç”¨ï¼‰
 	const auto viewMat = DirectX::XMLoadFloat4x4(&context.view);
 	DirectX::XMVECTOR det;
 	const auto invView = DirectX::XMMatrixInverse(&det, viewMat);
@@ -759,7 +759,7 @@ void RuntimeScene::DrawLaserBeams(const RenderContext& context, ID3D12PipelineSt
 
 	m_BeamRenderer.Begin();
 
-	constexpr int kColumns = 6; // ƒr[ƒ€’f–Ê‚Ì•ªŠ„”ic‚ÌƒOƒ[‚ğŠŠ‚ç‚©‚É‚·‚é‚½‚ßj
+	constexpr int kColumns = 6; // ãƒ“ãƒ¼ãƒ æ–­é¢ã®åˆ†å‰²æ•°ï¼ˆèŠ¯ã®ã‚°ãƒ­ãƒ¼ã‚’æ»‘ã‚‰ã‹ã«ã™ã‚‹ãŸã‚ï¼‰
 
 	m_World.Each<TransformComponent, LightComponent>(
 		[&](Entity, TransformComponent& tr, LightComponent& light)
@@ -770,10 +770,10 @@ void RuntimeScene::DrawLaserBeams(const RenderContext& context, ID3D12PipelineSt
 				return;
 
 			const float3 origin = tr.position;
-			const float3 dir = light.direction; // LightSystem‚Å³‹K‰»EñU‚èÏ‚İ
+			const float3 dir = light.direction; // LightSystemã§æ­£è¦åŒ–ãƒ»é¦–æŒ¯ã‚Šæ¸ˆã¿
 			const float3 tip = origin + dir * light.range;
 
-			// ƒr[ƒ€²EƒJƒƒ‰•ûŒü‚É’¼Œğ‚·‚éu••ûŒüvƒxƒNƒgƒ‹(Šù‘¶‚Ì‚Ü‚Ü)
+			// ãƒ“ãƒ¼ãƒ è»¸ãƒ»ã‚«ãƒ¡ãƒ©æ–¹å‘ã«ç›´äº¤ã™ã‚‹ã€Œå¹…æ–¹å‘ã€ãƒ™ã‚¯ãƒˆãƒ«(æ—¢å­˜ã®ã¾ã¾)
 			DirectX::XMVECTOR dV = DirectX::XMLoadFloat3(&dir);
 			DirectX::XMVECTOR toCamV = DirectX::XMVector3Normalize(
 				DirectX::XMVectorSubtract(DirectX::XMLoadFloat3(&camPos), DirectX::XMLoadFloat3(&origin)));
@@ -789,15 +789,15 @@ void RuntimeScene::DrawLaserBeams(const RenderContext& context, ID3D12PipelineSt
 			float3 widthAxis;
 			DirectX::XMStoreFloat3(&widthAxis, widthV);
 
-			// ”¼•: ƒŒ[ƒU[‚Íˆê’èAƒXƒ|ƒbƒg‚Í‰~‚É‰ˆ‚Á‚ÄŠJ‚­
+			// åŠå¹…: ãƒ¬ãƒ¼ã‚¶ãƒ¼ã¯ä¸€å®šã€ã‚¹ãƒãƒƒãƒˆã¯å††éŒã«æ²¿ã£ã¦é–‹ã
 			const float hwStart = std::max(light.beamWidth, 0.001f) * 0.5f;
 			float hwEnd = hwStart;
 			float tipAlpha = 1.0f;
 			if (isSpotBeam)
 			{
 				const float half = DirectX::XMConvertToRadians(light.spotAngle * 0.5f);
-				hwEnd = tanf(half) * light.range;   // ‰~‚Ì’ê–Ê”¼Œa
-				tipAlpha = light.beamColorEnd.w;    // æ’[‚Ìc‚è‹ï‡(0‚Å‹ó’†‚ÉÁ‚¦‚é)
+				hwEnd = tanf(half) * light.range;   // å††éŒã®åº•é¢åŠå¾„
+				tipAlpha = light.beamColorEnd.w;    // å…ˆç«¯ã®æ®‹ã‚Šå…·åˆ(0ã§ç©ºä¸­ã«æ¶ˆãˆã‚‹)
 			}
 
 			const float g = std::max(light.glowIntensity, 1.0f);
@@ -829,7 +829,7 @@ void RuntimeScene::DrawLaserBeams(const RenderContext& context, ID3D12PipelineSt
 void RuntimeScene::EditorUpdate(float dt)
 {
 	m_LightSystem.Apply(m_World);
-	m_FreeLookSystem.Update(m_World, dt,CameraComponent::CameraType::Secondary);   // ƒGƒfƒBƒ^ƒJƒƒ‰‘€ì
+	m_FreeLookSystem.Update(m_World, dt,CameraComponent::CameraType::Secondary);   // ã‚¨ãƒ‡ã‚£ã‚¿ã‚«ãƒ¡ãƒ©æ“ä½œ
 	m_CameraSystem.Update(m_World, 16.0f / 9.0f);
 	m_TransformSystem.Update(m_World);
 	m_AudioSystem.Update(m_World, false);
@@ -841,7 +841,7 @@ void RuntimeScene::ApplySkybox()
 	const std::string& path = GetSkyboxPath();
 	if (path.empty())
 	{
-		m_SkyBox.reset();   // ‹óƒpƒX=ƒXƒJƒCƒ{ƒbƒNƒX‚È‚µ(•`‰æ‘¤‚Ínullƒ`ƒFƒbƒNÏ‚İ)
+		m_SkyBox.reset();   // ç©ºãƒ‘ã‚¹=ã‚¹ã‚«ã‚¤ãƒœãƒƒã‚¯ã‚¹ãªã—(æç”»å´ã¯nullãƒã‚§ãƒƒã‚¯æ¸ˆã¿)
 		return;
 	}
 	m_SkyBox = std::make_shared<Material>();

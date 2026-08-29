@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include <string>
 #include <vector>
@@ -25,7 +25,7 @@ enum class FieldType : uint8_t
 	Audio,
 };
 
-/// @brief exe‘¤‚É•Û‚·‚é’l
+/// @brief exeå´ã«ä¿æŒã™ã‚‹å€¤
 struct FieldValue
 {
 	FieldType type = FieldType::Int;
@@ -50,8 +50,8 @@ struct ReflectedField
 	void* ptr;
 	float minValue = 0.0f;
 	float maxValue = 0.0f;
-	void* ptr2 = nullptr; // material—p‚Ì2‚Â–Ú‚Ìƒ|ƒCƒ“ƒ^
-	std::vector<std::string> enumValues; // enum—p‚Ì’lƒŠƒXƒg
+	void* ptr2 = nullptr; // materialç”¨ã®2ã¤ç›®ã®ãƒã‚¤ãƒ³ã‚¿
+	std::vector<std::string> enumValues; // enumç”¨ã®å€¤ãƒªã‚¹ãƒˆ
 };
 
 struct FieldList
@@ -67,7 +67,7 @@ struct FieldList
 	void Add(const std::string& n, std::string& v) { fields.push_back({ n, FieldType::String, &v }); }
 	void Add(const std::string& n, std::wstring& v) { fields.push_back({ n, FieldType::wstring, &v }); }
 
-	// ”ÍˆÍ•t‚«(float)
+	// ç¯„å›²ä»˜ã(float)
 	void AddRange(const std::string& n, float& v, float min, float max)
 	{
 		fields.push_back({ n, FieldType::Float, &v, min, max });
@@ -81,36 +81,36 @@ struct FieldList
 		fields.push_back({ n, FieldType::Float2, &v, min, max });
 	}
 
-	// ƒeƒNƒXƒ`ƒƒimaterial“™‚Ìreset—p‚Éptr2‚ğ‚Âj
+	// ãƒ†ã‚¯ã‚¹ãƒãƒ£ï¼ˆmaterialç­‰ã®resetç”¨ã«ptr2ã‚’æŒã¤ï¼‰
 	template <typename TRes>
 	void AddTexture(const std::string& n, std::string& path, std::shared_ptr<TRes>& res)
 	{
 		fields.push_back({ n, FieldType::Texture, &path, 0,0, &res });
 	}
 
-	// ƒtƒHƒ“ƒgiƒŠƒ\[ƒX–³‚µ”Å‚ÅOKAƒpƒX‚Ì‚İj
+	// ãƒ•ã‚©ãƒ³ãƒˆï¼ˆãƒªã‚½ãƒ¼ã‚¹ç„¡ã—ç‰ˆã§OKã€ãƒ‘ã‚¹ã®ã¿ï¼‰
 	void AddFont(const std::string& n, std::string& path)
 	{
 		fields.push_back({ n, FieldType::Font, &path });
 	}
 
-	// ƒI[ƒfƒBƒI
+	// ã‚ªãƒ¼ãƒ‡ã‚£ã‚ª
 	template <typename TRes>
 	void AddAudio(const std::string& n, std::string& path, std::shared_ptr<TRes>& res)
 	{
 		fields.push_back({ n, FieldType::Audio, &path, 0,0, &res });
 	}
 
-	// ƒpƒX‚¾‚¯‚ÌƒVƒ“ƒvƒ‹”Åireset•s—v‚ÈƒtƒB[ƒ‹ƒh—pj
+	// ãƒ‘ã‚¹ã ã‘ã®ã‚·ãƒ³ãƒ—ãƒ«ç‰ˆï¼ˆresetä¸è¦ãªãƒ•ã‚£ãƒ¼ãƒ«ãƒ‰ç”¨ï¼‰
 	void AddAudio(const std::string& n, std::string& path)
 	{
 		fields.push_back({ n, FieldType::Audio, &path });
 	}
 
-	/// @brief EnumŒ^‚ÌƒtƒB[ƒ‹ƒh‚ğ’Ç‰Á‚·‚é
-	/// @param n ƒtƒB[ƒ‹ƒh–¼
-	/// @param v Enum‚Ì’l
-	/// @param enumValues Enum‚Ì’lƒŠƒXƒg
+	/// @brief Enumå‹ã®ãƒ•ã‚£ãƒ¼ãƒ«ãƒ‰ã‚’è¿½åŠ ã™ã‚‹
+	/// @param n ãƒ•ã‚£ãƒ¼ãƒ«ãƒ‰å
+	/// @param v Enumã®å€¤
+	/// @param enumValues Enumã®å€¤ãƒªã‚¹ãƒˆ
 	void AddEnum(const std::string& n, int& v, const std::vector<std::string>& enumValues)
 	{
 		fields.push_back({ n, FieldType::Enum, &v, 0.0f, 0.0f, nullptr, enumValues });

@@ -1,12 +1,12 @@
-/*****************************************************************//**
+ï»¿/*****************************************************************//**
  * \file   imguiinit.cpp
- * \brief  imgui‚ğg—p‚·‚é‚½‚ß‚ÌƒNƒ‰ƒX
+ * \brief  imguiã‚’ä½¿ç”¨ã™ã‚‹ãŸã‚ã®ã‚¯ãƒ©ã‚¹
  * 
- * ì¬Ò keep
- * ì¬“ú 2026/4/25
- * XV—š—ğ 4.25 ƒx[ƒXƒvƒƒOƒ‰ƒ€‚É‡‚í‚¹‚ÄÀ‘•
- *		   4.27 dx12—p‚ÉÀ‘•
- *			6.4 ƒfƒBƒXƒNƒŠƒvƒ^ƒq[ƒv‚ğDirectXApp‚©‚çŠ„‚è“–‚Ä‚é‚æ‚¤‚ÉÀ‘•
+ * ä½œæˆè€… keep
+ * ä½œæˆæ—¥ 2026/4/25
+ * æ›´æ–°å±¥æ­´ 4.25 ãƒ™ãƒ¼ã‚¹ãƒ—ãƒ­ã‚°ãƒ©ãƒ ã«åˆã‚ã›ã¦å®Ÿè£…
+ *		   4.27 dx12ç”¨ã«å®Ÿè£…
+ *			6.4 ãƒ‡ã‚£ã‚¹ã‚¯ãƒªãƒ—ã‚¿ãƒ’ãƒ¼ãƒ—ã‚’DirectXAppã‹ã‚‰å‰²ã‚Šå½“ã¦ã‚‹ã‚ˆã†ã«å®Ÿè£…
  * *********************************************************************/
 #include "imguiinit.hpp"
 #include "DirectX.hpp"
@@ -16,20 +16,20 @@
 
 IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
 
-// static•Ï”‰Šú‰»
+// staticå¤‰æ•°åˆæœŸåŒ–
 bool IMGUI::s_Initialized = false;
 
-// Shift-JIS•¶š—ñ‚ğUTF-8‚É•ÏŠ·‚·‚éƒwƒ‹ƒp[ŠÖ”
+// Shift-JISæ–‡å­—åˆ—ã‚’UTF-8ã«å¤‰æ›ã™ã‚‹ãƒ˜ãƒ«ãƒ‘ãƒ¼é–¢æ•°
 static std::string ShiftJIStoUTF8(const std::string& sjis)
 {
-	// Shift-JIS‚©‚çƒƒCƒh•¶šiUTF-16j‚É•ÏŠ·
+	// Shift-JISã‹ã‚‰ãƒ¯ã‚¤ãƒ‰æ–‡å­—ï¼ˆUTF-16ï¼‰ã«å¤‰æ›
 	int wideSize = MultiByteToWideChar(CP_ACP, 0, sjis.c_str(), -1, nullptr, 0);
 	if (wideSize == 0) return sjis;
 
 	std::wstring wideStr(wideSize, 0);
 	MultiByteToWideChar(CP_ACP, 0, sjis.c_str(), -1, &wideStr[0], wideSize);
 
-	// ƒƒCƒh•¶šiUTF-16j‚©‚çUTF-8‚É•ÏŠ·
+	// ãƒ¯ã‚¤ãƒ‰æ–‡å­—ï¼ˆUTF-16ï¼‰ã‹ã‚‰UTF-8ã«å¤‰æ›
 	int utf8Size = WideCharToMultiByte(CP_UTF8, 0, wideStr.c_str(), -1, nullptr, 0, nullptr, nullptr);
 	if (utf8Size == 0) return sjis;
 
@@ -67,7 +67,7 @@ void IMGUI::BeginFrame()
 void IMGUI::EndFrame(ID3D12GraphicsCommandList* commandList)
 {
 #if DebugSwitch
-	// •`‰æƒRƒ}ƒ“ƒhƒŠƒXƒg‚ª—LŒø‚Å‚È‚¢ê‡‚ÍI—¹
+	// æç”»ã‚³ãƒãƒ³ãƒ‰ãƒªã‚¹ãƒˆãŒæœ‰åŠ¹ã§ãªã„å ´åˆã¯çµ‚äº†
 	if (!s_Initialized || commandList == nullptr) return;
 
 	ImGui::Render();
@@ -110,34 +110,34 @@ bool IMGUI::Start(_In_ HWND hWnd,
 	ImGuiIO& io = ImGui::GetIO(); (void)io;
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;       // Enable Keyboard Controls
 	io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;        // Enable Gamepad Controls
-	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // ƒhƒbƒLƒ“ƒO—LŒø‰»
+	io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;           // ãƒ‰ãƒƒã‚­ãƒ³ã‚°æœ‰åŠ¹åŒ–
 
-	//Viewports‚ğ—LŒø‚É‚µ‚ÄƒEƒBƒ“ƒhƒE‚ğƒzƒXƒg‚ÌŠO‚Éo‚¹‚é‚æ‚¤‚É‚·‚é
+	//Viewportsã‚’æœ‰åŠ¹ã«ã—ã¦ã‚¦ã‚£ãƒ³ãƒ‰ã‚¦ã‚’ãƒ›ã‚¹ãƒˆã®å¤–ã«å‡ºã›ã‚‹ã‚ˆã†ã«ã™ã‚‹
 	io.ConfigFlags |= ImGuiConfigFlags_ViewportsEnable;
 
-	// ƒXƒ^ƒCƒ‹’²®
+	// ã‚¹ã‚¿ã‚¤ãƒ«èª¿æ•´
 	ApplyTheme(uiTheme::Dark);
 	ImGuiStyle& style = ImGui::GetStyle();
 	style.WindowRounding = 0.0f;
 	style.Colors[ImGuiCol_WindowBg].w = 1.0f;
 
 	// ===========================
-	//	 “ú–{ŒêƒtƒHƒ“ƒg‚Ìİ’è
+	//	 æ—¥æœ¬èªãƒ•ã‚©ãƒ³ãƒˆã®è¨­å®š
 	// ===========================
 	ImFontConfig config;
 	auto* jp = io.Fonts->GetGlyphRangesJapanese();
-	config.OversampleH = 2;  // …•½•ûŒü‚ÌƒI[ƒo[ƒTƒ“ƒvƒŠƒ“ƒO
-	config.OversampleV = 1;  // ‚’¼•ûŒü‚ÌƒI[ƒo[ƒTƒ“ƒvƒŠƒ“ƒO
-	config.PixelSnapH = true; // ƒsƒNƒZƒ‹‚ÉƒXƒiƒbƒv
+	config.OversampleH = 2;  // æ°´å¹³æ–¹å‘ã®ã‚ªãƒ¼ãƒãƒ¼ã‚µãƒ³ãƒ—ãƒªãƒ³ã‚°
+	config.OversampleV = 1;  // å‚ç›´æ–¹å‘ã®ã‚ªãƒ¼ãƒãƒ¼ã‚µãƒ³ãƒ—ãƒªãƒ³ã‚°
+	config.PixelSnapH = true; // ãƒ”ã‚¯ã‚»ãƒ«ã«ã‚¹ãƒŠãƒƒãƒ—
 
 	auto addFont = [&](const char* path, float size, const char* name) -> ImFont*
 		{
-			if (!std::filesystem::exists(path)) return nullptr;   // –³‚¯‚ê‚ÎƒXƒLƒbƒv
+			if (!std::filesystem::exists(path)) return nullptr;   // ç„¡ã‘ã‚Œã°ã‚¹ã‚­ãƒƒãƒ—
 			strcpy_s(config.Name, name);
 			return io.Fonts->AddFontFromFileTTF(path, size, &config, jp);
 		};
 
-	// ƒ†[ƒU[ƒtƒHƒ“ƒgƒtƒHƒ‹ƒ_‚ÌƒpƒX‚ğ‘g‚İ—§‚Ä
+	// ãƒ¦ãƒ¼ã‚¶ãƒ¼ãƒ•ã‚©ãƒ³ãƒˆãƒ•ã‚©ãƒ«ãƒ€ã®ãƒ‘ã‚¹ã‚’çµ„ã¿ç«‹ã¦
 	std::string userFonts;
 	if (const char* local = std::getenv("LOCALAPPDATA"))
 		userFonts = std::string(local) + "\\Microsoft\\Windows\\Fonts\\";
@@ -145,17 +145,17 @@ bool IMGUI::Start(_In_ HWND hWnd,
 	ImFont* first = nullptr;
 	auto pick = [&](ImFont* f) { if (f && !first) first = f; };
 
-	// ‚¤‚¸‚çiƒ†[ƒU[ƒtƒHƒ“ƒgj
-	pick(addFont((userFonts + "uzura.ttf").c_str(), 16.0f, "‚¤‚¸‚ç 16px"));
-	pick(addFont((userFonts + "uzura.ttf").c_str(), 20.0f, "‚¤‚¸‚ç 20px"));
-	// ƒVƒXƒeƒ€ƒtƒHƒ“ƒg
-	pick(addFont("C:\\Windows\\Fonts\\meiryo.ttc", 18.0f, "ƒƒCƒŠƒI 18px"));
-	pick(addFont("C:\\Windows\\Fonts\\YuGothM.ttc", 18.0f, "ŸàƒSƒVƒbƒN 18px"));
+	// ã†ãšã‚‰ï¼ˆãƒ¦ãƒ¼ã‚¶ãƒ¼ãƒ•ã‚©ãƒ³ãƒˆï¼‰
+	pick(addFont((userFonts + "uzura.ttf").c_str(), 16.0f, "ã†ãšã‚‰ 16px"));
+	pick(addFont((userFonts + "uzura.ttf").c_str(), 20.0f, "ã†ãšã‚‰ 20px"));
+	// ã‚·ã‚¹ãƒ†ãƒ ãƒ•ã‚©ãƒ³ãƒˆ
+	pick(addFont("C:\\Windows\\Fonts\\meiryo.ttc", 18.0f, "ãƒ¡ã‚¤ãƒªã‚ª 18px"));
+	pick(addFont("C:\\Windows\\Fonts\\YuGothM.ttc", 18.0f, "æ¸¸ã‚´ã‚·ãƒƒã‚¯ 18px"));
 
 	io.FontDefault = first ? first : io.Fonts->AddFontDefault();
 
 	// ========================================
-	// Windows‚Ì•W€“ú–{ŒêƒtƒHƒ“ƒg‚ğ“Ç‚İ‚Ş
+	// Windowsã®æ¨™æº–æ—¥æœ¬èªãƒ•ã‚©ãƒ³ãƒˆã‚’èª­ã¿è¾¼ã‚€
 	// ========================================
 	ImFont* font = io.Fonts->AddFontFromFileTTF(
 		"C:\\Windows\\Fonts\\msgothic.ttc",
@@ -165,7 +165,7 @@ bool IMGUI::Start(_In_ HWND hWnd,
 	);
 
 	// ==========================================================
-	// ƒtƒHƒ“ƒg‚ª“Ç‚İ‚ß‚È‚©‚Á‚½ê‡‚ÍƒfƒtƒHƒ‹ƒgƒtƒHƒ“ƒg‚ğg—p
+	// ãƒ•ã‚©ãƒ³ãƒˆãŒèª­ã¿è¾¼ã‚ãªã‹ã£ãŸå ´åˆã¯ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆãƒ•ã‚©ãƒ³ãƒˆã‚’ä½¿ç”¨
 	// ==========================================================
 	if (font == nullptr)
 	{
@@ -177,7 +177,7 @@ bool IMGUI::Start(_In_ HWND hWnd,
 		return false;
 	}
 
-	// DX12‚Å‚Ì‰Šú‰»
+	// DX12ã§ã®åˆæœŸåŒ–
 	ImGui_ImplDX12_InitInfo initInfo = {};
 	initInfo.Device = device;
 	initInfo.CommandQueue = commandQueue;

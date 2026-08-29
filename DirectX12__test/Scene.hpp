@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include "RenderContext.hpp"
 #include "World.hpp"
@@ -24,21 +24,21 @@ public:
 
 	virtual ~Scene() {};
 
-	/// @brief ƒV[ƒ“‚Ì‰Šú‰»
+	/// @brief ã‚·ãƒ¼ãƒ³ã®åˆæœŸåŒ–
 	virtual void OnLoad() {};
 
-	/// @brief ƒV[ƒ“‚ÌŠJn
+	/// @brief ã‚·ãƒ¼ãƒ³ã®é–‹å§‹
 	virtual void OnStart() {};
 
-	/// @brief ƒV[ƒ“‚ÌXVˆ—
-	/// @param deltatime Œo‰ßŠÔ
+	/// @brief ã‚·ãƒ¼ãƒ³ã®æ›´æ–°å‡¦ç†
+	/// @param deltatime çµŒéæ™‚é–“
 	virtual void Update(float deltatime) = 0;
 
-	/// @brief ƒV[ƒ“‚ÌXVˆ—i•¨—‰‰Z‚È‚ÇAˆê’èŠÔ‚²‚Æ‚ÉXV‚µ‚½‚¢ˆ—‚ğ‚±‚±‚É‹Lqj
+	/// @brief ã‚·ãƒ¼ãƒ³ã®æ›´æ–°å‡¦ç†ï¼ˆç‰©ç†æ¼”ç®—ãªã©ã€ä¸€å®šæ™‚é–“ã”ã¨ã«æ›´æ–°ã—ãŸã„å‡¦ç†ã‚’ã“ã“ã«è¨˜è¿°ï¼‰
 	/// @param fixedDeltatime 
 	virtual void FixedUpdate(float fixedDeltatime) {};
 
-	/// @brief ƒV[ƒ“‚ÌXVˆ—iUpdate‚ÌŒã‚ÉŒÄ‚Ño‚³‚ê‚éB•`‰æ‘O‚ÌÅI’²®‚È‚Ç‚Ég—pj
+	/// @brief ã‚·ãƒ¼ãƒ³ã®æ›´æ–°å‡¦ç†ï¼ˆUpdateã®å¾Œã«å‘¼ã³å‡ºã•ã‚Œã‚‹ã€‚æç”»å‰ã®æœ€çµ‚èª¿æ•´ãªã©ã«ä½¿ç”¨ï¼‰
 	/// @param deltatime 
 	virtual void LateUpdate(float deltatime) {};
 
@@ -46,17 +46,17 @@ public:
 
 	void virtual OnDeactivate() {};
 
-	/// @brief ƒV[ƒ“‚Ìˆê’â~
+	/// @brief ã‚·ãƒ¼ãƒ³ã®ä¸€æ™‚åœæ­¢
 	virtual void OnPause() {};
 
-	/// @brief ƒV[ƒ“‚ÌÄŠJ
+	/// @brief ã‚·ãƒ¼ãƒ³ã®å†é–‹
 	virtual void OnResume() {};
 
-	/// @brief ƒV[ƒ“‚Ì•`‰æ
-	/// @param renderContext •`‰æ‚É•K—v‚È\‘¢‘Ì 
+	/// @brief ã‚·ãƒ¼ãƒ³ã®æç”»
+	/// @param renderContext æç”»ã«å¿…è¦ãªæ§‹é€ ä½“ 
 	virtual void Draw(_In_ const RenderContext& renderContext) = 0;
 
-	/// @brief ƒV[ƒ“‚ÌƒAƒ“ƒ[ƒh
+	/// @brief ã‚·ãƒ¼ãƒ³ã®ã‚¢ãƒ³ãƒ­ãƒ¼ãƒ‰
 	virtual void OnUnload() {};
 
 	SceneState GetState() const { return m_State; }
@@ -70,8 +70,8 @@ public:
 	PhysicsWorld& EnsurePhysicsWorld();
 	bool HasPhysicsWorld() const;
 
-	/// @brief ƒV[ƒ“‚ªƒ[ƒhÏ‚İ‚©
-	/// @return ƒ[ƒhÏ‚İ‚Å‚ ‚ê‚ÎtrueA‚»‚êˆÈŠO‚Ífalse
+	/// @brief ã‚·ãƒ¼ãƒ³ãŒãƒ­ãƒ¼ãƒ‰æ¸ˆã¿ã‹
+	/// @return ãƒ­ãƒ¼ãƒ‰æ¸ˆã¿ã§ã‚ã‚Œã°trueã€ãã‚Œä»¥å¤–ã¯false
 	bool IsLoaded() const
 	{
 		return m_State != SceneState::Unloaded
@@ -79,14 +79,14 @@ public:
 			&& m_State != SceneState::Unloading;
 	}
 
-	/// @brief ƒV[ƒ“‚ªƒAƒNƒeƒBƒu‚©
-	/// @return ƒAƒNƒeƒBƒu‚Å‚ ‚ê‚ÎtrueA‚»‚êˆÈŠO‚Ífalse
+	/// @brief ã‚·ãƒ¼ãƒ³ãŒã‚¢ã‚¯ãƒ†ã‚£ãƒ–ã‹
+	/// @return ã‚¢ã‚¯ãƒ†ã‚£ãƒ–ã§ã‚ã‚Œã°trueã€ãã‚Œä»¥å¤–ã¯false
 	bool IsActive() const { return m_State == SceneState::Active; }
 
-	/// @brief ƒV[ƒ“‚ğ‰Šú‰»(World/PhysicsWorld‚ğƒNƒŠƒA)
+	/// @brief ã‚·ãƒ¼ãƒ³ã‚’åˆæœŸåŒ–(World/PhysicsWorldã‚’ã‚¯ãƒªã‚¢)
 	void ResetWorld();
 
-	/// @brief PhysicsWorld‚Ì”jŠü
+	/// @brief PhysicsWorldã®ç ´æ£„
 	void ResetPhysicsWorld();
 
 	const std::string& GetSkyboxPath() const { return m_SkyboxPath; }

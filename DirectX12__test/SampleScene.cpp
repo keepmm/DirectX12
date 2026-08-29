@@ -1,4 +1,4 @@
-//#include "SampleScene.hpp"
+ï»¿//#include "SampleScene.hpp"
 //#include <cmath>
 //#include "Time.hpp"
 //#include "Input.hpp"
@@ -29,7 +29,7 @@
 //
 //void SampleScene::OnLoad()
 //{
-//	// ƒŠƒ\[ƒXƒ[ƒhF‰Šú‰»ˆ—
+//	// ãƒªã‚½ãƒ¼ã‚¹ãƒ­ãƒ¼ãƒ‰æ™‚ï¼šåˆæœŸåŒ–å‡¦ç†
 //	if (m_IsInitialized)
 //	{
 //		return;
@@ -40,7 +40,7 @@
 //	m_Camera = MakeUnique<Camera>();
 //	m_DebugLineRenderer.Init(m_Device, m_LinePso);
 //
-//	// Cube ƒGƒ“ƒeƒBƒeƒBì¬
+//	// Cube ã‚¨ãƒ³ãƒ†ã‚£ãƒ†ã‚£ä½œæˆ
 //	m_CubeEntity = m_World.CreateEntity();
 //
 //	TransformComponent transform{};
@@ -52,7 +52,7 @@
 //	spin.speed = 1.0f;
 //	m_World.AddComponent<SpinComponent>(m_CubeEntity, spin);
 //
-//	// ƒ‚ƒfƒ‹ƒ[ƒh
+//	// ãƒ¢ãƒ‡ãƒ«ãƒ­ãƒ¼ãƒ‰
 //	auto loadResult = ModelLoader::LoadFromFile(m_Device, "Assets/Player.fbx", 0.01f);
 //	auto mesh = loadResult.mesh;
 //	if (mesh == nullptr)
@@ -85,7 +85,7 @@
 //
 //	m_World.AddComponent<MaterialComponent>(m_CubeEntity, MaterialComponent{ material });
 //
-//	// Player ì¬
+//	// Player ä½œæˆ
 //	m_Player = MakeUnique<Player>(m_World, m_Device, m_PipelineStates, m_WirePso);
 //	m_Player->SetPosition(float3(0.0f, 1.0f, -5.0f));
 //
@@ -137,10 +137,10 @@
 //	UpdateLighting(deltatime);
 //	UpdatePlayer(deltatime);
 //
-//	// ECSXV
+//	// ECSæ›´æ–°
 //	m_SpinSystem.Update(m_World, deltatime);
 //
-//	// ƒ‰ƒCƒgİ’è‚ğ‘Sƒ}ƒeƒŠƒAƒ‹‚É”½‰f
+//	// ãƒ©ã‚¤ãƒˆè¨­å®šã‚’å…¨ãƒãƒ†ãƒªã‚¢ãƒ«ã«åæ˜ 
 //	m_World.Each<MaterialComponent>(
 //		[this](Entity, MaterialComponent& materialComponent)
 //		{
@@ -158,7 +158,7 @@
 //
 //void SampleScene::FixedUpdate(float fixedDeltatime)
 //{
-//	// •¨—XV‚È‚Ç
+//	// ç‰©ç†æ›´æ–°ãªã©
 //	if (m_Player)
 //	{
 //
@@ -167,7 +167,7 @@
 //
 //void SampleScene::LateUpdate(float deltatime)
 //{
-//	// ƒJƒƒ‰XV‚È‚ÇŒãˆ—
+//	// ã‚«ãƒ¡ãƒ©æ›´æ–°ãªã©å¾Œå‡¦ç†
 //}
 //
 //void SampleScene::OnPause()
@@ -221,7 +221,7 @@
 //
 //	m_Player->Update(deltatime);
 //
-//	// ƒL[“ü—Í‚É‚æ‚éˆÚ“®
+//	// ã‚­ãƒ¼å…¥åŠ›ã«ã‚ˆã‚‹ç§»å‹•
 //	if (INPUT->Key.W().IsPressed())
 //	{
 //		m_Player->Move(float3(0.0f, 0.0f, 5.0f * deltatime));
@@ -242,13 +242,13 @@
 //
 //void SampleScene::DrawGrid()
 //{
-//	// ƒOƒŠƒbƒh‚Ì”
+//	// ã‚°ãƒªãƒƒãƒ‰ã®æ•°
 //	constexpr int gridCount = 10;
 //
-//	// ƒOƒŠƒbƒh‚ÌŠÔŠu
+//	// ã‚°ãƒªãƒƒãƒ‰ã®é–“éš”
 //	constexpr float gridSize = 1.0f;
 //
-//	// ƒOƒŠƒbƒh‚ÌF
+//	// ã‚°ãƒªãƒƒãƒ‰ã®è‰²
 //	const COLOR gridColor = { 0.5f, 0.5f, 0.5f, 1.0f };
 //	const float max = gridSize * gridCount;
 //
@@ -269,5 +269,5 @@
 //
 //void SampleScene::DebugWindow()
 //{
-//	// ƒfƒoƒbƒOƒEƒBƒ“ƒhƒEˆ—
+//	// ãƒ‡ãƒãƒƒã‚°ã‚¦ã‚£ãƒ³ãƒ‰ã‚¦å‡¦ç†
 //}

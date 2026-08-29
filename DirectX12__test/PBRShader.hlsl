@@ -1,4 +1,4 @@
-#include "Common.hlsli"
+ï»¿#include "Common.hlsli"
 #include "Lighting.hlsli"
 #include "BRDF.hlsli"
 
@@ -14,11 +14,11 @@ SamplerComparisonState g_ShadowSampler : register(s2);
 float ShadowFactor(float3 worldPos)
 {
     if (shadowParams.y < 0.5f)
-        return 1.0f; // ‰e–³Œø
+        return 1.0f; // å½±ç„¡åŠ¹
 
     float4 lp = mul(float4(worldPos, 1.0f), lightviewproj);
-    lp.xyz /= lp.w; // ortho‚È‚çw=1
-    float2 uv = lp.xy * float2(0.5f, -0.5f) + 0.5f; // NDC¨UV(y”½“])
+    lp.xyz /= lp.w; // orthoãªã‚‰w=1
+    float2 uv = lp.xy * float2(0.5f, -0.5f) + 0.5f; // NDCâ†’UV(yåè»¢)
     if (uv.x < 0 || uv.x > 1 || uv.y < 0 || uv.y > 1)
         return 1.0f;
 
@@ -48,8 +48,8 @@ cbuffer Material : register(b3)
     float2 _pad;
     float4 rimColor;
     float4 mapFlags; // x=hasNormal, y=hasMetal, z=hasRough
-    float4 faceParam; // ƒŒƒCƒAƒEƒg‡‚í‚¹(–¢g—p)
-    float4 sssParams; // x=SSS‹­“x y=ƒ‰ƒbƒv z=“§‰ß w=•zƒV[ƒ“
+    float4 faceParam; // ãƒ¬ã‚¤ã‚¢ã‚¦ãƒˆåˆã‚ã›(æœªä½¿ç”¨)
+    float4 sssParams; // x=SSSå¼·åº¦ y=ãƒ©ãƒƒãƒ— z=é€é w=å¸ƒã‚·ãƒ¼ãƒ³
     float4 sssColor;
 }
 
@@ -59,19 +59,19 @@ float4 PbrPS(PSInput input) : SV_TARGET
     clip(faceParam.y  - 0.05f);
     float3 albedo = input.col.rgb * texSample.rgb;
 
-    // –@üƒ}ƒbƒvi‚ ‚ê‚Î“K—pj
+    // æ³•ç·šãƒãƒƒãƒ—ï¼ˆã‚ã‚Œã°é©ç”¨ï¼‰
     float3 N = normalize(input.normal);
     if (mapFlags.x > 0.5f)
     {
         float3 T = normalize(input.tangent);
-        T = normalize(T - N * dot(N, T)); // ƒOƒ‰ƒ€EƒVƒ…ƒ~ƒbƒg’¼Œğ‰»
+        T = normalize(T - N * dot(N, T)); // ã‚°ãƒ©ãƒ ãƒ»ã‚·ãƒ¥ãƒŸãƒƒãƒˆç›´äº¤åŒ–
         float3 B = cross(N, T);
         float3 nTex = g_Normal.Sample(g_Sampler, input.uv).rgb * 2.0f - 1.0f;
         float3x3 TBN = float3x3(T, B, N);
         N = normalize(mul(nTex, TBN));
     }
 
-    // metal / roughi‚ ‚ê‚ÎƒeƒNƒXƒ`ƒƒ—Dæj
+    // metal / roughï¼ˆã‚ã‚Œã°ãƒ†ã‚¯ã‚¹ãƒãƒ£å„ªå…ˆï¼‰
     float m = (mapFlags.y > 0.5f) ? g_Metal.Sample(g_Sampler, input.uv).r : metallic;
     float r = (mapFlags.z > 0.5f) ? g_Rough.Sample(g_Sampler, input.uv).r : roughness;
 
@@ -87,7 +87,7 @@ float4 PbrPS(PSInput input) : SV_TARGET
 
         float3 direct;
         
-        // ---- •z ---- //
+        // ---- å¸ƒ ---- //
         if(sssParams.w > 0.0f)
         {
             float3 sheenCol = sssParams.w * float3(1.0f, 1.0f, 1.0f);
@@ -98,17 +98,17 @@ float4 PbrPS(PSInput input) : SV_TARGET
             direct = CookTorrance(albedo, m, r, N, V, L, lights[i].color.rgb);
         }
 
-        // --- ”§: ƒ‰ƒbƒvƒ‰ƒCƒeƒBƒ“ƒO‚É‚æ‚é‹^—SSS ---
+        // --- è‚Œ: ãƒ©ãƒƒãƒ—ãƒ©ã‚¤ãƒ†ã‚£ãƒ³ã‚°ã«ã‚ˆã‚‹ç–‘ä¼¼SSS ---
         if (sssParams.x > 0.0f)
         {
             float w = sssParams.y;
             float wrap = saturate((dot(N, L) + w) / (1.0f + w));
-            // –¾ˆÃ‹«ŠE‚¾‚¯U—F‚Éõ‚ß‚é
+            // æ˜æš—å¢ƒç•Œã ã‘æ•£ä¹±è‰²ã«æŸ“ã‚ã‚‹
             float scatter = wrap * (1.0f - wrap) * 4.0f;
             float3 sssDiff = albedo * lights[i].color.rgb
                            * (wrap + scatter * sssColor.rgb);
 
-            // ‹tŒõ“§‰ß(¨Ewæ‚ªÔ‚­”²‚¯‚é)
+            // é€†å…‰é€é(è€³ãƒ»æŒ‡å…ˆãŒèµ¤ãæŠœã‘ã‚‹)
             float3 backL = normalize(-L + N * 0.3f);
             float trans = pow(saturate(dot(V, backL)), 4.0f) * sssParams.z;
 
@@ -116,21 +116,21 @@ float4 PbrPS(PSInput input) : SV_TARGET
                    + albedo * sssColor.rgb * trans * lights[i].color.rgb;
         }
 
-        // --- •z(ŒC‰º): Charlie‹ß—ƒV[ƒ“(‹N–Ñ‚ÌƒnƒCƒ‰ƒCƒg) ---
+        // --- å¸ƒ(é´ä¸‹): Charlieè¿‘ä¼¼ã‚·ãƒ¼ãƒ³(èµ·æ¯›ã®ãƒã‚¤ãƒ©ã‚¤ãƒˆ) ---
         if (sssParams.w > 0.0f)
         {
-            float2 fuv = input.uv * 400.0f; // ‘@ˆÛ‚Ì×‚©‚³
+            float2 fuv = input.uv * 400.0f; // ç¹Šç¶­ã®ç´°ã‹ã•
             float n1 = frac(sin(dot(floor(fuv), float2(12.9898f, 78.233f))) * 43758.5453f);
             float n2 = frac(sin(dot(floor(fuv.yx), float2(39.3468f, 11.135f))) * 24634.6345f);
             float3 T2 = normalize(input.tangent - N * dot(N, input.tangent));
             float3 B2 = cross(N, T2);
-            N = normalize(N + (T2 * (n1 - 0.5f) + B2 * (n2 - 0.5f)) * 0.15f); // 0.15=‘@ˆÛ‚Ì‘e‚³
+            N = normalize(N + (T2 * (n1 - 0.5f) + B2 * (n2 - 0.5f)) * 0.15f); // 0.15=ç¹Šç¶­ã®ç²—ã•
         }
 
         color += direct * atten * s;
     }
     
-        // ---- IBLiŠÂ‹«‚ ‚èmapFlags.w>0j----
+        // ---- IBLï¼ˆç’°å¢ƒã‚ã‚Šï¼mapFlags.w>0ï¼‰----
     if (mapFlags.w > 0.0f)
     {
         float maxMip = mapFlags.w;
@@ -139,12 +139,12 @@ float4 PbrPS(PSInput input) : SV_TARGET
         float3 kS = F0 + (max(1.0 - r, F0) - F0) * pow(1.0 - ndotv, 5.0); // Fresnel(rough)
         float3 kD = (1.0 - kS) * (1.0 - m);
 
-        // ‹¾–ÊF”½ËƒxƒNƒgƒ‹•ûŒü‚ğƒ‰ƒtƒlƒX‚Åƒ~ƒbƒv‘I‘ğ
+        // é¡é¢ï¼šåå°„ãƒ™ã‚¯ãƒˆãƒ«æ–¹å‘ã‚’ãƒ©ãƒ•ãƒã‚¹ã§ãƒŸãƒƒãƒ—é¸æŠ
         float3 R = reflect(-V, N);
         float3 prefiltered = g_Env.SampleLevel(g_Sampler, DirToEquirect(R), r * maxMip).rgb;
         float3 specularIBL = prefiltered * kS;
 
-        // ŠgUF–@ü•ûŒü‚ğÅ‘eƒ~ƒbƒvi•úËÆ“xj
+        // æ‹¡æ•£ï¼šæ³•ç·šæ–¹å‘ã‚’æœ€ç²—ãƒŸãƒƒãƒ—ï¼ˆæ”¾å°„ç…§åº¦ï¼‰
         float3 irradiance = g_Env.SampleLevel(g_Sampler, DirToEquirect(N), maxMip).rgb;
         float3 diffuseIBL = irradiance * albedo * kD;
 
@@ -152,7 +152,7 @@ float4 PbrPS(PSInput input) : SV_TARGET
     }
     else
     {
-        color += albedo * ambientColor.rgb; // ]—ˆ‚ÌƒAƒ“ƒrƒGƒ“ƒg
+        color += albedo * ambientColor.rgb; // å¾“æ¥ã®ã‚¢ãƒ³ãƒ“ã‚¨ãƒ³ãƒˆ
     }
 
     return float4(color, input.col.a);

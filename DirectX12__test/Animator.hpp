@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 #include "ModelData.hpp"
 #include <functional>
 #include <DirectXMath.h>
@@ -13,26 +13,26 @@ inline void RebuildMorphOffsets(
 	size_t vertexCount, std::vector<float3>& out
 )
 {
-	// ƒNƒŠƒA
+	// ã‚¯ãƒªã‚¢
 	out.assign(vertexCount, float3{ 0.0f,0.0f,0.0f });
 
 	std::function<void(int, float)> apply = [&](int idx, float w)
 		{
-			// 0.0f ‹ß—’l‚Í–³‹
+			// 0.0f è¿‘ä¼¼å€¤ã¯ç„¡è¦–
 			if (idx < 0 || idx >= (int)morphSet.morphs.size() || fabsf(w) < 1e-6f) return;
 			const MorphData& m = morphSet.morphs[idx];
 			if (m.type == 1)
 			{
 				for (const auto& vo : m.vertexOffsets)
 				{
-					// ’¸“_ƒCƒ“ƒfƒbƒNƒX‚ª”ÍˆÍŠO‚È‚ç–³‹
+					// é ‚ç‚¹ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹ãŒç¯„å›²å¤–ãªã‚‰ç„¡è¦–
 					if (vo.vertexIndex >= vertexCount) continue;
 					out[vo.vertexIndex].x += vo.offset.x * w;
 					out[vo.vertexIndex].y += vo.offset.y * w;
 					out[vo.vertexIndex].z += vo.offset.z * w;
 				}
 			}
-			// ƒOƒ‹[ƒv‚Ìê‡‚ÍÄ‹A“I‚É“K—p
+			// ã‚°ãƒ«ãƒ¼ãƒ—ã®å ´åˆã¯å†å¸°çš„ã«é©ç”¨
 			else if (m.type == 0)
 			{
 				for(const auto& [refIdx,rate] : m.groupOffsets)
@@ -48,7 +48,7 @@ inline void RebuildMorphOffsets(
 	}
 }
 
-// ƒNƒŠƒbƒv‚ğ time•b ‚ÅƒTƒ“ƒvƒ‹‚µAƒXƒLƒ“s—ñƒpƒŒƒbƒg(“]’uÏ‚İ)‚ğ outPalette ‚É¶¬
+// ã‚¯ãƒªãƒƒãƒ—ã‚’ timeç§’ ã§ã‚µãƒ³ãƒ—ãƒ«ã—ã€ã‚¹ã‚­ãƒ³è¡Œåˆ—ãƒ‘ãƒ¬ãƒƒãƒˆ(è»¢ç½®æ¸ˆã¿)ã‚’ outPalette ã«ç”Ÿæˆ
 inline void ComputePalette(
 	const Skeleton& skel, const SkinData& skin,
 	const AnimationClip& clip, float time,
@@ -57,14 +57,14 @@ inline void ComputePalette(
 {
 	using namespace DirectX;
 
-	// ƒ`ƒƒƒ“ƒlƒ‹–¼ -> ƒ`ƒƒƒ“ƒlƒ‹
+	// ãƒãƒ£ãƒ³ãƒãƒ«å -> ãƒãƒ£ãƒ³ãƒãƒ«
 	auto findChannel = [&](const std::string& name) -> const BoneAnimationChannel*
 		{
 			for (auto& c : clip.channels) if (c.boneName == name) return &c;
 			return nullptr;
 		};
 
-	// ƒL[ƒtƒŒ[ƒ€•âŠÔ
+	// ã‚­ãƒ¼ãƒ•ãƒ¬ãƒ¼ãƒ è£œé–“
 	auto sample = [&](const BoneAnimationChannel& ch) -> KeyFrame
 		{
 			const auto& ks = ch.keyFrames;
@@ -97,7 +97,7 @@ inline void ComputePalette(
 		if (it != skel.nameToIndex.end()) nodeChannel[it->second] = &ch;
 	}
 
-	// FK ƒ[ƒJƒ‹‰ñ“] / ˆÚ“®‚ğŒvZ
+	// FK ãƒ­ãƒ¼ã‚«ãƒ«å›è»¢ / ç§»å‹•ã‚’è¨ˆç®—
 	for (size_t i = 0; i < nodeCount; ++i)
 	{
 		const BoneNode& node = skel.nodes[i];
@@ -110,14 +110,14 @@ inline void ComputePalette(
 		}
 		else
 		{
-			// ƒoƒCƒ“ƒh (PMX‚Í•½sˆÚ“®‚Ì‚İ)
+			// ãƒã‚¤ãƒ³ãƒ‰ (PMXã¯å¹³è¡Œç§»å‹•ã®ã¿)
 			XMMATRIX m = XMLoadFloat4x4(&node.localTransform);
 			boneRot[i] = XMQuaternionIdentity();
-			boneTrans[i] = m.r[3];	// •½sˆÚ“®¬•ª
+			boneTrans[i] = m.r[3];	// å¹³è¡Œç§»å‹•æˆåˆ†
 		}
 	}
 
-	// FK ƒ[ƒJƒ‹s—ñ‚ğŒvZ
+	// FK ãƒ­ãƒ¼ã‚«ãƒ«è¡Œåˆ—ã‚’è¨ˆç®—
 	auto buildlocal = [&](size_t i)
 		{
 			local[i] = XMMatrixRotationQuaternion(boneRot[i]);
@@ -157,17 +157,17 @@ inline void ComputePalette(
 	}
 	for (const auto& ik : skel.iks)
 	{
-		// IK‚Ìƒ{[ƒ“‚Æƒ^[ƒQƒbƒg‚ª—LŒø‚Å‚È‚¯‚ê‚ÎƒXƒLƒbƒv
+		// IKã®ãƒœãƒ¼ãƒ³ã¨ã‚¿ãƒ¼ã‚²ãƒƒãƒˆãŒæœ‰åŠ¹ã§ãªã‘ã‚Œã°ã‚¹ã‚­ãƒƒãƒ—
 		if (ik.boneIndex < 0 || ik.targetIndex < 0) continue;
 
-		// FKƒxƒCƒNƒ‚[ƒVƒ‡ƒ“‘Îô
+		// FKãƒ™ã‚¤ã‚¯ãƒ¢ãƒ¼ã‚·ãƒ§ãƒ³å¯¾ç­–
 		const BoneAnimationChannel* ikCh = nodeChannel[ik.boneIndex];
 		if (!ikCh || ikCh->keyFrames.size() <= 1) continue;
 
-		// IK‚Ì”½•œ‰ñ”‚¾‚¯ƒ‹[ƒv
+		// IKã®åå¾©å›æ•°ã ã‘ãƒ«ãƒ¼ãƒ—
 		for (int loop = 0; loop < ik.loopCount; ++loop)
 		{
-			// ‚±‚ÌIK‚ÅÄŒvZ‚ª•K—v‚Èƒ{[ƒ“—ñ‚ğ\’z
+			// ã“ã®IKã§å†è¨ˆç®—ãŒå¿…è¦ãªãƒœãƒ¼ãƒ³åˆ—ã‚’æ§‹ç¯‰
 			std::vector<int> ikChains;
 			{
 				std::vector<int> linkBones;
@@ -190,7 +190,7 @@ inline void ComputePalette(
 					if (remaining <= 0) break;
 					cur = skel.nodes[cur].parentIndex;
 				}
-				std::reverse(ikChains.begin(), ikChains.end());	//e -> q‡
+				std::reverse(ikChains.begin(), ikChains.end());	//è¦ª -> å­é †
 			}
 			auto ComputeChain = [&]()
 				{
@@ -203,58 +203,58 @@ inline void ComputePalette(
 
 			for (const auto& link : ik.links)
 			{
-				// ƒŠƒ“ƒNƒ{[ƒ“‚ª—LŒø‚Å‚È‚¯‚ê‚ÎƒXƒLƒbƒv
+				// ãƒªãƒ³ã‚¯ãƒœãƒ¼ãƒ³ãŒæœ‰åŠ¹ã§ãªã‘ã‚Œã°ã‚¹ã‚­ãƒƒãƒ—
 				const int li = link.boneIndex;
 				if (li < 0) continue;
 
 				const XMVECTOR targetPos = global[ik.boneIndex].r[3];
-				// IKƒ^[ƒQƒbƒgƒ{[ƒ“(¶‘«ñ‚È‚Ç)‚ÌˆÊ’u = Œ»İ‚ÌƒGƒtƒFƒNƒ^“_ (Effector)
+				// IKã‚¿ãƒ¼ã‚²ãƒƒãƒˆãƒœãƒ¼ãƒ³(å·¦è¶³é¦–ãªã©)ã®ä½ç½® = ç¾åœ¨ã®ã‚¨ãƒ•ã‚§ã‚¯ã‚¿ç‚¹ (Effector)
 				const XMVECTOR effPos = global[ik.targetIndex].r[3];
-				if (XMVectorGetX(XMVector3LengthSq(XMVectorSubtract(effPos, targetPos))) < 1e-6f) break;	// ƒGƒtƒFƒNƒ^‚ª–Ú•W‚É“’B‚µ‚½‚çI—¹
+				if (XMVectorGetX(XMVector3LengthSq(XMVectorSubtract(effPos, targetPos))) < 1e-6f) break;	// ã‚¨ãƒ•ã‚§ã‚¯ã‚¿ãŒç›®æ¨™ã«åˆ°é”ã—ãŸã‚‰çµ‚äº†
 
 				const XMMATRIX invG = XMMatrixInverse(nullptr, global[li]);
 				//XMVECTOR linkPosLocal = XMVector3TransformCoord(global[li].r[3], invG); 
 				XMVECTOR effPosLocal = XMVector3TransformCoord(effPos, invG);
 				XMVECTOR targetPosLocal = XMVector3TransformCoord(targetPos, invG);
-				XMVECTOR linkPosLocal = XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f);	// ƒŠƒ“ƒNƒ{[ƒ“‚Ìƒ[ƒJƒ‹À•WŒn‚Å‚ÍŒ´“_‚ªƒŠƒ“ƒNƒ{[ƒ“‚ÌˆÊ’u
+				XMVECTOR linkPosLocal = XMVectorSet(0.0f, 0.0f, 0.0f, 1.0f);	// ãƒªãƒ³ã‚¯ãƒœãƒ¼ãƒ³ã®ãƒ­ãƒ¼ã‚«ãƒ«åº§æ¨™ç³»ã§ã¯åŸç‚¹ãŒãƒªãƒ³ã‚¯ãƒœãƒ¼ãƒ³ã®ä½ç½®
 
 				XMVECTOR le = XMVector3Normalize(XMVectorSubtract(effPosLocal, linkPosLocal));
 				XMVECTOR lt = XMVector3Normalize(XMVectorSubtract(targetPosLocal, linkPosLocal));
 
-				// ³‹K‰»
+				// æ­£è¦åŒ–
 				float dot = std::clamp(XMVectorGetX(XMVector3Dot(le, lt)), -1.0f, 1.0f);
 				float angle = acosf(dot);
-				if (angle < 1e-6f) continue;	// Šp“x‚ª¬‚³‚·‚¬‚éê‡‚ÍƒXƒLƒbƒv
-				angle = std::min(angle, ik.limitAngle);	// §ŒÀŠp‚ğ“K—p
+				if (angle < 1e-6f) continue;	// è§’åº¦ãŒå°ã•ã™ãã‚‹å ´åˆã¯ã‚¹ã‚­ãƒƒãƒ—
+				angle = std::min(angle, ik.limitAngle);	// åˆ¶é™è§’ã‚’é©ç”¨
 
-				// ‰ñ“]²‚ğŒvZ
+				// å›è»¢è»¸ã‚’è¨ˆç®—
 				XMVECTOR axis = XMVector3Cross(le, lt);
-				if (XMVectorGetX(XMVector3LengthSq(axis)) < 1e-8f) continue;	// ‰ñ“]²‚ª¬‚³‚·‚¬‚éê‡‚ÍƒXƒLƒbƒv)
+				if (XMVectorGetX(XMVector3LengthSq(axis)) < 1e-8f) continue;	// å›è»¢è»¸ãŒå°ã•ã™ãã‚‹å ´åˆã¯ã‚¹ã‚­ãƒƒãƒ—)
 				axis = XMVector3Normalize(axis);
 
-				// ‰ñ“]‚ğƒŠƒ“ƒNƒ{[ƒ“‚É“K—p
+				// å›è»¢ã‚’ãƒªãƒ³ã‚¯ãƒœãƒ¼ãƒ³ã«é©ç”¨
 				XMVECTOR rot = XMQuaternionRotationAxis(axis, angle);
 				boneRot[li] = XMQuaternionNormalize(XMQuaternionMultiply(boneRot[li], rot));
 
-				//// ‚Ğ‚´“™‚ÌŠp“x§ŒÀ
+				//// ã²ã–ç­‰ã®è§’åº¦åˆ¶é™
 				if (link.hasLimit)
 				{
-					// // ‰ñ“]‚ğƒIƒCƒ‰[Šp‚É•ÏŠ·
+					// // å›è»¢ã‚’ã‚ªã‚¤ãƒ©ãƒ¼è§’ã«å¤‰æ›
 					XMFLOAT4 q;
 					XMStoreFloat4(&q, boneRot[li]);
 
-					float pitch = asinf(std::clamp(2.0f * (q.w * q.x - q.y * q.z), -1.0f, 1.0f));	// X²‰ñ“]
+					float pitch = asinf(std::clamp(2.0f * (q.w * q.x - q.y * q.z), -1.0f, 1.0f));	// Xè»¸å›è»¢
 					float yaw = atan2f(2.0f * (q.w * q.y + q.x * q.z), 1.0f - 2.0f * (q.x * q.x + q.y * q.y));
 					float roll = atan2f(2.0f * (q.w * q.z + q.x * q.y), 1.0f - 2.0f * (q.z * q.z + q.x * q.x));
 
 					if (link.lowerLimit.y > -1e-5f && link.upperLimit.y < 1e-5f &&
 						link.lowerLimit.z > -1e-5f && link.upperLimit.z < 1e-5f)
 					{
-						// Œ»İ‚Ìƒ{[ƒ“‚Ìƒ[ƒJƒ‹‰ñ“]‚©‚çX²‰ñ“]—Ê‚¾‚¯‚ğ’Šo
+						// ç¾åœ¨ã®ãƒœãƒ¼ãƒ³ã®ãƒ­ãƒ¼ã‚«ãƒ«å›è»¢ã‹ã‚‰Xè»¸å›è»¢é‡ã ã‘ã‚’æŠ½å‡º
 						float pitch = 2.0f * atan2f(q.x, q.w);
 						pitch = std::clamp(pitch, link.lowerLimit.x, link.upperLimit.x);
 
-						// X²‚Ì‚İ‚ÌƒNƒH[ƒ^ƒjƒIƒ“‚Æ‚µ‚ÄÄ\¬
+						// Xè»¸ã®ã¿ã®ã‚¯ã‚©ãƒ¼ã‚¿ãƒ‹ã‚ªãƒ³ã¨ã—ã¦å†æ§‹æˆ
 						boneRot[li] = XMQuaternionRotationAxis(XMVectorSet(1, 0, 0, 0), pitch);
 					}
 					else
@@ -272,58 +272,58 @@ inline void ComputePalette(
 					}
 				}
 
-				buildlocal(li);	// ƒ[ƒJƒ‹s—ñ‚ğXV
-				ComputeChain();	// ƒOƒ[ƒoƒ‹s—ñ‚ğXV
+				buildlocal(li);	// ãƒ­ãƒ¼ã‚«ãƒ«è¡Œåˆ—ã‚’æ›´æ–°
+				ComputeChain();	// ã‚°ãƒ­ãƒ¼ãƒãƒ«è¡Œåˆ—ã‚’æ›´æ–°
 			}
 		}
 	}
 
-	// ƒ{[ƒ“‚ÌŒp³‚ğ“K—p
+	// ãƒœãƒ¼ãƒ³ã®ç¶™æ‰¿ã‚’é©ç”¨
 	for (size_t i = 0; i < nodeCount; ++i)
 	{
 		const BoneNode& node = skel.nodes[i];
 		const int sp = node.appendParentIndex;
 
-		// Œp³‚È‚µ
+		// ç¶™æ‰¿ãªã—
 		if (sp < 0)continue;
 
 		bool changed = false;
 
-		// ‰ñ“]Œp³
+		// å›è»¢ç¶™æ‰¿
 		if (node.appendRotation)
 		{
-			// •t—^e‚Ìƒ[ƒJƒ‹ƒAƒjƒ‰ñ“]‚ğrate‚Å•âŠÔ‚µ‚Ä‡¬
+			// ä»˜ä¸è¦ªã®ãƒ­ãƒ¼ã‚«ãƒ«ã‚¢ãƒ‹ãƒ¡å›è»¢ã‚’rateã§è£œé–“ã—ã¦åˆæˆ
 			XMVECTOR add = XMQuaternionSlerp(XMQuaternionIdentity(), boneRot[sp], node.appendRate);
 			boneRot[i] = XMQuaternionNormalize(XMQuaternionMultiply(add, boneRot[i]));
 			changed = true;
 		}
 
-		// ˆÚ“®Œp³
+		// ç§»å‹•ç¶™æ‰¿
 		if (node.appendMove)
 		{
-			// •t—^e‚Ìƒ[ƒJƒ‹ƒAƒjƒˆÚ“®‚ğrate‚Å•âŠÔ‚µ‚Ä‡¬
+			// ä»˜ä¸è¦ªã®ãƒ­ãƒ¼ã‚«ãƒ«ã‚¢ãƒ‹ãƒ¡ç§»å‹•ã‚’rateã§è£œé–“ã—ã¦åˆæˆ
 			XMVECTOR bindSp = XMLoadFloat4x4(&skel.nodes[sp].localTransform).r[3];
 			XMVECTOR deltaT = XMVectorSubtract(boneTrans[sp], bindSp);
 			boneTrans[i] = XMVectorAdd(boneTrans[i], XMVectorScale(deltaT, node.appendRate));
 			changed = true;
 		}
 
-		// ƒ[ƒJƒ‹s—ñ‚ğXV
+		// ãƒ­ãƒ¼ã‚«ãƒ«è¡Œåˆ—ã‚’æ›´æ–°
 		if (changed)
 		{
 			buildlocal(i);
 		}
 	}
-	ComputeGlobal();	// ƒOƒ[ƒoƒ‹s—ñ‚ğXV
+	ComputeGlobal();	// ã‚°ãƒ­ãƒ¼ãƒãƒ«è¡Œåˆ—ã‚’æ›´æ–°
 
-	// ---- •¨—“K—p ---- //
+	// ---- ç‰©ç†é©ç”¨ ---- //
 	if (physics && physics->IsValid())
 	{
 		physics->StepFetch(global);
 		physics->StepBegin(global, dt);
 	}
 
-	// ƒpƒŒƒbƒg
+	// ãƒ‘ãƒ¬ãƒƒãƒˆ
 	outPalette.resize(skin.boneNames.size());
 	for (size_t b = 0; b < skin.boneNames.size(); ++b)
 	{
@@ -337,7 +337,7 @@ inline void ComputePalette(
 		XMMATRIX offset = XMLoadFloat4x4(&skin.offsetMatrices[b]);
 		XMStoreFloat4x4(&outPalette[b], XMMatrixTranspose(offset * g));
 
-		// ˆÙíŒŸo
+		// ç•°å¸¸æ¤œå‡º
 		const float m30 = outPalette[b].m[3][0], m31 = outPalette[b].m[3][1], m32 = outPalette[b].m[3][2];
 		if (!std::isfinite(m30) || fabsf(m30) > 1e4f || fabsf(m31) > 1e4f || fabsf(m32) > 1e4f)
 		{

@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #include "Defines.hpp"
 #include "RenderContext.hpp"
@@ -39,7 +39,7 @@ struct TransformComponent
 		f.Add("Scale", scale);
 	}
 
-	/// @brief Euler -> Quaternion•ÏŠ·
+	/// @brief Euler -> Quaternionå¤‰æ›
 	void ApplyEuler()
 	{
 		using namespace DirectX;
@@ -50,7 +50,7 @@ struct TransformComponent
 		XMStoreFloat4(&rotation, q);
 	}
 
-	/// @brief Quaternion -> Euler•ÏŠ·
+	/// @brief Quaternion -> Eulerå¤‰æ›
 	void SyncEulerFromQuaternion()
 	{
 		using namespace DirectX;
@@ -62,12 +62,12 @@ struct TransformComponent
 		EulerAngles = { XMConvertToDegrees(pitch), XMConvertToDegrees(yaw), XMConvertToDegrees(roll) };
 	}
 
-	/// @brief position‚Ì’l‚ğİ’è
-	/// @param pos POSITIONŒ^‚Ì’l (x , y , x)
+	/// @brief positionã®å€¤ã‚’è¨­å®š
+	/// @param pos POSITIONå‹ã®å€¤ (x , y , x)
 	void SetPosition(
 		_In_ const POSITION& pos) { position = pos;}
 
-	/// @brief position‚Ì’l‚ğİ’è
+	/// @brief positionã®å€¤ã‚’è¨­å®š
 	/// @param x float
 	/// @param y float
 	/// @param z float
@@ -76,14 +76,14 @@ struct TransformComponent
 		_In_ float y, 
 		_In_ float z) { position = POSITION{ x,y,z };}
 
-	/// @brief position‚Ì’l‚ğ‰ÁZ‚·‚é
-	/// @param delta POSITIONŒ^‚Ì’l (x , y , x)
+	/// @brief positionã®å€¤ã‚’åŠ ç®—ã™ã‚‹
+	/// @param delta POSITIONå‹ã®å€¤ (x , y , x)
 	void Translate(
 		_In_ const POSITION& delta) {
 		position.x += delta.x; position.y += delta.y; position.z += delta.z;
 	}
 
-	/// @brief position‚Ì’l‚ğ‰ÁZ‚·‚é
+	/// @brief positionã®å€¤ã‚’åŠ ç®—ã™ã‚‹
 	/// @param x float
 	/// @param y float
 	/// @param z float
@@ -151,9 +151,9 @@ struct SubMaterialRestore
 
 struct MaterialComponent
 {
-	std::shared_ptr<Material> material;	// ’Pˆê
-	std::vector<std::shared_ptr<Material>> materials;	// •¡”
-	std::vector<std::string> materialnames;	// •¡”
+	std::shared_ptr<Material> material;	// å˜ä¸€
+	std::vector<std::shared_ptr<Material>> materials;	// è¤‡æ•°
+	std::vector<std::string> materialnames;	// è¤‡æ•°
 	ID3D12PipelineState* overridePso = nullptr;
 
 	std::string FilePath;
@@ -221,7 +221,7 @@ struct ColliderComponent
 
 struct CameraComponent
 {
-	/// @brief •`‰æƒ^ƒCƒv
+	/// @brief æç”»ã‚¿ã‚¤ãƒ—
 	enum class Projection
 	{
 		Perspective,
@@ -261,7 +261,7 @@ struct CameraAnimationComponent
 	bool  loop = false;
 	float time = 0.0f;
 
-	CameraClip clip;      // Àsƒf[ƒ^(ƒVƒŠƒAƒ‰ƒCƒY‘ÎÛŠO)
+	CameraClip clip;      // å®Ÿè¡Œæ™‚ãƒ‡ãƒ¼ã‚¿(ã‚·ãƒªã‚¢ãƒ©ã‚¤ã‚ºå¯¾è±¡å¤–)
 	bool loaded = false;
 
 	void Reflect(FieldList& f)
@@ -292,15 +292,15 @@ struct FreeLookComponent
 
 struct MusicSyncComponent
 {
-	float offset = 0.0f;        // ƒ‚[ƒVƒ‡ƒ“‚ğ‹È‚É‘Î‚µ‚Ä‘OŒã‚³‚¹‚é(•bA+‚Å’x‚ç‚¹‚é)
-	bool  syncAnimators = true; // ‘SAnimator‚ğ‚±‚ÌAudio‚É“¯Šú
-	bool  syncCamera = true;    // ƒJƒƒ‰VMD‚à“¯Šú
+	float offset = 0.0f;        // ãƒ¢ãƒ¼ã‚·ãƒ§ãƒ³ã‚’æ›²ã«å¯¾ã—ã¦å‰å¾Œã•ã›ã‚‹(ç§’ã€+ã§é…ã‚‰ã›ã‚‹)
+	bool  syncAnimators = true; // å…¨Animatorã‚’ã“ã®Audioã«åŒæœŸ
+	bool  syncCamera = true;    // ã‚«ãƒ¡ãƒ©VMDã‚‚åŒæœŸ
 	float musicTime = 0.0f;
-	// ƒ‰ƒ“ƒ^ƒCƒ€ó‘Ô(ƒVƒŠƒAƒ‰ƒCƒY‘ÎÛŠO)
+	// ãƒ©ãƒ³ã‚¿ã‚¤ãƒ çŠ¶æ…‹(ã‚·ãƒªã‚¢ãƒ©ã‚¤ã‚ºå¯¾è±¡å¤–)
 	std::uint64_t startSamples = 0;
 	bool started = false;
-	float seekBase = 0.0f;			// ƒV[ƒNæ‚Ì‹ÈˆÊ’u(•b)
-	bool  resyncRequested = false;	// startSamples‚ğæ‚è’¼‚·
+	float seekBase = 0.0f;			// ã‚·ãƒ¼ã‚¯å…ˆã®æ›²ä½ç½®(ç§’)
+	bool  resyncRequested = false;	// startSamplesã‚’å–ã‚Šç›´ã™
 
 	void Reflect(FieldList& f)
 	{
@@ -409,14 +409,14 @@ struct ScriptComponent
 	std::vector<std::string> scriptNames;
 	std::vector<std::unique_ptr<MonoBehavior>> behaviors;
 
-	std::unordered_map<std::string, std::vector<FieldDesc>>                        fieldDescs; // •\¦—pƒƒ^
-	std::unordered_map<std::string, std::unordered_map<std::string, FieldValue>>   values;     // ’l
+	std::unordered_map<std::string, std::vector<FieldDesc>>                        fieldDescs; // è¡¨ç¤ºç”¨ãƒ¡ã‚¿
+	std::unordered_map<std::string, std::unordered_map<std::string, FieldValue>>   values;     // å€¤
 };
 
 struct CanvasComponent
 {
-	float2 ReferenceResolution{ 1920.0f, 1080.0f };	// Šî€‰ğ‘œ“x
-	int sortingOrder = 0;							// •`‰æ‡˜
+	float2 ReferenceResolution{ 1920.0f, 1080.0f };	// åŸºæº–è§£åƒåº¦
+	int sortingOrder = 0;							// æç”»é †åº
 
 	void Reflect(FieldList& f)
 	{
@@ -427,11 +427,11 @@ struct CanvasComponent
 
 struct RectTransformComponent
 {
-	float2 AnchoredPosition{ 0.0f, 0.0f };	// ƒAƒ“ƒJ[ˆÊ’u
+	float2 AnchoredPosition{ 0.0f, 0.0f };	// ã‚¢ãƒ³ã‚«ãƒ¼ä½ç½®
 	float2 SizeDelta{ 100.0f, 100.0f };
-	float2 pivot{ 0.5f, 0.5f };				// ƒsƒ{ƒbƒgˆÊ’u
+	float2 pivot{ 0.5f, 0.5f };				// ãƒ”ãƒœãƒƒãƒˆä½ç½®
 
-	Entity parent = INVALID_ENTITY;			// e‚ÌEntity
+	Entity parent = INVALID_ENTITY;			// è¦ªã®Entity
 
 	void Reflect(FieldList& f)
 	{
@@ -459,7 +459,7 @@ struct UIImageComponent
 struct UITextComponent
 {
 	std::string text = "Text";
-	// WindowsƒtƒHƒ“ƒg
+	// Windowsãƒ•ã‚©ãƒ³ãƒˆ
 	std::string fontPath = "C:\\Windows\\Fonts\\meiryo.ttc";
 	float fontSize = 32.0f;
 	COLOR color{ 1.0f, 1.0f, 1.0f, 1.0f };
@@ -481,26 +481,26 @@ struct UITextComponent
 
 struct AudioSourceComponent
 {
-	std::string clipPath;       // ‰¹ºƒtƒ@ƒCƒ‹
+	std::string clipPath;       // éŸ³å£°ãƒ•ã‚¡ã‚¤ãƒ«
 	float volume = 1.0f;
 	bool  loop = false;
-	bool  playOnStart = false;  // PlayŠJn‚É©“®Ä¶
+	bool  playOnStart = false;  // Playé–‹å§‹æ™‚ã«è‡ªå‹•å†ç”Ÿ
 
-	// 3Dİ’è
+	// 3Dè¨­å®š
 	bool is3D = true;
 	float minDistance = 1.0f;
 	float maxDistance = 100.0f;
 
-	// ƒ‰ƒ“ƒ^ƒCƒ€ó‘ÔiƒVƒŠƒAƒ‰ƒCƒY‘ÎÛŠOj
+	// ãƒ©ãƒ³ã‚¿ã‚¤ãƒ çŠ¶æ…‹ï¼ˆã‚·ãƒªã‚¢ãƒ©ã‚¤ã‚ºå¯¾è±¡å¤–ï¼‰
 	IXAudio2SourceVoice* voice = nullptr;
 	std::shared_ptr<AudioClip> clip;
-	bool playRequested = false; // ƒXƒNƒŠƒvƒg‚©‚ç—§‚Ä‚é
+	bool playRequested = false; // ã‚¹ã‚¯ãƒªãƒ—ãƒˆã‹ã‚‰ç«‹ã¦ã‚‹
 	bool stopRequested = false;
 
-	bool  seekRequested = false;	// w’è•b‚ÖƒV[ƒN
+	bool  seekRequested = false;	// æŒ‡å®šç§’ã¸ã‚·ãƒ¼ã‚¯
 	float seekSeconds = 0.0f;
-	bool  pauseRequested = false;	// ˆÊ’u‚ğ•Û‚Á‚½‚Ü‚Ü’â~
-	bool  resumeRequested = false;	// ’â~ˆÊ’u‚©‚çÄŠJ
+	bool  pauseRequested = false;	// ä½ç½®ã‚’ä¿ã£ãŸã¾ã¾åœæ­¢
+	bool  resumeRequested = false;	// åœæ­¢ä½ç½®ã‹ã‚‰å†é–‹
 
 	void Reflect(FieldList& f)
 	{
@@ -518,7 +518,7 @@ struct AudioListenerComponent
 {
 	void Reflect(FieldList& f)
 	{
-		// AudioListener‚É‚Í“Á‚ÉƒtƒB[ƒ‹ƒh‚Í‚È‚¢
+		// AudioListenerã«ã¯ç‰¹ã«ãƒ•ã‚£ãƒ¼ãƒ«ãƒ‰ã¯ãªã„
 	}
 };
 
@@ -531,20 +531,20 @@ struct AnimatorComponent
 	float time = 0.0f;
 	bool playing = false;
 	std::vector<float4x4> palette;
-	std::vector<std::string> extraClipNames;	// ’Ç‰Á‚ÌƒAƒjƒ[ƒVƒ‡ƒ“–¼
+	std::vector<std::string> extraClipNames;	// è¿½åŠ ã®ã‚¢ãƒ‹ãƒ¡ãƒ¼ã‚·ãƒ§ãƒ³å
 
-	float speed = 1.0f;			// Ä¶‘¬“x
-	bool  loop = true;			// ƒ‹[ƒvÄ¶
-	bool  scrubbing = false;		// ƒXƒ‰ƒCƒ_[‘€ì’†(‚±‚ÌŠÔ‚Í•¨—‚ğ~‚ß‚é)
-	bool  physicsResetRequest = false;	// ŸƒtƒŒ[ƒ€‚Å•¨—‚ğÄ“¯Šú‚·‚é
+	float speed = 1.0f;			// å†ç”Ÿé€Ÿåº¦
+	bool  loop = true;			// ãƒ«ãƒ¼ãƒ—å†ç”Ÿ
+	bool  scrubbing = false;		// ã‚¹ãƒ©ã‚¤ãƒ€ãƒ¼æ“ä½œä¸­(ã“ã®é–“ã¯ç‰©ç†ã‚’æ­¢ã‚ã‚‹)
+	bool  physicsResetRequest = false;	// æ¬¡ãƒ•ãƒ¬ãƒ¼ãƒ ã§ç‰©ç†ã‚’å†åŒæœŸã™ã‚‹
 
 	std::string clipPathsStr;  
 	bool clipsRestored = false;
 
-	MorphSet morphs;					// ‚à[ƒt’è‹`
-	std::vector<float> morphWeights;	// Šeƒ‚[ƒt‚Ìd‚İ(0.0 ~ 1.0)
-	std::vector<float3> morphoffsets;	// CPU‚ÅƒuƒŒƒ“ƒhÏ‚İ‚Ì’¸“_ƒIƒtƒZƒbƒg
-	bool morphDirty = true;				// ƒ‚[ƒt‚Ìd‚İ‚ª•ÏX‚³‚ê‚½‚©‚Ç‚¤‚©
+	MorphSet morphs;					// ã‚‚ãƒ¼ãƒ•å®šç¾©
+	std::vector<float> morphWeights;	// å„ãƒ¢ãƒ¼ãƒ•ã®é‡ã¿(0.0 ~ 1.0)
+	std::vector<float3> morphoffsets;	// CPUã§ãƒ–ãƒ¬ãƒ³ãƒ‰æ¸ˆã¿ã®é ‚ç‚¹ã‚ªãƒ•ã‚»ãƒƒãƒˆ
+	bool morphDirty = true;				// ãƒ¢ãƒ¼ãƒ•ã®é‡ã¿ãŒå¤‰æ›´ã•ã‚ŒãŸã‹ã©ã†ã‹
 
 	void Reflect(FieldList& f)
 	{
@@ -571,12 +571,12 @@ struct ParticleEmitterComponent
 		Box
 	}shape = EmitShape::Cone;
 
-	bool emitting		= true;	// ƒXƒNƒŠƒvƒg‚©‚ç ON / OFF
-	float emitRate		= 20.0f;	// 1•b‚ ‚½‚è‚Ì”­¶”
+	bool emitting		= true;	// ã‚¹ã‚¯ãƒªãƒ—ãƒˆã‹ã‚‰ ON / OFF
+	float emitRate		= 20.0f;	// 1ç§’ã‚ãŸã‚Šã®ç™ºç”Ÿæ•°
 	int maxParticles	= 200;
 
 	float lifeTime = 1.5f;
-	float lifeTimeVariance = 0.5f;	// ƒ‰ƒ“ƒ_ƒ€•
+	float lifeTimeVariance = 0.5f;	// ãƒ©ãƒ³ãƒ€ãƒ å¹…
 
 	float startSize = 0.03f;
 	float endSize = 0.0f;
@@ -584,7 +584,7 @@ struct ParticleEmitterComponent
 	COLOR startColor{ 1.0f, 1.0f, 1.0f, 0.6f };
 	COLOR endColor{ 1.0f, 1.0f, 1.0f, 0.0f };
 
-	float speed = 0.3f;				// ƒr[ƒ€•ûŒü‚Ö‚Ì—¬‚ê‘¬“x
+	float speed = 0.3f;				// ãƒ“ãƒ¼ãƒ æ–¹å‘ã¸ã®æµã‚Œé€Ÿåº¦
 	float speedVariance = 0.15f;
 	float drift = 0.05f;
 
@@ -609,7 +609,7 @@ struct ParticleEmitterComponent
 		f.Add("FollowLight", followLight);
 	}
 
-	// --- ƒ‰ƒ“ƒ^ƒCƒ€ê—piƒVƒŠƒAƒ‰ƒCƒY•s—vj---
+	// --- ãƒ©ãƒ³ã‚¿ã‚¤ãƒ å°‚ç”¨ï¼ˆã‚·ãƒªã‚¢ãƒ©ã‚¤ã‚ºä¸è¦ï¼‰---
 	struct Particle
 	{
 		float3 pos;
@@ -617,6 +617,6 @@ struct ParticleEmitterComponent
 		float age = 0.0f;
 		float life = 1.0f;
 	};
-	std::vector<Particle> particles;   // ƒv[ƒ‹‚Æ‚µ‚Äg‚¢‰ñ‚·(—e—ÊŒÅ’èEÄ—˜—p)
+	std::vector<Particle> particles;   // ãƒ—ãƒ¼ãƒ«ã¨ã—ã¦ä½¿ã„å›ã™(å®¹é‡å›ºå®šãƒ»å†åˆ©ç”¨)
 	float spawnAccumulator = 0.0f;
 };

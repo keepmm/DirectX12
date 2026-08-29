@@ -1,32 +1,32 @@
-/*****************************************************************//**
+ï»¿/*****************************************************************//**
  * \file   Input.hpp
- * \brief  “ü—ÍŠÇ—ƒVƒXƒeƒ€
+ * \brief  å…¥åŠ›ç®¡ç†ã‚·ã‚¹ãƒ†ãƒ 
  *
- * ì¬Ò
- * ì¬“ú 2026/2/26
- * XV“ú
+ * ä½œæˆè€…
+ * ä½œæˆæ—¥ 2026/2/26
+ * æ›´æ–°æ—¥
  * *********************************************************************/
 #pragma once
 #include <Windows.h>
 #include "EngineAPI.hpp"
 
- // ‘O•ûéŒ¾
+ // å‰æ–¹å®£è¨€
 class Input;
 
-// ƒL[“ü—Í—pƒwƒ‹ƒp[ƒNƒ‰ƒX
+// ã‚­ãƒ¼å…¥åŠ›ç”¨ãƒ˜ãƒ«ãƒ‘ãƒ¼ã‚¯ãƒ©ã‚¹
 class ENGINE_API KeyState
 {
 public:
 	KeyState(const Input* input, int vkCode) : m_Input(input), m_VKCode(vkCode) {}
 
-	// ‰Ÿ‚³‚ê‚Ä‚¢‚éŠÔ
+	// æŠ¼ã•ã‚Œã¦ã„ã‚‹é–“
 	bool IsPressed() const;
 	operator bool() const { return IsPressed(); }
 
-	// ‰Ÿ‚³‚ê‚½uŠÔ
+	// æŠ¼ã•ã‚ŒãŸç¬é–“
 	bool Down() const;
 
-	// —£‚³‚ê‚½uŠÔ
+	// é›¢ã•ã‚ŒãŸç¬é–“
 	bool Up() const;
 
 private:
@@ -34,23 +34,23 @@ private:
 	int m_VKCode;
 };
 
-// ƒ}ƒEƒXƒ{ƒ^ƒ“—pƒwƒ‹ƒp[ƒNƒ‰ƒX
+// ãƒã‚¦ã‚¹ãƒœã‚¿ãƒ³ç”¨ãƒ˜ãƒ«ãƒ‘ãƒ¼ã‚¯ãƒ©ã‚¹
 class ENGINE_API MouseButton
 {
 public:
 	MouseButton(const Input* input, int button) : m_Input(input), m_Button(button) {}
 
-	/// @brief ƒ}ƒEƒXƒ{ƒ^ƒ“‚ª‰Ÿ‚³‚ê‚Ä‚¢‚é‚©
-	/// @return ‰Ÿ‚³‚ê‚Ä‚¢‚éê‡‚ÍtrueA‚»‚¤‚Å‚È‚¢ê‡‚Ífalse
+	/// @brief ãƒã‚¦ã‚¹ãƒœã‚¿ãƒ³ãŒæŠ¼ã•ã‚Œã¦ã„ã‚‹ã‹
+	/// @return æŠ¼ã•ã‚Œã¦ã„ã‚‹å ´åˆã¯trueã€ãã†ã§ãªã„å ´åˆã¯false
 	bool IsPressed() const;
 	operator bool() const { return IsPressed(); }
 
-	/// @brief ƒ}ƒEƒXƒ{ƒ^ƒ“‚ª‰Ÿ‚³‚ê‚½uŠÔ
-	/// @return ‰Ÿ‚³‚ê‚½ê‡‚ÍtrueA‚»‚¤‚Å‚È‚¢ê‡‚Ífalse
+	/// @brief ãƒã‚¦ã‚¹ãƒœã‚¿ãƒ³ãŒæŠ¼ã•ã‚ŒãŸç¬é–“
+	/// @return æŠ¼ã•ã‚ŒãŸå ´åˆã¯trueã€ãã†ã§ãªã„å ´åˆã¯false
 	bool Down() const;
 
-	/// @brief ƒ}ƒEƒXƒ{ƒ^ƒ“‚ª—£‚³‚ê‚½uŠÔ
-	/// @return —£‚³‚ê‚½ê‡‚ÍtrueA‚»‚¤‚Å‚È‚¢ê‡‚Ífalse
+	/// @brief ãƒã‚¦ã‚¹ãƒœã‚¿ãƒ³ãŒé›¢ã•ã‚ŒãŸç¬é–“
+	/// @return é›¢ã•ã‚ŒãŸå ´åˆã¯trueã€ãã†ã§ãªã„å ´åˆã¯false
 	bool Up() const;
 
 private:
@@ -58,39 +58,39 @@ private:
 	int m_Button;
 };
 
-// ƒ}ƒEƒXî•ñ—pƒNƒ‰ƒX
+// ãƒã‚¦ã‚¹æƒ…å ±ç”¨ã‚¯ãƒ©ã‚¹
 class ENGINE_API Mouse
 {
 public:
 	Mouse(const Input* input) : m_Input(input) {}
 
-	/// @brief ƒ}ƒEƒX‚ÌXÀ•W‚ğæ“¾
-	/// @return XÀ•W
+	/// @brief ãƒã‚¦ã‚¹ã®Xåº§æ¨™ã‚’å–å¾—
+	/// @return Xåº§æ¨™
 	int X() const;
 
-	/// @brief ƒ}ƒEƒX‚ÌYÀ•W‚ğæ“¾
-	/// @return YÀ•W
+	/// @brief ãƒã‚¦ã‚¹ã®Yåº§æ¨™ã‚’å–å¾—
+	/// @return Yåº§æ¨™
 	int Y() const;
 
-	/// @brief ƒ}ƒEƒX‚ÌXÀ•W‚Ì•Ï‰»—Ê‚ğæ“¾
+	/// @brief ãƒã‚¦ã‚¹ã®Xåº§æ¨™ã®å¤‰åŒ–é‡ã‚’å–å¾—
 	int DeltaX() const;
 
-	/// @brief ƒ}ƒEƒX‚ÌYÀ•W‚Ì•Ï‰»—Ê‚ğæ“¾
+	/// @brief ãƒã‚¦ã‚¹ã®Yåº§æ¨™ã®å¤‰åŒ–é‡ã‚’å–å¾—
 	int DeltaY() const;
 
-	/// @brief ƒ}ƒEƒXƒzƒC[ƒ‹‚Ì‰ñ“]—Ê‚ğæ“¾
+	/// @brief ãƒã‚¦ã‚¹ãƒ›ã‚¤ãƒ¼ãƒ«ã®å›è»¢é‡ã‚’å–å¾—
 	int Wheel() const;
 
-	/// @brief ƒ}ƒEƒX‚Ì¶ƒNƒŠƒbƒN‚ğŒŸo
-	/// @return ‰Ÿ‚³‚ê‚Ä‚¢‚éê‡‚ÍtrueA‚»‚¤‚Å‚È‚¢ê‡‚Ífalse
+	/// @brief ãƒã‚¦ã‚¹ã®å·¦ã‚¯ãƒªãƒƒã‚¯ã‚’æ¤œå‡º
+	/// @return æŠ¼ã•ã‚Œã¦ã„ã‚‹å ´åˆã¯trueã€ãã†ã§ãªã„å ´åˆã¯false
 	MouseButton Left() const { return MouseButton(m_Input, 0); }
 
-	/// @brief ƒ}ƒEƒX‚Ì‰EƒNƒŠƒbƒN‚ğŒŸo
-	/// @return ‰Ÿ‚³‚ê‚Ä‚¢‚éê‡‚ÍtrueA‚»‚¤‚Å‚È‚¢ê‡‚Ífalse
+	/// @brief ãƒã‚¦ã‚¹ã®å³ã‚¯ãƒªãƒƒã‚¯ã‚’æ¤œå‡º
+	/// @return æŠ¼ã•ã‚Œã¦ã„ã‚‹å ´åˆã¯trueã€ãã†ã§ãªã„å ´åˆã¯false
 	MouseButton Right() const { return MouseButton(m_Input, 1); }
 
-	/// @brief ƒ}ƒEƒX‚Ì’†ƒNƒŠƒbƒN‚ğŒŸo
-	/// @return ‰Ÿ‚³‚ê‚Ä‚¢‚éê‡‚ÍtrueA‚»‚¤‚Å‚È‚¢ê‡‚Ífalse
+	/// @brief ãƒã‚¦ã‚¹ã®ä¸­ã‚¯ãƒªãƒƒã‚¯ã‚’æ¤œå‡º
+	/// @return æŠ¼ã•ã‚Œã¦ã„ã‚‹å ´åˆã¯trueã€ãã†ã§ãªã„å ´åˆã¯false
 	MouseButton Middle() const { return MouseButton(m_Input, 2); }
 
 private:
@@ -112,15 +112,15 @@ public:
 		MAX
 	};
 
-	/// @brief ƒCƒ“ƒXƒ^ƒ“ƒX‚ğæ“¾
-	/// @return ƒCƒ“ƒXƒ^ƒ“ƒX‚Ö‚Ìƒ|ƒCƒ“ƒ^
+	/// @brief ã‚¤ãƒ³ã‚¹ã‚¿ãƒ³ã‚¹ã‚’å–å¾—
+	/// @return ã‚¤ãƒ³ã‚¹ã‚¿ãƒ³ã‚¹ã¸ã®ãƒã‚¤ãƒ³ã‚¿
 	static Input* GetInstance();
 
-	/// @brief ‰Šú‰»
+	/// @brief åˆæœŸåŒ–
 	/// @param hWnd 
 	void Init(HWND hWnd);
 
-	/// @brief XVˆ—
+	/// @brief æ›´æ–°å‡¦ç†
 	void Update();
 
 	struct Keys
@@ -137,7 +137,7 @@ public:
 		KeyState Escape() const { return KeyState(input, VK_ESCAPE); }
 		KeyState Enter() const { return KeyState(input, VK_RETURN); }
 
-		// ”šƒL[
+		// æ•°å­—ã‚­ãƒ¼
 		KeyState Num0() const { return KeyState(input, '0'); }
 		KeyState Num1() const { return KeyState(input, '1'); }
 		KeyState Num2() const { return KeyState(input, '2'); }
@@ -149,13 +149,13 @@ public:
 		KeyState Num8() const { return KeyState(input, '8'); }
 		KeyState Num9() const { return KeyState(input, '9'); }
 
-		// –îˆóƒL[
+		// çŸ¢å°ã‚­ãƒ¼
 		KeyState Up() const { return KeyState(input, VK_UP); }
 		KeyState Down() const { return KeyState(input, VK_DOWN); }
 		KeyState Left() const { return KeyState(input, VK_LEFT); }
 		KeyState Right() const { return KeyState(input, VK_RIGHT); }
 
-		// ƒJƒXƒ^ƒ€ƒL[
+		// ã‚«ã‚¹ã‚¿ãƒ ã‚­ãƒ¼
 		KeyState Custom(int vkCode) const { return KeyState(input, vkCode); }
 	};
 

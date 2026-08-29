@@ -1,4 +1,4 @@
-#include "Common.hlsli"
+ï»¿#include "Common.hlsli"
 #include "Lighting.hlsli"
 #include "BRDF.hlsli"
 
@@ -7,10 +7,10 @@ SamplerState g_Sampler : register(s0);
 
 cbuffer Material : register(b3)
 {
-    float roughness;    // ƒmƒCƒY‚Ì×‚©‚³
-    float metallic;     // ƒfƒBƒ\ƒ‹ƒu—Ê 0 = Š®‘S, 1 = Á–Å
+    float roughness;    // ãƒã‚¤ã‚ºã®ç´°ã‹ã•
+    float metallic;     // ãƒ‡ã‚£ã‚½ãƒ«ãƒ–é‡ 0 = å®Œå…¨, 1 = æ¶ˆæ»…
     float2 _pad;
-    float4 rimColor;    // rgb : ‰ğ‚¯Û‚Ì”­sF / a ”­Œõ‚Ì•
+    float4 rimColor;    // rgb : è§£ã‘éš›ã®ç™ºè¡Œè‰² / a ç™ºå…‰ã®å¹…
 }
 
 float hash13(float3 p)
@@ -25,18 +25,18 @@ float4 DissolvePS(PSInput pin) : SV_Target
     float scale = lerp(2.0f, 30.0f, saturate(roughness));
     float noise = hash13(floor(pin.worldPos * scale));
     
-    // ‚µ‚«‚¢‚¿ˆÈ‰º‚Í”jŠü
+    // ã—ãã„ã¡ä»¥ä¸‹ã¯ç ´æ£„
     if(noise < metallic)
     {
         discard;
     }
     
-    // ‰ğ‚¯Û‚¾‚¯”­Œõ‚³‚¹‚é
+    // è§£ã‘éš›ã ã‘ç™ºå…‰ã•ã›ã‚‹
     float width = max(rimColor.a, 0.0001f);
     float edge = saturate((noise - metallic) / width);
     float3 edgeGlow = rimColor.rgb * (1.0f - edge);
     
-    // ’Êí‚ÌLambertƒ‰ƒCƒeƒBƒ“ƒO
+    // é€šå¸¸ã®Lambertãƒ©ã‚¤ãƒ†ã‚£ãƒ³ã‚°
     float4 tex = g_Texture.Sample(g_Sampler, pin.uv);
     float3 baseColor = pin.col.rgb * tex.rgb;
     float3 N = normalize(pin.normal);

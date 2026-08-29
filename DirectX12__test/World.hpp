@@ -1,11 +1,11 @@
-/*****************************************************************//**
+ï»¿/*****************************************************************//**
  * \file   World.hpp
- * \brief  Scene“à‚ÌEntity‚ÆComponent‚ğŠÇ—‚·‚éƒNƒ‰ƒX
+ * \brief  Sceneå†…ã®Entityã¨Componentã‚’ç®¡ç†ã™ã‚‹ã‚¯ãƒ©ã‚¹
  * 
- * ì¬Ò keeeep
- * ì¬“ú 2026/2/16
- * XV—š—ğ	2.16 ì¬
- *			5.25 Entityíœˆ—‚ğ’Ç‰Á
+ * ä½œæˆè€… keeeep
+ * ä½œæˆæ—¥ 2026/2/16
+ * æ›´æ–°å±¥æ­´	2.16 ä½œæˆ
+ *			5.25 Entityå‰Šé™¤å‡¦ç†ã‚’è¿½åŠ 
  * *********************************************************************/
 #pragma once
 
@@ -32,15 +32,15 @@ public:
 
 	void DestroyEntity(Entity entity)
 	{
-		// ˆø”‚Åó‚¯æ‚Á‚½Entity‚ª‘¶İ‚·‚é‚©Šm”F
+		// å¼•æ•°ã§å—ã‘å–ã£ãŸEntityãŒå­˜åœ¨ã™ã‚‹ã‹ç¢ºèª
 		auto it = std::find(m_Entities.begin(), m_Entities.end(), entity);
-		// ‘¶İ‚µ‚È‚¢ê‡‚Í‚±‚êˆÈãˆ—‚µ‚È‚¢
+		// å­˜åœ¨ã—ãªã„å ´åˆã¯ã“ã‚Œä»¥ä¸Šå‡¦ç†ã—ãªã„
 		if (it == m_Entities.end())
 		{
 			return;
 		}
 
-		// ‘¶İ‚·‚éê‡‚ÍEntity‚ğíœ
+		// å­˜åœ¨ã™ã‚‹å ´åˆã¯Entityã‚’å‰Šé™¤
 		m_Entities.erase(it);
 		for (auto& [_, storage] : m_Storages)
 		{
@@ -88,7 +88,7 @@ public:
 	}
 
 	template<typename TFirst, typename... TRest, typename Func>
-	/// @brief w’è‚µ‚½ƒRƒ“ƒ|[ƒlƒ“ƒg‚ğ‚Â‘S‚Ä‚ÌEntity‚É‘Î‚µ‚ÄŠÖ”‚ğÀs‚·‚é
+	/// @brief æŒ‡å®šã—ãŸã‚³ãƒ³ãƒãƒ¼ãƒãƒ³ãƒˆã‚’æŒã¤å…¨ã¦ã®Entityã«å¯¾ã—ã¦é–¢æ•°ã‚’å®Ÿè¡Œã™ã‚‹
 	void Each(Func&& func)
 	{
 		auto* firstStorage = TryGetStorage<TFirst>();

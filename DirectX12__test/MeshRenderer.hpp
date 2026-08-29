@@ -1,10 +1,10 @@
-/*****************************************************************//**
+ï»¿/*****************************************************************//**
  * \file   MeshRenderer.hpp
- * \brief  ƒƒbƒVƒ…ƒŒƒ“ƒ_ƒ‰[ƒNƒ‰ƒX‚Ì’è‹`
+ * \brief  ãƒ¡ãƒƒã‚·ãƒ¥ãƒ¬ãƒ³ãƒ€ãƒ©ãƒ¼ã‚¯ãƒ©ã‚¹ã®å®šç¾©
  * 
- * ì¬Ò keeeep
- * ì¬“ú 2026/4/27
- * XV—š—ğ 4.27 ì¬
+ * ä½œæˆè€… keeeep
+ * ä½œæˆæ—¥ 2026/4/27
+ * æ›´æ–°å±¥æ­´ 4.27 ä½œæˆ
  * *********************************************************************/
 #pragma once
 
@@ -17,13 +17,13 @@ class Material;
 class MeshRenderer
 {
 public:
-	/// @brief ƒƒbƒVƒ…‚ğİ’è‚·‚é
-	/// @param mesh İ’è‚·‚éƒƒbƒVƒ…
+	/// @brief ãƒ¡ãƒƒã‚·ãƒ¥ã‚’è¨­å®šã™ã‚‹
+	/// @param mesh è¨­å®šã™ã‚‹ãƒ¡ãƒƒã‚·ãƒ¥
 	void SetMesh(_In_ const std::shared_ptr<Mesh>& mesh) { m_Mesh = mesh; }
 
-	/// @brief ƒ}ƒeƒŠƒAƒ‹‚Ì“K—p
-	/// @param subMeshIndex “K—p‚·‚éƒTƒuƒƒbƒVƒ…‚ÌƒCƒ“ƒfƒbƒNƒX
-	/// @param material “K—p‚·‚éƒ}ƒeƒŠƒAƒ‹
+	/// @brief ãƒãƒ†ãƒªã‚¢ãƒ«ã®é©ç”¨
+	/// @param subMeshIndex é©ç”¨ã™ã‚‹ã‚µãƒ–ãƒ¡ãƒƒã‚·ãƒ¥ã®ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹
+	/// @param material é©ç”¨ã™ã‚‹ãƒãƒ†ãƒªã‚¢ãƒ«
 	void SetMaterial(
 		_In_ UINT subMeshIndex,
 		_In_ const std::shared_ptr<Material>& material)
@@ -35,9 +35,9 @@ public:
 		m_Materials[subMeshIndex] = material;
 	}
 
-	/// @brief •`‰æˆ—
-	/// @param renderContext •`‰æƒRƒ“ƒeƒLƒXƒg
-	/// @param worldMatrix ƒ[ƒ‹ƒhs—ñ
+	/// @brief æç”»å‡¦ç†
+	/// @param renderContext æç”»ã‚³ãƒ³ãƒ†ã‚­ã‚¹ãƒˆ
+	/// @param worldMatrix ãƒ¯ãƒ¼ãƒ«ãƒ‰è¡Œåˆ—
 	void Draw(
 		_In_ const RenderContext& renderContext,
 		_In_ const float4x4& worldMatrix

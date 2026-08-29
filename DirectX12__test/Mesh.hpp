@@ -1,15 +1,15 @@
-#pragma once
+ï»¿#pragma once
 
 #include "DirectX.hpp"
 #include "Vertex.hpp"
 #include <vector>
 #include <cstdint>
 
-/// @brief ƒƒbƒVƒ…‚Ìˆê•”‚ğ•\‚·ƒTƒuƒƒbƒVƒ…\‘¢‘Ì
+/// @brief ãƒ¡ãƒƒã‚·ãƒ¥ã®ä¸€éƒ¨ã‚’è¡¨ã™ã‚µãƒ–ãƒ¡ãƒƒã‚·ãƒ¥æ§‹é€ ä½“
 struct SubMesh
 {
-	UINT indexStart		= 0; // ƒCƒ“ƒfƒbƒNƒXƒoƒbƒtƒ@“à‚ÌŠJnˆÊ’u
-	UINT indexCount		= 0; // ƒCƒ“ƒfƒbƒNƒX‚Ì”
+	UINT indexStart		= 0; // ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹ãƒãƒƒãƒ•ã‚¡å†…ã®é–‹å§‹ä½ç½®
+	UINT indexCount		= 0; // ã‚¤ãƒ³ãƒ‡ãƒƒã‚¯ã‚¹ã®æ•°
 	UINT materialIndex	= 0;
 };
 
@@ -27,8 +27,8 @@ public:
 
 	void DrawSubMesh(_In_ ID3D12GraphicsCommandList* commandList, UINT subMeshIndex) const;
 
-	/// @brief ƒTƒuƒƒbƒVƒ…‚Ì”‚ğæ“¾
-	/// @return ƒTƒuƒƒbƒVƒ…‚Ì”
+	/// @brief ã‚µãƒ–ãƒ¡ãƒƒã‚·ãƒ¥ã®æ•°ã‚’å–å¾—
+	/// @return ã‚µãƒ–ãƒ¡ãƒƒã‚·ãƒ¥ã®æ•°
 	UINT GetSubMeshCount() const { return static_cast<UINT>(m_SubMeshes.size()); }
 
 	UINT GetVertexCount() const { return m_VertexCount; }

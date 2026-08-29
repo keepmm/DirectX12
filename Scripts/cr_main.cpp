@@ -1,4 +1,4 @@
-#include "cr.h"
+ï»¿#include "cr.h"
 #include "ScriptContext.hpp"
 #include <windows.h>
 #include "World.hpp"
@@ -15,13 +15,13 @@ static void BuildOne(World* w, Entity e, ScriptComponent& sc, const std::string&
 	if (!b) return;
 	b->Attach(w, e);
 
-	// ƒƒ^î•ñ‚ð exe‘¤‚ÉƒXƒiƒbƒvƒVƒ‡ƒbƒg
+	// ãƒ¡ã‚¿æƒ…å ±ã‚’ exeå´ã«ã‚¹ãƒŠãƒƒãƒ—ã‚·ãƒ§ãƒƒãƒˆ
 	auto& descs = sc.fieldDescs[name];
 	descs.clear();
 	for (auto& f : b->GetField())
 		descs.push_back({ f.name, f.type, f.RangeMin, f.RangeMax });
 
-	// ’lF•Û‘¶Ï‚Ý‚ª‚ ‚ê‚Î“K—pA–³‚¯‚ê‚ÎŒ»Ý’l(ƒfƒtƒHƒ‹ƒg)‚ðŽæ‚èž‚Þ
+	// å€¤ï¼šä¿å­˜æ¸ˆã¿ãŒã‚ã‚Œã°é©ç”¨ã€ç„¡ã‘ã‚Œã°ç¾åœ¨å€¤(ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆ)ã‚’å–ã‚Šè¾¼ã‚€
 	auto& vals = sc.values[name];
 	if (!vals.empty()) b->ApplyValues(vals);
 	else               b->CaptureValues(vals);
@@ -50,7 +50,7 @@ CR_EXPORT int cr_main(cr_plugin* ctx, cr_op operation)
 	case CR_LOAD:
 		if (host->savedScripts) *host->savedScripts = RegisterScript::Get().Names();
 		if (host->world) RebuildBehaviors(*host->world);
-		// LOG“o˜^
+		// LOGç™»éŒ²
 		Debug::g_LogInfo	= host->logInfo;
 		Debug::g_LogWarning = host->logWarning;
 		Debug::g_LogError	= host->logError;
@@ -68,7 +68,7 @@ CR_EXPORT int cr_main(cr_plugin* ctx, cr_op operation)
 					}
 					for (size_t i = 0; i < sc.behaviors.size(); ++i)
 					{
-						sc.behaviors[i]->ApplyValues(sc.values[sc.scriptNames[i]]); // exe’l‚ð”½‰f
+						sc.behaviors[i]->ApplyValues(sc.values[sc.scriptNames[i]]); // exeå€¤ã‚’åæ˜ 
 						if (host->isPlaing)
 						{
 							try
@@ -77,7 +77,7 @@ CR_EXPORT int cr_main(cr_plugin* ctx, cr_op operation)
 							}
 							catch (const std::exception& e)
 							{
-								OutputDebugStringA(("[Script] —áŠO: " + std::string(e.what()) + "\n").c_str());
+								OutputDebugStringA(("[Script] ä¾‹å¤–: " + std::string(e.what()) + "\n").c_str());
 							}
 						}
 					}

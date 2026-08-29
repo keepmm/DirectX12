@@ -1,4 +1,4 @@
-#pragma once
+ï»¿#pragma once
 
 #define NOMINMAX
 
@@ -12,7 +12,7 @@
 #include <DirectXCollision.h>
 #include <d3dcompiler.h>
 
-// C++•W€ƒ‰ƒCƒuƒ‰ƒŠ
+// C++æ¨™æº–ãƒ©ã‚¤ãƒ–ãƒ©ãƒª
 #include <memory>
 #include <vector>
 #include <string>
@@ -31,7 +31,7 @@
 #include <type_traits>
 #include <utility>
 
-// ”ñ“¯Šúˆ—
+// éåŒæœŸå‡¦ç†
 #include <thread>
 #include <queue>
 #include <mutex>

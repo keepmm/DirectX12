@@ -1,4 +1,4 @@
-#include "ComponentRegistry.hpp"
+ï»¿#include "ComponentRegistry.hpp"
 #include "Components.hpp"
 #include "imguiinit.hpp"
 #include "DirectX.hpp"
@@ -10,8 +10,8 @@
 
 using json = nlohmann::json;
 
-// ŠO•”ƒtƒ@ƒCƒ‹‚È‚ç Assets/Motions/ ‚ÖƒRƒs[‚µ‚Äæ‚è‚İAAssets‘Š‘ÎƒpƒX‚ğ•Ô‚·B
-// Šù‚ÉƒvƒƒWƒFƒNƒg”z‰º‚È‚ç‘Š‘Î‰»‚¾‚¯s‚¤
+// å¤–éƒ¨ãƒ•ã‚¡ã‚¤ãƒ«ãªã‚‰ Assets/Motions/ ã¸ã‚³ãƒ”ãƒ¼ã—ã¦å–ã‚Šè¾¼ã¿ã€Assetsç›¸å¯¾ãƒ‘ã‚¹ã‚’è¿”ã™ã€‚
+// æ—¢ã«ãƒ—ãƒ­ã‚¸ã‚§ã‚¯ãƒˆé…ä¸‹ãªã‚‰ç›¸å¯¾åŒ–ã ã‘è¡Œã†
 static std::string ImportToAssets(const std::string& path)
 {
     namespace fs = std::filesystem;
@@ -20,13 +20,13 @@ static std::string ImportToAssets(const std::string& path)
     const fs::path abs = fs::absolute(path, ec);
     const fs::path rel = fs::relative(abs, fs::current_path(), ec);
 
-    // ƒvƒƒWƒFƒNƒg”z‰º ¨ ‘Š‘Î‰»‚Ì‚İ
+    // ãƒ—ãƒ­ã‚¸ã‚§ã‚¯ãƒˆé…ä¸‹ â†’ ç›¸å¯¾åŒ–ã®ã¿
     if (!ec && !rel.empty() && rel.native().rfind(L"..", 0) != 0)
     {
         return rel.generic_string();
     }
 
-    // ƒvƒƒWƒFƒNƒgŠO ¨ Assets/Motions/ ‚ÉƒRƒs[‚µ‚Äæ‚è‚Ş
+    // ãƒ—ãƒ­ã‚¸ã‚§ã‚¯ãƒˆå¤– â†’ Assets/Motions/ ã«ã‚³ãƒ”ãƒ¼ã—ã¦å–ã‚Šè¾¼ã‚€
     const fs::path destDir = "Assets/Motions";
     fs::create_directories(destDir, ec);
     const fs::path dest = destDir / abs.filename();
@@ -34,10 +34,10 @@ static std::string ImportToAssets(const std::string& path)
     fs::copy_file(abs, dest, fs::copy_options::update_existing, ec);
     if (ec)
     {
-        LOG->LogError(u8("VMD‚Ìæ‚è‚İ‚É¸”s: ") + path + " (" + ec.message() + ")");
+        LOG->LogError(u8("VMDã®å–ã‚Šè¾¼ã¿ã«å¤±æ•—: ") + path + " (" + ec.message() + ")");
         return path;
     }
-    LOG->LogInfo(u8("VMD‚ğAssets‚Éæ‚è‚İ‚Ü‚µ‚½: ") + dest.generic_string());
+    LOG->LogInfo(u8("VMDã‚’Assetsã«å–ã‚Šè¾¼ã¿ã¾ã—ãŸ: ") + dest.generic_string());
     return dest.generic_string();
 }
 
@@ -60,7 +60,7 @@ void DrawExtraUI<CameraAnimationComponent>(World&, Entity, CameraAnimationCompon
             CameraClip clip = ModelLoader::LoadVMDCameraClip(path);
             if (clip.keys.empty())
             {
-                LOG->LogError(u8("ƒJƒƒ‰VMD‚ÉƒJƒƒ‰ƒL[‚ª‚ ‚è‚Ü‚¹‚ñ: ") + path);
+                LOG->LogError(u8("ã‚«ãƒ¡ãƒ©VMDã«ã‚«ãƒ¡ãƒ©ã‚­ãƒ¼ãŒã‚ã‚Šã¾ã›ã‚“: ") + path);
                 return;
             }
             ca.vmdPath = path;
@@ -69,8 +69,8 @@ void DrawExtraUI<CameraAnimationComponent>(World&, Entity, CameraAnimationCompon
             ca.time = 0.0f;
         };
 
-    // --- ƒtƒ@ƒCƒ‹ƒ_ƒCƒAƒƒO ---
-    if (ImGui::Button(u8("ƒJƒƒ‰VMD“Ç‚İ‚İ...")))
+    // --- ãƒ•ã‚¡ã‚¤ãƒ«ãƒ€ã‚¤ã‚¢ãƒ­ã‚° ---
+    if (ImGui::Button(u8("ã‚«ãƒ¡ãƒ©VMDèª­ã¿è¾¼ã¿...")))
     {
         std::wstring picked;
         if (OpenFileDialog(picked, L"VMD Motion\0*.vmd\0All\0*.*\0"))
@@ -79,7 +79,7 @@ void DrawExtraUI<CameraAnimationComponent>(World&, Entity, CameraAnimationCompon
         }
     }
 
-    // --- Assets‚©‚ç‚Ìƒhƒ‰ƒbƒO&ƒhƒƒbƒv ---
+    // --- Assetsã‹ã‚‰ã®ãƒ‰ãƒ©ãƒƒã‚°&ãƒ‰ãƒ­ãƒƒãƒ— ---
     if (ImGui::BeginDragDropTarget())
     {
         if (const ImGuiPayload* p = ImGui::AcceptDragDropPayload("ASSET_PATH"))
@@ -94,24 +94,24 @@ void DrawExtraUI<CameraAnimationComponent>(World&, Entity, CameraAnimationCompon
         ImGui::EndDragDropTarget();
     }
 
-    // --- ó‘Ô•\¦ ---
+    // --- çŠ¶æ…‹è¡¨ç¤º ---
     if (ca.loaded && !ca.clip.keys.empty())
     {
-        ImGui::Text(u8("%s  ƒL[”:%d  ’·‚³:%.1f•b"),
+        ImGui::Text(u8("%s  ã‚­ãƒ¼æ•°:%d  é•·ã•:%.1fç§’"),
             std::filesystem::path(ca.vmdPath).filename().string().c_str(),
             (int)ca.clip.keys.size(), ca.clip.duration);
     }
     else
     {
-        ImGui::TextDisabled(u8("ƒJƒƒ‰VMD–¢“Ç‚İ‚İ"));
+        ImGui::TextDisabled(u8("ã‚«ãƒ¡ãƒ©VMDæœªèª­ã¿è¾¼ã¿"));
         return;
     }
 
-    // --- Ä¶ƒRƒ“ƒgƒ[ƒ‹ ---
-    if (ImGui::Button(ca.playing ? u8("ˆê’â~") : u8("Ä¶")))
+    // --- å†ç”Ÿã‚³ãƒ³ãƒˆãƒ­ãƒ¼ãƒ« ---
+    if (ImGui::Button(ca.playing ? u8("ä¸€æ™‚åœæ­¢") : u8("å†ç”Ÿ")))
         ca.playing = !ca.playing;
     ImGui::SameLine();
-    if (ImGui::Button(u8("Å‰‚©‚ç")))
+    if (ImGui::Button(u8("æœ€åˆã‹ã‚‰")))
         ca.time = 0.0f;
 
     if (ca.clip.duration > 0.0f)
@@ -132,7 +132,7 @@ void DrawExtraUI<AnimatorComponent>(World& world, Entity e, AnimatorComponent& a
             a.playing       = true;
         };
 
-    // “Ç‚İ‚İŠJn‚ÉƒpƒX‚ğ‹L˜^‚·‚é(¬Œ÷/¸”s‚ÉŠÖ‚í‚ç‚¸‹L˜^‚ÅOKB¸”s‚ÍƒƒO‚Éo‚é)
+    // èª­ã¿è¾¼ã¿é–‹å§‹æ™‚ã«ãƒ‘ã‚¹ã‚’è¨˜éŒ²ã™ã‚‹(æˆåŠŸ/å¤±æ•—ã«é–¢ã‚ã‚‰ãšè¨˜éŒ²ã§OKã€‚å¤±æ•—ã¯ãƒ­ã‚°ã«å‡ºã‚‹)
     auto loadAndRecord = [&an, &onLoaded](const std::string& rawPath)
         {
             const std::string path = ImportToAssets(rawPath);
@@ -140,11 +140,11 @@ void DrawExtraUI<AnimatorComponent>(World& world, Entity e, AnimatorComponent& a
 
             if (!an.clipPathsStr.empty()) an.clipPathsStr += "|";
             an.clipPathsStr += path;
-            an.clipsRestored = true;   // ‚¢‚Üè‚Å“Ç‚ñ‚¾•ª‚ğ•œŒ³ˆ—‚ª“ñdƒ[ƒh‚µ‚È‚¢‚æ‚¤‚É
+            an.clipsRestored = true;   // ã„ã¾æ‰‹ã§èª­ã‚“ã åˆ†ã‚’å¾©å…ƒå‡¦ç†ãŒäºŒé‡ãƒ­ãƒ¼ãƒ‰ã—ãªã„ã‚ˆã†ã«
         };
 
-    // --- VMD“Ç‚İ‚İƒ{ƒ^ƒ“(”ñ“¯Šú) ---
-    if (ImGui::Button(u8("VMD“Ç‚İ‚İ...")))
+    // --- VMDèª­ã¿è¾¼ã¿ãƒœã‚¿ãƒ³(éåŒæœŸ) ---
+    if (ImGui::Button(u8("VMDèª­ã¿è¾¼ã¿...")))
     {
         std::wstring picked;
         if (OpenFileDialog(picked, L"VMD Motion\0*.vmd\0All\0*.*\0"))
@@ -153,7 +153,7 @@ void DrawExtraUI<AnimatorComponent>(World& world, Entity e, AnimatorComponent& a
         }
     }
 
-    // Assets‚©‚ç‚Ìƒhƒ‰ƒbƒO&ƒhƒƒbƒv(”ñ“¯Šú)
+    // Assetsã‹ã‚‰ã®ãƒ‰ãƒ©ãƒƒã‚°&ãƒ‰ãƒ­ãƒƒãƒ—(éåŒæœŸ)
     if (ImGui::BeginDragDropTarget())
     {
         if (const ImGuiPayload* p = ImGui::AcceptDragDropPayload("ASSET_PATH"))
@@ -168,33 +168,33 @@ void DrawExtraUI<AnimatorComponent>(World& world, Entity e, AnimatorComponent& a
         ImGui::EndDragDropTarget();
     }
 
-    // vmdˆê——•\¦
+    // vmdä¸€è¦§è¡¨ç¤º
     if (!an.clips.empty())
     {
         if (an.clips.empty())
         {
-            ImGui::TextDisabled(u8("ƒNƒŠƒbƒv“Ç‚İ‚İ’†..."));
+            ImGui::TextDisabled(u8("ã‚¯ãƒªãƒƒãƒ—èª­ã¿è¾¼ã¿ä¸­..."));
             return;
         }
         if (an.currentClip < 0 || an.currentClip >= (int)an.clips.size())
-            an.currentClip = 0;   // ƒNƒ‰ƒ“ƒv
+            an.currentClip = 0;   // ã‚¯ãƒ©ãƒ³ãƒ—
 
         std::vector<const char*> names;
         for (const auto& c : an.clips) names.push_back(c.name.c_str());
         ImGui::Combo(u8("Clip"), &an.currentClip, names.data(), (int)names.size());
 	}
 
-    // --- Ä¶ƒRƒ“ƒgƒ[ƒ‹ ---
+    // --- å†ç”Ÿã‚³ãƒ³ãƒˆãƒ­ãƒ¼ãƒ« ---
     DrawMmdPlayerControls(world,an);
 }
 
-// ƒpƒXŒnƒtƒB[ƒ‹ƒh‚Ì‹¤’Ê•`‰æi•\¦E‘Î‰ƒyƒCƒ[ƒhó‚¯æ‚èEƒ_ƒCƒAƒƒOEApplyj
+// ãƒ‘ã‚¹ç³»ãƒ•ã‚£ãƒ¼ãƒ«ãƒ‰ã®å…±é€šæç”»ï¼ˆè¡¨ç¤ºãƒ»å¯¾å¿œãƒšã‚¤ãƒ­ãƒ¼ãƒ‰å—ã‘å–ã‚Šãƒ»ãƒ€ã‚¤ã‚¢ãƒ­ã‚°ãƒ»Applyï¼‰
 static void DrawPathField(const ReflectedField& f,
     const char* payloadType,
     const wchar_t* dialogFilter)
 {
     auto* path = (std::string*)f.ptr;
-    auto* res = (std::shared_ptr<void>*)f.ptr2;   // ”CˆÓƒŠƒ\[ƒXireset—pj
+    auto* res = (std::shared_ptr<void>*)f.ptr2;   // ä»»æ„ãƒªã‚½ãƒ¼ã‚¹ï¼ˆresetç”¨ï¼‰
 
     auto applyReset = [&]()
         {
@@ -203,12 +203,12 @@ static void DrawPathField(const ReflectedField& f,
 
     ImGui::Text("%s: %s", f.name.c_str(), path->empty() ? "(none)" : path->c_str());
 
-    // Assets‚©‚ç‚Ìƒhƒ‰ƒbƒO&ƒhƒƒbƒvó‚¯æ‚è
+    // Assetsã‹ã‚‰ã®ãƒ‰ãƒ©ãƒƒã‚°&ãƒ‰ãƒ­ãƒƒãƒ—å—ã‘å–ã‚Š
     if (ImGui::BeginDragDropTarget())
     {
         if (const ImGuiPayload* p = ImGui::AcceptDragDropPayload(payloadType))
         {
-            *path = std::string((const char*)p->Data, p->DataSize - 1); // ––”öNULœ‚­
+            *path = std::string((const char*)p->Data, p->DataSize - 1); // æœ«å°¾NULé™¤ã
             applyReset();
         }
         ImGui::EndDragDropTarget();
@@ -222,7 +222,7 @@ static void DrawPathField(const ReflectedField& f,
     }
 }
 
-// ---- ”Ä—pƒtƒB[ƒ‹ƒh•`‰æiInspector‚Æ‹¤—Lj ---- //
+// ---- æ±ç”¨ãƒ•ã‚£ãƒ¼ãƒ«ãƒ‰æç”»ï¼ˆInspectorã¨å…±æœ‰ï¼‰ ---- //
 void DrawFieldList(const FieldList& fl)
 {
     for (const auto& f : fl.fields)
@@ -281,7 +281,7 @@ void DrawFieldList(const FieldList& fl)
             DrawPathField(f, "ASSET_AUDIO",
                 L"Audio\0*.wav;*.mp3;*.ogg\0All\0*.*\0");
             break;
-        default: break; // Texture/Entity ‚Íê—pUI‚È‚Ì‚Å‚±‚±‚Å‚Íˆµ‚í‚È‚¢
+        default: break; // Texture/Entity ã¯å°‚ç”¨UIãªã®ã§ã“ã“ã§ã¯æ‰±ã‚ãªã„
         }
     }
 
@@ -307,7 +307,7 @@ static void FieldToJson(json& j, const ReflectedField& f)
     case FieldType::Audio:
     case FieldType::String: j = *(std::string*)f.ptr; break;
     case FieldType::Enum: j = *(int*)f.ptr; break;
-    default: break; // Texture/Entity ‚Í‚±‚±‚Å‚Í•Û‘¶‚µ‚È‚¢iê—pˆ—‚ª•K—v‚È‚ç•Ê“rj
+    default: break; // Texture/Entity ã¯ã“ã“ã§ã¯ä¿å­˜ã—ãªã„ï¼ˆå°‚ç”¨å‡¦ç†ãŒå¿…è¦ãªã‚‰åˆ¥é€”ï¼‰
     }
 }
 
@@ -343,7 +343,7 @@ static ComponentMeta MakeMeta(const std::string& name)
         [](World& w, Entity e) { return w.HasComponent<T>(e); },
         [](World& w, Entity e) { w.AddComponent<T>(e, T{}); },
 
-        // drawF‚ ‚ê‚ÎŒ©o‚µ‚²‚Æ•\¦AReflectŒ‹‰Ê‚ğ”Ä—p•`‰æ
+        // drawï¼šã‚ã‚Œã°è¦‹å‡ºã—ã”ã¨è¡¨ç¤ºã€Reflectçµæœã‚’æ±ç”¨æç”»
         [name](World& w, Entity e)
         {
             if (!w.HasComponent<T>(e)) return;
@@ -363,7 +363,7 @@ static ComponentMeta MakeMeta(const std::string& name)
             }
         },
 
-        // saveFReflect‚Å\‚³‚ê‚½ƒtƒB[ƒ‹ƒh‚ğ‚»‚Ì‚Ü‚Üjson‚Ö
+        // saveï¼šReflectã§ç”³å‘Šã•ã‚ŒãŸãƒ•ã‚£ãƒ¼ãƒ«ãƒ‰ã‚’ãã®ã¾ã¾jsonã¸
         [name](World& w, Entity e, json& out)
         {
             if (!w.HasComponent<T>(e)) return;
@@ -374,7 +374,7 @@ static ComponentMeta MakeMeta(const std::string& name)
             out[name] = fields;
         },
 
-        // loadFjson‚©‚çReflect‚Ìƒ|ƒCƒ“ƒ^‚Ö‘‚«–ß‚·
+        // loadï¼šjsonã‹ã‚‰Reflectã®ãƒã‚¤ãƒ³ã‚¿ã¸æ›¸ãæˆ»ã™
         [name](World& w, Entity e, const json& in)
         {
             if (!in.contains(name)) return;
@@ -389,7 +389,7 @@ static ComponentMeta MakeMeta(const std::string& name)
 }
 
 
-//   iInspectorEAddComponentEƒV[ƒ“Save/Load‘S•”‚É©“®”½‰fj
+//   ï¼ˆInspectorãƒ»AddComponentãƒ»ã‚·ãƒ¼ãƒ³Save/Loadå…¨éƒ¨ã«è‡ªå‹•åæ˜ ï¼‰
 static const std::vector<ComponentMeta> g_Components =
 {
 	MakeMeta<AnimatorComponent>("Animator"),
