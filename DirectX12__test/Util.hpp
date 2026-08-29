@@ -52,6 +52,8 @@ inline std::vector<std::shared_ptr<Material>> BuildMaterials(
         auto m = std::make_shared<Material>();
         m->Init();
 		m->baseAlpha = set.diffuseColor.w;
+		m->baseColor = set.diffuseColor;
+        m->baseColor.w = 1.0f;
 
         if (!set.diffuse.empty())
         {
@@ -78,7 +80,9 @@ inline std::vector<std::shared_ptr<Material>> BuildMaterials(
         if (set.roughImage && set.roughImage->ok)   m->CreateRoughFromRGBA(set.roughImage->width, set.roughImage->height, set.roughImage->pixels.data());
 
         out.push_back(m);
-        LOG->LogInfo("SubMat: " + set.name + " alpha=" + std::to_string(set.diffuseColor.w));
+        LOG->LogInfo("SubMat: " + set.name
+            + " tex=" + WideToUtf8(set.diffuse)
+            + " imgOk=" + std::to_string(set.diffuseImage && set.diffuseImage->ok));
     }
     return out;
 }

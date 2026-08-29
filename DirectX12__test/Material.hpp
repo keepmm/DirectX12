@@ -74,6 +74,7 @@ public:
 	float sheen = 0.0f;			// •z : 0.5 ~ 1.0
 	COLOR sssColor = {0.9f,0.35f,0.25f,1.0f};
 	float baseAlpha = 1.0f;
+	COLOR baseColor = { 1.0f,1.0f,1.0f,1.0f };
 	std::string shaderName;
 
 	bool SetNormalTexture(_In_ const std::wstring& path);

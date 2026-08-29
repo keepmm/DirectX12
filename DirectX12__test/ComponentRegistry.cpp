@@ -6,6 +6,7 @@
 #include "ModelLoader.hpp"
 #include "Debug.hpp"
 #include "AsyncLoader.hpp"
+#include "MmdPlayerUI.hpp"
 
 using json = nlohmann::json;
 
@@ -184,23 +185,7 @@ void DrawExtraUI<AnimatorComponent>(World& world, Entity e, AnimatorComponent& a
 	}
 
     // --- 再生コントロール ---
-    if (ImGui::Button(an.playing ? u8("一時停止") : u8("再生")))
-        an.playing = !an.playing;
-    ImGui::SameLine();
-    if (ImGui::Button(u8("最初から")))
-        an.time = 0.0f;
-
-    if (an.clips.empty())
-    {
-        ImGui::TextDisabled(u8("クリップ読み込み中..."));
-        return;
-    }
-    if (an.currentClip < 0 || an.currentClip >= (int)an.clips.size())
-        an.currentClip = 0;   // クランプ
-
-    const auto& clip = an.clips[an.currentClip];
-    if (clip.duration > 0.0f)
-        ImGui::ProgressBar(an.time / clip.duration, ImVec2(-1, 0));
+    DrawMmdPlayerControls(world,an);
 }
 
 // パス系フィールドの共通描画（表示・対応ペイロード受け取り・ダイアログ・Apply）

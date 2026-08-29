@@ -10,6 +10,7 @@
 
 #include "../SceneManager.hpp"
 #include "../DirectX.hpp"
+#include "../FramePipeline.hpp"
 
 class Engine
 {
@@ -35,6 +36,10 @@ protected:
 	std::unique_ptr<DirectXApp> m_DirectX;
 	HWND m_hWnd = nullptr;
 	HINSTANCE m_hInstance = nullptr;
+
+#ifdef _FRAMEPIPELINE
+	FramePipeline m_FramePipeline[RTV_NUM];
+#endif
 
 	void CreateGameWindow(int width, int height);
 };

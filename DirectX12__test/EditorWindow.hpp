@@ -73,6 +73,9 @@ private:
 	/// @brief コンソールウィンドウの描画
 	void DrawConsole();
 
+	/// @brief MMD再生ウィンドウの描画
+	void DrawMmdPlayer(_In_ World& world);
+
 	/// @brief プレイ/停止ボタンの描画
 	void DrawPlayControl(_In_ Scene* activeScene);
 
@@ -127,6 +130,7 @@ private:
 	bool m_ShowMemory = true;		// メモリ使用量表示
 	bool m_ShowConsole = true;		// コンソール表示
 	bool m_DockLayout = false;
+	bool m_ShowMmdPlayer = true;
 
 	// ビューポート情報
 	ImVec2 m_ViewportSize{ 0.0f, 0.0f };

@@ -67,6 +67,12 @@
     <Filter Include="Build">
       <UniqueIdentifier>{d52573d3-46d2-478c-8c4e-89f610cb717a}</UniqueIdentifier>
     </Filter>
+    <Filter Include="FramePipeline">
+      <UniqueIdentifier>{1e8df22a-d5a3-4b65-b5e4-6b8acc2e97e9}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="UI">
+      <UniqueIdentifier>{a46b1614-8fe9-4111-89c6-23afe3f11bda}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Application.cpp">
@@ -233,6 +239,9 @@
     </ClCompile>
     <ClCompile Include="PsoRegistry.cpp">
       <Filter>Core</Filter>
+    </ClCompile>
+    <ClCompile Include="FramePipeline.cpp">
+      <Filter>FramePipeline</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -451,6 +460,12 @@
     </ClInclude>
     <ClInclude Include="PsoRegistry.hpp">
       <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="FramePipeline.hpp">
+      <Filter>FramePipeline</Filter>
+    </ClInclude>
+    <ClInclude Include="MmdPlayerUI.hpp">
+      <Filter>UI</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

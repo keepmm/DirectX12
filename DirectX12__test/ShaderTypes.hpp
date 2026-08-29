@@ -31,6 +31,8 @@ struct alignas(256) MaterialCB
 	float4 faceParam; // x isFace w Outline
 	float4 sssParams; // x = SSS強度 y = ラップ量 z = 逆光透過 w = 布シーン強度
 	float4 sssColor;  // x = SSS色R y = SSS色G z = SSS色B
+	float4 basecolor;
+
 };
 
 struct LightData

@@ -376,6 +376,15 @@ void MmdPhysics::StepFetch(std::vector<DirectX::XMMATRIX>& global)
     }
 }
 
+void MmdPhysics::Reset()
+{
+    if (!m_Scene) return;
+    // “Š‚°‚Á‚Ï‚È‚µ‚Ìsimulate‚ª‚ ‚ê‚Î‰ñŽû‚µ‚Ä‚©‚çŽÌ‚Ä‚é
+    if (m_SimPending) { m_Scene->fetchResults(true); m_SimPending = false; }
+    m_FirstStep = true;   // ŽŸ‚ÌStepBegin‚ÅresyncAll()‚ª‘–‚é
+    m_Accum = 0.0f;
+}
+
 void MmdPhysics::Destroy()
 {
     if (m_Scene && m_SimPending) { m_Scene->fetchResults(true); m_SimPending = false; }

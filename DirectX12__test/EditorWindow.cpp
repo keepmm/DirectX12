@@ -17,6 +17,7 @@
 #include "Util.hpp"
 #include "BuildSystem.hpp"
 #include <ShObjIdl.h>
+#include "MmdPlayerUI.hpp"
 
 #pragma comment(lib, "psapi.lib")
 
@@ -535,6 +536,12 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 	if(ImGui::Begin(u8("コンソール")) && m_ShowConsole)
 	{
 		DrawConsole();
+	}
+	ImGui::End();
+
+	if(ImGui::Begin(u8("MMDコントローラー")) && m_ShowMmdPlayer)
+	{
+		DrawMmdPlayer(sceneManager.GetActiveScene()->GetWorld());
 	}
 	ImGui::End();
 
@@ -1370,4 +1377,31 @@ void EditorWindow::CreateFolder(const std::string& dir)
 	fs::create_directory(target, ec);
 	if (ec) LOG->LogWarning("フォルダ作成失敗: " + ec.message());
 	else    LOG->LogInfo("フォルダ作成: " + target.string());
+}
+
+void EditorWindow::DrawMmdPlayer(World& world)
+{
+	Entity target = INVALID_ENTITY;
+
+	if (m_SelectedEntity != INVALID_ENTITY &&
+		world.IsEntityAlive(m_SelectedEntity) &&
+		world.HasComponent<AnimatorComponent>(m_SelectedEntity))
+	{
+		target = m_SelectedEntity;
+	}
+	else
+	{
+		world.Each<AnimatorComponent>([&](Entity e, AnimatorComponent&)
+			{
+				if (target == INVALID_ENTITY) target = e;
+			});
+	}
+
+	if (target == INVALID_ENTITY)
+	{
+		ImGui::TextDisabled(u8("Animatorを持つエンティティがありません"));
+		return;
+	}
+
+	DrawMmdPlayerControls(world, world.GetComponent<AnimatorComponent>(target));
 }

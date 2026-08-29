@@ -299,6 +299,8 @@ struct MusicSyncComponent
 	// ランタイム状態(シリアライズ対象外)
 	std::uint64_t startSamples = 0;
 	bool started = false;
+	float seekBase = 0.0f;			// シーク先の曲位置(秒)
+	bool  resyncRequested = false;	// startSamplesを取り直す
 
 	void Reflect(FieldList& f)
 	{
@@ -495,6 +497,11 @@ struct AudioSourceComponent
 	bool playRequested = false; // スクリプトから立てる
 	bool stopRequested = false;
 
+	bool  seekRequested = false;	// 指定秒へシーク
+	float seekSeconds = 0.0f;
+	bool  pauseRequested = false;	// 位置を保ったまま停止
+	bool  resumeRequested = false;	// 停止位置から再開
+
 	void Reflect(FieldList& f)
 	{
 		f.AddAudio("Clip", clipPath, clip);
@@ -526,6 +533,11 @@ struct AnimatorComponent
 	std::vector<float4x4> palette;
 	std::vector<std::string> extraClipNames;	// 追加のアニメーション名
 
+	float speed = 1.0f;			// 再生速度
+	bool  loop = true;			// ループ再生
+	bool  scrubbing = false;		// スライダー操作中(この間は物理を止める)
+	bool  physicsResetRequest = false;	// 次フレームで物理を再同期する
+
 	std::string clipPathsStr;  
 	bool clipsRestored = false;
 
@@ -539,6 +551,8 @@ struct AnimatorComponent
 		f.Add("Time", time);
 		f.Add("Playing", playing);
 		f.Add("ClipPaths", clipPathsStr);
+		f.Add("Speed", speed);
+		f.Add("Loop",loop);
 	}
 };
 

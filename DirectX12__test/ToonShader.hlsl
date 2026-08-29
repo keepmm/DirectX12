@@ -17,13 +17,14 @@ cbuffer Material : register(b3)
     float4 faceParam; // y = baseAlpha
     float4 sssParams;
     float4 sssColor;
+    float4 matBaseColor;
 }
 
 float4 ToonPS(PSInput input) : SV_TARGET
 {
     float4 texColor = g_Texture.Sample(g_Sampler, input.uv);
     clip(faceParam.y * input.col.a - 0.05f); // 非表示マテリアルを消す
-    float3 baseColor = input.col.rgb * texColor.rgb;
+    float3 baseColor = input.col.rgb * texColor.rgb * matBaseColor.rgb;
     float3 N = normalize(input.normal);
     float3 V = normalize(cameraPos.xyz - input.worldPos);
     
@@ -41,6 +42,7 @@ float4 ToonPS(PSInput input) : SV_TARGET
         
         // ランプで階調化したディフューズ(2 ~ 3トーン)
         float3 ramp = g_RampTexture.Sample(g_RampSampler, float2(nDotL, 0.5f)).rgb;
+        return float4(ramp, 1.0f);
         diffuse += lights[i].color.rgb * baseColor * ramp;
         
         // アニメ調すぺきゅら

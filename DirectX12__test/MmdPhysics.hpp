@@ -28,6 +28,8 @@ public:
     // ‘O‰ñŒ‹‰Ê‚ğ‰ñû‚µ‚Ä‘‚«–ß‚µ
 	void StepFetch(std::vector<DirectX::XMMATRIX>& global);
 
+    void Reset();
+
     bool IsValid() const { return m_Scene != nullptr; }
     ~MmdPhysics() { Destroy(); }
 

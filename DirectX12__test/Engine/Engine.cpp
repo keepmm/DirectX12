@@ -94,6 +94,13 @@ HRESULT Engine::Init(HINSTANCE hInstance, int width, int height)
 	UpdateWindow(m_hWnd);
 	ShowWindow(m_hWnd, SW_SHOW);
 
+#ifdef _FRAMEPIPELINE
+	for(auto& frame : m_FramePipeline)
+	{
+		frame.Init();
+	}
+#endif
+
 	// サブクラスの初期化
 	HRESULT hr = OnInit();
 	if (FAILED(hr))
@@ -191,10 +198,8 @@ void Engine::Run()
 			{
 				return;
 			}
-			if (FAILED(m_DirectX->ExecuteAndPresent()))
-			{
-				return;
-			}
+			m_DirectX->KickExecuteAndPresent();   // 非同期投入して即次フレームへ
+			m_DirectX->FlushGpuExec();
 			++frameNumber;
 #else
 			if(FAILED(m_DirectX->EndRender()))

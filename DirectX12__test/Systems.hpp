@@ -879,6 +879,36 @@ public:
 					src.voice->FlushSourceBuffers();
 				}
 
+				// ---- シーク(PlayBeginでバッファを投げ直す) ---- //
+				if (src.seekRequested)
+				{
+					src.seekRequested = false;
+
+					const WAVEFORMATEX& fmt = src.clip->format;
+					const UINT32 blockAlign = (fmt.nBlockAlign > 0) ? fmt.nBlockAlign : 1;
+					const UINT32 totalSamples = (UINT32)(src.clip->data.size() / blockAlign);
+
+					UINT32 sampleOffset = (UINT32)(std::max(0.0f, src.seekSeconds) * fmt.nSamplesPerSec);
+					if (totalSamples == 0) sampleOffset = 0;
+					else if (sampleOffset >= totalSamples) sampleOffset = totalSamples - 1;
+
+					src.voice->Stop();
+					src.voice->FlushSourceBuffers();
+
+					XAUDIO2_BUFFER buf{};
+					buf.AudioBytes = (UINT32)src.clip->data.size();
+					buf.pAudioData = src.clip->data.data();
+					buf.Flags = XAUDIO2_END_OF_STREAM;
+					buf.LoopCount = src.loop ? XAUDIO2_LOOP_INFINITE : 0;
+					buf.PlayBegin = sampleOffset;   // ここから再生
+					src.voice->SubmitSourceBuffer(&buf);
+					src.voice->Start();
+				}
+
+				// ---- 一時停止 / 再開(位置は保持される) ---- //
+				if (src.pauseRequested) { src.pauseRequested = false; src.voice->Stop(); }
+				if (src.resumeRequested) { src.resumeRequested = false; src.voice->Start(); }
+
 				// ---- 3D定位 ---- //
 				if (src.is3D && hasListener)
 				{
@@ -1028,12 +1058,34 @@ public:
 				if (an.currentClip < 0 || an.currentClip >= (int)an.clips.size()) return;
 				const AnimationClip& clip = an.clips[an.currentClip];
 				if (an.playing && clip.duration > 0.0f)
-					an.time = fmodf(an.time + dt, clip.duration);
+				{
+					an.time += dt * an.speed;
+					if (an.loop)
+					{
+						an.time = fmodf(an.time, clip.duration);
+						if (an.time < 0.0f) an.time += clip.duration;
+					}
+					else if (an.time >= clip.duration)
+					{
+						an.time = clip.duration;
+						an.playing = false;
+					}
+				}
+
 				MmdPhysics* phys = nullptr;
 				if (world.HasComponent<MmdPhysicsComponent>(e))
 					phys = world.GetComponent<MmdPhysicsComponent>(e).impl.get();
 
-				ComputePalette(an.skeleton, an.skinData, clip, an.time, an.palette, phys, dt);
+				// シーク直後は剛体を現在のボーン姿勢へ再同期(爆発防止)
+				if (an.physicsResetRequest)
+				{
+					if (phys) phys->Reset();
+					an.physicsResetRequest = false;
+				}
+
+				// スライダーをドラッグしている間はFK/IKのみ(物理を進めない)
+				ComputePalette(an.skeleton, an.skinData, clip, an.time, an.palette,
+					an.scrubbing ? nullptr : phys, dt);
 
 				auto t1 = clk::now();
 				static int c = 0;
@@ -1155,6 +1207,13 @@ public:
 					return;
 				}
 
+				// シーク直後は再生開始点を取り直す
+				if (sync.resyncRequested)
+				{
+					sync.resyncRequested = false;
+					sync.started = false;
+				}
+
 				XAUDIO2_VOICE_STATE st{};
 				src.voice->GetState(&st);
 
@@ -1170,7 +1229,8 @@ public:
 
 				const float rate = (float)src.clip->format.nSamplesPerSec;
 				const float musicTime =
-					(float)(st.SamplesPlayed - sync.startSamples) / rate + sync.offset;
+					(float)(st.SamplesPlayed - sync.startSamples) / rate
+					+ sync.seekBase + sync.offset;
 
 				sync.musicTime = musicTime;
 

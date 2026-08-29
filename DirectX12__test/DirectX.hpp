@@ -6,6 +6,12 @@
 #include <dxgi1_4.h>
 #include <d3dcompiler.h>
 
+#include <atomic>
+#include <thread>
+#include <condition_variable>
+#include <deque>
+#include <mutex>
+
 #include "RenderContext.hpp"
 #include "ShaderLibrary.hpp"
 #include "PipelineStateCache.hpp"
@@ -141,7 +147,9 @@ public:
 #ifdef _FRAMEPIPELINE
 	HRESULT BeginFrameRecord(UINT64 frameNumber);
 	HRESULT CloseFrameRecord();
-	HRESULT ExecuteAndPresent();
+	void KickExecuteAndPresent();
+	HRESULT GetGpuExecResult() const noexcept { return m_GpuExecResult.load(); }
+	void FlushGpuExec();
 #else
 	HRESULT BeginRender();
 	HRESULT EndRender();
@@ -266,7 +274,8 @@ public:
 	inline DescriptorAllocator& GetRtvAllocator() noexcept { return m_RtvAllocator; }
 	inline DescriptorAllocator& GetDsvAllocator() noexcept { return m_DsvAllocator; }
 	inline D3D12_CPU_DESCRIPTOR_HANDLE GetDsvHandle() const noexcept { return m_DSV_Handle; }
-	inline D3D12_CPU_DESCRIPTOR_HANDLE GetRtvHandle() const noexcept { return m_RTV_Handle[m_FrameIndex]; }
+	// 記録中のコマンドリストが対象にしているバックバッファを返す
+	inline D3D12_CPU_DESCRIPTOR_HANDLE GetRtvHandle() const noexcept { return m_RTV_Handle[BackbufferIndex()]; }
 	inline D3D12_CPU_DESCRIPTOR_HANDLE GetShadowSrvCpu() const noexcept { return m_ShadowSrvCpu; }
 	inline D3D12_CPU_DESCRIPTOR_HANDLE GetEnvSrvCpu() const noexcept { return m_EnvSrvCpu; }
 	bool LoadEnvironment(const std::wstring& hdrpath);
@@ -279,7 +288,7 @@ public:
 	void WaitForGPUIdle();
 	void DeferRelease(ComPtr<ID3D12Resource>&& r)
 	{
-		if (r) m_DeferredReleases[m_FrameIndex].push_back(std::move(r));
+		if (r) m_DeferredReleases[RecordSlot()].push_back(std::move(r));
 	}
 private:
 	static DirectXApp* s_Instance;
@@ -288,7 +297,7 @@ private:
 	int  m_Window_Width;
 	int  m_Window_Height;
 	HANDLE m_Fence_Event;
-	UINT64 m_NextFenceValue = 0;
+	std::atomic<UINT64> m_NextFenceValue = 0;
 	ComPtr<ID3D12Device> m_Device;
 	ComPtr<ID3D12Device2> m_Device2;
 	ComPtr<ID3D12CommandQueue> m_CommandQueue;
@@ -301,6 +310,28 @@ private:
 	UINT	m_RecordBackbuffer = 0;
 	UINT	m_SyncBackBuffer = 0;
 	UINT64  m_SyncFrameNumber = 0;   
+
+	std::atomic<UINT64> m_SyncPacked{ 0 };
+
+	/// @brief GpuExecスレッド
+	struct GPUExecJob
+	{
+		UINT64 frameNumber;
+		UINT slot;
+		UINT backbuffer;
+	};
+	std::thread				m_GpuExecThread;
+	std::mutex				m_GpuExecMutex;
+	std::condition_variable m_GpuExecCv;
+	std::condition_variable m_GpuExecDoneCv;
+	std::deque<GPUExecJob>  m_GpuExecQueue;
+	UINT64					m_GpuExecCompletedCount = 0;
+	UINT64					m_GpuExecPushedCount = 0;
+	bool					m_GpuExecExit = false;
+	std::atomic<HRESULT>	m_GpuExecResult{ S_OK };
+
+	void GpuExecThreadMain();
+	HRESULT ExecuteFrame(_In_ const GPUExecJob& job);
 #else
 	ComPtr<ID3D12GraphicsCommandList>	m_CommandList;
 #endif
@@ -319,7 +350,7 @@ private:
 
 	ComPtr<ID3D12Resource> m_RenderTargets[RTV_NUM];
 	D3D12_CPU_DESCRIPTOR_HANDLE m_RTV_Handle[RTV_NUM];
-	UINT m_FrameIndex = 0;
+	std::atomic<UINT> m_FrameIndex = 0;
 	UINT64 m_FenceValue[RTV_NUM] = {};
 
 

@@ -157,10 +157,10 @@ DirectXApp::DirectXApp(HWND hWnd, int Window_Width, int Window_Height) :
 	{
 		m_FenceValue[i] = 0;
 	}
-
 #ifdef _FRAMEPIPELINE
-	m_SyncFrameNumber = 0;
-	m_SyncBackBuffer = m_SwapChain->GetCurrentBackBufferIndex();
+	m_SyncPacked.store((0ull << 8) | m_SwapChain->GetCurrentBackBufferIndex());
+
+	m_GpuExecThread = std::thread([this] {GpuExecThreadMain(); });
 
 	for (int i = 0; i < RTV_NUM; ++i)
 	{
@@ -1291,6 +1291,17 @@ void DirectXApp::PostPass(ID3D12PipelineState* pso, D3D12_GPU_DESCRIPTOR_HANDLE 
 
 DirectXApp::~DirectXApp()
 {
+#ifdef _FRAMEPIPELINE
+	{
+		std::lock_guard lk(m_GpuExecMutex);
+		m_GpuExecExit = true;
+	}
+	m_GpuExecCv.notify_one();
+	if (m_GpuExecThread.joinable())
+	{
+		m_GpuExecThread.join();
+	}
+#endif
 	WaitForGPUIdle();
 	s_Instance = nullptr;
 
@@ -1453,9 +1464,10 @@ void DirectXApp::DeferredLightingPass(const RenderContext& ctx)
 	SetResourceBarrier(cmd, m_Depthbuffer.Get(),
 		D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
 
-	// --- 出力先: バックバッファ（DSV無し）---
-	cmd->OMSetRenderTargets(1, &m_RTV_Handle[m_FrameIndex], FALSE, nullptr);
-	cmd->ClearRenderTargetView(m_RTV_Handle[m_FrameIndex], ClearColor, 0, nullptr);
+	// --- 出力先: バックバッファ(DSVなし) ---
+	const UINT backbuffer = BackbufferIndex();
+	cmd->OMSetRenderTargets(1, &m_RTV_Handle[backbuffer], FALSE, nullptr);
+	cmd->ClearRenderTargetView(m_RTV_Handle[backbuffer], ClearColor, 0, nullptr);
 
 	cmd->SetGraphicsRootSignature(m_DeferredRootSignature.Get());
 	cmd->SetPipelineState(m_DeferredPso.Get());
@@ -1508,7 +1520,7 @@ void DirectXApp::Present()
 {
 	auto* cmd = Cmd();
 
-	const UINT targetIndex = m_FrameIndex;
+	const UINT targetIndex = BackbufferIndex();
 
 	auto dsvhandle = m_DsvAllocator.heap->GetCPUDescriptorHandleForHeapStart();
 	cmd->OMSetRenderTargets(1, &m_RTV_Handle[targetIndex], FALSE, &dsvhandle);
@@ -1531,9 +1543,29 @@ void DirectXApp::Present()
 
 HRESULT DirectXApp::BeginFrameRecord(UINT64 frameNumber)
 {
+	// 失敗をメインループへ伝搬(Execスレッドで起きたエラー)
+	if (FAILED(m_GpuExecResult.load()))
+	{
+		return m_GpuExecResult.load();
+	}
+
+	// このスロットの前回使用者 Exec(N - RTV_NUM) の完了待ち
+	// (m_FenceValue[slot] の書き込み完了保証 + コマンドリストのExecute済み保証)
+	if (frameNumber >= RTV_NUM)
+	{
+		std::unique_lock lk(m_GpuExecMutex);
+		m_GpuExecDoneCv.wait(lk, [&] {
+			return m_GpuExecCompletedCount >= frameNumber - RTV_NUM + 1; });
+	}
+
 	m_RecordFrameNumber = frameNumber;
 	m_RecordSlot = static_cast<UINT>(frameNumber % RTV_NUM);
-	m_RecordBackbuffer = static_cast<UINT>((m_SyncBackBuffer + (frameNumber - m_SyncFrameNumber)) % RTV_NUM);
+
+	// 再同期点(Execスレッドが更新)から予測
+	const UINT64 packed = m_SyncPacked.load();
+	const UINT64 syncFrame = packed >> 8;
+	const UINT   syncIndex = static_cast<UINT>(packed & 0xFF);
+	m_RecordBackbuffer = static_cast<UINT>((syncIndex + (frameNumber - syncFrame)) % RTV_NUM);
 
 	// 子のスロットを最後に使ったフレームのGPU完了を待つ
 	const UINT64 fenceToWait = m_FenceValue[m_RecordSlot];
@@ -1596,36 +1628,80 @@ HRESULT DirectXApp::CloseFrameRecord()
 	return cmd->Close();
 }
 
-HRESULT DirectXApp::ExecuteAndPresent()
+void DirectXApp::GpuExecThreadMain()
 {
-	const UINT slot = m_RecordSlot;
+	for (;;)
+	{
+		GPUExecJob job;
+		{
+			std::unique_lock lk(m_GpuExecMutex);
+			m_GpuExecCv.wait(lk, [&] {return m_GpuExecExit || !m_GpuExecQueue.empty(); });
+			if (m_GpuExecExit && m_GpuExecQueue.empty())
+			{
+				return;
+			}
+			job = m_GpuExecQueue.front();
+			m_GpuExecQueue.pop_front();
+		}
 
-	ID3D12CommandList* lists[] = { m_CommandList[slot].Get() };
+		const HRESULT hr = ExecuteFrame(job);
+		if (FAILED(hr))
+		{
+			m_GpuExecResult.store(hr);
+		}
+
+		{
+			std::lock_guard lk(m_GpuExecMutex);
+			m_GpuExecCompletedCount = job.frameNumber + 1;
+		}
+		m_GpuExecDoneCv.notify_all();
+	}
+}
+
+HRESULT DirectXApp::ExecuteFrame(const GPUExecJob& job)
+{
+	ID3D12CommandList* lists[] = { m_CommandList[job.slot].Get() };
 	m_CommandQueue->ExecuteCommandLists(1, lists);
 
 	const UINT64 signalValue = ++m_NextFenceValue;
 	HRESULT hr = m_CommandQueue->Signal(m_Fence.Get(), signalValue);
 	if (FAILED(hr)) { return hr; }
-	m_FenceValue[slot] = signalValue;
+	m_FenceValue[job.slot] = signalValue;
 
 	hr = m_SwapChain->Present(1, 0);
 	if (FAILED(hr)) { return hr; }
 
 	m_FrameIndex = m_SwapChain->GetCurrentBackBufferIndex();
 
-	const UINT expected = static_cast<UINT>(
-		(m_SyncBackBuffer + (m_RecordFrameNumber - m_SyncFrameNumber) + 1) % RTV_NUM);
+	// 予測と実測の照合
+	const UINT expected = static_cast<UINT>((job.backbuffer + 1) % RTV_NUM);
 	if (m_FrameIndex != expected)
 	{
 		LOG->LogError("BackBuffer prediction miss: expected=" + std::to_string(expected)
 			+ " actual=" + std::to_string(m_FrameIndex)
-			+ " frame=" + std::to_string(m_RecordFrameNumber));
+			+ " frame=" + std::to_string(job.frameNumber));
 	}
 
-	m_SyncFrameNumber = m_RecordFrameNumber + 1;   // 次にPresentされるフレーム
-	m_SyncBackBuffer = m_FrameIndex;              // その描き先(実測)
+	// 再同期点を更新: 「フレーム job.frameNumber+1 は index m_FrameIndex に描かれる」
+	m_SyncPacked.store(((job.frameNumber + 1) << 8) | m_FrameIndex);
 
 	return S_OK;
+}
+
+void DirectXApp::KickExecuteAndPresent()
+{
+	{
+		std::lock_guard lk(m_GpuExecMutex);
+		m_GpuExecQueue.push_back({m_RecordFrameNumber, m_RecordSlot, m_RecordBackbuffer});
+		m_GpuExecPushedCount = m_RecordFrameNumber + 1;
+	}
+	m_GpuExecCv.notify_one();
+}
+
+void DirectXApp::FlushGpuExec()
+{
+	std::unique_lock lk(m_GpuExecMutex);
+	m_GpuExecDoneCv.wait(lk, [&]{return m_GpuExecCompletedCount >= m_GpuExecPushedCount; });
 }
 
 #endif
@@ -1667,6 +1743,9 @@ bool DirectXApp::LoadEnvironment(const std::wstring& hdrpath)
 
 void DirectXApp::WaitForGPUIdle()
 {
+#ifdef _FRAMEPIPELINE
+	FlushGpuExec();
+#endif
 	if (!m_CommandQueue || !m_Fence || !m_Fence_Event) return;
 
 	ComPtr<ID3D12DeviceRemovedExtendedData> dredData;

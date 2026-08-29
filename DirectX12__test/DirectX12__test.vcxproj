@@ -168,6 +168,7 @@
     </ClCompile>
     <ClCompile Include="FireworkSystem.cpp" />
     <ClCompile Include="FontAtlas.cpp" />
+    <ClCompile Include="FramePipeline.cpp" />
     <ClCompile Include="GBuffer.cpp" />
     <ClCompile Include="IconLibrary.cpp" />
     <ClCompile Include="imgui.cpp" />
@@ -234,6 +235,7 @@
     <ClInclude Include="EngineAPI.hpp" />
     <ClInclude Include="FireworkSystem.hpp" />
     <ClInclude Include="FontAtlas.hpp" />
+    <ClInclude Include="FramePipeline.hpp" />
     <ClInclude Include="GameAPI.hpp" />
     <ClInclude Include="GBuffer.hpp" />
     <ClInclude Include="IconLibrary.hpp" />
@@ -252,6 +254,7 @@
     <ClInclude Include="Mesh.hpp" />
     <ClInclude Include="MeshRenderer.hpp" />
     <ClInclude Include="MmdPhysics.hpp" />
+    <ClInclude Include="MmdPlayerUI.hpp" />
     <ClInclude Include="ModelData.hpp" />
     <ClInclude Include="ModelLoader.hpp" />
     <ClInclude Include="MonoBehavior.hpp" />

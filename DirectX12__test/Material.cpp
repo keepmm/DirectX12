@@ -312,6 +312,7 @@ void Material::Apply(
 	mdata.rimColor = rimColor;
 	mdata.sssParams = { sssStrength, sssWrap, sssTrans,sheen };
 	mdata.sssColor = sssColor;
+	mdata.basecolor = baseColor;
 	const D3D12_GPU_VIRTUAL_ADDRESS b3 = cbAlloc->Allocate(frameSlot, &mdata, sizeof(MaterialCB));
 
 
@@ -399,10 +400,15 @@ void Material::CreateCheckerTexture(const ComPtr<ID3D12Device>& device)
 	constexpr UINT pixelSize = 4; // RGBA8なので1ピクセルあたり4バイト
 
 	// チェッカーテクスチャのピクセルデータ（白と黒の2x2）
+	//std::array < std::uint8_t, width* height* pixelSize> pixels =
+	//{
+	//	255,255,255,255, 30,30,30,255,
+	//	30,30,30,255,255,255,255,255
+	//};
 	std::array < std::uint8_t, width* height* pixelSize> pixels =
 	{
-		255,255,255,255, 30,30,30,255,
-		30,30,30,255,255,255,255,255
+		255,255,255,255, 255,255,255,255,
+		255,255,255,255, 255,255,255,255
 	};
 
 	// テクスチャリソースを作成
@@ -470,7 +476,7 @@ void Material::CreateCheckerTexture(const ComPtr<ID3D12Device>& device)
 	srvDesc.Texture2D.MipLevels = 1;
 
 	auto cpu = m_TextureSrvHeap->GetCPUDescriptorHandleForHeapStart();
-	cpu.ptr += device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	//cpu.ptr += device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	device->CreateShaderResourceView(m_Texture.Get(), &srvDesc, cpu);
 
 }
