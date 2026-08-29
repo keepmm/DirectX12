@@ -1,4 +1,4 @@
-﻿#include "Common.hlsli"
+#include "Common.hlsli"
 #include "Lighting.hlsli"
 #include "BRDF.hlsli"
 

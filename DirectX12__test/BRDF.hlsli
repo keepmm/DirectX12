@@ -1,4 +1,4 @@
-﻿#ifndef BRDF_HLSLI
+#ifndef BRDF_HLSLI
 #define BRDF_HLSLI
 
 // --- Lambert（今の BasicPS 相当）---

@@ -1,4 +1,4 @@
-﻿#ifndef ___LIGHTING_HLSLI___
+#ifndef ___LIGHTING_HLSLI___
 #define ___LIGHTING_HLSLI___
 
 #define MAX_LIGHTS 10

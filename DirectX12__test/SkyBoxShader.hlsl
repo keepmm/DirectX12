@@ -1,4 +1,4 @@
-﻿#include "Common.hlsli"
+#include "Common.hlsli"
 
 Texture2D gPanorma : register(t0);
 SamplerState gSampler : register(s0);

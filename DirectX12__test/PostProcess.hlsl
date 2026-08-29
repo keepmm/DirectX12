@@ -1,4 +1,4 @@
-﻿Texture2D g_Src : register(t0);
+Texture2D g_Src : register(t0);
 Texture2D g_Bloom : register(t1);
 SamplerState g_Sampler : register(s0);
 
