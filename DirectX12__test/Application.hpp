@@ -26,9 +26,9 @@ public:
 	~Application() = default;
 
 	void SetGameMode(bool gameMode) { m_GameMode = gameMode; }
-	void SetStartScene(const std::string& path) { m_StartScene = path; }
+	void SetStartScene(const std::string& name) { m_StartScene = name; }
 private:
-	std::string m_StartScene = "SampleScene.json";
+	std::string m_StartScene = "SampleScene";
 private:
 	std::unique_ptr<EditorWindow> m_EditorWindow;
 	D3D12_VIEWPORT m_GameViewport{};
