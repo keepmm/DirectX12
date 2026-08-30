@@ -361,3 +361,5 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+# エディタの Build 機能が出力するゲーム成果物（exe / コピーされた Assets / DLL）
+DirectX12__test/Build/
