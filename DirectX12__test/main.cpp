@@ -44,7 +44,7 @@ int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCm
 			if (!dataDir.empty())
 				SetCurrentDirectoryW((exeDir / dataDir).c_str());
 			if (!scene.empty())
-				APPLICATION->SetStartScene(scene);
+				APPLICATION->SetStartScene(std::filesystem::path(scene).stem().string());
 		}
 	}
 	APPLICATION->SetGameMode(gameMode);
