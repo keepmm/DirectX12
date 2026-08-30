@@ -9,7 +9,7 @@ ImGui ベースのエディタ上でシーンを編集し、C++ スクリプト�
 | 分類 | 内容 |
 | --- | --- |
 | 描画 | 前方描画 / Deferred（GBuffer + DeferredLighting）、PBR + IBL、シャドウマッピング、スカイボックス、ポストプロセス |
-| シェーダ | Toon / GenshinToon + アウトライン、Rim、Fresnel、Dissolve、BlinnPhong、LaserBeam などを HLSL で同梱 |
+| シェーダ | `ToonShader` / `Genshin_ToonShader` + `GenshinOutline`、`RimShader`、`FresnelShader`、`DissolveShader`、`BlinnPhongShader`、`LaserBeamShader` などを HLSL で同梱 |
 | モデル | Assimp による汎用モデル読み込み、独自 PMX ローダ（MMD）、スキニング、モーフ |
 | アニメーション | `Animator`、VMD モーション再生 |
 | 物理 | NVIDIA PhysX（`PhysicsWorld`）、Bullet ベースの MMD 剛体（`MmdPhysics`） |
@@ -42,10 +42,12 @@ ImGui ベースのエディタ上でシーンを編集し、C++ スクリプト�
 - **エディタモード**（既定）: ImGui のエディタ UI を表示し、シーンビューとゲームビューを描画
 - **ゲームモード**: 起動引数 `-game` を渡すか、exe と同じ階層に `game.cfg` がある場合に有効
 
-`game.cfg` は 2 行のテキストで、1 行目が起動シーン、2 行目がデータフォルダ名です。
+`game.cfg` は 2 行のテキストで、1 行目が**起動シーン名**、2 行目がデータフォルダ名です。
+シーン名は拡張子もディレクトリも付けません（`SceneManager::ScenePathFromName` が
+`Assets/Scenes/<名前>.json` を組み立てるため）。
 
 ```
-Assets/Scenes/SampleScene.json
+SampleScene
 MyGame_Data
 ```
 
