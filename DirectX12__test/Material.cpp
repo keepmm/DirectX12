@@ -349,7 +349,7 @@ void Material::ShareDiffuseTexture(const Material& src)
 	srvDesc.Format = desc.Format;
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
-	srvDesc.Texture2D.MipLevels = desc.MipLevels;
+	srvDesc.Texture2D.MipLevels = 1;   // ミップ0しかアップロードしていないので1固定(desc.MipLevelsだと未初期化ミップを露出する)
 	APP->GetDevice()->CreateShaderResourceView(
 		m_Texture.Get(), &srvDesc,
 		m_TextureSrvHeap->GetCPUDescriptorHandleForHeapStart());
@@ -412,7 +412,7 @@ void Material::CreateCheckerTexture(const ComPtr<ID3D12Device>& device)
 	};
 
 	// テクスチャリソースを作成
-	CD3DX12_RESOURCE_DESC texDesc = CD3DX12_RESOURCE_DESC::Tex2D(format, width, height);
+	CD3DX12_RESOURCE_DESC texDesc = CD3DX12_RESOURCE_DESC::Tex2D(format, width, height, 1, 1);
 
 	// テクスチャリソースの作成に失敗した場合は処理しない
 	CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_DEFAULT);
@@ -583,7 +583,7 @@ bool Material::CreateTextureFromRGBA(
 	// SRVヒープ（無ければ作る）
 	if (!EnsureSrvHeap()) return false;
 
-	CD3DX12_RESOURCE_DESC texDesc = CD3DX12_RESOURCE_DESC::Tex2D(format, width, height);
+	CD3DX12_RESOURCE_DESC texDesc = CD3DX12_RESOURCE_DESC::Tex2D(format, width, height, 1, 1);
 	CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_DEFAULT);
 	if (FAILED(device->CreateCommittedResource(&heapProps, D3D12_HEAP_FLAG_NONE, &texDesc,
 		D3D12_RESOURCE_STATE_COPY_DEST, nullptr, IID_PPV_ARGS(m_Texture.ReleaseAndGetAddressOf()))))
@@ -639,7 +639,7 @@ bool Material::CreateMapFromRGBA(
 	constexpr UINT pixelSize = 4;
 
 	// テクスチャ本体（DEFAULTヒープ）
-	CD3DX12_RESOURCE_DESC texDesc = CD3DX12_RESOURCE_DESC::Tex2D(format, width, height);
+	CD3DX12_RESOURCE_DESC texDesc = CD3DX12_RESOURCE_DESC::Tex2D(format, width, height, 1, 1);
 	CD3DX12_HEAP_PROPERTIES heapProps(D3D12_HEAP_TYPE_DEFAULT);
 	if (FAILED(device->CreateCommittedResource(
 		&heapProps, D3D12_HEAP_FLAG_NONE, &texDesc,
