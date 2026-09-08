@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="..\packages\NVIDIA.PhysX.4.1.229882250\build\native\NVIDIA.PhysX.props" Condition="Exists('..\packages\NVIDIA.PhysX.4.1.229882250\build\native\NVIDIA.PhysX.props')" />
   <Import Project="..\packages\BulletSharp.x64.0.12.0\build\BulletSharp.x64.props" Condition="Exists('..\packages\BulletSharp.x64.0.12.0\build\BulletSharp.x64.props')" />
@@ -195,6 +195,7 @@
     <ClCompile Include="PMXLoader.cpp" />
     <ClCompile Include="Polygon.cpp" />
     <ClCompile Include="PrefabLibrary.cpp" />
+    <ClCompile Include="Project.cpp" />
     <ClCompile Include="PsoRegistry.cpp" />
     <ClCompile Include="RegisterScript.cpp" />
     <ClCompile Include="RenderTexture.cpp" />
@@ -265,6 +266,7 @@
     <ClInclude Include="PMXLoader.hpp" />
     <ClInclude Include="Polygon.hpp" />
     <ClInclude Include="PrefabLibrary.hpp" />
+    <ClInclude Include="Project.hpp" />
     <ClInclude Include="PsoRegistry.hpp" />
     <ClInclude Include="RegisterScript.hpp" />
     <ClInclude Include="RenderContext.hpp" />

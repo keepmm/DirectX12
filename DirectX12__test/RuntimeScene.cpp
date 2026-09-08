@@ -25,7 +25,7 @@ void RuntimeScene::OnLoad()
 
 	LOG->LogInfo("RuntimeScene : Loading...");
 
-	m_DebugLineRenderer.Init(m_Device, m_LinePso);
+	m_DebugLineRenderer.Init(m_Device, m_LinePso, APP->GetLineDepthPso());
 	m_BeamRenderer.Init(m_Device, APP->GetBeamPso());
 
 	if (!m_SceneFilePath.empty())
@@ -480,8 +480,8 @@ void RuntimeScene::DrawGrid()
 	{
 		const float offset = -half + i * gridSize;
 
-		m_DebugLineRenderer.AddLine(float3{ offset, 0.0f, -half }, float3{ offset, 0.0f, half }, gridColor);
-		m_DebugLineRenderer.AddLine(float3{ -half, 0.0f, offset }, float3{ half, 0.0f, offset }, gridColor);
+		m_DebugLineRenderer.AddLine(float3{ offset, 0.0f, -half }, float3{ offset, 0.0f, half }, gridColor, true);
+		m_DebugLineRenderer.AddLine(float3{ -half, 0.0f, offset }, float3{ half, 0.0f, offset }, gridColor, true);
 	}
 }
 

@@ -825,6 +825,18 @@ void DirectXApp::CreatePipelineStateObject()
 	);
 	if (m_LinePso == nullptr) {
 		assert(false);
+
+	}
+	auto lineDepthDesc = lineDesc;
+	lineDepthDesc.DepthStencilState.DepthEnable = TRUE;
+	lineDepthDesc.DepthStencilState.DepthFunc = D3D12_COMPARISON_FUNC_LESS_EQUAL;
+	lineDepthDesc.DepthStencilState.DepthWriteMask = D3D12_DEPTH_WRITE_MASK_ZERO;
+	m_LineDepthPso = m_PsoCache.GetOrCreate("LineVS_LinePS_Depth",
+		m_Device.Get(),
+		lineDepthDesc
+	);
+	if (m_LineDepthPso == nullptr) {
+		assert(false);
 	}
 
 	auto BeamDesc = lineDesc;

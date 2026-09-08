@@ -60,7 +60,7 @@ public:
 		assert(old + aligned <= m_Capacity && "FrameAllocator容量不足: Initのサイズを増やす");
 		return m_Buffer + old;
 	}
-	void Resset()
+	void Reset()
 	{
 		m_Offset.store(0, std::memory_order_relaxed);
 	}
@@ -104,7 +104,7 @@ public:
 		{
 			fixed.store(false,std::memory_order_relaxed);
 		}
-		m_Allocator.Resset();
+		m_Allocator.Reset();
 		m_FrameNumber = frameNumber;
 	}
 
@@ -145,7 +145,7 @@ public:
 	template<class T>
 	const T* GetFrameObject() const
 	{
-		Node* head = m_Heads[GetFrameObjectTypeId<T>()].load(std::memory_order_acquire);
+		Node* head = m_Heads[GetFrameObjectTypeID<T>()].load(std::memory_order_acquire);
 		if (head == nullptr)
 		{
 			return nullptr;
@@ -168,14 +168,14 @@ public:
 	template<class T>
 	void FixFrameObject()
 	{
-		m_Fixed[GetFrameObjectTypeId<T>()].store(true, std::memory_order_release);
+		m_Fixed[GetFrameObjectTypeID<T>()].store(true, std::memory_order_release);
 	}
 
 private:
 	UINT64 m_FrameNumber = 0;
 	FrameAllocator m_Allocator;
-	std::atomic<Node*> m_Heads[MAX_TYPES];
-	std::atomic<bool> m_Fixed[MAX_TYPES];
+	std::atomic<Node*> m_Heads[MAX_TYPES]{};
+	std::atomic<bool> m_Fixed[MAX_TYPES]{};
 };
 
 namespace detail

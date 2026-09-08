@@ -11,7 +11,8 @@ public:
 	/// @param linePso 描画用のPSO
 	void Init(
 		_In_ const ComPtr<ID3D12Device>& device,
-		_In_ const ComPtr<ID3D12PipelineState>& linePso);
+		_In_ const ComPtr<ID3D12PipelineState>& linePso,
+		_In_ const ComPtr<ID3D12PipelineState>& lineDepthPso);
 
 	void Begin();
 
@@ -19,10 +20,12 @@ public:
 	/// @param start 追加位置
 	/// @param end 終了位置
 	/// @param color ラインの色
+	/// @param depthTest trueならモデルに隠れる
 	void AddLine(
 		_In_ const float3& start,
 		_In_ const float3& end,
-		_In_ const float4& color);
+		_In_ const float4& color,
+		_In_ bool depthTest = false);
 
 	/// @brief 描画
 	/// @param context 描画に必要な情報 
@@ -46,7 +49,8 @@ private:
 	static constexpr UINT MAX_VERTICES = MAX_LINES * 2;
 	static constexpr UINT CB_SIZE = (sizeof(LineConstantBuffer) + 255u) & ~255u;
 
-	std::vector<LineVertex> m_Vertices;
+	std::vector<LineVertex> m_Vertices;        // 深度テストなし
+	std::vector<LineVertex> m_DepthVertices;   // 深度テストあり
 	ComPtr<ID3D12Resource> m_VertexBuffer;
 	D3D12_VERTEX_BUFFER_VIEW m_VertexBufferView{};
 	LineVertex* m_MappedVertexBuffer = nullptr;
@@ -55,5 +59,6 @@ private:
 	std::uint8_t* m_MappedConstants = nullptr;
 
 	ComPtr<ID3D12PipelineState> m_LinePSO;
+	ComPtr<ID3D12PipelineState> m_LineDepthPSO;
 };
 
