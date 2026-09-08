@@ -76,6 +76,9 @@ private:
 
 	void DrawLight();
 
+	/// @brief Kawaii Physics のチェーンとコリジョンのデバッグ描画
+	void DrawKawaiiPhysics();
+
 	void DrawColliders();
 
 	void DrawLaserBeams(const RenderContext& renderContext, ID3D12PipelineState* psoOverride = nullptr,bool emitFirework = false);
@@ -112,6 +115,7 @@ private:
 	BeamRenderer m_BeamRenderer;
 	CameraAnimationSystem m_CameraAnimationSystem;
 	MusicSyncSystem m_MusicSyncSystem;
+	LiveDirectorSystem m_LiveDirectorSystem;
 	SePlayer m_SePlayer;
 
 	BeamRenderer m_FireworkBeamRenderer;

@@ -1,4 +1,5 @@
 #include "Scene.hpp"
+#include "Components.hpp"
 
 PhysicsWorld& Scene::EnsurePhysicsWorld()
 {
@@ -16,6 +17,17 @@ bool Scene::HasPhysicsWorld() const
 
 void Scene::ResetWorld()
 {
+    // Voice は AudioEngine 側が持っているので、Component を捨てる前に止めないと鳴り続ける
+    m_World.Each<AudioSourceComponent>(
+        [](Entity, AudioSourceComponent& src)
+        {
+            if (src.voice)
+            {
+                src.voice->Stop();
+                src.voice->FlushSourceBuffers();
+            }
+        });
+
 	m_World.Clear();
     ResetPhysicsWorld();
 }

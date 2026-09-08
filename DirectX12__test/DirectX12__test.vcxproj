@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="..\packages\NVIDIA.PhysX.4.1.229882250\build\native\NVIDIA.PhysX.props" Condition="Exists('..\packages\NVIDIA.PhysX.4.1.229882250\build\native\NVIDIA.PhysX.props')" />
   <Import Project="..\packages\BulletSharp.x64.0.12.0\build\BulletSharp.x64.props" Condition="Exists('..\packages\BulletSharp.x64.0.12.0\build\BulletSharp.x64.props')" />
@@ -181,12 +181,14 @@
     <ClCompile Include="imgui_widgets.cpp" />
     <ClCompile Include="Input.cpp" />
     <ClCompile Include="InspectorWindow.cpp" />
+    <ClCompile Include="LiveTimeline.cpp" />
     <ClCompile Include="Logger.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Material.cpp" />
     <ClCompile Include="Mesh.cpp" />
     <ClCompile Include="MeshRenderer.cpp" />
     <ClCompile Include="MmdPhysics.cpp" />
+    <ClCompile Include="KawaiiPhysics.cpp" />
     <ClCompile Include="ModelLoader.cpp" />
     <ClCompile Include="MonoBehavior.cpp" />
     <ClCompile Include="PhysicsWorld.cpp" />
@@ -249,11 +251,15 @@
     <ClInclude Include="imstb_truetype.h" />
     <ClInclude Include="Input.hpp" />
     <ClInclude Include="json.hpp" />
+    <ClInclude Include="LiveTimeline.hpp" />
+    <ClInclude Include="LiveTimelineUI.hpp" />
+    <ClInclude Include="AnimatorClipCache.hpp" />
     <ClInclude Include="Logger.hpp" />
     <ClInclude Include="Material.hpp" />
     <ClInclude Include="Mesh.hpp" />
     <ClInclude Include="MeshRenderer.hpp" />
     <ClInclude Include="MmdPhysics.hpp" />
+    <ClInclude Include="KawaiiPhysics.hpp" />
     <ClInclude Include="MmdPlayerUI.hpp" />
     <ClInclude Include="ModelData.hpp" />
     <ClInclude Include="ModelLoader.hpp" />

@@ -9,6 +9,10 @@
 #include <mutex>
 #include <atomic>
 #include <vector>
+#include <set>
+#include <algorithm>
+#include <cctype>
+#include "json.hpp"
 
 #undef min
 #undef max
@@ -223,6 +227,146 @@ static bool CopyTreeWithProgress(const fs::path& from, const fs::path& to,
     return true;
 }
 
+// ---- 使用アセットの収集 ---- //
+
+// モデルはテクスチャを相対パスで参照するので、ファイル単位ではなくフォルダごと持っていく
+static bool IsModelExt(const std::string& ext)
+{
+    static const char* kModel[] = {
+        ".pmx", ".pmd", ".fbx", ".obj", ".gltf", ".glb", ".dae", ".x" };
+    for (const char* m : kModel) if (ext == m) return true;
+    return false;
+}
+
+static std::string ToLowerAscii(std::string s)
+{
+    std::transform(s.begin(), s.end(), s.begin(),
+        [](unsigned char c) { return (char)std::tolower(c); });
+    return s;
+}
+
+// 文字列がアセットを指していれば files / dirs に積む。
+// ClipPaths のように '|' 区切りで複数入っている場合も分解する
+static void AddAssetRef(const std::string& raw, const fs::path& srcDir,
+    std::set<fs::path>& files, std::set<fs::path>& dirs)
+{
+    std::stringstream ss(raw);
+    std::string token;
+    while (std::getline(ss, token, '|'))
+    {
+        if (token.empty()) continue;
+        std::replace(token.begin(), token.end(), '\\', '/');
+
+        // 絶対パスでも "Assets/" 以降を相対として扱う
+        const size_t pos = ToLowerAscii(token).find("assets/");
+        if (pos == std::string::npos) continue;
+        const fs::path rel = fs::path(token.substr(pos)).lexically_normal();
+
+        std::error_code ec;
+        const fs::path abs = srcDir / rel;
+        if (!fs::exists(abs, ec) || !fs::is_regular_file(abs, ec)) continue;
+
+        if (IsModelExt(ToLowerAscii(rel.extension().string())))
+            dirs.insert(rel.parent_path());
+        else
+            files.insert(rel);
+    }
+}
+
+static void CollectFromJson(const nlohmann::json& j, const fs::path& srcDir,
+    std::set<fs::path>& files, std::set<fs::path>& dirs)
+{
+    if (j.is_string())
+    {
+        AddAssetRef(j.get<std::string>(), srcDir, files, dirs);
+        return;
+    }
+    if (j.is_array() || j.is_object())
+        for (const auto& v : j) CollectFromJson(v, srcDir, files, dirs);
+}
+
+// 開始シーンを起点に、参照されているアセットを集める。
+// 参照先が .json ならその中身も辿る(タイムライン・プレハブなど)
+static bool CollectUsedAssets(const fs::path& srcDir, const std::string& startScene,
+    std::set<fs::path>& files, std::set<fs::path>& dirs)
+{
+    const fs::path sceneRel =
+        fs::path("Assets") / "Scenes" / (fs::path(startScene).stem().string() + ".json");
+
+    std::error_code ec;
+    if (!fs::exists(srcDir / sceneRel, ec))
+    {
+        PushLog("[Build] 開始シーンが見つかりません: " + sceneRel.string());
+        return false;
+    }
+
+    std::vector<fs::path> pending{ sceneRel };
+    std::set<fs::path>    visited;
+
+    while (!pending.empty())
+    {
+        const fs::path rel = pending.back();
+        pending.pop_back();
+        if (!visited.insert(rel).second) continue;
+
+        files.insert(rel);
+
+        std::ifstream in(srcDir / rel);
+        if (!in) continue;
+        nlohmann::json root = nlohmann::json::parse(in, nullptr, false);
+        if (root.is_discarded()) continue;
+
+        std::set<fs::path> found;
+        CollectFromJson(root, srcDir, found, dirs);
+        for (const auto& f : found)
+        {
+            files.insert(f);
+            if (ToLowerAscii(f.extension().string()) == ".json") pending.push_back(f);
+        }
+    }
+    return true;
+}
+
+// 収集した相対パス(ファイル群 + フォルダ群)だけをコピーする
+static bool CopySelectedWithProgress(const fs::path& srcDir, const fs::path& dstAssetsRoot,
+    const std::set<fs::path>& files, const std::set<fs::path>& dirs,
+    float progressFrom, float progressTo)
+{
+    std::error_code ec;
+
+    // コピー対象を実ファイル一覧に展開する
+    std::set<fs::path> targets = files;
+    for (const auto& d : dirs)
+    {
+        for (auto& e : fs::recursive_directory_iterator(srcDir / d, ec))
+            if (e.is_regular_file())
+                targets.insert(fs::relative(e.path(), srcDir, ec));
+    }
+
+    const size_t total = targets.empty() ? 1 : targets.size();
+    size_t done = 0;
+
+    for (const auto& rel : targets)
+    {
+        // rel は "Assets/..." 始まりなので、Assets を1段外して連結する
+        const fs::path tail = fs::relative(rel, "Assets", ec);
+        const fs::path dest = dstAssetsRoot / tail;
+
+        fs::create_directories(dest.parent_path(), ec);
+        fs::copy_file(srcDir / rel, dest, fs::copy_options::overwrite_existing, ec);
+        if (ec)
+        {
+            PushLog("[Build] コピー失敗: " + rel.string() + " (" + ec.message() + ")");
+            return false;
+        }
+        done++;
+        s_Progress = progressFrom + (progressTo - progressFrom) * (float)done / (float)total;
+    }
+
+    PushLog("[Build] 使用アセットのみコピー: " + std::to_string(targets.size()) + " ファイル");
+    return true;
+}
+
 void BuildSystem::Build(const BuildSetting& settings)
 {
     if (s_Building.exchange(true)) return;
@@ -365,9 +509,36 @@ void BuildSystem::Build(const BuildSetting& settings)
 
         // ---- 5. Assets は Data/Assets へ ----
         SetStage(0.55f, IMGUI::ToUTF8("Assets コピー中..."));
-        PushLog("[Build] Assets をコピー中...");
-        if (!CopyTreeWithProgress(paths.srcDir / "Assets", dataDir / "Assets",
-            0.55f, 0.98f))
+
+        bool assetsOk = false;
+        if (settings.usedAssetsOnly)
+        {
+            PushLog("[Build] 使用アセットを収集中...");
+            std::set<fs::path> files, dirs;
+            if (CollectUsedAssets(paths.srcDir, settings.startScene, files, dirs))
+            {
+                for (const auto& d : dirs)
+                    PushLog("[Build]   フォルダ: " + d.string());
+
+                assetsOk = CopySelectedWithProgress(paths.srcDir, dataDir / "Assets",
+                    files, dirs, 0.55f, 0.98f);
+            }
+            else
+            {
+                // 収集できなかったときは取りこぼすより全部入れる
+                PushLog("[Build] 収集に失敗したため Assets を全部コピーします");
+                assetsOk = CopyTreeWithProgress(paths.srcDir / "Assets", dataDir / "Assets",
+                    0.55f, 0.98f);
+            }
+        }
+        else
+        {
+            PushLog("[Build] Assets をコピー中...");
+            assetsOk = CopyTreeWithProgress(paths.srcDir / "Assets", dataDir / "Assets",
+                0.55f, 0.98f);
+        }
+
+        if (!assetsOk)
         {
             SetStage(0.0f, "");
             s_Building = false;

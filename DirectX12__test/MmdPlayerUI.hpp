@@ -19,6 +19,10 @@ inline void SeekMusic(World& world, float time)
             src.seekRequested = true;
             sync.seekBase = t;
             sync.resyncRequested = true;
+
+            // 停止中や音源未設定でも時刻が動くように、ここで確定させておく
+            // (再生中は次のフレームで MusicSyncSystem が実測値に上書きする)
+            sync.musicTime = t + sync.offset;
         });
 }
 
@@ -36,7 +40,14 @@ inline void SetMusicPaused(World& world, bool paused)
 inline void DrawMmdPlayerControls(World& world, AnimatorComponent& an)
 {
     if (an.clips.empty()) { ImGui::TextDisabled(u8("クリップ未読み込み")); return; }
-    if (an.currentClip < 0 || an.currentClip >= (int)an.clips.size()) an.currentClip = 0;
+
+    // 復元した選択を潰さないため、範囲外でも currentClip は書き換えない。
+    // (非同期ロードの途中は clips が揃っておらず、ここで0に戻すと選択が失われる)
+    if (an.currentClip < 0 || an.currentClip >= (int)an.clips.size())
+    {
+        ImGui::TextDisabled(u8("クリップ読み込み中... (%d 本)"), (int)an.clips.size());
+        return;
+    }
 
     // シーク時に共通で呼ぶ(物理リセット + 曲も追従)
     auto seekTo = [&](float t)
@@ -51,7 +62,10 @@ inline void DrawMmdPlayerControls(World& world, AnimatorComponent& an)
         std::vector<const char*> names;
         for (const auto& c : an.clips) names.push_back(c.name.c_str());
         if (ImGui::Combo(u8("クリップ"), &an.currentClip, names.data(), (int)names.size()))
+        {
+            an.currentClipName = an.clips[an.currentClip].name;   // 保存されるのはこの名前
             seekTo(0.0f);
+        }
     }
 
     const AnimationClip& clip = an.clips[an.currentClip];

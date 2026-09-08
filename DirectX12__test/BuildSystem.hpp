@@ -9,6 +9,10 @@ struct BuildSetting
 	std::string gameName = "MyGame";
 	std::string startScene = "SampleScene.json";
 	std::string configuration = "Debug";
+
+	// 開始シーンから参照されているアセットだけをコピーする。
+	// false なら Assets を丸ごとコピー(従来動作)
+	bool usedAssetsOnly = true;
 };
 
 class BuildSystem
