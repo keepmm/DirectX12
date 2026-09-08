@@ -1,9 +1,13 @@
 ﻿#pragma once
+
+#include <algorithm>
+#include <vector>
 #include "ModelData.hpp"
 #include <functional>
 #include <algorithm>
 #include <DirectXMath.h>
 #include "MmdPhysics.hpp"
+#include "KawaiiPhysics.hpp"
 
 #define NOMINMAX
 #undef min
@@ -107,7 +111,10 @@ inline void ComputePalette(
 	const Skeleton& skel, const SkinData& skin,
 	const AnimationClip& clip, float time,
 	std::vector<float4x4>& outPalette,
-	MmdPhysics* physics = nullptr,float dt = 0.0f)
+	MmdPhysics* physics = nullptr,float dt = 0.0f,
+	KawaiiPhysics* kawaii = nullptr,
+	const KawaiiPhysicsSettings* kawaiiSettings = nullptr,
+	const float4x4* entityWorld = nullptr)
 {
 	using namespace DirectX;
 
@@ -118,33 +125,47 @@ inline void ComputePalette(
 			return nullptr;
 		};
 
+	// ループ位置。ボーンごとに毎回 fmodf していたのをここで1回だけ求める
+	const float sampleTime = (clip.duration > 1e-6f) ? fmodf(time, clip.duration) : 0.0f;
+
 	// キーフレーム補間
+	// キーは時刻昇順なので二分探索する(先頭からの線形走査だと
+	// 長いVMDでボーン数×キー数になり、ここだけで数十msかかる)
 	auto sample = [&](const BoneAnimationChannel& ch) -> KeyFrame
 		{
 			const auto& ks = ch.keyFrames;
 			if (ks.size() == 1) return ks[0];
-			float t = fmodf(time, clip.duration);
-			for (size_t i = 0; i + 1 < ks.size(); ++i)
-			{
-				if (t < ks[i + 1].time)
-				{
-					const KeyFrame& a = ks[i]; const KeyFrame& b = ks[i + 1];
-					float f = (t - a.time) / std::max(b.time - a.time, 1e-6f);
-					KeyFrame r;
-					XMStoreFloat3(&r.position, XMVectorLerp(XMLoadFloat3(&a.position), XMLoadFloat3(&b.position), f));
-					XMStoreFloat4(&r.rotation, XMQuaternionSlerp(XMLoadFloat4(&a.rotation), XMLoadFloat4(&b.rotation), f));
-					XMStoreFloat3(&r.scale, XMVectorLerp(XMLoadFloat3(&a.scale), XMLoadFloat3(&b.scale), f));
-					return r;
-				}
-			}
-			return ks.back();
+
+			const float t = sampleTime;
+			if (t >= ks.back().time) return ks.back();
+
+			const auto it = std::upper_bound(ks.begin(), ks.end(), t,
+				[](float v, const KeyFrame& k) { return v < k.time; });
+			if (it == ks.begin()) return ks.front();
+
+			const KeyFrame& a = *(it - 1);
+			const KeyFrame& b = *it;
+			float f = (t - a.time) / std::max(b.time - a.time, 1e-6f);
+			KeyFrame r;
+			XMStoreFloat3(&r.position, XMVectorLerp(XMLoadFloat3(&a.position), XMLoadFloat3(&b.position), f));
+			XMStoreFloat4(&r.rotation, XMQuaternionSlerp(XMLoadFloat4(&a.rotation), XMLoadFloat4(&b.rotation), f));
+			XMStoreFloat3(&r.scale, XMVectorLerp(XMLoadFloat3(&a.scale), XMLoadFloat3(&b.scale), f));
+			return r;
 		};
 
 	const size_t nodeCount = skel.nodes.size();
-	std::vector<XMMATRIX> local(nodeCount), global(nodeCount);
-	std::vector<XMVECTOR> boneRot(nodeCount), boneTrans(nodeCount);
 
-	std::vector<const BoneAnimationChannel*> nodeChannel(nodeCount, nullptr);
+	// 毎フレーム確保し直すとボーン数ぶんの malloc/free がフレームごとに走るので使い回す
+	// (thread_local なので ThreadPool から呼ばれても衝突しない)
+	thread_local std::vector<XMMATRIX> local, global;
+	thread_local std::vector<XMVECTOR> boneRot, boneTrans;
+	thread_local std::vector<const BoneAnimationChannel*> nodeChannel;
+
+	local.assign(nodeCount, XMMATRIX{});
+	global.assign(nodeCount, XMMATRIX{});
+	boneRot.assign(nodeCount, XMVECTOR{});
+	boneTrans.assign(nodeCount, XMVECTOR{});
+	nodeChannel.assign(nodeCount, nullptr);
 	for (const auto& ch : clip.channels)
 	{
 		auto it = skel.nameToIndex.find(ch.boneName);
@@ -218,43 +239,47 @@ inline void ComputePalette(
 		const BoneAnimationChannel* ikCh = nodeChannel[ik.boneIndex];
 		if (!ikCh || ikCh->keyFrames.size() <= 1) continue;
 
+		// このIKで再計算が必要なボーン列を構築する。
+		// 反復しても中身は変わらないので、ループの外で1回だけ作る
+		// (中に置くと loopCount×IK数ぶん vector の確保と階層の歩き直しが走る)
+		thread_local std::vector<int> ikChains, linkBones;
+		ikChains.clear();
+		linkBones.clear();
+
+		for (const auto& lk : ik.links)
+		{
+			if (lk.boneIndex >= 0)
+				linkBones.push_back(lk.boneIndex);
+		}
+		{
+			int remaining = (int)linkBones.size();
+			int cur = ik.targetIndex;
+			while (cur >= 0)
+			{
+				ikChains.push_back(cur);
+				for (int lb : linkBones)
+					if (lb == cur)
+					{
+						--remaining; break;
+					}
+				if (remaining <= 0) break;
+				cur = skel.nodes[cur].parentIndex;
+			}
+			std::reverse(ikChains.begin(), ikChains.end());	//親 -> 子順
+		}
+
+		auto ComputeChain = [&]()
+			{
+				for (int c : ikChains)
+				{
+					int p = skel.nodes[c].parentIndex;
+					global[c] = (p >= 0) ? local[c] * global[p] : local[c];
+				}
+			};
+
 		// IKの反復回数だけループ
 		for (int loop = 0; loop < ik.loopCount; ++loop)
 		{
-			// このIKで再計算が必要なボーン列を構築
-			std::vector<int> ikChains;
-			{
-				std::vector<int> linkBones;
-				for (const auto& lk: ik.links)
-				{
-					if (lk.boneIndex >= 0)
-						linkBones.push_back(lk.boneIndex);
-				}
-
-				int remaining = (int)linkBones.size();
-				int cur = ik.targetIndex;
-				while (cur >= 0)
-				{
-					ikChains.push_back(cur);
-					for (int lb : linkBones) 
-						if (lb == cur) 
-						{ 
-							--remaining; break; 
-						}
-					if (remaining <= 0) break;
-					cur = skel.nodes[cur].parentIndex;
-				}
-				std::reverse(ikChains.begin(), ikChains.end());	//親 -> 子順
-			}
-			auto ComputeChain = [&]()
-				{
-					for (int c : ikChains)
-					{
-						int p = skel.nodes[c].parentIndex;
-						global[c] = (p >= 0) ? local[c] * global[p] : local[c];
-					}
-				};
-
 			for (const auto& link : ik.links)
 			{
 				// リンクボーンが有効でなければスキップ
@@ -375,6 +400,15 @@ inline void ComputePalette(
 	{
 		physics->StepFetch(global);
 		physics->StepBegin(global, dt);
+	}
+
+	// ---- 揺れもの（Kawaii Physics） ---- //
+	// FK / IK / 付与親をすべて適用したあとの global を直接書き換える。
+	// MmdPhysics と同じ位置だが、こちらは剛体を持たずボーン列だけで完結する。
+	if (kawaii && kawaiiSettings)
+	{
+		const XMMATRIX w = entityWorld ? XMLoadFloat4x4(entityWorld) : XMMatrixIdentity();
+		kawaii->Apply(skel, global, w, *kawaiiSettings, dt);
 	}
 
 	// パレット

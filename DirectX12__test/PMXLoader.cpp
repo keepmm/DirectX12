@@ -6,6 +6,7 @@
 #include <cstdint>
 #include <windows.h>
 #include "Util.hpp"
+#include "ShaderTypes.hpp"   // MAX_BONES
 
 namespace {
 
@@ -91,6 +92,7 @@ bool PMXLoader::Parse(const std::string& filepath, float scale, ModelCpuData& ou
 	// --- 頂点 ---
 	const std::int32_t vertexCount = r.Read<std::int32_t>();
 	out.vertices.reserve(vertexCount);
+	int weightTypeCount[5] = {};   // BDEF1 / BDEF2 / BDEF4 / SDEF / QDEF
 	for (int i = 0; i < vertexCount; ++i)
 	{
 		Vertex v{};
@@ -106,6 +108,7 @@ bool PMXLoader::Parse(const std::string& filepath, float scale, ModelCpuData& ou
 		// ウェイト変形（今回はスキップ、後でSkinDataに）
 		// ウェイト変形 → 頂点に格納
 		const std::uint8_t weightType = r.Read<std::uint8_t>();
+		if (weightType < 5) ++weightTypeCount[weightType];
 		int   bi[4] = { 0, 0, 0, 0 };
 		float bw[4] = { 0, 0, 0, 0 };
 		switch (weightType)
@@ -139,6 +142,12 @@ bool PMXLoader::Parse(const std::string& filepath, float scale, ModelCpuData& ou
 
 		out.vertices.push_back(v);
 	}
+
+	LOG->LogInfo("PMX: ウェイト種別 BDEF1=" + std::to_string(weightTypeCount[0])
+		+ " BDEF2=" + std::to_string(weightTypeCount[1])
+		+ " BDEF4=" + std::to_string(weightTypeCount[2])
+		+ " SDEF=" + std::to_string(weightTypeCount[3])
+		+ " QDEF=" + std::to_string(weightTypeCount[4]));
 
 	// --- 面（インデックス）---
 	const std::int32_t indexCount = r.Read<std::int32_t>();
@@ -444,6 +453,17 @@ bool PMXLoader::Parse(const std::string& filepath, float scale, ModelCpuData& ou
 
 	out.success = true;
 	LOG->LogInfo("PMX: 読み込み成功 頂点=" + std::to_string(vertexCount)
-		+ " 面=" + std::to_string(indexCount / 3) + " 材質=" + std::to_string(matCount) + " 剛体=" + std::to_string(rbCount) + " ジョイント=" + std::to_string(jointCount));
+		+ " 面=" + std::to_string(indexCount / 3) + " 材質=" + std::to_string(matCount)
+		+ " ボーン=" + std::to_string(boneCount)
+		+ " 剛体=" + std::to_string(rbCount) + " ジョイント=" + std::to_string(jointCount));
+
+	// スキニングの定数バッファは MAX_BONES 本しか持てない。超えたぶんは
+	// 単位行列になり、そのボーンに割り当てられた頂点が原点方向へ引き伸ばされる。
+	if (boneCount > (int)MAX_BONES)
+	{
+		LOG->LogError("PMX: ボーン数が MAX_BONES(" + std::to_string(MAX_BONES)
+			+ ") を超えています: " + std::to_string(boneCount)
+			+ " 超過ぶんのボーンに割り当てられた頂点は破綻します");
+	}
 	return true;
 }

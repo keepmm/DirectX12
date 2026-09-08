@@ -361,3 +361,8 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+# ビルド成果物（BuildSystem が生成する配布フォルダ）
+DirectX12__test/Build/
+
+# ImGui のレイアウト保存（環境ごとに変わるので追跡しない）
+DirectX12__test/imgui.ini

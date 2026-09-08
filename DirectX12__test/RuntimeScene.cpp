@@ -143,9 +143,19 @@ void RuntimeScene::Update(float deltatime)
 
 	m_ScriptSystem.Update(m_World, deltatime);
 	m_SpinSystem.Update(m_World, deltatime);
-	m_LightSystem.Apply(m_World);
 	m_AudioSystem.Update(m_World, PLAY.isPlaying());
 	m_MusicSyncSystem.Update(m_World, PLAY.isPlaying());
+
+	// キューでライト/カメラを書き換えてから Apply する(順番を崩すと1フレーム遅れる)
+	m_LiveDirectorSystem.Update(m_World, PLAY.isPlaying());
+	for (const auto& c : m_LiveDirectorSystem.ConsumeFireworks())
+	{
+		m_FireworkSystem.Launch(float3{ c.value, 0.0f, 0.0f },
+			FireworkSystem::Shape::Peony,
+			float3{ c.color.x, c.color.y, c.color.z });
+	}
+
+	m_LightSystem.Apply(m_World);
 	m_FreeLookSystem.Update(m_World, deltatime, CameraComponent::CameraType::Secondary);
 	m_CameraAnimationSystem.Update(m_World, deltatime,PLAY.isPlaying());
 	m_TransformSystem.Update(m_World);
@@ -358,7 +368,7 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 
 		// ===== デバッグライン / ビーム / UI（両モード共通・現在バインド中のRTへ）=====
 		m_DebugLineRenderer.Begin();
-		if (context.isSceneView) { DrawGrid(); DrawLight(); DrawGizmos(context); DrawColliders(); }
+		if (context.isSceneView) { DrawGrid(); DrawLight(); DrawGizmos(context); DrawColliders(); DrawKawaiiPhysics(); }
 		for (const auto& line : m_DebugLines)
 			m_DebugLineRenderer.AddLine(line.start, line.end, line.color);
 		m_DebugLineRenderer.Draw(context);
@@ -483,6 +493,113 @@ void RuntimeScene::DrawGrid()
 		m_DebugLineRenderer.AddLine(float3{ offset, 0.0f, -half }, float3{ offset, 0.0f, half }, gridColor);
 		m_DebugLineRenderer.AddLine(float3{ -half, 0.0f, offset }, float3{ half, 0.0f, offset }, gridColor);
 	}
+}
+
+void RuntimeScene::DrawKawaiiPhysics()
+{
+	using namespace DirectX;
+
+	// 円を1つ描く（法線 n に垂直な平面上）
+	auto drawCircle = [this](const float3& center, const float3& n, float radius,
+		const COLOR& color)
+		{
+			const XMVECTOR c = XMLoadFloat3(&center);
+			const XMVECTOR axis = XMVector3Normalize(XMLoadFloat3(&n));
+
+			// 軸に垂直な基底を作る
+			XMVECTOR u = XMVector3Cross(axis, XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
+			if (XMVectorGetX(XMVector3LengthSq(u)) < 1e-6f)
+				u = XMVector3Cross(axis, XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f));
+			u = XMVector3Normalize(u);
+			const XMVECTOR v = XMVector3Cross(axis, u);
+
+			constexpr int SEG = 16;
+			float3 prev{};
+			for (int i = 0; i <= SEG; ++i)
+			{
+				const float t = XM_2PI * i / SEG;
+				const XMVECTOR p = XMVectorAdd(c,
+					XMVectorScale(XMVectorAdd(XMVectorScale(u, cosf(t)),
+						XMVectorScale(v, sinf(t))), radius));
+				float3 cur; XMStoreFloat3(&cur, p);
+				if (i > 0) m_DebugLineRenderer.AddLine(prev, cur, color);
+				prev = cur;
+			}
+		};
+
+	// ソルバはモデル空間で動く（global にワールド行列は掛かっていない）ので、
+	// 描画するときだけエンティティのワールド行列を掛ける。
+	m_World.Each<TransformComponent, KawaiiPhysicsComponent>(
+		[&](Entity, TransformComponent& transform, KawaiiPhysicsComponent& kp)
+		{
+			if (!kp.debugDraw || !kp.impl) return;
+
+			const XMMATRIX W = XMLoadFloat4x4(&transform.world);
+			auto toWorld = [&W](const float3& p)
+				{
+					float3 o;
+					XMStoreFloat3(&o, XMVector3Transform(XMLoadFloat3(&p), W));
+					return o;
+				};
+			// スケールぶんだけ半径も換算する
+			const float wscale = XMVectorGetX(XMVector3Length(W.r[0]));
+
+			// --- チェーン（緑。支点から出る区間は黄色） --- //
+			std::vector<KawaiiPhysics::DebugSegment> segs;
+			kp.impl->GetDebugChains(segs);
+			for (const auto& s : segs)
+			{
+				const COLOR col = s.anchor
+					? COLOR{ 1.0f, 0.9f, 0.2f, 1.0f }
+					: COLOR{ 0.2f, 1.0f, 0.3f, 1.0f };
+				m_DebugLineRenderer.AddLine(toWorld(s.a), toWorld(s.b), col);
+			}
+
+			// --- 球コリジョン（水色。3面の円で表す） --- //
+			const COLOR sphereCol{ 0.3f, 0.8f, 1.0f, 1.0f };
+			for (const auto& sp : kp.impl->GetDebugSpheres())
+			{
+				const float3 c = toWorld(sp.center);
+				const float r = sp.radius * wscale;
+				drawCircle(c, float3{ 1,0,0 }, r, sphereCol);
+				drawCircle(c, float3{ 0,1,0 }, r, sphereCol);
+				drawCircle(c, float3{ 0,0,1 }, r, sphereCol);
+			}
+
+			// --- カプセルコリジョン（橙。両端の円＋4本の稜線） --- //
+			const COLOR capCol{ 1.0f, 0.55f, 0.2f, 1.0f };
+			for (const auto& cap : kp.impl->GetDebugCapsules())
+			{
+				const float3 capA = toWorld(cap.a);
+				const float3 capB = toWorld(cap.b);
+				const float capR = cap.radius * wscale;
+				const XMVECTOR a = XMLoadFloat3(&capA);
+				const XMVECTOR b = XMLoadFloat3(&capB);
+				XMVECTOR axis = XMVectorSubtract(b, a);
+				if (XMVectorGetX(XMVector3LengthSq(axis)) < 1e-8f)
+					axis = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+				axis = XMVector3Normalize(axis);
+
+				float3 axisF; XMStoreFloat3(&axisF, axis);
+				drawCircle(capA, axisF, capR, capCol);
+				drawCircle(capB, axisF, capR, capCol);
+
+				XMVECTOR u = XMVector3Cross(axis, XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
+				if (XMVectorGetX(XMVector3LengthSq(u)) < 1e-6f)
+					u = XMVector3Cross(axis, XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f));
+				u = XMVector3Normalize(u);
+				const XMVECTOR v = XMVector3Cross(axis, u);
+
+				const XMVECTOR dirs[4] = { u, XMVectorNegate(u), v, XMVectorNegate(v) };
+				for (const XMVECTOR& d : dirs)
+				{
+					float3 s0, s1;
+					XMStoreFloat3(&s0, XMVectorAdd(a, XMVectorScale(d, capR)));
+					XMStoreFloat3(&s1, XMVectorAdd(b, XMVectorScale(d, capR)));
+					m_DebugLineRenderer.AddLine(s0, s1, capCol);
+				}
+			}
+		});
 }
 
 void RuntimeScene::DrawLight()
@@ -828,11 +945,16 @@ void RuntimeScene::DrawLaserBeams(const RenderContext& context, ID3D12PipelineSt
 
 void RuntimeScene::EditorUpdate(float dt)
 {
+	// エディタでも曲を流してタイムラインを確認できるよう、
+	// オーディオ → 曲位置 → タイムライン → ライト の順で回す
+	m_AudioSystem.Update(m_World, false);
+	m_MusicSyncSystem.Update(m_World, false);
+	m_LiveDirectorSystem.Update(m_World, false);
+
 	m_LightSystem.Apply(m_World);
 	m_FreeLookSystem.Update(m_World, dt,CameraComponent::CameraType::Secondary);   // エディタカメラ操作
 	m_CameraSystem.Update(m_World, 16.0f / 9.0f);
 	m_TransformSystem.Update(m_World);
-	m_AudioSystem.Update(m_World, false);
 	// m_AnimatorSystem.Update(m_World, dt);
 }
 

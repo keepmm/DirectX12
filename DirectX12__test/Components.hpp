@@ -8,6 +8,8 @@
 #include "ScriptField.hpp"
 #include "AudioEngine.hpp"
 #include "ModelData.hpp"
+#include "KawaiiPhysics.hpp"
+#include "LiveTimeline.hpp"
 
 class Mesh;
 class Material;
@@ -320,7 +322,9 @@ struct LightComponent
 		Laser
 	} type = LightType::Directional;
 
-	enum class SwingAxis : uint8_t
+	// Reflect が (int&) でキャストして4バイト書き込むので、1バイト幅にはできない
+	// (uint8_t のままだと隣接メンバへ書き込む未定義動作になる)
+	enum class SwingAxis : int
 	{
 		Pan,
 		Tilt,
@@ -387,6 +391,28 @@ struct PrefabComponent
 {
 	std::string name;
 	std::string guid;
+};
+
+
+// ライブ演出の指揮者。MusicSyncComponent と同じEntityに付ける想定
+struct LiveDirectorComponent
+{
+	std::string timelinePath;		// Assets/Scenes/xxx_cues.json
+	bool  enabled = true;
+	float timeScale = 1.0f;			// デバッグ用(通常1.0)
+
+	void Reflect(FieldList& f)
+	{
+		f.Add("TimelinePath", timelinePath);
+		f.Add("Enabled", enabled);
+		f.AddRange("TimeScale", timeScale, 0.0f, 2.0f);
+	}
+
+	// --- ランタイム専用(シリアライズ不要) ---
+	LiveTimeline timeline;
+	std::string  loadedPath;		// 今読んでいるパス(変更検知用)
+	bool  loadFailed = false;		// 読み込み失敗したパスを毎フレーム叩かない
+	float lastTime = -1.0f;			// 巻き戻し検出用
 };
 
 
@@ -538,8 +564,12 @@ struct AnimatorComponent
 	bool  scrubbing = false;		// スライダー操作中(この間は物理を止める)
 	bool  physicsResetRequest = false;	// 次フレームで物理を再同期する
 
-	std::string clipPathsStr;  
+	std::string clipPathsStr;
 	bool clipsRestored = false;
+
+	// 選択中クリップの名前。非同期ロードの完了順でclipsの並びが変わるため、
+	// 添字ではなく名前を正として復元する
+	std::string currentClipName;
 
 	MorphSet morphs;					// もーフ定義
 	std::vector<float> morphWeights;	// 各モーフの重み(0.0 ~ 1.0)
@@ -556,6 +586,8 @@ struct AnimatorComponent
 		f.Add("Time", time);
 		f.Add("Playing", playing);
 		f.Add("ClipPaths", clipPathsStr);
+		f.Add("CurrentClip", currentClip);			// 復元直後の暫定値
+		f.Add("CurrentClipName", currentClipName);	// 正はこちら
 		f.Add("Speed", speed);
 		f.Add("Loop",loop);
 		f.Add("MorphClip", morphClip);
@@ -566,6 +598,42 @@ struct MmdPhysicsComponent
 {
 	std::shared_ptr<MmdPhysics> impl;
 	void Reflect(FieldList& f) {}
+};
+
+/// @brief ボーンチェーンの疑似物理（髪・スカート等の揺れもの）
+///        チェーンとコリジョンは配列なので、FieldList に載せられる
+///        文字列 configStr へ畳んでシリアライズする。編集は
+///        ComponentRegistry の DrawExtraUI 特殊化で行う。
+struct KawaiiPhysicsComponent
+{
+	KawaiiPhysicsSettings settings;
+	std::shared_ptr<KawaiiPhysics> impl;	// 実行時のソルバ（シリアライズ対象外）
+
+	bool enabled = true;
+	bool debugDraw = false;					// チェーンとコリジョンのワイヤ表示
+	std::string configStr;					// chains/colliders のシリアライズ結果
+	bool configRestored = false;			// ロード直後に一度だけ復元する
+
+	// 自動生成の元データ（PMX の剛体。シリアライズ対象外、再生成用に保持）
+	PmxPhysics sourcePhysics;
+
+	void Reflect(FieldList& f)
+	{
+		f.Add("Enabled", enabled);
+		f.Add("DebugDraw", debugDraw);
+		f.Add("Gravity", settings.gravity);
+		f.Add("Wind", settings.wind);
+		f.AddRange("TimeScale", settings.timeScale, 0.0f, 2.0f);
+		f.Add("PropagateToDescendants", settings.propagateToDescendants);
+		f.Add("Config", configStr);
+	}
+
+	/// @brief UI で編集した内容を configStr へ書き戻し、ソルバに再構築を要求する
+	void CommitConfig()
+	{
+		configStr = KawaiiSerialize(settings);
+		if (impl) impl->MarkDirty();
+	}
 };
 
 struct ParticleEmitterComponent

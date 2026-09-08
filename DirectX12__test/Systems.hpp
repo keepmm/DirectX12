@@ -2,6 +2,7 @@
 
 #include "World.hpp"
 #include "Components.hpp"
+#include "AnimatorClipCache.hpp"
 #include "RenderContext.hpp"
 #include "Mesh.hpp"
 #include "Material.hpp"
@@ -122,6 +123,20 @@ public:
 					if (world.HasComponent<AnimatorComponent>(entity))
 					{
 						auto& an = world.GetComponent<AnimatorComponent>(entity);
+						// MAX_BONES を超えると超過ぶんが単位行列になり、そのボーンに
+						// 割り当てられた頂点が原点方向へ引き伸ばされる（指などが尖る）
+						if (an.palette.size() > MAX_BONES)
+						{
+							static bool warned = false;
+							if (!warned)
+							{
+								warned = true;
+								LOG->LogError("ボーン数が MAX_BONES(" + std::to_string(MAX_BONES)
+									+ ") を超えています: " + std::to_string(an.palette.size())
+									+ " 超過ぶんは単位行列になりメッシュが破綻します");
+							}
+						}
+
 						const size_t n = std::min<size_t>(an.palette.size(), MAX_BONES);
 						for (size_t i = 0; i < n; ++i) cb.boneMatrices[i] = an.palette[i];
 						for (size_t i = n; i < MAX_BONES; ++i)
@@ -291,25 +306,37 @@ public:
 							{
 								const auto right = DirectX::XMVector3Rotate(
 									DirectX::XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f), rot);
-								fwd = DirectX::XMVectorReciprocal(DirectX::XMVector3Rotate(fwd, DirectX::XMQuaternionRotationAxis(right, panRad)));
+								fwd = DirectX::XMVector3Rotate(fwd, DirectX::XMQuaternionRotationAxis(right, panRad));
 							}
 							else
 							{
 								const auto up = DirectX::XMVector3Rotate(DirectX::XMVectorSet(0, 1, 0, 0), rot);
-								fwd = DirectX::XMVectorReciprocal(DirectX::XMVector3Rotate(fwd, DirectX::XMQuaternionRotationAxis(up, panRad)));
+								fwd = DirectX::XMVector3Rotate(fwd, DirectX::XMQuaternionRotationAxis(up, panRad));
 
 								if (light.swingAxis == LightComponent::SwingAxis::PanTilt)
 								{
 									const auto right = DirectX::XMVector3Rotate(DirectX::XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f), rot);
 									const float tiltRad = DirectX::XMConvertToRadians(light.swingAngle * 0.5f) * 
 										sinf(DirectX::XMConvertToRadians(light.swingSpeed) * 0.7f * dt + 1.5f);
-									fwd = DirectX::XMVectorReciprocal(DirectX::XMVector3Rotate(fwd, DirectX::XMQuaternionRotationAxis(right,tiltRad)));
+									fwd = DirectX::XMVector3Rotate(fwd, DirectX::XMQuaternionRotationAxis(right, tiltRad));
 								}
 							}
 						}
 					}
 
 					fwd = DirectX::XMVector3Normalize(fwd);
+
+					// 不正な向き(NaN/Inf/ゼロ)はシェーダ側でNaNになり画面が黒く落ちるので弾く
+					{
+						float3 chk;
+						DirectX::XMStoreFloat3(&chk, fwd);
+						if (!std::isfinite(chk.x) || !std::isfinite(chk.y) || !std::isfinite(chk.z) ||
+							(chk.x == 0.0f && chk.y == 0.0f && chk.z == 0.0f))
+						{
+							fwd = DirectX::XMVectorSet(0.0f, -1.0f, 0.0f, 0.0f);
+						}
+					}
+
 					DirectX::XMStoreFloat4(&dst.dir, fwd);
 
 					// ギズモ表示用に書き戻す
@@ -1032,6 +1059,25 @@ public:
 				using clk = std::chrono::high_resolution_clock;
 				auto t0 = clk::now();
 
+				// Play/Stop で退避したクリップがあれば、読み直さずに拾い直す
+				if (!an.clipsRestored && !an.skeleton.nodes.empty() &&
+					world.HasComponent<NameComponent>(e))
+				{
+					auto& cache = AnimatorClipCache();
+					const auto it = cache.find(world.GetComponent<NameComponent>(e).name);
+					if (it != cache.end() && !it->second.clips.empty())
+					{
+						an.clips = std::move(it->second.clips);
+						an.currentClip = it->second.currentClip;
+						an.currentClipName = it->second.currentClipName;
+						an.time = it->second.time;
+						an.playing = it->second.playing;
+						an.clipsRestored = true;   // 非同期ロードで二重に積まない
+						an.physicsResetRequest = true;
+						cache.erase(it);
+					}
+				}
+
 				// 保存されたVMDパスからクリップを復元(スケルトン準備後に1回だけ)
 				if (!an.clipsRestored && !an.clipPathsStr.empty() &&
 					!an.skeleton.nodes.empty())
@@ -1039,9 +1085,12 @@ public:
 					an.clipsRestored = true;
 					std::stringstream ss(an.clipPathsStr);
 					std::string path;
+					std::vector<std::string> seen;   // 重複したパスは1回だけ読む
 					while (std::getline(ss, path, '|'))
 					{
 						if (path.empty()) continue;
+						if (std::find(seen.begin(), seen.end(), path) != seen.end()) continue;
+						seen.push_back(path);
 						AsyncLoader::Get().LoadVMDAsync(path, an.skeleton,
 							[&world, e](AnimationClip vc)
 							{
@@ -1055,6 +1104,23 @@ public:
 				}
 
 				if (an.clips.empty()) return;
+
+				// 保存された名前を正として添字を引き直す。
+				// クリップは非同期に届くので、並び順は毎回同じとは限らない
+				if (!an.currentClipName.empty() &&
+					(an.currentClip < 0 || an.currentClip >= (int)an.clips.size() ||
+						an.clips[an.currentClip].name != an.currentClipName))
+				{
+					for (int i = 0; i < (int)an.clips.size(); ++i)
+					{
+						if (an.clips[i].name == an.currentClipName)
+						{
+							an.currentClip = i;
+							break;
+						}
+					}
+				}
+
 				if (an.currentClip < 0 || an.currentClip >= (int)an.clips.size()) return;
 				const AnimationClip& clip = an.clips[an.currentClip];
 				if (an.playing && clip.duration > 0.0f)
@@ -1076,6 +1142,34 @@ public:
 				if (world.HasComponent<MmdPhysicsComponent>(e))
 					phys = world.GetComponent<MmdPhysicsComponent>(e).impl.get();
 
+				// ---- 揺れもの(Kawaii Physics) ---- //
+				KawaiiPhysics* kawaii = nullptr;
+				const KawaiiPhysicsSettings* kawaiiSettings = nullptr;
+				const float4x4* entityWorld = nullptr;
+				if (world.HasComponent<KawaiiPhysicsComponent>(e))
+				{
+					auto& kp = world.GetComponent<KawaiiPhysicsComponent>(e);
+					if (!kp.impl) kp.impl = std::make_shared<KawaiiPhysics>();
+
+					// シーンから読んだ設定文字列を一度だけ展開する
+					if (!kp.configRestored)
+					{
+						KawaiiDeserialize(kp.configStr, kp.settings);
+						kp.impl->MarkDirty();
+						kp.configRestored = true;
+					}
+					// シーク・スクラブ中は慣性を持ち込ませない
+					if (an.physicsResetRequest || an.scrubbing) kp.impl->RequestResync();
+
+					if (kp.enabled)
+					{
+						kawaii = kp.impl.get();
+						kawaiiSettings = &kp.settings;
+					}
+				}
+				if (world.HasComponent<TransformComponent>(e))
+					entityWorld = &world.GetComponent<TransformComponent>(e).world;
+
 				// シーク直後は剛体を現在のボーン姿勢へ再同期(爆発防止)
 				if (an.physicsResetRequest)
 				{
@@ -1083,9 +1177,11 @@ public:
 					an.physicsResetRequest = false;
 				}
 
+				// 揺れものは Kawaii Physics へ全面移行したので MmdPhysics は渡さない
 				// スライダーをドラッグしている間はFK/IKのみ(物理を進めない)
 				ComputePalette(an.skeleton, an.skinData, clip, an.time, an.palette,
-					an.scrubbing ? nullptr : phys, dt);
+					nullptr, dt,
+					an.scrubbing ? nullptr : kawaii, kawaiiSettings, entityWorld);
 
 				// 表情モーフをVMDから駆動する。
 				// morphClip が有効ならそちらを使う(体と表情でVMDが別のケース)
@@ -1222,7 +1318,9 @@ class MusicSyncSystem
 public:
 	void Update(World& world, bool isPlaying)
 	{
-		if (!isPlaying) return;
+		// isPlaying は見ない。音源が実際に鳴っているかどうかだけで判断するので、
+		// エディタで曲を流している間も musicTime が進む
+		(void)isPlaying;
 
 		world.Each<AudioSourceComponent, MusicSyncComponent>(
 			[&](Entity, AudioSourceComponent& src, MusicSyncComponent& sync)
@@ -1279,5 +1377,182 @@ public:
 				}
 			});
 	}
+};
+
+// 曲位置に沿って LiveCue を発火させるシステム。
+// MusicSyncSystem(時刻確定)の後、LightSystem::Apply / CameraAnimationSystem の前に回す
+class LiveDirectorSystem
+{
+public:
+	void Update(World& world, bool isPlaying)
+	{
+		// 曲位置を取得(MusicSyncComponent が唯一の時間ソース)
+		float musicTime = 0.0f;
+		bool  hasMusic = false;
+		world.Each<MusicSyncComponent>(
+			[&](Entity, MusicSyncComponent& s)
+			{
+				if (!hasMusic) { musicTime = s.musicTime; hasMusic = true; }
+			});
+		if (!hasMusic) return;
+
+		world.Each<LiveDirectorComponent>(
+			[&](Entity, LiveDirectorComponent& d)
+			{
+				if (!d.enabled || d.timelinePath.empty()) return;
+
+				// パスが変わったら読み直す(Inspectorで差し替えた場合)
+				if (d.timelinePath != d.loadedPath)
+				{
+					d.loadedPath = d.timelinePath;
+					d.loadFailed = !d.timeline.LoadJson(d.timelinePath);
+					d.lastTime = -1.0f;
+				}
+				if (d.loadFailed) return;
+
+				const float t = musicTime * d.timeScale;
+
+				// シーク/巻き戻しを検出したら fired を張り直す
+				if (t + 1e-3f < d.lastTime) d.timeline.ResetFired(t);
+				d.lastTime = t;
+
+				// トラックは連続値なので、停止中(スクラブ中)も反映する
+				ApplyTracks(world, d.timeline, t);
+
+				if (!isPlaying) return;
+
+				// cues は時刻昇順なので、未来のキューに当たった時点で打ち切れる
+				for (auto& c : d.timeline.cues)
+				{
+					if (c.time > t) break;
+					if (c.fired) continue;
+					Fire(world, c);
+					c.fired = true;
+				}
+			});
+	}
+
+	/// @brief 名前から Entity を引く(タイムラインは Entity 名で対象を指す)
+	static Entity FindEntityByName(World& world, const std::string& name)
+	{
+		Entity found = INVALID_ENTITY;
+		world.Each<NameComponent>(
+			[&](Entity e, NameComponent& n)
+			{
+				if (found == INVALID_ENTITY && n.name == name) found = e;
+			});
+		return found;
+	}
+
+	/// @brief World の外にあるリソース向けキュー(花火など)を毎フレーム回収する
+	std::vector<LiveCue> ConsumeFireworks()
+	{
+		std::vector<LiveCue> out;
+		out.swap(m_PendingFirework);
+		return out;
+	}
+
+private:
+	/// @brief 全トラックを評価して Transform / Light に書き戻す
+	void ApplyTracks(World& world, const LiveTimeline& timeline, float t)
+	{
+		for (const auto& track : timeline.tracks)
+		{
+			if (!track.enabled || track.target.empty()) continue;
+
+			float4 v{};
+			if (!track.Evaluate(t, v)) continue;
+
+			const Entity e = FindEntityByName(world, track.target);
+			if (e == INVALID_ENTITY) continue;
+
+			switch (track.property)
+			{
+			case LiveTrack::Property::Position:
+				if (world.HasComponent<TransformComponent>(e))
+				{
+					auto& tr = world.GetComponent<TransformComponent>(e);
+					tr.position = POSITION{ v.x, v.y, v.z };
+				}
+				break;
+
+			case LiveTrack::Property::EulerAngles:
+				if (world.HasComponent<TransformComponent>(e))
+				{
+					auto& tr = world.GetComponent<TransformComponent>(e);
+					tr.EulerAngles = float3{ v.x, v.y, v.z };
+					tr.ApplyEuler();
+				}
+				break;
+
+			case LiveTrack::Property::Color:
+				if (world.HasComponent<LightComponent>(e))
+					world.GetComponent<LightComponent>(e).color = COLOR{ v.x, v.y, v.z, v.w };
+				break;
+
+			case LiveTrack::Property::Intensity:
+				if (world.HasComponent<LightComponent>(e))
+					world.GetComponent<LightComponent>(e).intensity = v.x;
+				break;
+
+			case LiveTrack::Property::Range:
+				if (world.HasComponent<LightComponent>(e))
+					world.GetComponent<LightComponent>(e).range = v.x;
+				break;
+
+			case LiveTrack::Property::SpotAngle:
+				if (world.HasComponent<LightComponent>(e))
+					world.GetComponent<LightComponent>(e).spotAngle = v.x;
+				break;
+
+			default: break;
+			}
+		}
+	}
+
+	void Fire(World& world, const LiveCue& cue)
+	{
+		switch (cue.type)
+		{
+		case LiveCue::Type::CameraCut:
+			world.Each<CameraComponent, NameComponent>(
+				[&](Entity, CameraComponent& cam, NameComponent& n)
+				{
+					cam.isActive = (n.name == cue.target);
+				});
+			break;
+
+		case LiveCue::Type::Blackout:
+			world.Each<LightComponent>(
+				[&](Entity, LightComponent& l) { l.intensity = 0.0f; });
+			break;
+
+		case LiveCue::Type::LightColor:
+		case LiveCue::Type::LightIntensity:
+		case LiveCue::Type::SwingEnable:
+			world.Each<LightComponent, NameComponent>(
+				[&](Entity, LightComponent& l, NameComponent& n)
+				{
+					if (!cue.target.empty() && n.name != cue.target) return;
+					switch (cue.type)
+					{
+					case LiveCue::Type::LightColor:     l.color = cue.color;                break;
+					case LiveCue::Type::LightIntensity: l.intensity = cue.value;            break;
+					case LiveCue::Type::SwingEnable:    l.swingEnable = (cue.value > 0.5f); break;
+					default: break;
+					}
+				});
+			break;
+
+		case LiveCue::Type::Firework:
+			// FireworkSystem は World の外にあるので、ここではフラグだけ立てる
+			m_PendingFirework.push_back(cue);
+			break;
+
+		default: break;
+		}
+	}
+
+	std::vector<LiveCue> m_PendingFirework;
 };
 

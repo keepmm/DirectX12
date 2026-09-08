@@ -23,14 +23,14 @@
         "parent": 0,
         "position": [
           0.0,
-          0.5,
-          -1.0
+          2.200000047683716,
+          -6.5
         ],
         "rotation": [
+          0.08372306078672409,
           0.0,
           0.0,
-          0.0,
-          1.0
+          0.9964890480041504
         ],
         "scale": [
           1.0,
@@ -67,7 +67,7 @@
         ],
         "GlowIntensity": 3.0,
         "GlowPower": 6.0,
-        "Intensity": 1.0,
+        "Intensity": 0.14300000667572021,
         "IsActive": true,
         "IsShow": false,
         "Range": 10.0,
@@ -115,470 +115,40 @@
       "Free Look": {
         "Enabled": true,
         "MoveSpeed": 5.0,
-        "Pitch": 0.3500002324581146,
+        "Pitch": 0.29750117659568787,
         "RotateSpeed": 0.0024999999441206455,
-        "Yaw": 0.05250025540590286
+        "Yaw": 0.4275001287460327
       },
       "id": 3,
       "name": "EditorCamera",
       "transform": {
         "parent": 0,
         "position": [
-          -0.2318774163722992,
-          2.3958685398101807,
-          -2.263607978820801
+          -3.3989548683166504,
+          4.461835861206055,
+          -6.880871295928955
         ],
         "rotation": [
-          0.1740482747554779,
-          0.025846228003501892,
-          -0.004569838754832745,
-          0.9843872785568237
+          0.1448298990726471,
+          0.2097836136817932,
+          -0.03143765404820442,
+          0.9664506316184998
         ],
         "scale": [
           1.0,
           1.0,
           1.0
-        ]
-      }
-    },
-    {
-      "Animator": {
-        "ClipPaths": "Assets/Model/VMDMotion/raymotion.vmd",
-        "Playing": true,
-        "Time": 0.0
-      },
-      "animator": {
-        "currentClip": 0,
-        "extraClips": [],
-        "playing": true
-      },
-      "id": 4,
-      "material": {
-        "filePath": "",
-        "rampPath": "",
-        "shaderName": "SkinnedToon",
-        "subMaterials": [
-          {
-            "baseAlpha": 0.0,
-            "metallic": 0.38100001215934753,
-            "roughness": 0.07500000298023224,
-            "shaderName": "PBR",
-            "sheen": 0.0,
-            "sssColor": [
-              0.8999999761581421,
-              0.3499999940395355,
-              0.25
-            ],
-            "sssStrength": 0.8230000138282776,
-            "sssTrans": 0.0,
-            "sssWrap": 1.0
-          },
-          {
-            "baseAlpha": 0.0,
-            "metallic": 0.0,
-            "roughness": 0.5,
-            "shaderName": "Unlit",
-            "sheen": 0.0,
-            "sssColor": [
-              0.8999999761581421,
-              0.3499999940395355,
-              0.25
-            ],
-            "sssStrength": 0.0,
-            "sssTrans": 0.0,
-            "sssWrap": 0.4000000059604645
-          },
-          {
-            "baseAlpha": 0.0,
-            "metallic": 0.0,
-            "roughness": 0.5,
-            "shaderName": "",
-            "sheen": 0.0,
-            "sssColor": [
-              0.8999999761581421,
-              0.3499999940395355,
-              0.25
-            ],
-            "sssStrength": 0.0,
-            "sssTrans": 0.0,
-            "sssWrap": 0.4000000059604645
-          },
-          {
-            "baseAlpha": 0.0,
-            "metallic": 0.0,
-            "roughness": 0.5,
-            "shaderName": "",
-            "sheen": 0.0,
-            "sssColor": [
-              0.8999999761581421,
-              0.3499999940395355,
-              0.25
-            ],
-            "sssStrength": 0.0,
-            "sssTrans": 0.0,
-            "sssWrap": 0.4000000059604645
-          },
-          {
-            "baseAlpha": 0.0,
-            "metallic": 0.0,
-            "roughness": 0.5,
-            "shaderName": "",
-            "sheen": 0.0,
-            "sssColor": [
-              0.8999999761581421,
-              0.3499999940395355,
-              0.25
-            ],
-            "sssStrength": 0.0,
-            "sssTrans": 0.0,
-            "sssWrap": 0.4000000059604645
-          },
-          {
-            "baseAlpha": 0.0,
-            "metallic": 0.0,
-            "roughness": 0.5,
-            "shaderName": "",
-            "sheen": 0.0,
-            "sssColor": [
-              0.8999999761581421,
-              0.3499999940395355,
-              0.25
-            ],
-            "sssStrength": 0.0,
-            "sssTrans": 0.0,
-            "sssWrap": 0.4000000059604645
-          },
-          {
-            "baseAlpha": 0.0,
-            "metallic": 0.38100001215934753,
-            "roughness": 0.07500000298023224,
-            "shaderName": "PBR",
-            "sheen": 0.0,
-            "sssColor": [
-              0.8999999761581421,
-              0.3499999940395355,
-              0.25
-            ],
-            "sssStrength": 0.8230000138282776,
-            "sssTrans": 0.0,
-            "sssWrap": 1.0
-          },
-          {
-            "baseAlpha": 0.0,
-            "metallic": 0.38100001215934753,
-            "roughness": 0.07500000298023224,
-            "shaderName": "PBR",
-            "sheen": 0.0,
-            "sssColor": [
-              0.8999999761581421,
-              0.3499999940395355,
-              0.25
-            ],
-            "sssStrength": 0.8230000138282776,
-            "sssTrans": 0.0,
-            "sssWrap": 1.0
-          },
-          {
-            "baseAlpha": 0.0,
-            "metallic": 0.0,
-            "roughness": 0.5,
-            "shaderName": "",
-            "sheen": 0.0,
-            "sssColor": [
-              0.8999999761581421,
-              0.3499999940395355,
-              0.25
-            ],
-            "sssStrength": 0.0,
-            "sssTrans": 0.0,
-            "sssWrap": 0.4000000059604645
-          },
-          {
-            "baseAlpha": 0.0,
-            "metallic": 0.0,
-            "roughness": 0.5,
-            "shaderName": "",
-            "sheen": 0.0,
-            "sssColor": [
-              0.8999999761581421,
-              0.3499999940395355,
-              0.25
-            ],
-            "sssStrength": 0.0,
-            "sssTrans": 0.0,
-            "sssWrap": 0.4000000059604645
-          },
-          {
-            "baseAlpha": 1.0,
-            "metallic": 0.0,
-            "roughness": 0.5,
-            "shaderName": "",
-            "sheen": 0.0,
-            "sssColor": [
-              0.8999999761581421,
-              0.3499999940395355,
-              0.25
-            ],
-            "sssStrength": 0.0,
-            "sssTrans": 0.0,
-            "sssWrap": 0.4000000059604645
-          },
-          {
-            "baseAlpha": 1.0,
-            "metallic": 0.38100001215934753,
-            "roughness": 0.07500000298023224,
-            "shaderName": "PBR",
-            "sheen": 0.0,
-            "sssColor": [
-              0.8999999761581421,
-              0.3499999940395355,
-              0.25
-            ],
-            "sssStrength": 0.8230000138282776,
-            "sssTrans": 0.0,
-            "sssWrap": 1.0
-          },
-          {
-            "baseAlpha": 0.0,
-            "metallic": 0.38100001215934753,
-            "roughness": 0.07500000298023224,
-            "shaderName": "PBR",
-            "sheen": 0.0,
-            "sssColor": [
-              0.8999999761581421,
-              0.3499999940395355,
-              0.25
-            ],
-            "sssStrength": 0.8230000138282776,
-            "sssTrans": 0.0,
-            "sssWrap": 1.0
-          },
-          {
-            "baseAlpha": 0.0,
-            "metallic": 0.0,
-            "roughness": 0.5,
-            "shaderName": "",
-            "sheen": 0.0,
-            "sssColor": [
-              0.8999999761581421,
-              0.3499999940395355,
-              0.25
-            ],
-            "sssStrength": 0.0,
-            "sssTrans": 0.0,
-            "sssWrap": 0.4000000059604645
-          },
-          {
-            "baseAlpha": 0.0,
-            "metallic": 1.0,
-            "roughness": 0.25200000405311584,
-            "shaderName": "PBR",
-            "sheen": 2.0,
-            "sssColor": [
-              0.8999999761581421,
-              0.3499999940395355,
-              0.25
-            ],
-            "sssStrength": 0.0,
-            "sssTrans": 0.0,
-            "sssWrap": 0.4000000059604645
-          },
-          {
-            "baseAlpha": 0.0,
-            "metallic": 1.0,
-            "roughness": 0.25200000405311584,
-            "shaderName": "PBR",
-            "sheen": 2.0,
-            "sssColor": [
-              0.8999999761581421,
-              0.3499999940395355,
-              0.25
-            ],
-            "sssStrength": 0.0,
-            "sssTrans": 0.0,
-            "sssWrap": 0.4000000059604645
-          },
-          {
-            "baseAlpha": 0.0,
-            "metallic": 0.0,
-            "roughness": 0.5,
-            "shaderName": "",
-            "sheen": 0.0,
-            "sssColor": [
-              0.8999999761581421,
-              0.3499999940395355,
-              0.25
-            ],
-            "sssStrength": 0.0,
-            "sssTrans": 0.0,
-            "sssWrap": 0.4000000059604645
-          },
-          {
-            "baseAlpha": 0.0,
-            "metallic": 0.0,
-            "roughness": 0.5,
-            "shaderName": "",
-            "sheen": 0.0,
-            "sssColor": [
-              0.8999999761581421,
-              0.3499999940395355,
-              0.25
-            ],
-            "sssStrength": 0.0,
-            "sssTrans": 0.0,
-            "sssWrap": 0.4000000059604645
-          },
-          {
-            "baseAlpha": 0.0,
-            "metallic": 0.0,
-            "roughness": 0.5,
-            "shaderName": "",
-            "sheen": 0.0,
-            "sssColor": [
-              0.8999999761581421,
-              0.3499999940395355,
-              0.25
-            ],
-            "sssStrength": 0.0,
-            "sssTrans": 0.0,
-            "sssWrap": 0.4000000059604645
-          },
-          {
-            "baseAlpha": 0.0,
-            "metallic": 0.0,
-            "roughness": 0.5,
-            "shaderName": "",
-            "sheen": 0.0,
-            "sssColor": [
-              0.8999999761581421,
-              0.3499999940395355,
-              0.25
-            ],
-            "sssStrength": 0.0,
-            "sssTrans": 0.0,
-            "sssWrap": 0.4000000059604645
-          },
-          {
-            "baseAlpha": 0.0,
-            "metallic": 0.0,
-            "roughness": 0.5,
-            "shaderName": "",
-            "sheen": 0.0,
-            "sssColor": [
-              0.8999999761581421,
-              0.3499999940395355,
-              0.25
-            ],
-            "sssStrength": 0.0,
-            "sssTrans": 0.0,
-            "sssWrap": 0.4000000059604645
-          },
-          {
-            "baseAlpha": 0.0,
-            "metallic": 1.0,
-            "roughness": 0.25200000405311584,
-            "shaderName": "PBR",
-            "sheen": 2.0,
-            "sssColor": [
-              0.8999999761581421,
-              0.3499999940395355,
-              0.25
-            ],
-            "sssStrength": 0.0,
-            "sssTrans": 0.0,
-            "sssWrap": 0.4000000059604645
-          },
-          {
-            "baseAlpha": 0.0,
-            "metallic": 0.0,
-            "roughness": 0.5,
-            "shaderName": "",
-            "sheen": 0.0,
-            "sssColor": [
-              0.8999999761581421,
-              0.3499999940395355,
-              0.25
-            ],
-            "sssStrength": 0.0,
-            "sssTrans": 0.0,
-            "sssWrap": 0.4000000059604645
-          },
-          {
-            "baseAlpha": 0.0,
-            "metallic": 0.0,
-            "roughness": 0.5,
-            "shaderName": "",
-            "sheen": 0.0,
-            "sssColor": [
-              0.8999999761581421,
-              0.3499999940395355,
-              0.25
-            ],
-            "sssStrength": 0.0,
-            "sssTrans": 0.0,
-            "sssWrap": 0.4000000059604645
-          },
-          {
-            "baseAlpha": 0.0,
-            "metallic": 0.0,
-            "roughness": 0.5,
-            "shaderName": "Unlit",
-            "sheen": 0.0,
-            "sssColor": [
-              0.8999999761581421,
-              0.3499999940395355,
-              0.25
-            ],
-            "sssStrength": 0.0,
-            "sssTrans": 0.0,
-            "sssWrap": 0.4000000059604645
-          },
-          {
-            "baseAlpha": 0.0,
-            "metallic": 0.0,
-            "roughness": 0.5,
-            "shaderName": "",
-            "sheen": 0.0,
-            "sssColor": [
-              0.8999999761581421,
-              0.3499999940395355,
-              0.25
-            ],
-            "sssStrength": 0.0,
-            "sssTrans": 0.0,
-            "sssWrap": 0.4000000059604645
-          }
-        ]
-      },
-      "mesh": {
-        "filePath": "Assets\\Model\\Sour_Rin\\Black.pmx",
-        "scale": 1.0
-      },
-      "name": "Rin",
-      "transform": {
-        "parent": 0,
-        "position": [
-          0.0,
-          0.0,
-          0.0
-        ],
-        "rotation": [
-          0.0,
-          0.0,
-          0.0,
-          1.0
-        ],
-        "scale": [
-          0.10000000149011612,
-          0.10000000149011612,
-          0.10000000149011612
         ]
       }
     },
     {
       "Animator": {
         "ClipPaths": "",
+        "CurrentClip": 0,
+        "CurrentClipName": "",
+        "Loop": true,
         "Playing": false,
+        "Speed": 1.0,
         "Time": 0.0
       },
       "animator": {
@@ -586,7 +156,7 @@
         "extraClips": [],
         "playing": false
       },
-      "id": 5,
+      "id": 4,
       "material": {
         "filePath": "",
         "rampPath": "",
@@ -643,7 +213,7 @@
         "filePath": "Assets\\Model\\Livestage\\pmx\\01_Main.pmx",
         "scale": 1.0
       },
-      "name": "Model_5",
+      "name": "tikei",
       "transform": {
         "parent": 0,
         "position": [
@@ -667,7 +237,11 @@
     {
       "Animator": {
         "ClipPaths": "",
+        "CurrentClip": 0,
+        "CurrentClipName": "",
+        "Loop": true,
         "Playing": false,
+        "Speed": 1.0,
         "Time": 0.0
       },
       "animator": {
@@ -675,7 +249,7 @@
         "extraClips": [],
         "playing": false
       },
-      "id": 6,
+      "id": 5,
       "material": {
         "filePath": "",
         "rampPath": "",
@@ -702,7 +276,7 @@
         "filePath": "Assets\\Model\\Livestage\\pmx\\02_StickLight.pmx",
         "scale": 1.0
       },
-      "name": "Model_6",
+      "name": "tikeii",
       "transform": {
         "parent": 0,
         "position": [
@@ -726,7 +300,11 @@
     {
       "Animator": {
         "ClipPaths": "",
+        "CurrentClip": 0,
+        "CurrentClipName": "",
+        "Loop": true,
         "Playing": false,
+        "Speed": 1.0,
         "Time": 0.0
       },
       "animator": {
@@ -734,7 +312,7 @@
         "extraClips": [],
         "playing": false
       },
-      "id": 7,
+      "id": 6,
       "material": {
         "filePath": "",
         "rampPath": "",
@@ -836,7 +414,7 @@
         "filePath": "Assets\\Model\\Livestage\\pmx\\03_Screen.pmx",
         "scale": 1.0
       },
-      "name": "Model_7",
+      "name": "stage",
       "transform": {
         "parent": 0,
         "position": [
@@ -860,7 +438,11 @@
     {
       "Animator": {
         "ClipPaths": "",
+        "CurrentClip": 0,
+        "CurrentClipName": "",
+        "Loop": true,
         "Playing": false,
+        "Speed": 1.0,
         "Time": 0.0
       },
       "animator": {
@@ -868,7 +450,7 @@
         "extraClips": [],
         "playing": false
       },
-      "id": 8,
+      "id": 7,
       "material": {
         "filePath": "",
         "rampPath": "",
@@ -895,7 +477,7 @@
         "filePath": "Assets\\Model\\Livestage\\pmx\\04_Emit.pmx",
         "scale": 1.0
       },
-      "name": "Model_8",
+      "name": "stage_1",
       "transform": {
         "parent": 0,
         "position": [
@@ -907,6 +489,1612 @@
           0.0,
           0.0,
           0.0,
+          1.0
+        ],
+        "scale": [
+          0.10000000149011612,
+          0.10000000149011612,
+          0.10000000149011612
+        ]
+      }
+    },
+    {
+      "Audio Source": {
+        "Clip": "C:\\HAL\\study\\DirectX12__test\\DirectX12__test\\Assets\\Audio\\AipaiDanceHall.wav",
+        "Is3D": false,
+        "Loop": false,
+        "MaxDistance": 100.0,
+        "MinDistance": 1.0,
+        "PlayOnStart": true,
+        "Volume": 1.0
+      },
+      "Live Director": {
+        "Enabled": true,
+        "TimeScale": 1.0,
+        "TimelinePath": "Assets/Scenes/aipai_live.json"
+      },
+      "Music Sync": {
+        "Offset": 0.0,
+        "SyncAnimators": true,
+        "SyncCamera": true
+      },
+      "id": 8,
+      "name": "LiveDirector",
+      "transform": {
+        "parent": 0,
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    },
+    {
+      "Light": {
+        "AmbientColor": [
+          0.05000000074505806,
+          0.05000000074505806,
+          0.07999999821186066,
+          1.0
+        ],
+        "BeamColorEnd": [
+          1.0,
+          0.9599999785423279,
+          0.8999999761581421,
+          0.0
+        ],
+        "BeamWidth": 0.25,
+        "Color": [
+          1.0,
+          0.9399999976158142,
+          0.9800000190734863,
+          1.0
+        ],
+        "Direction": [
+          0.30177050828933716,
+          -0.7660444974899292,
+          0.5675477981567383
+        ],
+        "GlowIntensity": 1.7999999523162842,
+        "GlowPower": 6.0,
+        "Intensity": 0.04490000009536743,
+        "IsActive": true,
+        "IsShow": false,
+        "Range": 80.0,
+        "ShowBeam": false,
+        "SpotAngle": 34.0,
+        "SwingAngle": 30.0,
+        "SwingAxis": 13421568,
+        "SwingEnabled": false,
+        "SwingSpeed": 45.0,
+        "Type": 2,
+        "VolumetricIntensity": 2.0
+      },
+      "id": 9,
+      "name": "Spot_KeyL",
+      "transform": {
+        "parent": 0,
+        "position": [
+          -6.0,
+          12.0,
+          -8.0
+        ],
+        "rotation": [
+          0.4100647270679474,
+          0.2192557156085968,
+          -0.10224062204360962,
+          0.8793866038322449
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    },
+    {
+      "Light": {
+        "AmbientColor": [
+          0.05000000074505806,
+          0.05000000074505806,
+          0.07999999821186066,
+          1.0
+        ],
+        "BeamColorEnd": [
+          1.0,
+          0.9599999785423279,
+          0.8999999761581421,
+          0.0
+        ],
+        "BeamWidth": 0.25,
+        "Color": [
+          1.0,
+          0.9399999976158142,
+          0.9800000190734863,
+          1.0
+        ],
+        "Direction": [
+          -0.30177050828933716,
+          -0.7660444974899292,
+          0.5675477981567383
+        ],
+        "GlowIntensity": 1.7999999523162842,
+        "GlowPower": 6.0,
+        "Intensity": 0.04490000009536743,
+        "IsActive": true,
+        "IsShow": false,
+        "Range": 80.0,
+        "ShowBeam": false,
+        "SpotAngle": 34.0,
+        "SwingAngle": 30.0,
+        "SwingAxis": 13421568,
+        "SwingEnabled": false,
+        "SwingSpeed": 45.0,
+        "Type": 2,
+        "VolumetricIntensity": 2.0
+      },
+      "id": 10,
+      "name": "Spot_KeyR",
+      "transform": {
+        "parent": 0,
+        "position": [
+          6.0,
+          12.0,
+          -8.0
+        ],
+        "rotation": [
+          0.4100647270679474,
+          -0.2192557156085968,
+          0.10224062204360962,
+          0.8793866038322449
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    },
+    {
+      "Light": {
+        "AmbientColor": [
+          0.05000000074505806,
+          0.05000000074505806,
+          0.07999999821186066,
+          1.0
+        ],
+        "BeamColorEnd": [
+          0.4000000059604645,
+          0.6499999761581421,
+          1.0,
+          0.0
+        ],
+        "BeamWidth": 0.25,
+        "Color": [
+          0.7200000286102295,
+          0.699999988079071,
+          1.0,
+          1.0
+        ],
+        "Direction": [
+          -0.19617468118667603,
+          -0.8191520571708679,
+          -0.5389856100082397
+        ],
+        "GlowIntensity": 1.7999999523162842,
+        "GlowPower": 6.0,
+        "Intensity": 0.1386999934911728,
+        "IsActive": true,
+        "IsShow": false,
+        "Range": 80.0,
+        "ShowBeam": true,
+        "SpotAngle": 30.0,
+        "SwingAngle": 30.0,
+        "SwingAxis": 13421568,
+        "SwingEnabled": false,
+        "SwingSpeed": 45.0,
+        "Type": 2,
+        "VolumetricIntensity": 2.0
+      },
+      "id": 11,
+      "name": "Spot_BackL",
+      "transform": {
+        "parent": 0,
+        "position": [
+          -7.0,
+          13.0,
+          9.0
+        ],
+        "rotation": [
+          -0.08018180727958679,
+          0.87353515625,
+          -0.45473361015319824,
+          -0.1540278196334839
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    },
+    {
+      "Light": {
+        "AmbientColor": [
+          0.05000000074505806,
+          0.05000000074505806,
+          0.07999999821186066,
+          1.0
+        ],
+        "BeamColorEnd": [
+          1.0,
+          0.3499999940395355,
+          0.75,
+          0.0
+        ],
+        "BeamWidth": 0.25,
+        "Color": [
+          0.7200000286102295,
+          0.699999988079071,
+          1.0,
+          1.0
+        ],
+        "Direction": [
+          0.19617468118667603,
+          -0.8191520571708679,
+          -0.5389856100082397
+        ],
+        "GlowIntensity": 1.7999999523162842,
+        "GlowPower": 6.0,
+        "Intensity": 0.1386999934911728,
+        "IsActive": true,
+        "IsShow": false,
+        "Range": 80.0,
+        "ShowBeam": true,
+        "SpotAngle": 30.0,
+        "SwingAngle": 30.0,
+        "SwingAxis": 13421568,
+        "SwingEnabled": false,
+        "SwingSpeed": 45.0,
+        "Type": 2,
+        "VolumetricIntensity": 2.0
+      },
+      "id": 12,
+      "name": "Spot_BackR",
+      "transform": {
+        "parent": 0,
+        "position": [
+          7.0,
+          13.0,
+          9.0
+        ],
+        "rotation": [
+          0.08018180727958679,
+          0.87353515625,
+          -0.45473361015319824,
+          0.1540278196334839
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    },
+    {
+      "Light": {
+        "AmbientColor": [
+          0.05000000074505806,
+          0.05000000074505806,
+          0.07999999821186066,
+          1.0
+        ],
+        "BeamColorEnd": [
+          1.0,
+          1.0,
+          1.0,
+          0.0
+        ],
+        "BeamWidth": 0.25,
+        "Color": [
+          1.0,
+          0.3499999940395355,
+          0.8960000276565552,
+          1.0
+        ],
+        "Direction": [
+          0.0,
+          -0.9993908405303955,
+          0.03489944338798523
+        ],
+        "GlowIntensity": 1.7999999523162842,
+        "GlowPower": 6.0,
+        "Intensity": 0.07339999824762344,
+        "IsActive": true,
+        "IsShow": false,
+        "Range": 80.0,
+        "ShowBeam": false,
+        "SpotAngle": 30.0,
+        "SwingAngle": 30.0,
+        "SwingAxis": 13421568,
+        "SwingEnabled": false,
+        "SwingSpeed": 45.0,
+        "Type": 2,
+        "VolumetricIntensity": 2.0
+      },
+      "id": 13,
+      "name": "Spot_TopC",
+      "transform": {
+        "parent": 0,
+        "position": [
+          0.0,
+          16.0,
+          0.0
+        ],
+        "rotation": [
+          0.6946583986282349,
+          0.0,
+          0.0,
+          0.7193397879600525
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    },
+    {
+      "Light": {
+        "AmbientColor": [
+          0.05000000074505806,
+          0.05000000074505806,
+          0.07999999821186066,
+          1.0
+        ],
+        "BeamColorEnd": [
+          0.30000001192092896,
+          1.0,
+          0.8500000238418579,
+          0.0
+        ],
+        "BeamWidth": 0.07999999821186066,
+        "Color": [
+          1.0,
+          0.3499999940395355,
+          0.7789999842643738,
+          1.0
+        ],
+        "Direction": [
+          0.40957602858543396,
+          -0.5735763907432556,
+          -0.7094064950942993
+        ],
+        "GlowIntensity": 1.7999999523162842,
+        "GlowPower": 6.0,
+        "Intensity": 0.08160000294446945,
+        "IsActive": true,
+        "IsShow": false,
+        "Range": 80.0,
+        "ShowBeam": true,
+        "SpotAngle": 12.0,
+        "SwingAngle": 30.0,
+        "SwingAxis": 13421568,
+        "SwingEnabled": false,
+        "SwingSpeed": 45.0,
+        "Type": 3,
+        "VolumetricIntensity": 2.0
+      },
+      "id": 14,
+      "name": "Laser_L",
+      "transform": {
+        "parent": 0,
+        "position": [
+          -11.0,
+          11.0,
+          7.0
+        ],
+        "rotation": [
+          0.07782838493585587,
+          0.9212197661399841,
+          -0.29045945405960083,
+          0.24684010446071625
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    },
+    {
+      "Light": {
+        "AmbientColor": [
+          0.05000000074505806,
+          0.05000000074505806,
+          0.07999999821186066,
+          1.0
+        ],
+        "BeamColorEnd": [
+          1.0,
+          0.44999998807907104,
+          0.949999988079071,
+          0.0
+        ],
+        "BeamWidth": 0.07999999821186066,
+        "Color": [
+          1.0,
+          0.3499999940395355,
+          0.6620000004768372,
+          1.0
+        ],
+        "Direction": [
+          -0.409575879573822,
+          -0.5735764503479004,
+          -0.7094065546989441
+        ],
+        "GlowIntensity": 1.7999999523162842,
+        "GlowPower": 6.0,
+        "Intensity": 0.08160000294446945,
+        "IsActive": true,
+        "IsShow": false,
+        "Range": 80.0,
+        "ShowBeam": true,
+        "SpotAngle": 12.0,
+        "SwingAngle": 30.0,
+        "SwingAxis": 13421568,
+        "SwingEnabled": false,
+        "SwingSpeed": 45.0,
+        "Type": 3,
+        "VolumetricIntensity": 2.0
+      },
+      "id": 15,
+      "name": "Laser_R",
+      "transform": {
+        "parent": 0,
+        "position": [
+          11.0,
+          11.0,
+          7.0
+        ],
+        "rotation": [
+          -0.07782837003469467,
+          0.9212198257446289,
+          -0.2904594838619232,
+          -0.24684004485607147
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    },
+    {
+      "Light": {
+        "AmbientColor": [
+          0.05000000074505806,
+          0.05000000074505806,
+          0.07999999821186066,
+          1.0
+        ],
+        "BeamColorEnd": [
+          0.8500000238418579,
+          0.8500000238418579,
+          1.0,
+          0.0
+        ],
+        "BeamWidth": 0.25,
+        "Color": [
+          1.0,
+          0.3499999940395355,
+          0.5450000166893005,
+          1.0
+        ],
+        "Direction": [
+          0.0,
+          0.0,
+          1.0
+        ],
+        "GlowIntensity": 1.7999999523162842,
+        "GlowPower": 6.0,
+        "Intensity": 0.03669999912381172,
+        "IsActive": true,
+        "IsShow": false,
+        "Range": 80.0,
+        "ShowBeam": false,
+        "SpotAngle": 30.0,
+        "SwingAngle": 30.0,
+        "SwingAxis": 13421568,
+        "SwingEnabled": false,
+        "SwingSpeed": 45.0,
+        "Type": 1,
+        "VolumetricIntensity": 2.0
+      },
+      "id": 16,
+      "name": "Point_Fill",
+      "transform": {
+        "parent": 0,
+        "position": [
+          0.0,
+          6.0,
+          -6.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          1.0,
+          1.0,
+          1.0
+        ]
+      }
+    },
+    {
+      "Animator": {
+        "ClipPaths": "Assets/Model/FrankensteinNoKaibutsu/Full_Tanaka.vmd|Assets/Model/VMDMotion/Aipai/AipaiDanceHall_Motion(MMD)_Full_HimeTanaka_v1.1[f-19].vmd|Assets/Model/VMDMotion/Aipai/AipaiDanceHall_Motion(MMD)_Full_HimeTanaka_v1.1[f-19].vmd",
+        "CurrentClip": 4,
+        "CurrentClipName": "AipaiDanceHall_Motion(MMD)_Full_HimeTanaka_v1.1[f-19]",
+        "Loop": true,
+        "Playing": true,
+        "Speed": 1.0,
+        "Time": 0.0
+      },
+      "Kawaii Physics": {
+        "Config": "chain\t左胸\t1\t0.1\t0.4\t0.2\t0.05\t0.7\t0.7\t10\t10\t0.85\t0.85\t0.05\t1\nchain\t右胸\t1\t0.1\t0.4\t0.2\t0.05\t0.7\t0.7\t10\t10\t0.85\t0.85\t0.05\t1\nchain\t前髮A1\t1\t0.1\t0.4\t0.2\t0.05\t0.239474\t0.239474\t20\t20\t0.85\t0.85\t0.05\t1\nchain\t前髮B1\t1\t0.1\t0.4\t0.2\t0.05\t0.3\t0.222229\t10\t20\t0.85\t0.85\t0.05\t1\nchain\t前髮C1\t1\t0.1\t0.4\t0.2\t0.05\t0.250291\t0.250291\t20\t20\t0.85\t0.85\t0.05\t1\nchain\t前髮D1\t1\t0.1\t0.4\t0.2\t0.05\t0.3\t0.3\t0\t20\t0.85\t0.85\t0.05\t1\nchain\t左前髮1\t1\t0.1\t0.4\t0.2\t0.05\t0.3\t0.3\t10\t20\t0.85\t0.85\t0.05\t1\nchain\t右前髮1\t1\t0.1\t0.4\t0.2\t0.05\t0.3\t0.3\t10\t20\t0.85\t0.85\t0.05\t1\nchain\t前髮X1\t1\t0.1\t0.4\t0.2\t0.05\t0.3\t0.45\t1\t40\t0.85\t0.85\t0.05\t1\nchain\t後髮A1\t1\t0.1\t0.4\t0.2\t0.05\t0.148319\t0.148319\t10\t10\t0.85\t0.85\t0.05\t1\nchain\t後髮B1\t1\t0.1\t0.4\t0.2\t0.05\t0.153764\t0.153764\t10\t10\t0.85\t0.85\t0.05\t1\nchain\t髪飾り\t1\t0.1\t0.4\t0.2\t0.05\t0.5\t0.5\t15\t15\t0.85\t0.85\t0.05\t1\nchain\t左胸飾り1\t1\t0.1\t0.4\t0.2\t0.05\t0.15\t0.15\t0\t20\t0.85\t0.85\t0.05\t1\nchain\t右胸飾り1\t1\t0.1\t0.4\t0.2\t0.05\t0.15\t0.15\t0\t20\t0.85\t0.85\t0.05\t1\nchain\tスカート裏_0_0\t1\t0.1\t0.4\t0.2\t0.05\t0.1\t0.1\t1\t1\t0.85\t0.85\t0.05\t1\nchain\tスカート裏_0_1\t1\t0.1\t0.4\t0.2\t0.05\t0.1\t0.1\t1\t1\t0.85\t0.85\t0.05\t1\nchain\tスカート裏_0_2\t1\t0.1\t0.4\t0.2\t0.05\t0.1\t0.1\t1\t1\t0.85\t0.85\t0.05\t1\nchain\tスカート裏_0_3\t1\t0.1\t0.4\t0.2\t0.05\t0.1\t0.1\t1\t1\t0.85\t0.85\t0.05\t1\nchain\tスカート裏_0_4\t1\t0.1\t0.4\t0.2\t0.05\t0.1\t0.1\t1\t1\t0.85\t0.85\t0.05\t1\nchain\tスカート裏_0_5\t1\t0.1\t0.4\t0.2\t0.05\t0.1\t0.1\t1\t1\t0.85\t0.85\t0.05\t1\nchain\tスカート裏_0_6\t1\t0.1\t0.4\t0.2\t0.05\t0.1\t0.1\t1\t1\t0.85\t0.85\t0.05\t1\nchain\tスカート裏_0_7\t1\t0.1\t0.4\t0.2\t0.05\t0.1\t0.1\t1\t1\t0.85\t0.85\t0.05\t1\nchain\tスカート裏_0_8\t1\t0.1\t0.4\t0.2\t0.05\t0.1\t0.1\t1\t1\t0.85\t0.85\t0.05\t1\nchain\tスカート裏_0_9\t1\t0.1\t0.4\t0.2\t0.05\t0.1\t0.1\t1\t1\t0.85\t0.85\t0.05\t1\nchain\tスカート裏_0_10\t1\t0.1\t0.4\t0.2\t0.05\t0.1\t0.1\t1\t1\t0.85\t0.85\t0.05\t1\nchain\tスカート裏_0_11\t1\t0.1\t0.4\t0.2\t0.05\t0.1\t0.1\t1\t1\t0.85\t0.85\t0.05\t1\nchain\tスカート_0_0\t1\t0.1\t0.4\t0.2\t0.05\t0.1\t0.166667\t0\t1\t0.85\t0.85\t0.05\t1\nchain\tスカート_0_1\t1\t0.1\t0.4\t0.2\t0.05\t0.1\t0.9\t1\t80\t0.85\t0.85\t0.05\t1\nchain\tスカート_0_2\t1\t0.1\t0.4\t0.2\t0.05\t0.1\t0.9\t1\t1\t0.85\t0.85\t0.05\t1\nchain\tスカート_0_3\t1\t0.1\t0.4\t0.2\t0.05\t0.1\t0.9\t1\t1\t0.85\t0.85\t0.05\t1\nchain\tスカート_0_4\t1\t0.1\t0.4\t0.2\t0.05\t0.1\t0.9\t0\t1\t0.85\t0.85\t0.05\t1\nchain\tスカート_0_5\t1\t0.1\t0.4\t0.2\t0.05\t0.1\t0.9\t1\t1\t0.85\t0.85\t0.05\t1\nchain\tスカート_0_6\t1\t0.1\t0.4\t0.2\t0.05\t0.1\t0.9\t1\t1\t0.85\t0.85\t0.05\t1\nchain\tスカート_0_7\t1\t0.1\t0.4\t0.2\t0.05\t0.1\t0.9\t0\t1\t0.85\t0.85\t0.05\t1\nchain\tスカート_0_8\t1\t0.1\t0.4\t0.2\t0.05\t0.1\t0.9\t1\t1\t0.85\t0.85\t0.05\t1\nchain\tスカート_0_9\t1\t0.1\t0.4\t0.2\t0.05\t0.1\t0.9\t1\t1\t0.85\t0.85\t0.05\t1\nchain\tスカート_0_10\t1\t0.1\t0.4\t0.2\t0.05\t0.1\t0.9\t1\t1\t0.85\t0.85\t0.05\t1\nchain\tスカート_0_11\t1\t0.1\t0.4\t0.2\t0.05\t0.1\t0.9\t1\t1\t0.85\t0.85\t0.05\t1\nchain\tスカート_0_12\t1\t0.1\t0.4\t0.2\t0.05\t0.1\t0.9\t0\t1\t0.85\t0.85\t0.05\t1\nchain\tスカート_0_13\t1\t0.1\t0.4\t0.2\t0.05\t0.1\t0.9\t1\t1\t0.85\t0.85\t0.05\t1\nchain\tスカート_0_14\t1\t0.1\t0.4\t0.2\t0.05\t0.1\t0.9\t1\t1\t0.85\t0.85\t0.05\t1\nchain\tスカート_0_15\t1\t0.1\t0.4\t0.2\t0.05\t0.1\t0.9\t1\t1\t0.85\t0.85\t0.05\t1\nchain\t靴ひもA1\t1\t0.1\t0.4\t0.2\t0.05\t0.2\t0.2\t20\t20\t0.85\t0.85\t0.05\t1\nchain\t靴ひもB1\t1\t0.1\t0.4\t0.2\t0.05\t0.2\t0.2\t20\t20\t0.85\t0.85\t0.05\t1\nchain\t靴ひもC1\t1\t0.1\t0.4\t0.2\t0.05\t0.2\t0.2\t20\t40\t0.85\t0.85\t0.05\t1\nchain\t靴ひもD1\t1\t0.1\t0.4\t0.2\t0.05\t0.2\t0.2\t20\t40\t0.85\t0.85\t0.05\t1\nsphere\t頭\t0\t1.28393\t-0.0103315\t1.3\t0\nsphere\t髮親\t0\t0.1954\t-0.343921\t1.5\t0\nsphere\t髪飾り親\t0\t0\t0\t0.5\t0\nsphere\t胸飾り親\t0\t0\t0\t0.2\t0\nsphere\t靴ひも親\t-0.000438094\t0.000688553\t-0.00171494\t0.5\t0\ncapsule\t上半身\t7.78109e-05\t0.944319\t0.0102335\t7.78109e-05\t1.32758\t0.0102335\t1\ncapsule\t上半身2\t-0.377959\t0.711213\t0.353865\t-0.51875\t1.54652\t0.657893\t0.8\ncapsule\t上半身2\t0.377959\t0.711213\t0.353865\t0.51875\t1.54652\t0.657893\t0.8\ncapsule\t上半身2\t0.25\t0.754939\t-0.282753\t-0.25\t0.754939\t-0.282753\t0.7\ncapsule\t首\t0\t0.13305\t0.00273841\t0\t0.53305\t0.00267977\t0.4\ncapsule\t下半身\t0.350078\t-0.46677\t0.263\t-0.349922\t-0.46677\t0.262956\t1.08\ncapsule\t下半身\t0.500078\t-1.38568\t0.771222\t-0.499922\t-1.38568\t0.771222\t1.2\ncapsule\t下半身\t0.400078\t-3.83568\t0.408085\t-0.399922\t-3.83568\t0.408085\t0.1\ncapsule\t右肩\t-0.825373\t-0.092126\t0.0170073\t0.00461394\t0.0244648\t0.00446211\t0.167646\ncapsule\t右腕\t-2.19334\t-1.73022\t-0.0292841\t0.000874043\t0.0342291\t0.0439661\t0.4\ncapsule\t右ひじ\t-1.87109\t-1.37209\t0.0471633\t-0.0456549\t0.00880432\t0.00201913\t0.4\ncapsule\t右手首\t-0.436535\t-0.382465\t-0.0269572\t-0.0635448\t-0.00604051\t0.00605217\t0.3\ncapsule\t左肩\t0.825373\t-0.092126\t0.0170073\t-0.00461394\t0.0244648\t0.00446211\t0.167646\ncapsule\t左腕\t2.19334\t-1.73022\t-0.0292841\t-0.000874043\t0.0342291\t0.0439661\t0.4\ncapsule\t左ひじ\t1.87109\t-1.37209\t0.0471637\t0.0456553\t0.00880474\t0.00201867\t0.4\ncapsule\t左手首\t0.436535\t-0.382465\t-0.0269572\t0.0635448\t-0.00604051\t0.00605217\t0.3\ncapsule\t右足D\t0.0618904\t-4.29959\t-0.335055\t0.182767\t-0.301679\t-0.288967\t1.2\ncapsule\t右足D\t0.278343\t-4.26027\t-0.117448\t0.369003\t-1.26169\t-0.135217\t0.7\ncapsule\t右ひざD\t-0.228322\t-5.45874\t0.684429\t-0.0977528\t-0.166246\t0.0686744\t0.8\ncapsule\t右足首D\t0.194632\t-0.653819\t-1.51895\t0.163454\t-0.629956\t-0.0936119\t0.6\ncapsule\t左足D\t-0.0647259\t-4.29942\t-0.335365\t-0.182865\t-0.301432\t-0.288999\t1.2\ncapsule\t左足D\t-0.27952\t-4.25996\t-0.117602\t-0.368127\t-1.26132\t-0.135162\t0.7\ncapsule\t左ひざD\t0.221591\t-5.46086\t0.669249\t0.0946768\t-0.166343\t0.07039\t0.8\ncapsule\t左足首D\t-0.200964\t-0.628498\t-1.54989\t-0.170895\t-0.629575\t-0.124328\t0.6\nallow\t左胸\t右胸\t前髮A1\t前髮B1\t前髮B2\t前髮C1\t前髮D1\t前髮D2\t前髮D3\t左前髮1\t左前髮2\t右前髮1\t右前髮2\t前髮X1\t前髮X2\t前髮X3\t前髮X4\t前髮X5\t前髮X6\t前髮X7\t前髮X8\t後髮A1\t後髮B1\t髪飾り\t左胸飾り1\t左胸飾り2\t左胸飾り3\t左胸飾り4\t右胸飾り1\t右胸飾り2\t右胸飾り3\t右胸飾り4\tスカート裏_0_0\tスカート裏_0_1\tスカート裏_0_2\tスカート裏_0_3\tスカート裏_0_4\tスカート裏_0_5\tスカート裏_0_6\tスカート裏_0_7\tスカート裏_0_8\tスカート裏_0_9\tスカート裏_0_10\tスカート裏_0_11\tスカート裏_1_0\tスカート裏_1_1\tスカート裏_1_2\tスカート裏_1_3\tスカート裏_1_4\tスカート裏_1_5\tスカート裏_1_6\tスカート裏_1_7\tスカート裏_1_8\tスカート裏_1_9\tスカート裏_1_10\tスカート裏_1_11\tスカート裏_2_0\tスカート裏_2_1\tスカート裏_2_2\tスカート裏_2_3\tスカート裏_2_4\tスカート裏_2_5\tスカート裏_2_6\tスカート裏_2_7\tスカート裏_2_8\tスカート裏_2_9\tスカート裏_2_10\tスカート裏_2_11\tスカート裏_3_0\tスカート裏_3_1\tスカート裏_3_2\tスカート裏_3_3\tスカート裏_3_4\tスカート裏_3_5\tスカート裏_3_6\tスカート裏_3_7\tスカート裏_3_8\tスカート裏_3_9\tスカート裏_3_10\tスカート裏_3_11\tスカート裏_4_0\tスカート裏_4_1\tスカート裏_4_2\tスカート裏_4_3\tスカート裏_4_4\tスカート裏_4_5\tスカート裏_4_6\tスカート裏_4_7\tスカート裏_4_8\tスカート裏_4_9\tスカート裏_4_10\tスカート裏_4_11\tスカート裏_5_0\tスカート裏_5_1\tスカート裏_5_2\tスカート裏_5_3\tスカート裏_5_4\tスカート裏_5_5\tスカート裏_5_6\tスカート裏_5_7\tスカート裏_5_8\tスカート裏_5_9\tスカート裏_5_10\tスカート裏_5_11\tスカート裏_6_0\tスカート裏_6_1\tスカート裏_6_2\tスカート裏_6_3\tスカート裏_6_4\tスカート裏_6_5\tスカート裏_6_6\tスカート裏_6_7\tスカート裏_6_8\tスカート裏_6_9\tスカート裏_6_10\tスカート裏_6_11\tスカート_0_0\tスカート_0_1\tスカート_0_2\tスカート_0_3\tスカート_0_4\tスカート_0_5\tスカート_0_6\tスカート_0_7\tスカート_0_8\tスカート_0_9\tスカート_0_10\tスカート_0_11\tスカート_0_12\tスカート_0_13\tスカート_0_14\tスカート_0_15\tスカート_1_0\tスカート_1_1\tスカート_1_2\tスカート_1_3\tスカート_1_4\tスカート_1_5\tスカート_1_6\tスカート_1_7\tスカート_1_8\tスカート_1_9\tスカート_1_10\tスカート_1_11\tスカート_1_12\tスカート_1_13\tスカート_1_14\tスカート_1_15\tスカート_2_1\tスカート_2_2\tスカート_2_3\tスカート_2_4\tスカート_2_5\tスカート_2_6\tスカート_2_7\tスカート_2_8\tスカート_2_9\tスカート_2_10\tスカート_2_11\tスカート_2_12\tスカート_2_13\tスカート_2_14\tスカート_2_15\tスカート_3_1\tスカート_3_2\tスカート_3_3\tスカート_3_4\tスカート_3_5\tスカート_3_6\tスカート_3_7\tスカート_3_8\tスカート_3_9\tスカート_3_10\tスカート_3_11\tスカート_3_12\tスカート_3_13\tスカート_3_14\tスカート_3_15\tスカート_4_1\tスカート_4_2\tスカート_4_3\tスカート_4_4\tスカート_4_5\tスカート_4_6\tスカート_4_7\tスカート_4_8\tスカート_4_9\tスカート_4_10\tスカート_4_11\tスカート_4_12\tスカート_4_13\tスカート_4_14\tスカート_4_15\tスカート_5_1\tスカート_5_2\tスカート_5_3\tスカート_5_4\tスカート_5_5\tスカート_5_6\tスカート_5_7\tスカート_5_8\tスカート_5_9\tスカート_5_10\tスカート_5_11\tスカート_5_12\tスカート_5_13\tスカート_5_14\tスカート_5_15\tスカート_6_1\tスカート_6_2\tスカート_6_3\tスカート_6_4\tスカート_6_5\tスカート_6_6\tスカート_6_7\tスカート_6_8\tスカート_6_9\tスカート_6_10\tスカート_6_11\tスカート_6_12\tスカート_6_13\tスカート_6_14\tスカート_6_15\t靴ひもA1\t靴ひもB1\t靴ひもC1\t靴ひもC2\t靴ひもD1\t靴ひもD2\n",
+        "DebugDraw": false,
+        "Enabled": true,
+        "Gravity": [
+          0.0,
+          -9.800000190734863,
+          0.0
+        ],
+        "PropagateToDescendants": true,
+        "TimeScale": 1.0,
+        "Wind": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "animator": {
+        "currentClip": 4,
+        "extraClips": [],
+        "playing": true
+      },
+      "id": 17,
+      "material": {
+        "filePath": "",
+        "rampPath": "",
+        "shaderName": "SkinnedToon",
+        "subMaterials": [
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.699999988079071,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.6000000238418579,
+            "sssTrans": 0.15000000596046448,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 0.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 0.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 0.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.699999988079071,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.6000000238418579,
+            "sssTrans": 0.15000000596046448,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          }
+        ]
+      },
+      "mesh": {
+        "filePath": "Assets\\Model\\Ruka\\White.pmx",
+        "scale": 1.0
+      },
+      "name": "Model_17",
+      "transform": {
+        "parent": 0,
+        "position": [
+          0.0,
+          0.0,
+          0.0
+        ],
+        "rotation": [
+          0.0,
+          0.0,
+          0.0,
+          1.0
+        ],
+        "scale": [
+          0.10000000149011612,
+          0.10000000149011612,
+          0.10000000149011612
+        ]
+      }
+    },
+    {
+      "Animator": {
+        "ClipPaths": "Assets/Model/FrankensteinNoKaibutsu/Full_Suzuki.vmd|Assets/Model/VMDMotion/Aipai/AipaiDanceHall_Motion(MMD)_Full_HinaSuzuki_v1.1[f-19].vmd|Assets/Model/VMDMotion/Aipai/AipaiDanceHall_Motion(MMD)_Full_HinaSuzuki_v1.1[f-19].vmd",
+        "CurrentClip": 4,
+        "CurrentClipName": "AipaiDanceHall_Motion(MMD)_Full_HinaSuzuki_v1.1[f-19]",
+        "Loop": true,
+        "Playing": true,
+        "Speed": 1.0,
+        "Time": 0.0
+      },
+      "Kawaii Physics": {
+        "Config": "chain\t帽D1_1\t1\t0.1\t0.4\t0.2\t0.05\t0.2433\t0.250718\t30\t30\t0.85\t0.85\t0.05\t1\nchain\t右CF_1\t1\t0.1\t0.4\t0.2\t0.05\t0.18455\t0.197321\t30\t50\t0.85\t0.85\t0.05\t1\nchain\t左CF_1\t1\t0.1\t0.4\t0.2\t0.05\t0.18455\t0.18121\t30\t50\t0.85\t0.85\t0.05\t1\nchain\tSZY_J1_1\t1\t0.1\t0.4\t0.2\t0.05\t0.108294\t0.181633\t30\t30\t0.85\t0.85\t0.05\t1\nchain\tSZY_S_1\t1\t0.1\t0.4\t0.2\t0.05\t0.236765\t0.236765\t30\t30\t0.85\t0.85\t0.05\t1\nchain\tDM_0_1\t1\t0.1\t0.4\t0.2\t0.05\t0.324881\t0.194519\t0\t0\t0.85\t0.85\t0.05\t1\nchain\t左F_0_1\t1\t0.1\t0.4\t0.2\t0.05\t0.108294\t0.216588\t0\t0\t0.85\t0.85\t0.05\t1\nchain\t右F_0_1\t1\t0.1\t0.4\t0.2\t0.05\t0.108294\t0.216588\t0\t0\t0.85\t0.85\t0.05\t1\nchain\tHB1_0_0\t1\t0.1\t0.4\t0.2\t0.05\t0.108294\t0.108294\t0\t5\t0.85\t0.85\t0.05\t1\nchain\tHB1_0_1\t1\t0.1\t0.4\t0.2\t0.05\t0.108294\t0.108294\t8\t8\t0.85\t0.85\t0.05\t1\nchain\tHB1_0_2\t1\t0.1\t0.4\t0.2\t0.05\t0.108294\t0.108294\t8\t8\t0.85\t0.85\t0.05\t1\nchain\tHB1_0_3\t1\t0.1\t0.4\t0.2\t0.05\t0.108294\t0.108294\t8\t8\t0.85\t0.85\t0.05\t1\nchain\tHB1_0_4\t1\t0.1\t0.4\t0.2\t0.05\t0.108294\t0.108294\t8\t8\t0.85\t0.85\t0.05\t1\nchain\tHB1_0_5\t1\t0.1\t0.4\t0.2\t0.05\t0.108294\t0.108294\t8\t8\t0.85\t0.85\t0.05\t1\nchain\tHB1_0_6\t1\t0.1\t0.4\t0.2\t0.05\t0.108294\t0.108294\t8\t8\t0.85\t0.85\t0.05\t1\nchain\tHB1_0_7\t1\t0.1\t0.4\t0.2\t0.05\t0.108294\t0.108294\t8\t8\t0.85\t0.85\t0.05\t1\nchain\tHB1_0_8\t1\t0.1\t0.4\t0.2\t0.05\t0.108294\t0.108294\t8\t8\t0.85\t0.85\t0.05\t1\nchain\tHB2_0_1\t1\t0.1\t0.4\t0.2\t0.05\t0.108294\t0.108294\t0\t0\t0.85\t0.85\t0.05\t1\nchain\tHB3_0_1\t1\t0.1\t0.4\t0.2\t0.05\t0.108294\t0.324881\t0\t0\t0.85\t0.85\t0.05\t1\nchain\tHB4_0_1\t1\t0.1\t0.4\t0.2\t0.05\t0.216588\t0.216588\t0\t0\t0.85\t0.85\t0.05\t1\nsphere\t下半身\t0.677071\t-1.19656\t0.510615\t0.907124\t0\nsphere\t下半身\t-0.677068\t-1.19656\t0.510615\t0.907124\t0\nsphere\t左ひざD\t-0.0812976\t0.39409\t-0.200135\t0.841609\t0\nsphere\t右ひざD\t0.0811131\t0.394478\t-0.239867\t0.841609\t0\nsphere\t上半身\t-1.91454e-06\t2.30837\t0.22046\t0.755936\t0\ncapsule\t頭\t-8.02359e-06\t0.45105\t-0.131172\t-8.02359e-06\t0.992519\t-0.131172\t0.86635\ncapsule\t頭\t0.270726\t0.186047\t-0.780142\t-0.270742\t0.186047\t-0.780142\t0.541469\ncapsule\t首\t-6.25718e-06\t0.169081\t-0.128943\t-6.25718e-06\t1.02309\t-0.197123\t0.453562\ncapsule\t上半身2\t0.629943\t1.67577\t0.532345\t-0.629951\t1.67577\t0.532345\t0.604749\ncapsule\t上半身2\t0.316888\t0.445035\t0.290475\t0.557549\t1.61216\t0.497311\t0.655145\ncapsule\t上半身2\t-0.316896\t0.445035\t0.290475\t-0.557557\t1.61216\t0.497311\t0.655145\ncapsule\t上半身2\t0.251975\t0.538642\t0.10258\t-0.251983\t0.538642\t0.10258\t0.806332\ncapsule\t上半身3\t0.151184\t0.586855\t0.19187\t-0.15119\t0.586855\t0.19187\t0.755937\ncapsule\t上半身\t0.239382\t0.569381\t0.107264\t-0.239378\t0.569381\t0.107264\t0.730739\ncapsule\t下半身\t0.607007\t-0.561761\t0.00119698\t-0.607007\t-0.561761\t0.00119698\t1.09261\ncapsule\t下半身\t0.264578\t0.0219135\t0.222563\t-0.264578\t0.0219135\t0.222563\t0.856728\ncapsule\t左足D\t0.159262\t-1.10685\t0.142732\t-0.0661293\t0.0764289\t0.252034\t0.851688\ncapsule\t右足D\t-0.177743\t-1.13867\t0.13039\t0.0477226\t0.043632\t0.249616\t0.851688\ncapsule\t左足D\t0.0046413\t-0.956668\t-0.330081\t-0.135379\t0.241717\t-0.245503\t0.851688\ncapsule\t右足D\t-0.00473956\t-0.953714\t-0.339937\t0.135339\t0.243907\t-0.245242\t0.851688\ncapsule\t左足D\t-0.227578\t-3.74435\t-0.0753186\t0.07363\t-0.996619\t0.129458\t0.83153\ncapsule\t右足D\t0.227297\t-3.74346\t-0.108608\t-0.0735869\t-0.997525\t0.119419\t0.83153\ncapsule\t左足D\t-0.402464\t-3.79549\t-0.158663\t-0.101259\t-1.04519\t-0.325575\t0.83153\ncapsule\t右足D\t0.402108\t-3.7939\t-0.192529\t0.100906\t-1.0423\t-0.336155\t0.83153\ncapsule\t左ひざD\t-0.0747349\t-2.28295\t0.443164\t0.051207\t-0.0282692\t-0.0808862\t0.83153\ncapsule\t右ひざD\t0.0747773\t-2.27827\t0.424617\t-0.0513905\t-0.0278935\t-0.117554\t0.83153\ncapsule\t左ひざD\t-0.320106\t-4.58237\t0.453029\t-0.0451172\t-2.07927\t0.362453\t0.83153\ncapsule\t右ひざD\t0.319602\t-4.57757\t0.45309\t0.0447521\t-2.07528\t0.34221\t0.83153\ncapsule\t左足首D\t0.457545\t-0.630478\t-1.46073\t0.416071\t0.0726515\t-0.00625908\t0.646419\ncapsule\t右足首D\t-0.457391\t-0.629169\t-1.45985\t-0.416322\t0.0780016\t-0.00731987\t0.646419\ncapsule\t左足首D\t0.415574\t-0.549193\t-1.12058\t0.404707\t-0.553267\t0.169682\t0.573474\ncapsule\t右足首D\t-0.415546\t-0.547701\t-1.11776\t-0.405003\t-0.548187\t0.172515\t0.573474\ncapsule\t左肩\t0.87356\t-0.0449144\t0.158285\t0.0775838\t0.0834256\t0.147188\t0.453562\ncapsule\t右肩\t-0.873571\t-0.0449144\t0.158286\t-0.0775957\t0.0834256\t0.147189\t0.453562\ncapsule\t左腕\t2.0475\t-1.62193\t0.0486021\t-0.145215\t0.0699648\t-0.0617987\t0.428364\ncapsule\t右腕\t-2.04751\t-1.62194\t0.0486064\t0.145205\t0.069961\t-0.0617944\t0.428364\ncapsule\t左ひじ\t1.84792\t-1.34073\t-0.102719\t0.0201614\t-0.087633\t-0.0254824\t0.428364\ncapsule\t右ひじ\t-1.84794\t-1.34072\t-0.103161\t-0.0201862\t-0.0876225\t-0.0259249\t0.428364\ncapsule\t左手首\t0.558027\t-0.381939\t-0.0224006\t0.0952631\t0.00220527\t0.04088\t0.428364\ncapsule\t右手首\t-0.558067\t-0.381929\t-0.0226921\t-0.0953037\t0.00221576\t0.0405886\t0.428364\ncapsule\t上半身2\t-0.303209\t0.133231\t0.117882\t-0.564693\t1.57817\t0.451473\t0.702718\ncapsule\t上半身2\t0.303201\t0.133231\t0.117882\t0.564685\t1.57817\t0.451473\t0.702718\ncapsule\t上半身2\t0.401549\t1.07789\t-0.2752\t-0.401557\t1.07817\t-0.2752\t0.60233\nallow\t帽D1_1\t帽D1_2\t右CF_1\t右CF_2\t左CF_1\t左CF_2\tSZY_J1_1\tSZY_J1_2\tSZY_ls1_1\tSZY_ls2_1\tSZY_S_1\tDM_0_1\tDM_1_1\tDM_2_1\tDM_3_1\tDM_4_1\tDM_5_1\t左F_0_1\t左F_1_1\t左F_2_1\t左F_3_1\t左F_4_1\t左F_5_1\t左F_6_1\t左F_7_1\t左F_8_1\t左F_9_1\t左F_10_1\t左F_11_1\t左F_12_1\t左F_13_1\t左F_14_1\t左F_15_1\t左F_16_1\t左F_17_1\t右F_0_1\t右F_1_1\t右F_2_1\t右F_3_1\t右F_4_1\t右F_5_1\t右F_6_1\t右F_7_1\t右F_8_1\t右F_9_1\t右F_10_1\t右F_11_1\t右F_12_1\t右F_13_1\t右F_14_1\t右F_15_1\t右F_16_1\t右F_17_1\tHB1_0_0\tHB1_0_1\tHB1_0_2\tHB1_0_3\tHB1_0_4\tHB1_0_5\tHB1_0_6\tHB1_0_7\tHB1_0_8\tHB1_1_0\tHB1_1_1\tHB1_1_2\tHB1_1_3\tHB1_1_4\tHB1_1_5\tHB1_1_6\tHB1_1_7\tHB1_1_8\tHB1_2_0\tHB1_2_1\tHB1_2_2\tHB1_2_3\tHB1_2_4\tHB1_2_5\tHB1_2_6\tHB1_2_7\tHB1_2_8\tHB1_3_0\tHB1_3_1\tHB1_3_2\tHB1_3_3\tHB1_3_4\tHB1_3_5\tHB1_3_6\tHB1_3_7\tHB1_3_8\tHB1_4_0\tHB1_4_1\tHB1_4_2\tHB1_4_3\tHB1_4_4\tHB1_4_5\tHB1_4_6\tHB1_4_7\tHB1_4_8\tHB1_5_0\tHB1_5_1\tHB1_5_2\tHB1_5_3\tHB1_5_4\tHB1_5_5\tHB1_5_6\tHB1_5_7\tHB1_5_8\tHB1_6_0\tHB1_6_1\tHB1_6_2\tHB1_6_3\tHB1_6_4\tHB1_6_5\tHB1_6_6\tHB1_6_7\tHB1_6_8\tHB1_7_0\tHB1_7_1\tHB1_7_2\tHB1_7_3\tHB1_7_4\tHB1_7_5\tHB1_7_6\tHB1_7_7\tHB1_7_8\tHB2_0_1\tHB2_1_1\tHB2_2_1\tHB2_3_1\tHB2_4_1\tHB2_5_1\tHB2_6_1\tHB2_7_1\tHB2_8_1\tHB2_9_1\tHB2_10_1\tHB2_11_1\tHB2_12_1\tHB2_13_1\tHB2_14_1\tHB2_15_1\tHB2_16_1\tHB2_17_1\tHB2_18_1\tHB3_0_1\tHB3_1_1\tHB3_2_1\tHB3_3_1\tHB3_4_1\tHB3_5_1\tHB3_6_1\tHB3_7_1\tHB3_8_1\tHB3_9_1\tHB3_10_1\tHB3_11_1\tHB3_12_1\tHB3_13_1\tHB3_14_1\tHB3_15_1\tHB3_16_1\tHB3_17_1\tHB4_0_1\tHB4_1_1\tHB4_2_1\tHB4_3_1\tHB4_4_1\tHB4_5_1\tHB4_6_1\tHB4_7_1\tHB4_8_1\tHB4_9_1\tHB4_10_1\tHB4_11_1\tHB4_12_1\tHB4_13_1\tHB4_14_1\tHB4_15_1\tHB4_16_1\n",
+        "DebugDraw": false,
+        "Enabled": true,
+        "Gravity": [
+          0.0,
+          -9.800000190734863,
+          0.0
+        ],
+        "PropagateToDescendants": true,
+        "TimeScale": 1.0,
+        "Wind": [
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      "animator": {
+        "currentClip": 4,
+        "extraClips": [],
+        "playing": true
+      },
+      "id": 18,
+      "material": {
+        "filePath": "",
+        "rampPath": "",
+        "shaderName": "SkinnedToon",
+        "subMaterials": [
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.699999988079071,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.6000000238418579,
+            "sssTrans": 0.15000000596046448,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.699999988079071,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.6000000238418579,
+            "sssTrans": 0.15000000596046448,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.699999988079071,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.6000000238418579,
+            "sssTrans": 0.15000000596046448,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          },
+          {
+            "baseAlpha": 1.0,
+            "metallic": 0.0,
+            "roughness": 0.5,
+            "shaderName": "",
+            "sheen": 0.0,
+            "sssColor": [
+              0.8999999761581421,
+              0.3499999940395355,
+              0.25
+            ],
+            "sssStrength": 0.0,
+            "sssTrans": 0.0,
+            "sssWrap": 0.4000000059604645
+          }
+        ]
+      },
+      "mesh": {
+        "filePath": "Assets\\Model\\furina\\furina.pmx",
+        "scale": 1.0
+      },
+      "name": "Model_18",
+      "transform": {
+        "parent": 0,
+        "position": [
+          0.0023154616355895996,
+          0.0,
+          0.031329989433288574
+        ],
+        "rotation": [
+          -0.0,
+          0.0,
+          -0.0,
           1.0
         ],
         "scale": [

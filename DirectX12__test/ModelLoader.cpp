@@ -779,20 +779,23 @@ void ModelLoader::PopulateModelEntity(
                     an.clipsRestored = false;
 					an.time = old.time;
                     an.playing = old.playing;
+
+                    // 選択中クリップも引き継ぐ。ここで捨てると、シーン復元で
+                    // Reflect が入れた値がモデル読み込み完了時に消える
+                    an.currentClip = old.currentClip;
+                    an.currentClipName = old.currentClipName;
                 }
 
-                // 物理
-                if (scene)
+                // 物理（揺れものは Kawaii Physics へ全面移行。PMX の剛体から自動生成する）
+                if (!result.physics.rigidBodies.empty())
                 {
-                    auto& physicsWorld = scene->EnsurePhysicsWorld();
-                    if (physicsWorld.GetPhysics() == nullptr) physicsWorld.Init();
-                    if (physicsWorld.GetPhysics())
-                    {
-                        auto physComp = MmdPhysicsComponent{};
-                        physComp.impl = std::make_shared<MmdPhysics>();
-                        physComp.impl->Init(physicsWorld.GetPhysics(), result.physics, an.skeleton);
-                        world.AddComponent<MmdPhysicsComponent>(entity, physComp);
-                    }
+                    auto kp = KawaiiPhysicsComponent{};
+                    kp.impl = std::make_shared<KawaiiPhysics>();
+                    kp.sourcePhysics = result.physics;   // 再生成用に保持
+                    KawaiiAutoSetupFromPmx(an.skeleton, result.physics, kp.settings);
+                    kp.configStr = KawaiiSerialize(kp.settings);
+                    kp.configRestored = true;            // 生成済みなので復元しない
+                    world.AddComponent<KawaiiPhysicsComponent>(entity, std::move(kp));
                 }
 
                 // 兄弟FBXアニメ("stem_..."形式)を追加

@@ -55,6 +55,29 @@ inline std::vector<std::shared_ptr<Material>> BuildMaterials(
 		m->baseColor = set.diffuseColor;
         m->baseColor.w = 1.0f;
 
+        // 肌系マテリアルは既定で SSS を有効化（PMX の日本語名 / FBX の英語名）
+        {
+            // set.name は UTF-8。/utf-8 オプションが無く素の "肌" は CP932 になるため、UTF-8 バイトを直接書く
+            static const char* kSkinKeys[] = {
+                "\xE8\x82\x8C",   // hada (肌)
+                "\xE9\xA1\x94",   // kao (顔)
+                "\xE4\xBD\x93",   // karada (体)
+                "skin", "Skin", "face", "Face", "body", "Body"
+            };
+            for (const char* key : kSkinKeys)
+            {
+                if (set.name.find(key) != std::string::npos)
+                {
+                    m->sssStrength = 0.6f;
+                    m->sssWrap     = 0.4f;
+                    m->sssTrans    = 0.15f;
+                    m->sssColor    = { 0.95f, 0.55f, 0.45f, 1.0f }; // 赤すぎない血色
+                    m->roughness   = 0.7f;                          // 肌はテカらせない
+                    break;
+                }
+            }
+        }
+
         if (!set.diffuse.empty())
         {
             auto it = texOwner.find(set.diffuse);
