@@ -837,8 +837,10 @@ void DirectXApp::CreatePipelineStateObject()
 	brt.SrcBlend				= D3D12_BLEND_SRC_ALPHA;
 	brt.DestBlend				= D3D12_BLEND_ONE;
 	brt.BlendOp					= D3D12_BLEND_OP_ADD;
-	brt.SrcBlendAlpha			= D3D12_BLEND_ONE;
-	brt.DestBlendAlpha			= D3D12_BLEND_ZERO;
+	// アルファは触らない。ここを ONE/ZERO にすると PS が返した芯の値(縁で0)で
+	// レンダーターゲットのアルファが上書きされ、ImGui表示時にビーム板の形に透ける
+	brt.SrcBlendAlpha			= D3D12_BLEND_ZERO;
+	brt.DestBlendAlpha			= D3D12_BLEND_ONE;
 	brt.BlendOpAlpha			= D3D12_BLEND_OP_ADD;
 	brt.RenderTargetWriteMask	= D3D12_COLOR_WRITE_ENABLE_ALL;
 

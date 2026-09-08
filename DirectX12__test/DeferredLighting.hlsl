@@ -164,6 +164,22 @@ float Hash(float2 p)
     return frac(sin(dot(p, float2(12.9898f, 78.233f))) * 43758.5453f);
 }
 
+// レイと球の交差区間を返す。交差しなければ false
+bool RaySphere(float3 ro, float3 rd, float3 c, float r, out float t0, out float t1)
+{
+    float3 oc = ro - c;
+    float b = dot(oc, rd);
+    float cc = dot(oc, oc) - r * r;
+    float h = b * b - cc;
+    t0 = t1 = 0.0f;
+    if (h < 0.0f)
+        return false;
+    h = sqrt(h);
+    t0 = -b - h;
+    t1 = -b + h;
+    return true;
+}
+
 float4 VolumetricPS(VSOut input) : SV_TARGET
 {
     // レイの終点：深度がある面まで／空なら遠クリップ相当
@@ -181,14 +197,11 @@ float4 VolumetricPS(VSOut input) : SV_TARGET
     const float maxDist = 60.0f;
     rayLen = min(rayLen, maxDist);
 
-    const int STEPS = 24;
-    float stepLen = rayLen / STEPS;
+    const int STEPS = 12; // 区間を絞ったので 24 → 12 で足りる
+    const float g = 0.3f; // 前方散乱の鋭さ(横から見ても筋が見えるように0.6→0.3)
 
     // ディザで開始位置をずらしてバンディングを消す
     float jitter = Hash(input.uv * shadowParams.z);
-    float3 p = camPos + rayDir * stepLen * jitter;
-
-    const float g = 0.3f; // 前方散乱の鋭さ(横から見ても筋が見えるように0.6→0.3)
 
     float3 scatter = 0;
     const int count = (int) lightCount.x;
@@ -198,18 +211,34 @@ float4 VolumetricPS(VSOut input) : SV_TARGET
     {
         float density = lights[i].param.w;
         int type = (int) lights[i].param.x;
-        if(density <= 0.0f || type < 2)
+        if (density <= 0.0f || type < 2)
             continue;
-        
+
+        // このピクセルのレイが影響圏(半径 range の球)を通らなければ即スキップ
+        float t0, t1;
+        if (!RaySphere(camPos, rayDir, lights[i].posRange.xyz,
+                       max(lights[i].posRange.w, 0.0001f), t0, t1))
+            continue;
+
+        t0 = max(t0, 0.0f);
+        t1 = min(t1, rayLen);
+        if (t1 <= t0)
+            continue;
+
+        // 交差区間だけを刻む(p はライトごとに必ず初期化する)
+        float segLen = t1 - t0;
+        float stepLen = segLen / STEPS;
+        float3 p = camPos + rayDir * (t0 + stepLen * jitter);
+
         float3 lightScatter = 0;
-        
+
         [loop]
         for (int s = 0; s < STEPS; ++s)
         {
             float3 L;
             float atten;
             ComputeLight(lights[i], p, L, atten);
-            if(atten > 0.0f)
+            if (atten > 0.0f)
             {
                 float sh = (i == 0) ? ShadowFactor1(p) : 1.0f;
                 float phase = PhaseHG(dot(-rayDir, L), g);
@@ -217,9 +246,10 @@ float4 VolumetricPS(VSOut input) : SV_TARGET
             }
             p += rayDir * stepLen;
         }
-        scatter += lights[i].color.rgb * lightScatter * density;
+
+        // stepLen がライトごとに異なるのでここで積分係数を掛ける
+        scatter += lights[i].color.rgb * lightScatter * density * (0.5f * stepLen);
     }
 
-    scatter *= 0.5f * stepLen; // ベース係数(density はライトごとに乗算済み)
     return float4(scatter, 1.0f);
 }
