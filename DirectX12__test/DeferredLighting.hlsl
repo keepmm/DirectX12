@@ -111,6 +111,9 @@ float4 DeferredPS(VSOut input) : SV_TARGET
         float3 L;
         float atten;
         ComputeLight(lights[i], worldPos, L, atten);
+        // 影響圏外のライトはここで捨てる。届かない灯まで評価すると
+        // ランプ参照ぶんの負荷がそのまま灯数倍になり、暗部も灯数ぶん持ち上がる
+        if (atten <= 1e-3f) continue;
         float nDotL = saturate(dot(N, L)) * atten;
 
         float s = (i == 0) ? shadow : 1.0f;
@@ -214,10 +217,42 @@ float4 VolumetricPS(VSOut input) : SV_TARGET
         if (density <= 0.0f || type < 2)
             continue;
 
-        // このピクセルのレイが影響圏(半径 range の球)を通らなければ即スキップ
+        // 影響圏の球。頂点中心・半径 range だと円錐の実体積の10倍近くを
+        // 無駄に刻むことになるので、スポットは円錐に、ビームは円柱に外接させる
+        float3 axis = normalize(lights[i].dir.xyz);
+        float  len = max(lights[i].posRange.w, 0.0001f);
+        float3 bCenter;
+        float  bRadius;
+
+        if (type == 3) // ビーム: 半径 param.z の円柱
+        {
+            float r = max(lights[i].param.z, 0.001f);
+            bCenter = lights[i].posRange.xyz + axis * (len * 0.5f);
+            bRadius = sqrt(len * len * 0.25f + r * r);
+        }
+        else // スポット: 半角 acos(param.y) の円錐
+        {
+            float cosT = clamp(lights[i].param.y, 0.09f, 0.9999f);
+            float cos2 = cosT * cosT;
+            if (cos2 > 0.5f)
+            {
+                // 半角45°以下。頂点と底面リムを通る外接球(中心は軸上 len/(2cos^2))
+                float c = len / (2.0f * cos2);
+                bCenter = lights[i].posRange.xyz + axis * c;
+                bRadius = c;
+            }
+            else
+            {
+                // 半角45°超。底面の円を包む球のほうが小さい
+                float r = len * sqrt(1.0f - cos2) / cosT;
+                bCenter = lights[i].posRange.xyz + axis * len;
+                bRadius = r;
+            }
+        }
+
+        // このピクセルのレイが影響圏を通らなければ即スキップ
         float t0, t1;
-        if (!RaySphere(camPos, rayDir, lights[i].posRange.xyz,
-                       max(lights[i].posRange.w, 0.0001f), t0, t1))
+        if (!RaySphere(camPos, rayDir, bCenter, bRadius, t0, t1))
             continue;
 
         t0 = max(t0, 0.0f);

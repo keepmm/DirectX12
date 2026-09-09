@@ -44,9 +44,10 @@ OutlineOut Genshin_OutlineVS(VSInput input)
     float4 wp = mul(pos, world);
     float3 wn = normalize(mul(float4(normal, 0.0f), world).xyz);
 
-    // カメラ距離で太さを一定に保つ
+    // カメラ距離に比例させて画面上の太さを一定に保つ。係数がほぼ画面高さに対する比率で、
+    // outlineWidth 1.0 で画面高さの約0.08%(1080pで1px程度)
     float dist = length(cameraPos.xyz - wp.xyz);
-    float width = max(faceParam.w, 0.001f) * dist * 0.015f;
+    float width = max(faceParam.w, 0.0f) * dist * 0.0008f;
     wp.xyz += wn * width;
 
     output.pos = mul(wp, viewProj);

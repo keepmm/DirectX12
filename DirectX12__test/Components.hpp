@@ -375,6 +375,7 @@ struct LightComponent
 		f.AddRange("GlowPower", glowPower, 1.0f, 32.0f);
 		f.AddRange("GlowIntensity", glowIntensity, 0.1f, 20.0f);
 		f.AddRange("VolumetricIntensity", volumetricIntensity, 0.0f, 10.0f);
+		f.Add("CastShadows", castShadows);	// 影を落とす担当を選ぶ(先着1つだけ有効)
 	}
 	bool castShadows = true;
 	bool isShow = false;

@@ -42,7 +42,16 @@ enum class DrawFilter : uint8_t
 	ALL,
 	OPAQUEONLY,
 	TRANSPARENTONLY,
+	OPAQUE_NOTOON,		// 不透明のうちトゥーン以外(デファードのG-Buffer用)
+	OPAQUE_TOON,		// 不透明のうちトゥーンだけ(フォワードで重ねる用)
 };
+
+// トゥーン系シェーダーか。デファードではG-Bufferに入れず、
+// フォワードで従来のシェーダーのまま描くために使う
+inline bool IsToonShader(const std::string& name)
+{
+	return name.find("Toon") != std::string::npos;
+}
 
 class RenderSystem
 {
@@ -193,6 +202,9 @@ public:
 							? material.shaderName : mat->shaderName;
 
 						const bool isTransparent = APP->IsShaderAlphaBlend(sn);
+						const bool isToon = IsToonShader(sn);
+						if (filter == DrawFilter::OPAQUE_NOTOON && (isTransparent || isToon))  continue;
+						if (filter == DrawFilter::OPAQUE_TOON && (isTransparent || !isToon)) continue;
 						if (filter == DrawFilter::OPAQUEONLY && isTransparent)		 continue; // このエンティティskip
 						if (filter == DrawFilter::TRANSPARENTONLY && !isTransparent) continue;
 
@@ -205,15 +217,33 @@ public:
 				}
 				else
 				{
-					material.material->Apply(renderContext.CommandList, transform.world,
-						renderContext.view, renderContext.projection,
-						renderContext.wireframe, renderContext.frameIndex,
-						renderContext.cbAllocator, material.shaderName);
-					mesh.mesh->Draw(renderContext.CommandList);
+					// 単一マテリアルもフィルタに従う。見ていないと不透明パスと
+					// 半透明パスの両方で描かれてしまう
+					const bool isTransparent = APP->IsShaderAlphaBlend(material.shaderName);
+					const bool isToon = IsToonShader(material.shaderName);
+					const bool skip =
+						(filter == DrawFilter::OPAQUEONLY && isTransparent) ||
+						(filter == DrawFilter::TRANSPARENTONLY && !isTransparent) ||
+						(filter == DrawFilter::OPAQUE_NOTOON && (isTransparent || isToon)) ||
+						(filter == DrawFilter::OPAQUE_TOON && (isTransparent || !isToon));
+
+					if (!skip)
+					{
+						material.material->Apply(renderContext.CommandList, transform.world,
+							renderContext.view, renderContext.projection,
+							renderContext.wireframe, renderContext.frameIndex,
+							renderContext.cbAllocator, material.shaderName);
+						mesh.mesh->Draw(renderContext.CommandList);
+					}
 				}
 
 				// --- アウトラインパス(Genshin_Toonのみ・通常描画の後) ---
-				if (material.shaderName == "Genshin_Toon" && !renderContext.wireframe)
+				// トゥーン系はアウトラインを描く(SkinnedToon = MMDキャラ)
+				const bool wantsOutline =
+					(material.shaderName == "Genshin_Toon" || material.shaderName == "SkinnedToon") &&
+					filter != DrawFilter::OPAQUE_NOTOON &&
+					filter != DrawFilter::TRANSPARENTONLY;
+				if (wantsOutline && !renderContext.wireframe)
 				{
 					std::string outlineShaderName = "Genshin_Outline";
 					ID3D12PipelineState* outlinePso = APP->GetPipelineStateByName(outlineShaderName);
@@ -264,6 +294,14 @@ public:
 		m_Data = {};
 
 		UINT count = 0;
+
+		// 影を落とすライト(先着1つ)。方向ライトでもスポットでもよい
+		int   shadowIndex = -1;
+		LightComponent::LightType shadowType = LightComponent::LightType::Directional;
+		float shadowAngle = 45.0f;
+		float shadowRange = 10.0f;
+		float3 shadowDir{};
+		float3 shadowPos{};
 
 		world.Each<LightComponent>([&](Entity entity, LightComponent& light)
 			{
@@ -371,6 +409,19 @@ public:
 					}
 				}
 
+				// 影の担当を決める。CastShadows を切れば次のライトへ回る
+				if (shadowIndex < 0 && light.castShadows &&
+					(light.type == LightComponent::LightType::Directional ||
+						light.type == LightComponent::LightType::Spot))
+				{
+					shadowIndex = static_cast<int>(count);
+					shadowType = light.type;
+					shadowAngle = light.spotAngle;
+					shadowRange = light.range;
+					shadowPos = float3{ dst.posRange.x, dst.posRange.y, dst.posRange.z };
+					shadowDir = float3{ dst.dir.x, dst.dir.y, dst.dir.z };
+				}
+
 				++count;
 			});
 
@@ -378,17 +429,7 @@ public:
 		//		シャドウマッピング	     //
 		// ----------------------------- //
 		m_Data.shadowParams = { 0.005f, 0.0f, 2048.0f, 0.0f };
-		float3 shadowDir{};
-		bool found = false;
-		world.Each<LightComponent>([&](Entity e, LightComponent& light)
-			{
-				// 見つかった or 非アクティブならスキップ
-				if (found || !light.isActive) return;
-				// 方向ライト以外はスキップ
-				if (light.type != LightComponent::LightType::Directional) return;
-				shadowDir = light.direction;
-				found = true;
-			});
+		const bool found = (shadowIndex >= 0);
 
 		if (found)
 		{
@@ -432,6 +473,39 @@ public:
 			DirectX::XMVECTOR lightPos = DirectX::XMVectorSubtract(center, DirectX::XMVectorScale(d, dist));
 			DirectX::XMVECTOR up = (fabsf(shadowDir.y) > 0.99f)
 				? DirectX::XMVectorSet(1, 0, 0, 0) : DirectX::XMVectorSet(0, 1, 0, 0);
+
+			// ライト視点のビュー×プロジェクション。
+			// 他の行列と同じく転置して渡す(シェーダーは mul(頂点, 行列) の順)
+			DirectX::XMMATRIX lightView;
+			DirectX::XMMATRIX lightProj;
+
+			if (shadowType == LightComponent::LightType::Spot)
+			{
+				// スポットは自分の位置から円錐方向を透視投影で撮る。
+				// 平行投影だと円錐の広がりが再現できず、影の形が合わない
+				const float far_ = std::max(shadowRange, 2.0f);
+				const DirectX::XMVECTOR sp = DirectX::XMLoadFloat3(&shadowPos);
+				const DirectX::XMVECTOR target =
+					DirectX::XMVectorAdd(sp, DirectX::XMVectorScale(d, far_));
+
+				lightView = DirectX::XMMatrixLookAtLH(sp, target, up);
+
+				// 円錐の外周まで入るよう、スポット角そのものを画角にする
+				const float fov = DirectX::XMConvertToRadians(
+					std::min(std::max(shadowAngle, 5.0f), 170.0f));
+				lightProj = DirectX::XMMatrixPerspectiveFovLH(fov, 1.0f, 0.5f, far_);
+			}
+			else
+			{
+				lightView = DirectX::XMMatrixLookAtLH(lightPos, center, up);
+				lightProj = DirectX::XMMatrixOrthographicLH(ortho, ortho, 1.0f, dist * 2.0f);
+			}
+
+			DirectX::XMStoreFloat4x4(&m_Data.lightviewproj,
+				DirectX::XMMatrixTranspose(lightView * lightProj));
+
+			m_Data.shadowParams.y = 1.0f;                          // 影を有効化
+			m_Data.shadowParams.w = static_cast<float>(shadowIndex); // どのライトが落とすか
 		}
 
 		m_Data.lightCount.x = static_cast<float>(count);
@@ -1038,6 +1112,26 @@ public:
 			[&](Entity e, TransformComponent& tr, MeshComponent& mc)
 			{
 				if (!mc.mesh) return;
+
+				// スキンメッシュ用の骨パレット。渡さないとキャラの影が
+				// バインドポーズのまま固まる
+				{
+					BoneCB bone{};
+					const size_t n = world.HasComponent<AnimatorComponent>(e)
+						? std::min<size_t>(world.GetComponent<AnimatorComponent>(e).palette.size(), MAX_BONES)
+						: 0;
+					if (n > 0)
+					{
+						const auto& palette = world.GetComponent<AnimatorComponent>(e).palette;
+						for (size_t i = 0; i < n; ++i) bone.boneMatrices[i] = palette[i];
+					}
+					for (size_t i = n; i < MAX_BONES; ++i)
+						DirectX::XMStoreFloat4x4(&bone.boneMatrices[i], DirectX::XMMatrixIdentity());
+
+					auto b4 = ctx.cbAllocator->Allocate(slot, &bone, sizeof(BoneCB));
+					if (b4) cmd->SetGraphicsRootConstantBufferView(5, b4);
+				}
+
 				struct { float4x4 world; } obj{};
 				const auto w = DirectX::XMLoadFloat4x4(&tr.world);
 				DirectX::XMStoreFloat4x4(&obj.world, DirectX::XMMatrixTranspose(w));

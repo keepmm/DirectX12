@@ -30,6 +30,7 @@
 #include <commdlg.h>
 #include "json.hpp"
 #include "ComponentRegistry.hpp"
+#include "Util.hpp"
 
 #pragma comment(lib, "Comdlg32.lib")
 #pragma comment(lib, "psapi.lib")
@@ -157,6 +158,10 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 
 			ImGui::Separator();
 
+			// このフレームで差し替えるパス。meshComp への参照が
+			// PopulateModelEntity の中で作り直されるので、UIを描き終えてから実行する
+			std::string pendingSwap;
+
 			// ファイルパスの設定
 			char filepathBuffer[256];
 			// 元のパスをコピー
@@ -168,17 +173,39 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 			}
 
 			// -------------------------------------
-			// アセットパネルからドロップを受け付け
+			// アセットパネルからドロップを受け付け（落とした時点で差し替える）
 			// -------------------------------------
 			if (ImGui::BeginDragDropTarget())
 			{
 				const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ASSET_MODEL");
 				if (payload != nullptr)
 				{
-					meshComp.FilePath = std::string(static_cast<const char*>(payload->Data));
+					pendingSwap = std::string(static_cast<const char*>(payload->Data));
 				}
 				ImGui::EndDragDropTarget();
 			}
+
+			// ファイル選択ダイアログから差し替え
+			if (ImGui::Button(u8("モデルを選択...##MeshPick")))
+			{
+				std::wstring picked;
+				if (OpenFileDialog(picked,
+					L"Model\0*.pmx;*.fbx;*.obj;*.gltf;*.glb;*.dae\0"
+					L"MMD Model (*.pmx)\0*.pmx\0"
+					L"All\0*.*\0"))
+				{
+					pendingSwap = WideToUtf8(picked);
+				}
+			}
+			ImGui::SameLine();
+			if (ImGui::Button(u8("読み込み##MeshReload")))
+			{
+				pendingSwap = meshComp.FilePath;   // 手打ちしたパスを読む
+			}
+
+			// 拡張子ごとの既定スケール(.pmx=0.1 / .fbx=0.01)を当て直すか
+			static bool s_MeshSwapAutoScale = true;
+			ImGui::Checkbox(u8("差し替え時にスケールを合わせる##MeshAutoScale"), &s_MeshSwapAutoScale);
 
 			ImGui::Separator();
 
@@ -190,30 +217,40 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 				meshComp.scale = 0.01f;
 			}
 
-			if (ImGui::Button(u8("読み込み##MeshReload")))
+			// --- モデル差し替え ---
+			// メッシュだけ入れ替えると、スケルトン/モーフ/剛体/マテリアルが
+			// 前のモデルのまま残って破綻する。シーン読み込みと同じ
+			// PopulateModelEntity を通して一式作り直す
+			if (!pendingSwap.empty())
 			{
-				auto result = ModelLoader::LoadFromFile(
-					APP->GetDevice(),
-					meshComp.FilePath,
-					meshComp.scale);
+				const std::string prevPath = meshComp.FilePath;
 
-				if (!meshComp.mesh)
+				// 再生位置と、手で足したVMDは引き継ぐ。
+				// clipPathsStr も PopulateModelEntity 側で引き継がれるので、
+				// MMD標準ボーン同士ならダンスを流したままモデルだけ変えられる
+				int  clip = 0;
+				bool playing = false;
+				std::vector<std::string> extras;
+				if (world.HasComponent<AnimatorComponent>(m_SelectedEntity))
 				{
-					// メッシュが未生成なら作る
-					meshComp.mesh = std::make_shared<Mesh>();
-					meshComp.mesh->CreateCube(APP->GetDevice());
-
-					LOG->LogInfo(("メッシュを生成しました"));
+					const auto& an = world.GetComponent<AnimatorComponent>(m_SelectedEntity);
+					clip = an.currentClip;
+					playing = an.playing;
+					extras = an.extraClipNames;
 				}
 
-				if (result.mesh)
-				{
-					meshComp.mesh = result.mesh;
-				}
-				else
-				{
-					LOG->LogError(u8("メッシュの読み込みに失敗しました"));
-				}
+				// 形式が変わるときだけ既定スケールを当て直す。
+				// 同じ形式なら、ユーザーが調整したTransformを尊重する
+				namespace fs = std::filesystem;
+				const bool extChanged =
+					fs::path(prevPath).extension() != fs::path(pendingSwap).extension();
+				const bool applyScale = s_MeshSwapAutoScale && extChanged;
+
+				meshComp.FilePath = pendingSwap;
+				ModelLoader::PopulateModelEntity(world, m_SelectedEntity, pendingSwap,
+					scene, clip, playing, extras, applyScale);
+
+				LOG->LogInfo("モデルを差し替えました: " + pendingSwap);
 			}
 
 			ImGui::Separator();

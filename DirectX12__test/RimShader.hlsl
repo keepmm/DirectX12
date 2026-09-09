@@ -31,6 +31,9 @@ float4 RimPS(PSInput pin) : SV_Target
         float3 L;
         float atten;
         ComputeLight(lights[i], pin.worldPos, L, atten);
+        // 影響圏外のライトはここで捨てる。届かない灯まで評価すると
+        // ランプ参照ぶんの負荷がそのまま灯数倍になり、暗部も灯数ぶん持ち上がる
+        if (atten <= 1e-3f) continue;
         diffuse += Lambert(basecolor, lights[i].color.rgb, N, L) * atten;
     }
 

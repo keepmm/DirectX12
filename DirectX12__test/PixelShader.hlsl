@@ -29,6 +29,9 @@ float4 BasicPS(PSInput input) : SV_TARGET
         float3 l;
         float atten;
         ComputeLight(lights[i], input.worldPos, l, atten);
+        // 影響圏外のライトはここで捨てる。届かない灯まで評価すると
+        // ランプ参照ぶんの負荷がそのまま灯数倍になり、暗部も灯数ぶん持ち上がる
+        if (atten <= 1e-3f) continue;
         float ndotl = saturate(dot(n, l));
         diffuse += lights[i].color.rgb * baseColor * ndotl * atten;
     }

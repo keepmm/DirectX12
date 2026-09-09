@@ -672,7 +672,12 @@ void KawaiiAutoSetupFromPmx(const Skeleton& skel, const PmxPhysics& phys,
 		const float rad = std::max({
 			std::fabs(jt.rotLimitLower.x), std::fabs(jt.rotLimitUpper.x),
 			std::fabs(jt.rotLimitLower.z), std::fabs(jt.rotLimitUpper.z) });
-		boneLimit[bi] = XMConvertToDegrees(rad);
+		// PMX のスカートは1ジョイントあたりの制限を極端に小さくして、段数で振り幅を
+		// 稼ぐ作りが多い。これをそのまま円錐制限に使うとチェーンが固まって動かないので、
+		// 小さすぎる値は「制限なし」として既定値に任せる
+		constexpr float MIN_JOINT_LIMIT = 8.0f;   // 度
+		const float deg = XMConvertToDegrees(rad);
+		boneLimit[bi] = (deg >= MIN_JOINT_LIMIT) ? deg : LIMIT_UNSET;
 	}
 
 	// --- 親が揺れものでないものがチェーンの先頭 --- //

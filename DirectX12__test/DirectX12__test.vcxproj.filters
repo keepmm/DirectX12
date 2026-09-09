@@ -455,6 +455,12 @@
     <ClInclude Include="AnimatorClipCache.hpp">
       <Filter>Mesh_Model</Filter>
     </ClInclude>
+    <ClInclude Include="Profiler.hpp">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="GpuProfiler.hpp">
+      <Filter>Core</Filter>
+    </ClInclude>
     <ClInclude Include="GBuffer.hpp">
       <Filter>Rendering</Filter>
     </ClInclude>

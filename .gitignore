@@ -366,3 +366,6 @@ DirectX12__test/Build/
 
 # ImGui のレイアウト保存（環境ごとに変わるので追跡しない）
 DirectX12__test/imgui.ini
+
+# シェーダーの実行時コンパイル結果(ソースが変わると自動で作り直す)
+DirectX12__test/Assets/ShaderCache/

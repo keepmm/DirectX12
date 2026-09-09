@@ -254,6 +254,8 @@
     <ClInclude Include="LiveTimeline.hpp" />
     <ClInclude Include="LiveTimelineUI.hpp" />
     <ClInclude Include="AnimatorClipCache.hpp" />
+    <ClInclude Include="Profiler.hpp" />
+    <ClInclude Include="GpuProfiler.hpp" />
     <ClInclude Include="Logger.hpp" />
     <ClInclude Include="Material.hpp" />
     <ClInclude Include="Mesh.hpp" />

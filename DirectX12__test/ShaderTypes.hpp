@@ -2,7 +2,7 @@
 
 #include "Defines.hpp"
 
-constexpr UINT MAX_LIGHTS = 10;
+constexpr UINT MAX_LIGHTS = 64;
 
 struct alignas(256) DeferredCB
 {

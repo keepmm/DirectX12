@@ -308,6 +308,8 @@ void Material::Apply(
 					   m_HasRough ? 1.f : 0.f, m_EnvMaxMip };   // w>0 なら環境あり
 	mdata.roughness = roughness;
 	mdata.faceParam.y = baseAlpha;
+	mdata.faceParam.x = isFace ? 1.0f : 0.0f;	// 顔マテリアルをシェーダーへ渡す
+	mdata.faceParam.w = outlineWidth;			// アウトラインの太さ
 	mdata.metallic = metallic;
 	mdata.rimColor = rimColor;
 	mdata.sssParams = { sssStrength, sssWrap, sssTrans,sheen };

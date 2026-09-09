@@ -5,6 +5,8 @@
 #include "Mesh.hpp"
 #include "Material.hpp"
 #include "PlayState.hpp"
+#include "Profiler.hpp"
+#include "GpuProfiler.hpp"
 
 RuntimeScene::RuntimeScene(std::string sceneFilePath, const ComPtr<ID3D12Device>& device, const ComPtr<ID3D12PipelineState>& linePso)
 	: m_SceneFilePath(std::move(sceneFilePath)),
@@ -141,7 +143,7 @@ void RuntimeScene::Update(float deltatime)
 		m_ScriptSystemStarted = true;
 	}
 
-	m_ScriptSystem.Update(m_World, deltatime);
+	{ PROFILE_SCOPE("Script"); m_ScriptSystem.Update(m_World, deltatime); }
 	m_SpinSystem.Update(m_World, deltatime);
 	m_AudioSystem.Update(m_World, PLAY.isPlaying());
 	m_MusicSyncSystem.Update(m_World, PLAY.isPlaying());
@@ -155,13 +157,13 @@ void RuntimeScene::Update(float deltatime)
 			float3{ c.color.x, c.color.y, c.color.z });
 	}
 
-	m_LightSystem.Apply(m_World);
+	{ PROFILE_SCOPE("LightSystem"); m_LightSystem.Apply(m_World); }
 	m_FreeLookSystem.Update(m_World, deltatime, CameraComponent::CameraType::Secondary);
 	m_CameraAnimationSystem.Update(m_World, deltatime,PLAY.isPlaying());
-	m_TransformSystem.Update(m_World);
+	{ PROFILE_SCOPE("Transform"); m_TransformSystem.Update(m_World); }
 	m_CameraSystem.Update(m_World, 16.0f / 9.0f);
-	m_AnimatorSystem.Update(m_World, deltatime);
-	m_FireworkSystem.Update(deltatime);
+	{ PROFILE_SCOPE("Animator+Physics"); m_AnimatorSystem.Update(m_World, deltatime); }
+	{ PROFILE_SCOPE("Firework"); m_FireworkSystem.Update(deltatime); }
 
 	//// --- ワールド各所へ花火を打ち上げる ---
 	//static float acc = 0.0f; acc += deltatime;
@@ -243,6 +245,8 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 		if (context.lightCb.shadowParams.y > 0.5f)
 		{
 			APP->GetShadowMap().BeginRender(commandList);
+			PROFILE_SCOPE("Draw/Shadow");
+			GPU_PROFILE_SCOPE(commandList, "Draw/Shadow");
 			m_ShadowSystem.Draw(m_World, context, APP->GetShadowPso());
 			APP->GetShadowMap().EndRender(commandList);
 		}
@@ -284,10 +288,19 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 			APP->BeginGeometryPass();
 			commandList->RSSetViewports(1, &fullvp);
 			commandList->RSSetScissorRects(1, &fullsc);
-			m_RenderSystem.Draw(m_World, context, APP->GetGBufferPso(), DrawFilter::OPAQUEONLY);
+			// トゥーンはG-Bufferに入れない(PBRで塗られてランプもリムも失われる)
+			{
+				PROFILE_SCOPE("Draw/GBuffer");
+				GPU_PROFILE_SCOPE(commandList, "Draw/GBuffer");
+				m_RenderSystem.Draw(m_World, context, APP->GetGBufferPso(), DrawFilter::OPAQUE_NOTOON);
+			}
 
 			// ---- ライティング -> HDR(R16F) ----
-			APP->DeferredLightingPass(context, hdrRtv, fullvp, fullsc);
+			{
+				PROFILE_SCOPE("Draw/DeferredLighting");
+				GPU_PROFILE_SCOPE(commandList, "Draw/DeferredLighting");
+				APP->DeferredLightingPass(context, hdrRtv, fullvp, fullsc);
+			}
 
 			commandList->OMSetRenderTargets(1, &hdrRtv, FALSE, nullptr);
 			if (renderContext.viewport)    commandList->RSSetViewports(1, &fullvp);
@@ -296,8 +309,12 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 			DrawLaserBeams(context, APP->GetBeamHdrPso());
 
 			// ---- Bloom + トーンマップ合成 -> renderTexture(R8) ----
-			APP->PostProcessBloom(rtvHandle,
-				*renderContext.viewport, *renderContext.scissorRect);
+			{
+				PROFILE_SCOPE("Draw/Bloom");
+				GPU_PROFILE_SCOPE(commandList, "Draw/Bloom");
+				APP->PostProcessBloom(rtvHandle,
+					*renderContext.viewport, *renderContext.scissorRect);
+			}
 
 			commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
 			if (renderContext.viewport)    commandList->RSSetViewports(1, renderContext.viewport);
@@ -329,8 +346,20 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 				m_SkyboxCube.Draw(context.CommandList);
 			}
 
+			// トゥーンだけフォワードで重ねる。HDRターゲット(R16F)はトゥーンPSOの
+			// フォーマットと合わないので、ブルーム後の最終ターゲットへ従来どおり描く
+			{
+				PROFILE_SCOPE("Draw/Toon(Forward)");
+				GPU_PROFILE_SCOPE(commandList, "Draw/Toon(Forward)");
+				m_RenderSystem.Draw(m_World, context, nullptr, DrawFilter::OPAQUE_TOON);
+			}
+
 			// 半透明
-			m_RenderSystem.Draw(m_World, context, nullptr, DrawFilter::TRANSPARENTONLY);
+			{
+				PROFILE_SCOPE("Draw/Transparent");
+				GPU_PROFILE_SCOPE(commandList, "Draw/Transparent");
+				m_RenderSystem.Draw(m_World, context, nullptr, DrawFilter::TRANSPARENTONLY);
+			}
 		}
 		else
 		{
@@ -344,6 +373,8 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 
 			if (m_SkyBox)
 			{
+				PROFILE_SCOPE("Draw/Skybox");
+				GPU_PROFILE_SCOPE(commandList, "Draw/Skybox");
 				float4x4 identity;
 				DirectX::XMStoreFloat4x4(&identity, DirectX::XMMatrixIdentity());
 				m_SkyBox->Apply(context.CommandList, identity, context.view, context.projection,
@@ -351,7 +382,11 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 				m_SkyboxCube.Draw(context.CommandList);
 			}
 
-			m_RenderSystem.Draw(m_World, context);   // 従来通り全部
+			{
+				PROFILE_SCOPE("Draw/Forward(All)");
+				GPU_PROFILE_SCOPE(commandList, "Draw/Forward(All)");
+				m_RenderSystem.Draw(m_World, context);   // 従来通り全部
+			}
 		}
 
 		//{
@@ -367,6 +402,7 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 		//}
 
 		// ===== デバッグライン / ビーム / UI（両モード共通・現在バインド中のRTへ）=====
+		GPU_PROFILE_SCOPE(commandList, "Draw/Debug+UI");
 		m_DebugLineRenderer.Begin();
 		if (context.isSceneView) { DrawGrid(); DrawLight(); DrawGizmos(context); DrawColliders(); DrawKawaiiPhysics(); }
 		for (const auto& line : m_DebugLines)
@@ -867,6 +903,8 @@ void RuntimeScene::DrawColliders()
 
 void RuntimeScene::DrawLaserBeams(const RenderContext& context, ID3D12PipelineState* psoOverride, bool emitFirework)
 {
+	PROFILE_SCOPE("Draw/Beams");
+	GPU_PROFILE_SCOPE(context.CommandList, "Draw/Beams");
 	// カメラワールド位置をview行列から復元（ビルボード計算用）
 	const auto viewMat = DirectX::XMLoadFloat4x4(&context.view);
 	DirectX::XMVECTOR det;
@@ -951,10 +989,10 @@ void RuntimeScene::EditorUpdate(float dt)
 	m_MusicSyncSystem.Update(m_World, false);
 	m_LiveDirectorSystem.Update(m_World, false);
 
-	m_LightSystem.Apply(m_World);
+	{ PROFILE_SCOPE("LightSystem"); m_LightSystem.Apply(m_World); }
 	m_FreeLookSystem.Update(m_World, dt,CameraComponent::CameraType::Secondary);   // エディタカメラ操作
 	m_CameraSystem.Update(m_World, 16.0f / 9.0f);
-	m_TransformSystem.Update(m_World);
+	{ PROFILE_SCOPE("Transform"); m_TransformSystem.Update(m_World); }
 	// m_AnimatorSystem.Update(m_World, dt);
 }
 
