@@ -7,6 +7,7 @@
 #include "Logger.hpp"
 #include <dxgidebug.h>
 #include "ShaderTypes.hpp"
+#include "GpuProfiler.hpp"
 
 using ushort = unsigned short;
 
@@ -121,6 +122,9 @@ DirectXApp::DirectXApp(HWND hWnd, int Window_Width, int Window_Height) :
 	if (FAILED(hr)) {
 		return;
 	}
+
+	// GPUタイムスタンプ(失敗しても描画は続ける。プロファイラにGPU行が出ないだけ)
+	GpuProfiler::Get().Initialize(m_Device.Get(), m_CommandQueue.Get());
 
 	m_Fence_Event = CreateEvent(NULL, FALSE, FALSE, NULL);
 	hr = m_Device->CreateFence(
@@ -414,6 +418,8 @@ void DirectXApp::DeferredLightingPass(const RenderContext& ctx,
 
 	if(hasVolumetric)
 	{
+		GPU_PROFILE_SCOPE(cmd, "Draw/Volumetric");
+
 		// ---- ボリュームライト: ハーフ解像度で描いて加算アップサンプル ----
 		const UINT hw = m_Window_Width / 2, hh = m_Window_Height / 2;
 
@@ -1317,6 +1323,7 @@ DirectXApp::~DirectXApp()
 	}
 #endif
 	WaitForGPUIdle();
+	GpuProfiler::Get().Shutdown();
 	s_Instance = nullptr;
 
 	if (m_Fence_Event != nullptr)
@@ -1348,6 +1355,8 @@ HRESULT DirectXApp::BeginRender()
 	if (FAILED(hr)) {
 		return hr;
 	}
+
+	GpuProfiler::Get().BeginFrame(m_CommandList.Get(), targetIndex);
 
 	auto dsvhandle = m_DSV_Handle;
 
@@ -1413,6 +1422,8 @@ HRESULT DirectXApp::EndRender()
 		D3D12_RESOURCE_STATE_RENDER_TARGET,
 		D3D12_RESOURCE_STATE_PRESENT
 	);
+
+	GpuProfiler::Get().EndFrame(m_CommandList.Get());
 
 	HRESULT hr = m_CommandList->Close();
 	if (FAILED(hr)) {
@@ -1599,6 +1610,9 @@ HRESULT DirectXApp::BeginFrameRecord(UINT64 frameNumber)
 	hr = cmd->Reset(m_CommandAllocator[m_RecordSlot].Get(), nullptr);
 	if (FAILED(hr)) { return hr; }
 
+	// このスロットのフェンス待ちは済んでいるので、ここで前回ぶんの計測結果を回収できる
+	GpuProfiler::Get().BeginFrame(cmd, m_RecordSlot);
+
 	SetResourceBarrier(cmd,
 		m_RenderTargets[m_RecordBackbuffer].Get(),
 		D3D12_RESOURCE_STATE_PRESENT,
@@ -1638,6 +1652,8 @@ HRESULT DirectXApp::CloseFrameRecord()
 		D3D12_RESOURCE_STATE_RENDER_TARGET,
 		D3D12_RESOURCE_STATE_PRESENT
 	);
+
+	GpuProfiler::Get().EndFrame(cmd);
 
 	return cmd->Close();
 }

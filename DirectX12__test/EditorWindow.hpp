@@ -106,6 +106,9 @@ private:
 	/// @brief GUIのスタイル設定を行うWindowを表示する
 	void DrawStyleSetting();
 
+	/// @brief 処理時間の内訳を表示する
+	void DrawProfiler();
+
 	Entity m_SelectedEntity = INVALID_ENTITY;
 	std::string m_SelectedPrefab;
 	std::string m_SelectedAsset;
@@ -131,6 +134,20 @@ private:
 	bool m_ShowConsole = true;		// コンソール表示
 	bool m_DockLayout = false;
 	bool m_ShowMmdPlayer = true;
+	bool m_ShowProfiler = true;		// 処理時間の内訳
+
+	// タブで隠れているビューポートは描画を省くための可視フラグ
+	bool m_GameViewVisible = true;
+	bool m_EditorViewVisible = true;
+
+public:
+	/// @brief ゲーム画面が実際に表示されているか(タブ非選択・折りたたみで false)
+	bool IsGameViewVisible() const noexcept { return m_GameViewVisible; }
+
+	/// @brief エディタ画面が実際に表示されているか
+	bool IsEditorViewVisible() const noexcept { return m_EditorViewVisible; }
+
+private:
 
 	// ビューポート情報
 	ImVec2 m_ViewportSize{ 0.0f, 0.0f };

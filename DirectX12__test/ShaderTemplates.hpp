@@ -1,5 +1,5 @@
 // ShaderTemplates.hpp
-inline const char* kPixelShaderTemplate = R"(#define MAX_LIGHTS 10
+inline const char* kPixelShaderTemplate = R"(#define MAX_LIGHTS 64
 cbuffer Frame : register(b0) { float4x4 viewProj; }
 struct LightData { float4 dir; float4 color; float4 posRange; float4 param; };
 cbuffer Light : register(b2) { float4 ambientColor; float4 lightCount; LightData lights[MAX_LIGHTS]; }

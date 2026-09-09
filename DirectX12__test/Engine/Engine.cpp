@@ -8,6 +8,8 @@
 #include "../imgui-master/backends/imgui_impl_win32.h"
 #include "../ScriptHost.hpp"
 #include "../IconLibrary.hpp"
+#include "../Profiler.hpp"
+#include "../GpuProfiler.hpp"
 
 static LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -142,22 +144,27 @@ void Engine::Run()
 				return;
 			}
 #else
-			if (FAILED(m_DirectX->BeginRender()))
 			{
-				// 失敗時は次フレームへ
-				return;
+				// このスロットのGPU完了待ち。ここが大きい = GPUが追いついていない
+				PROFILE_SCOPE("Wait GPU(BeginRender)");
+				if (FAILED(m_DirectX->BeginRender()))
+				{
+					// 失敗時は次フレームへ
+					return;
+				}
 			}
 #endif
+			Profiler::Get().BeginFrame();
 			IMGUI::BeginFrame();
 			IconLibrary::Get()->BeginFrame();
 			ImGuiIO& io = ImGui::GetIO();
 			INPUT->SetImGuiCapture(io.WantCaptureKeyboard, io.WantCaptureMouse, io.WantTextInput);
 
 			// エンジン更新
-			m_SceneManager.Update(deltaTime);
+			{ PROFILE_SCOPE("Scene::Update"); m_SceneManager.Update(deltaTime); }
 
 			Scene* scene = m_SceneManager.GetActiveScene();
-			ScriptHost::Update(deltaTime,&scene->GetWorld());
+			{ PROFILE_SCOPE("ScriptHost"); ScriptHost::Update(deltaTime,&scene->GetWorld()); }
 
 
 			// 固定タイムステップ更新
@@ -168,7 +175,7 @@ void Engine::Run()
 				accumulatedTime -= FIXED_TIMESTEP;
 			}
 
-			m_SceneManager.LateUpdate(deltaTime);
+			{ PROFILE_SCOPE("Scene::LateUpdate"); m_SceneManager.LateUpdate(deltaTime); }
 
 			OnUpdate();
 
@@ -204,10 +211,22 @@ void Engine::Run()
 
 			// シーン描画
 			ConfigureContext(renderContext);
-			m_SceneManager.Draw(renderContext);
-			m_DirectX->Present();
+			if (renderContext.drawScene)
+			{
+				PROFILE_SCOPE("Scene::Draw");
+				m_SceneManager.Draw(renderContext);
+			}
+			{
+				PROFILE_SCOPE("Present(RT)");
+				GPU_PROFILE_SCOPE(renderContext.CommandList, "Present(RT)");
+				m_DirectX->Present();
+			}
 
-			IMGUI::EndFrame(renderContext.CommandList);
+			{
+				PROFILE_SCOPE("ImGui");
+				GPU_PROFILE_SCOPE(renderContext.CommandList, "ImGui");
+				IMGUI::EndFrame(renderContext.CommandList);
+			}
 #ifdef _FRAMEPIPELINE
 			if (FAILED(m_DirectX->CloseFrameRecord()))
 			{
@@ -216,10 +235,14 @@ void Engine::Run()
 			m_DirectX->KickExecuteAndPresent();	// 非同期投入して即時フレームへ
 			++frameNumber;
 #else
-			if(FAILED(m_DirectX->EndRender()))
 			{
-				// 失敗時は次フレームへ
-				return;
+				// コマンド投入 + 提示。VSync(Present(1,0))の待ちもここに含まれる
+				PROFILE_SCOPE("Execute+Present(VSync)");
+				if (FAILED(m_DirectX->EndRender()))
+				{
+					// 失敗時は次フレームへ
+					return;
+				}
 			}	
 #endif
 		}

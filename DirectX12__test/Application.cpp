@@ -191,7 +191,7 @@ void Application::ConfigureContext(RenderContext& renderContext)
 
 	// ===== パス1: Scene View（先に描画）=====
 	auto* editorTex = m_EditorWindow->GetEditorRenderTexture();
-	if (editorTex && editorTex->IsValid())
+	if (editorTex && editorTex->IsValid() && m_EditorWindow->IsEditorViewVisible())
 	{
 		RenderContext sceneCtx = renderContext;
 		m_EditorViewport = editorTex->GetViewport();
@@ -224,6 +224,9 @@ void Application::ConfigureContext(RenderContext& renderContext)
 	renderContext.scissorRect = &m_GameScissorRect;
 	renderContext.isSceneView = false;
 	renderContext.depthStencilView = m_DirectX->GetDsvHandle();
+
+	// タブで隠れている間はゲーム画面も描かない(シャドウ含め1画面ぶん丸ごと浮く)
+	renderContext.drawScene = m_EditorWindow->IsGameViewVisible();
 }
 
 void Application::ConfigureContext(RenderContext& renderContext, RenderTexture& renderTexture, D3D12_VIEWPORT& viewport, D3D12_RECT& scissorRect, bool isSceneView)

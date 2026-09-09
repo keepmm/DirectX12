@@ -250,6 +250,8 @@
     <ClInclude Include="imstb_truetype.h" />
     <ClInclude Include="Input.hpp" />
     <ClInclude Include="json.hpp" />
+    <ClInclude Include="Profiler.hpp" />
+    <ClInclude Include="GpuProfiler.hpp" />
     <ClInclude Include="Logger.hpp" />
     <ClInclude Include="Material.hpp" />
     <ClInclude Include="Mesh.hpp" />

@@ -12,6 +12,12 @@
 #include "Defines.hpp"
 #include <dxcapi.h>
 
+// シェーダーのデバッグ情報が要るとき(PIX でステップ実行したいとき)だけ有効にする。
+// 付けると最適化なし(SKIP_OPTIMIZATION / -Od)でコンパイルされる。
+// 多灯ループのような重いピクセルシェーダーは桁で遅くなるので、
+// Debug ビルドでも既定では付けない。
+//#define _SHADER_DEBUG
+
 class Shader
 {
 public:

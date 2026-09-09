@@ -63,6 +63,7 @@ struct RenderContext
 	bool meshShaderSupported = false;
 
 	bool isSceneView = false;
+	bool drawScene = true;		// falseなら今フレームのシーン描画を省く(ビューポート非表示時)
 
 	E_VERTEX_SHADER vertexShader = E_VERTEX_SHADER::BASIC;
 	E_PIXEL_SHADER pixelShader = E_PIXEL_SHADER::BASIC;
