@@ -179,13 +179,28 @@ void Engine::Run()
 
 			OnUpdate();
 
-			// 描画コンテキスト作成
+#ifdef _FRAMEPIPELINE
+			FramePipeline& fp = m_FramePipeline[frameNumber % RTV_NUM];
+			fp.Reset(frameNumber);
+			FramePipelineScope fpscope(&fp);
+			{
+				const auto& s = RenderSettings::Get();
+				fp.AddFrameObject<FO_RenderSettings>(FO_RenderSettings{ s.vertexShader, s.pixelShader, s.wireframe, s.meshShader });
+			}
+#endif
+
 			RenderContext renderContext{};
 			renderContext.CommandList = m_DirectX->GetCommandList().Get();
 			renderContext.frameIndex = m_DirectX->GetFrameSlot();
 			renderContext.cbAllocator = &m_DirectX->GetConstantBufferAllocator();
 
+			// 描画コンテキスト作成
+#ifdef _FRAMEPIPELINE
+			const FO_RenderSettings& settings = *fp.GetFrameObject<FO_RenderSettings>();
+			fp.FixFrameObject<FO_RenderSettings>();
+#else
 			const auto& settings = RenderSettings::Get();
+#endif
 			renderContext.vertexShader = settings.vertexShader;
 			renderContext.pixelShader = settings.pixelShader;
 			renderContext.wireframe = settings.wireframe;
@@ -217,8 +232,7 @@ void Engine::Run()
 			{
 				return;
 			}
-			m_DirectX->KickExecuteAndPresent();   // 非同期投入して即次フレームへ
-			m_DirectX->FlushGpuExec();
+			m_DirectX->KickExecuteAndPresent();	// 非同期投入して即時フレームへ
 			++frameNumber;
 #else
 			{

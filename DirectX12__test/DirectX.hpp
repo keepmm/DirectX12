@@ -236,6 +236,7 @@ public:
 	inline ID3D12PipelineState* GetVolumetricPso() const noexcept { return m_VolumetricPso.Get(); }
 	inline ID3D12PipelineState* GetVolumetricAddPso() const noexcept {return m_VolumetricAddPso.Get(); }
 	inline ID3D12PipelineState* GetFireworkPso() const noexcept { return m_FireworkPso.Get(); }
+	inline ComPtr<ID3D12PipelineState> GetLineDepthPso() const noexcept { return m_LineDepthPso; }
 
 	template<class T>
 	void DederredRelease(T&& r)
@@ -373,6 +374,7 @@ private:
 	ComPtr<ID3D12PipelineState> m_CopyPso;
 	ComPtr<ID3D12PipelineState> m_VolumetricPso;
 	ComPtr<ID3D12PipelineState> m_VolumetricAddPso;
+	ComPtr<ID3D12PipelineState> m_LineDepthPso;
 
 	ComPtr<ID3D12PipelineState> m_FireworkPso;
 

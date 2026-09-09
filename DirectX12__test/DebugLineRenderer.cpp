@@ -3,17 +3,23 @@
 #include "BeamRenderer.hpp"
 
 void DebugLineRenderer::Init(
-	const ComPtr<ID3D12Device>& device,
-	const ComPtr<ID3D12PipelineState>& linePso)
+		const ComPtr<ID3D12Device>& device,
+		const ComPtr<ID3D12PipelineState>& linePso,
+		const ComPtr<ID3D12PipelineState>& lineDepthPso)
 {
 	// デバイス or PSOがぬるぽの場合は処理しない
-	if(device == nullptr || linePso == nullptr)
+	if (device == nullptr || linePso == nullptr)
 	{
 		return;
 	}
 
 	// PSOを保存
 	m_LinePSO = linePso;
+	m_LineDepthPSO = lineDepthPso;
+
+	// 頂点バッファ作成用にメモリを確保
+	m_Vertices.reserve(MAX_VERTICES);
+	m_DepthVertices.reserve(MAX_VERTICES);
 
 	// 頂点バッファ作成用にメモリを確保
 	m_Vertices.reserve(MAX_VERTICES);
@@ -74,39 +80,53 @@ void DebugLineRenderer::Init(
 void DebugLineRenderer::Begin()
 {
 	m_Vertices.clear();
+	m_DepthVertices.clear();
 }
 
 void DebugLineRenderer::AddLine(
 	const float3& start,
 	const float3& end,
-	const float4& color)
+	const float4& color,
+	bool depthTest)
 {
-	// 頂点数が上限を超える場合は追加しない
-	if (m_Vertices.size() + 2 > MAX_VERTICES)
+	auto& dst = depthTest ? m_DepthVertices : m_Vertices;
+
+	// 頂点数が上限を超える場合は追加しない（2群の合計で判定）
+	if (m_Vertices.size() + m_DepthVertices.size() + 2 > MAX_VERTICES)
 	{
 		return;
 	}
 
 	// ラインの始点と終点を頂点バッファに追加
-	m_Vertices.push_back({ start, color });
-	m_Vertices.push_back({ end, color });
+	dst.push_back({ start, color });
+	dst.push_back({ end, color });
 }
 
 void DebugLineRenderer::Draw(const RenderContext& render)
 {
-	if(render.CommandList == nullptr || m_LinePSO == nullptr)
+	if (render.CommandList == nullptr || m_LinePSO == nullptr)
 	{
 		return;
 	}
+
+	const UINT depthCount = static_cast<UINT>(m_DepthVertices.size());
+	const UINT plainCount = static_cast<UINT>(m_Vertices.size());
 
 	// 頂点バッファに頂点データがない場合も処理しない
-	if (m_Vertices.empty())
+	if (depthCount + plainCount == 0)
 	{
 		return;
 	}
 
-	const UINT vertexCount = static_cast<UINT>(m_Vertices.size());
-	std::memcpy(m_MappedVertexBuffer, m_Vertices.data(), vertexCount * sizeof(LineVertex));
+	// 深度あり群を前、なし群を後ろに詰めて1回で転送する
+	if (depthCount > 0)
+	{
+		std::memcpy(m_MappedVertexBuffer, m_DepthVertices.data(), depthCount * sizeof(LineVertex));
+	}
+	if (plainCount > 0)
+	{
+		std::memcpy(m_MappedVertexBuffer + depthCount, m_Vertices.data(), plainCount * sizeof(LineVertex));
+	}
 
 	LineConstantBuffer constants{};
 	// view行列とprojection行列を掛け合わせて定数バッファに保存
@@ -118,13 +138,23 @@ void DebugLineRenderer::Draw(const RenderContext& render)
 	// 定数バッファに行列データをコピー
 	std::memcpy(m_MappedConstants, &constants, sizeof(constants));
 
-	render.CommandList->SetPipelineState(m_LinePSO.Get());
 	render.CommandList->IASetVertexBuffers(0, 1, &m_VertexBufferView);
 	render.CommandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_LINELIST);
-
 
 	const auto cbAddress = m_ConstantBuffer->GetGPUVirtualAddress();
 	render.CommandList->SetGraphicsRootConstantBufferView(0, cbAddress);
 
-	render.CommandList->DrawInstanced(vertexCount, 1, 0, 0);
+	// 深度テストあり（モデルに隠れる）
+	if (depthCount > 0 && m_LineDepthPSO != nullptr)
+	{
+		render.CommandList->SetPipelineState(m_LineDepthPSO.Get());
+		render.CommandList->DrawInstanced(depthCount, 1, 0, 0);
+	}
+
+	// 深度テストなし（常に手前）
+	if (plainCount > 0)
+	{
+		render.CommandList->SetPipelineState(m_LinePSO.Get());
+		render.CommandList->DrawInstanced(plainCount, 1, depthCount, 0);
+	}
 }

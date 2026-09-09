@@ -27,7 +27,7 @@ void RuntimeScene::OnLoad()
 
 	LOG->LogInfo("RuntimeScene : Loading...");
 
-	m_DebugLineRenderer.Init(m_Device, m_LinePso);
+	m_DebugLineRenderer.Init(m_Device, m_LinePso, APP->GetLineDepthPso());
 	m_BeamRenderer.Init(m_Device, APP->GetBeamPso());
 
 	if (!m_SceneFilePath.empty())
