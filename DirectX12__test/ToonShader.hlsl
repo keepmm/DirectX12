@@ -10,7 +10,8 @@
 #define HAIR_SHIFT    0.30f   // 天使の輪の位置(法線方向へのずらし)
 #define HAIR_EXP      64.0f   // 輪の細さ
 #define FACE_FLATTEN  0.40f   // 顔の影の弱め具合(上げすぎると顔だけ白飛びする)
-#define LIGHT_KNEE    1.00f   // 多灯の白飛びを抑える圧縮量。1.0で上限がちょうど1になる
+#define LIGHT_KNEE    1.00f
+// 既定ランプ(4x1・s1はPOINT/CLAMP)の影側の色。明側は白なので 0.5 を境にした2トーン   // 多灯の白飛びを抑える圧縮量。1.0で上限がちょうど1になる
 
 // ---- 空気感(距離フォグ) ----
 // 奥のものほど環境色に沈めて、手前のキャラを浮かび上がらせる
@@ -25,6 +26,9 @@ Texture2D g_Texture : register(t0);
 Texture2D g_Shadow : register(t6);
 SamplerComparisonState g_ShadowSampler : register(s2);
 Texture2D g_RampTexture : register(t1);
+Texture2D g_Reflection : register(t8);
+
+static const float3 DEFAULT_RAMP_SHADE = float3(60.0f, 60.0f, 70.0f) / 255.0f;
 SamplerState g_Sampler : register(s0);
 SamplerState g_RampSampler : register(s1);
 
@@ -39,6 +43,8 @@ cbuffer Material : register(b3)
     float4 sssParams;
     float4 sssColor;
     float4 matBaseColor;
+    // x:強度 y:フェード距離 z:ぼかし半径 w:反射RTの解像度スケール
+    float4 reflectParam;
 }
 
 // シャドウマップの遮蔽率。1で日向、0で影
@@ -132,33 +138,55 @@ float4 ToonPS(PSInput input) : SV_TARGET
         nDotL *= atten;
 
         // ランプで階調化したディフューズ(2 ~ 3トーン)
-        float3 ramp = g_RampTexture.Sample(g_RampSampler, float2(nDotL, 0.5f)).rgb;
+        // 既定ランプは 4x1 をポイントサンプルしているだけなので、実体は
+        // 0.5 を境にした2トーン。カスタムランプが無いなら算術で同じ値を作り、
+        // 灯数ぶんのテクスチャフェッチを丸ごと省く
+        // (テクスチャを引く側は SampleLevel。Sample だと勾配命令になり
+        //  「varying なループ内の勾配」で fxc がループをアンロールしてしまう)
+        float3 ramp;
+        if (faceParam.z > 0.5f)
+        {
+            ramp = g_RampTexture.SampleLevel(g_RampSampler, float2(nDotL, 0.5f), 0).rgb;
+        }
+        else
+        {
+            ramp = lerp(DEFAULT_RAMP_SHADE, 1.0f, step(0.5f, nDotL));
+        }
 
         // 影側ほど SSS 色(赤み)に寄せる = 血色
         float3 shade = lerp(1.0f, sssColor.rgb, saturate(1.0f - ramp.g) * sssStrength);
         diffuse += lc * baseColor * ramp * shade * shadow;
 
-        // 逆光透過(耳・指・鼻先)
-        float trans = pow(saturate(dot(V, -L)), 3.0f) * atten * sssParams.z;
-        diffuse += lc * baseColor * sssColor.rgb * trans;
+        // 逆光透過(耳・指・鼻先)。強度0なら結果も0なので丸ごと飛ばす。
+        // ステージのように SSS を使わないマテリアルでは pow が灯数ぶん浮く
+        if (sssParams.z > 0.0f)
+        {
+            float trans = pow(saturate(dot(V, -L)), 3.0f) * atten * sssParams.z;
+            diffuse += lc * baseColor * sssColor.rgb * trans;
+        }
 
         // 逆光ほど強いリム。加算だと灯数ぶん白くなるので一番強いライトを採用する
         rimLight = max(rimLight, lc * fresnel * saturate(ndl) * atten);
 
-        float3 H = normalize(L + V);
-        if (hairSpec > 0.0f)
+        // ハイライトは髪(異方性)かメタルのときだけ。どちらも0なら結果が0になるので、
+        // ハーフベクトルの正規化ごと飛ばす。判定はマテリアル定数なので分岐は無料
+        if (hairSpec > 0.0f || metallic > 0.0f)
         {
-            // 髪: Kajiya-Kay の異方性ハイライト。接線を法線方向へずらして輪を上げる
-            float3 Ts = normalize(T + N * HAIR_SHIFT);
-            float tdoth = dot(Ts, H);
-            float sinTH = sqrt(saturate(1.0f - tdoth * tdoth));
-            specular = max(specular, lc * pow(sinTH, HAIR_EXP) * hairSpec * atten);
-        }
-        else
-        {
-            // アニメ調すぺきゅら(境界を少しだけぼかす)
-            float spec = pow(saturate(dot(N, H)), shininess);
-            specular = max(specular, lc * smoothstep(0.35f, 0.65f, spec) * metallic * atten);
+            float3 H = normalize(L + V);
+            if (hairSpec > 0.0f)
+            {
+                // 髪: Kajiya-Kay の異方性ハイライト。接線を法線方向へずらして輪を上げる
+                float3 Ts = normalize(T + N * HAIR_SHIFT);
+                float tdoth = dot(Ts, H);
+                float sinTH = sqrt(saturate(1.0f - tdoth * tdoth));
+                specular = max(specular, lc * pow(sinTH, HAIR_EXP) * hairSpec * atten);
+            }
+            else
+            {
+                // アニメ調すぺきゅら(境界を少しだけぼかす)
+                float spec = pow(saturate(dot(N, H)), shininess);
+                specular = max(specular, lc * smoothstep(0.35f, 0.65f, spec) * metallic * atten);
+            }
         }
     }
 
@@ -176,6 +204,31 @@ float4 ToonPS(PSInput input) : SV_TARGET
     // ---- 距離フォグ ----
     // 深度テクスチャを使わず worldPos から出すので、フォワードでもそのまま効く
     const float viewDist = length(cameraPos.xyz - input.worldPos);
+
+    // ---- 平面反射(ステージ床) ----
+    // 反射RTは、このフレームのカメラを床面で鏡像にして描いたもの。
+    // 平面鏡なので、床のピクセルに映る像は同じスクリーン位置の画素になる。
+    // reflectParam.x が 0 のマテリアルはサンプルしない(床以外は素通り)
+    if (reflectParam.x > 0.0f)
+    {
+        float2 rsize;
+        g_Reflection.GetDimensions(rsize.x, rsize.y);
+
+        // 反射RTはシーンRTの reflectParam.w 倍で持っている
+        const float2 ruv = input.pos.xy * reflectParam.w / rsize;
+        const float2 texel = reflectParam.z / rsize;
+
+        // 十字5タップ。床のざらつきぶん像を少し溶かす
+        float3 refl = g_Reflection.Sample(g_Sampler, ruv).rgb * 0.4f;
+        refl += g_Reflection.Sample(g_Sampler, ruv + float2(texel.x, 0.0f)).rgb * 0.15f;
+        refl += g_Reflection.Sample(g_Sampler, ruv - float2(texel.x, 0.0f)).rgb * 0.15f;
+        refl += g_Reflection.Sample(g_Sampler, ruv + float2(0.0f, texel.y)).rgb * 0.15f;
+        refl += g_Reflection.Sample(g_Sampler, ruv - float2(0.0f, texel.y)).rgb * 0.15f;
+
+        // 遠いほど薄く。加算なので床の陰影を潰さない
+        const float fade = saturate(1.0f - viewDist / max(reflectParam.y, 0.001f));
+        color += refl * reflectParam.x * fade;
+    }
     float fog = saturate((viewDist - FOG_START) / max(FOG_END - FOG_START, 1e-3f));
 
     // 高い位置ほど薄く。床付近に溜まったもやに見せる

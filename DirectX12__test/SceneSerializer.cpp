@@ -181,6 +181,9 @@ std::string SceneSerializer::SaveToString(Scene& scene)
                     sj["sssStrength"] = sm->sssStrength;
                     sj["sssWrap"] = sm->sssWrap;
                     sj["sssTrans"] = sm->sssTrans;
+                    sj["reflectStrength"] = sm->reflectStrength;
+                    sj["reflectFade"] = sm->reflectFade;
+                    sj["reflectBlur"] = sm->reflectBlur;
                     sj["sheen"] = sm->sheen;
                     sj["sssColor"] = { sm->sssColor.x, sm->sssColor.y, sm->sssColor.z };
 					sj["baseAlpha"] = sm->baseAlpha;
@@ -408,6 +411,9 @@ bool SceneSerializer::LoadFromString(Scene& scene, const std::string& data)
 							r.sssStrength = sj.value("sssStrength", 0.0f);
 							r.sssWrap = sj.value("sssWrap", 0.4f);
 							r.sssTrans = sj.value("sssTrans", 0.0f);
+							r.reflectStrength = sj.value("reflectStrength", 0.0f);
+							r.reflectFade = sj.value("reflectFade", 8.0f);
+							r.reflectBlur = sj.value("reflectBlur", 1.0f);
 							r.sheen = sj.value("sheen", 0.0f);
 							r.sssColor = ToFloat4(sj.value("sssColor", json::array({ 0.9f,0.35f,0.25f,1.0f })), float4(0.9f, 0.35f, 0.25f, 1.0f));
 							r.baseAlpha = sj.value("baseAlpha", 1.0f);

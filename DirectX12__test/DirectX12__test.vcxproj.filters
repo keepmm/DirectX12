@@ -631,6 +631,9 @@
     <None Include="PostProcess.hlsl">
       <Filter>Shader\HLSL\VertexShader</Filter>
     </None>
+    <None Include="DepthOfField.hlsl">
+      <Filter>Shader\HLSL\VertexShader</Filter>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <Image Include="Assets\Texture\metal.jpg">

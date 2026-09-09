@@ -251,6 +251,79 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 			APP->GetShadowMap().EndRender(commandList);
 		}
 
+		// ---- 平面反射(床への映り込み) ----
+		// 床面でカメラを鏡像にして、ReflectionCaster だけを別RTへ描く。
+		// 平面鏡なので、床のピクセルに映る像は同じスクリーン位置の画素そのものになる
+		{
+			float planeY = 0.0f;
+			float rscale = 0.5f;
+			bool  useReflection = false;
+			m_World.Each<PlanarReflectionComponent>(
+				[&](Entity, PlanarReflectionComponent& pr)
+				{
+					if (useReflection || !pr.enabled) return;
+					useReflection = true;
+					planeY = pr.planeY;
+					rscale = pr.resolutionScale;
+				});
+
+			if (useReflection)
+			{
+				PROFILE_SCOPE("Draw/Reflection");
+				GPU_PROFILE_SCOPE(commandList, "Draw/Reflection");
+
+				APP->SetReflectionScale(rscale);
+				APP->EnsureReflectionTarget();
+
+				auto& reflectRT = APP->GetReflectionRT();
+				if (reflectRT.IsValid())
+				{
+					reflectRT.Transition(commandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+					auto reflRtv = reflectRT.GetRTV();
+					auto reflDsv = APP->GetReflectionDSV();
+					commandList->OMSetRenderTargets(1, &reflRtv, FALSE, &reflDsv);
+
+					// 反射RTはウィンドウ全体ぶん。今描いているシーンRTに対応する
+					// 左上のサブ矩形だけを使う(床シェーダーのUVがこの前提)
+					const UINT rw = (std::min)(reflectRT.GetWidth(),
+						(std::max)(1u, static_cast<UINT>(renderTexture->GetWidth() * rscale)));
+					const UINT rh = (std::min)(reflectRT.GetHeight(),
+						(std::max)(1u, static_cast<UINT>(renderTexture->GetHeight() * rscale)));
+
+					D3D12_VIEWPORT rvp{ 0.0f, 0.0f, (float)rw, (float)rh, 0.0f, 1.0f };
+					D3D12_RECT rsc{ 0, 0, (LONG)rw, (LONG)rh };
+					commandList->RSSetViewports(1, &rvp);
+					commandList->RSSetScissorRects(1, &rsc);
+
+					// 反射RTはウィンドウ全体ぶんあるが、使うのは左上のサブ矩形だけ。
+					// 全面をクリアすると使わない領域まで毎フレーム塗ることになる
+					const float clearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+					commandList->ClearRenderTargetView(reflRtv, clearColor, 1, &rsc);
+					commandList->ClearDepthStencilView(reflDsv,
+						D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 1, &rsc);
+
+					// 床面で鏡像にしたビュー行列。射影は据え置きでよい
+					RenderContext reflCtx = context;
+					reflCtx.viewport = &rvp;
+					reflCtx.scissorRect = &rsc;
+					const auto mirror = DirectX::XMMatrixReflect(
+						DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, -planeY));
+					DirectX::XMStoreFloat4x4(&reflCtx.view,
+						mirror * DirectX::XMLoadFloat4x4(&context.view));
+
+					commandList->SetGraphicsRootSignature(APP->GetRootSignature().Get());
+
+					// 鏡像は巻き順が反転するので、前面カリングのPSOで描く
+					std::string mirrorPass = "SkinnedToonMirror";
+					m_RenderSystem.Draw(m_World, reflCtx,
+						APP->GetPipelineStateByName(mirrorPass), DrawFilter::REFLECTION);
+
+					reflectRT.Transition(commandList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+				}
+			}
+		}
+
 		auto rtvHandle = renderTexture->GetRTV();
 		auto dsvHandle = renderContext.depthStencilView;
 
@@ -400,6 +473,43 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 		//	m_FireworkSystem.Emit(m_FireworkBeamRenderer, camRight, camUp);
 		//	m_FireworkBeamRenderer.Draw(context);   // Init時のBeamPso(深度なし)
 		//}
+
+		// ---- 被写界深度 ----
+		// 不透明・半透明を描き終えた時点でかける。デバッグ線やUIはボケさせない
+		{
+			const DepthOfFieldComponent* dof = nullptr;
+			m_World.Each<DepthOfFieldComponent>(
+				[&](Entity, DepthOfFieldComponent& d)
+				{
+					if (dof == nullptr && d.enabled && d.maxBlur > 0.0f) dof = &d;
+				});
+
+			if (dof != nullptr)
+			{
+				PROFILE_SCOPE("Draw/DoF");
+				GPU_PROFILE_SCOPE(commandList, "Draw/DoF");
+
+				DofCB cb{};
+				cb.focus = float4(dof->focusDistance, dof->focusRange,
+					dof->maxBlur, dof->falloff);
+				cb.proj = float4(cam ? cam->nearZ : 0.1f,
+					cam ? cam->farZ : 100.0f, 0.0f, 0.0f);
+
+				// 中間RTはウィンドウ全体ぶん。今描いている範囲だけを使うので、
+				// サンプル位置に シーンRT/ウィンドウ を掛けて合わせる
+				cb.uv.x = (float)renderTexture->GetWidth() / (float)WINDOW_WIDTH;
+				cb.uv.y = (float)renderTexture->GetHeight() / (float)WINDOW_HEIGHT;
+
+				APP->DepthOfFieldPass(*renderTexture,
+					renderTexture->GetWidth(), renderTexture->GetHeight(), cb);
+
+				// ポストパスがRT/ビューポートを付け替えたので戻す
+				commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
+				if (renderContext.viewport)    commandList->RSSetViewports(1, renderContext.viewport);
+				if (renderContext.scissorRect) commandList->RSSetScissorRects(1, renderContext.scissorRect);
+				commandList->SetGraphicsRootSignature(APP->GetRootSignature().Get());
+			}
+		}
 
 		// ===== デバッグライン / ビーム / UI（両モード共通・現在バインド中のRTへ）=====
 		GPU_PROFILE_SCOPE(commandList, "Draw/Debug+UI");

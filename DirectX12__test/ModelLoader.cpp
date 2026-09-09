@@ -860,6 +860,9 @@ void ModelLoader::PopulateModelEntity(
                 sm->sheen = pending[i].sheen;
                 sm->sssColor = pending[i].sssColor;
 				sm->baseAlpha = pending[i].baseAlpha;
+				sm->reflectStrength = pending[i].reflectStrength;
+				sm->reflectFade = pending[i].reflectFade;
+				sm->reflectBlur = pending[i].reflectBlur;
             }
 
             world.AddComponent<MaterialComponent>(entity, mc);

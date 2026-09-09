@@ -26,6 +26,48 @@ inline std::string WideToUtf8(const std::wstring& w)
     return s;
 }
 
+// ---- アセットのパス ---- //
+// ダイアログが返すのは絶対パス。そのまま保存するとシーンが他のPCで開けなくなるので、
+// 作業ディレクトリの下にあるものは相対パスへ畳んでから持つ。
+inline std::string MakeAssetRelative(const std::string& path)
+{
+    if (path.empty()) return path;
+
+    std::error_code ec;
+    const std::filesystem::path p(path);
+    if (!p.is_absolute()) return path;
+
+    const auto rel = std::filesystem::relative(p, std::filesystem::current_path(), ec);
+    if (ec || rel.empty()) return path;
+
+    // 作業ディレクトリの外(".." で始まる)は畳まずそのまま返す
+    auto s = rel.generic_string();
+    if (s.rfind("..", 0) == 0) return path;
+    return s;
+}
+
+// 保存済みの絶対パスを開き直すための救済。
+// そのまま存在すればそれを使い、無ければ "Assets/" 以降を切り出して相対で探す。
+// 別のPCで作られたシーンでも、Assets の中にあるものなら拾える
+inline std::string ResolveAssetPath(const std::string& path)
+{
+    if (path.empty()) return path;
+
+    std::error_code ec;
+    if (std::filesystem::exists(path, ec)) return path;
+
+    // 区切りを揃えてから "Assets" の位置を探す
+    std::string norm = path;
+    for (auto& c : norm) if (c == '\\') c = '/';
+
+    const size_t at = norm.rfind("Assets/");
+    if (at == std::string::npos) return path;
+
+    const std::string tail = norm.substr(at);
+    if (std::filesystem::exists(tail, ec)) return tail;
+    return path;
+}
+
 // ---- ファイル選択ダイアログ ---- //
 // filter は "Image\0*.png;*.jpg\0All\0*.*\0" 形式（ダブルNUL終端）
 inline bool OpenFileDialog(std::wstring& out, const wchar_t* filter)

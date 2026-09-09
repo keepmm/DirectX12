@@ -1,5 +1,7 @@
 ﻿#pragma once
 
+#include "GpuProfiler.hpp"
+
 #include "World.hpp"
 #include "Components.hpp"
 #include "AnimatorClipCache.hpp"
@@ -37,6 +39,73 @@ public:
 	}
 };
 
+/// @brief 対象の周囲に効くライトだけを、影響の強い順に上位 maxLights 灯へ詰め直す
+/// @param src    シーン全体のライト
+/// @param center 対象の中心(ワールド)
+/// @param radius 対象を包む球の半径
+/// @param maxLights 残す灯数
+/// @param dst    詰め直した結果
+/// @note 平行光は距離で切れないので常に残す。影を落とす灯の添字も詰め直しに追従させる
+inline void BuildCulledLightCB(const LightCB& src, const float3& center,
+	float radius, int maxLights, LightCB& dst)
+{
+	dst = src;
+
+	const int count = static_cast<int>(src.lightCount.x);
+	const int shadowIndex = static_cast<int>(src.shadowParams.w);
+
+	// (スコア, 元の添字)。スコアは「その灯がこの対象をどれだけ照らすか」の目安
+	struct Scored { float score; int index; };
+	Scored scored[MAX_LIGHTS];
+	int n = 0;
+
+	for (int i = 0; i < count && i < static_cast<int>(MAX_LIGHTS); ++i)
+	{
+		const LightData& l = src.lights[i];
+		const float lum = l.color.x * 0.299f + l.color.y * 0.587f + l.color.z * 0.114f;
+		if (lum <= 0.0f) continue;
+
+		// 平行光は距離減衰が無いので必ず残す(スコアを最大にする)
+		if (static_cast<int>(l.param.x) == 0)
+		{
+			scored[n++] = { FLT_MAX, i };
+			continue;
+		}
+
+		const float dx = l.posRange.x - center.x;
+		const float dy = l.posRange.y - center.y;
+		const float dz = l.posRange.z - center.z;
+		const float dist = sqrtf(dx * dx + dy * dy + dz * dz);
+
+		const float range = (std::max)(l.posRange.w, 0.0001f);
+		if (dist - radius > range) continue;		// 球に届かない
+
+		// 減衰はシェーダーと同じ形(1 - d/range)^2 を対象の一番近い点で見る
+		const float d = (std::max)(dist - radius, 0.0f);
+		const float atten = (1.0f - d / range) * (1.0f - d / range);
+		scored[n++] = { lum * atten, i };
+	}
+
+	const int keep = (std::min)(n, (std::max)(1, maxLights));
+
+	// 上位 keep 灯だけ前に寄せる(全体を並べ替える必要はない)
+	std::partial_sort(scored, scored + keep, scored + n,
+		[](const Scored& a, const Scored& b) { return a.score > b.score; });
+
+	int newShadow = -1;
+	for (int i = 0; i < keep; ++i)
+	{
+		dst.lights[i] = src.lights[scored[i].index];
+		if (scored[i].index == shadowIndex) newShadow = i;
+	}
+
+	dst.lightCount.x = static_cast<float>(keep);
+
+	// 影を落とす灯が落選したら、影そのものを切る(別の灯に影が付くと破綻する)
+	if (newShadow < 0) dst.shadowParams.y = 0.0f;
+	dst.shadowParams.w = static_cast<float>(newShadow);
+}
+
 enum class DrawFilter : uint8_t
 {
 	ALL,
@@ -44,6 +113,7 @@ enum class DrawFilter : uint8_t
 	TRANSPARENTONLY,
 	OPAQUE_NOTOON,		// 不透明のうちトゥーン以外(デファードのG-Buffer用)
 	OPAQUE_TOON,		// 不透明のうちトゥーンだけ(フォワードで重ねる用)
+	REFLECTION,			// 平面反射に映すもの(ReflectionCaster が付いたEntityだけ)
 };
 
 // トゥーン系シェーダーか。デファードではG-Bufferに入れず、
@@ -118,6 +188,39 @@ public:
 				)
 			{
 				if (mesh.mesh == nullptr || material.material == nullptr)
+				{
+					return;
+				}
+
+				// b2: このEntity向けのライトCB。
+				// LightCull が付いていれば上位N灯に絞る。付いていなければ全体を張り直す
+				// (前のEntityで絞ったものが残らないように、どちらの場合も張る)
+				if (renderContext.cbAllocator != nullptr)
+				{
+					const UINT slot = renderContext.frameIndex % RTV_NUM;
+					D3D12_GPU_VIRTUAL_ADDRESS b2 = 0;
+
+					if (world.HasComponent<LightCullComponent>(entity))
+					{
+						const auto& cull = world.GetComponent<LightCullComponent>(entity);
+						LightCB culled{};
+						BuildCulledLightCB(renderContext.lightCb,
+							transform.position, cull.radius, cull.maxLights, culled);
+						b2 = renderContext.cbAllocator->Allocate(slot, &culled, sizeof(LightCB));
+					}
+					else
+					{
+						b2 = renderContext.cbAllocator->Allocate(slot,
+							&renderContext.lightCb, sizeof(LightCB));
+					}
+
+					if (b2 != 0) renderContext.CommandList->SetGraphicsRootConstantBufferView(2, b2);
+				}
+
+				// 反射パスは ReflectionCaster が付いたEntityだけを描く
+				if (filter == DrawFilter::REFLECTION &&
+					(!world.HasComponent<ReflectionCasterComponent>(entity) ||
+						!world.GetComponent<ReflectionCasterComponent>(entity).enabled))
 				{
 					return;
 				}
@@ -242,13 +345,17 @@ public:
 				const bool wantsOutline =
 					(material.shaderName == "Genshin_Toon" || material.shaderName == "SkinnedToon") &&
 					filter != DrawFilter::OPAQUE_NOTOON &&
-					filter != DrawFilter::TRANSPARENTONLY;
+					filter != DrawFilter::TRANSPARENTONLY &&
+					filter != DrawFilter::REFLECTION;
 				if (wantsOutline && !renderContext.wireframe)
 				{
 					std::string outlineShaderName = "Genshin_Outline";
 					ID3D12PipelineState* outlinePso = APP->GetPipelineStateByName(outlineShaderName);
 					if (outlinePso)
 					{
+						// アウトラインはジオメトリをもう一周ぶん投げるので単独で測る
+						GPU_PROFILE_SCOPE(renderContext.CommandList, "Draw/Outline");
+
 						if (multi)
 						{
 							const UINT sub = mesh.mesh->GetSubMeshCount();
@@ -258,6 +365,9 @@ public:
 								if (mi >= material.materials.size()) mi = 0;
 								auto& mat = material.materials[mi];
 								if (!mat) continue;
+
+								// 幅0なら押し出し量が0で何も出ない。描くだけ無駄なので省く
+								if (mat->outlineWidth <= 0.0f) continue;
 
 								const bool isTransparent = APP->IsShaderAlphaBlend(material.shaderName);
 								if (filter == DrawFilter::OPAQUEONLY && isTransparent)		 continue; // このエンティティskip
@@ -270,7 +380,7 @@ public:
 								mesh.mesh->DrawSubMesh(renderContext.CommandList, s);
 							}
 						}
-						else
+						else if (material.material->outlineWidth > 0.0f)
 						{
 							material.material->Apply(renderContext.CommandList, transform.world,
 								renderContext.view, renderContext.projection,
@@ -294,6 +404,11 @@ public:
 		m_Data = {};
 
 		UINT count = 0;
+
+		// 環境光をシーンの灯りの色へ寄せるための集計
+		float3 tintSum{ 0.0f, 0.0f, 0.0f };
+		float  tintWeight = 0.0f;
+		float  ambientBlend = 0.0f;
 
 		// 影を落とすライト(先着1つ)。方向ライトでもスポットでもよい
 		int   shadowIndex = -1;
@@ -394,9 +509,23 @@ public:
 				dst.param.z = light.beamWidth;
 				dst.param.w = light.volumetricIntensity;
 
+				// 環境光の色付け用に、点いている灯りの色を明るさで重み付けして集める
+				{
+					const float w = dst.color.x * 0.299f + dst.color.y * 0.587f
+						+ dst.color.z * 0.114f;
+					if (w > 0.0f)
+					{
+						tintSum.x += dst.color.x * w;
+						tintSum.y += dst.color.y * w;
+						tintSum.z += dst.color.z * w;
+						tintWeight += w;
+					}
+				}
+
 				// 環境光は最初のライトのものを採用
 				if (count == 0)
 				{
+					ambientBlend = std::clamp(light.ambientFromLights, 0.0f, 1.0f);
 					if (APP->HasEnvironment())
 					{
 						const float3 e = APP->GetEnvAmbient();
@@ -506,6 +635,27 @@ public:
 
 			m_Data.shadowParams.y = 1.0f;                          // 影を有効化
 			m_Data.shadowParams.w = static_cast<float>(shadowIndex); // どのライトが落とすか
+		}
+
+		// --- 環境光をそのときの灯りの色へ寄せる ---
+		// 明るさは ambientColor のまま保ち、色味だけ差し替える。
+		// これでライトの色がセクションで変わると、キャラの影側とフォグも一緒に動く
+		if (tintWeight > 0.0f && ambientBlend > 0.0f)
+		{
+			float3 tint{ tintSum.x / tintWeight, tintSum.y / tintWeight,
+						 tintSum.z / tintWeight };
+
+			const float tintLuma = tint.x * 0.299f + tint.y * 0.587f + tint.z * 0.114f;
+			if (tintLuma > 1e-4f)
+			{
+				// 輝度で割って色味だけ取り出す(明るさは環境光側の値を尊重する)
+				tint.x /= tintLuma; tint.y /= tintLuma; tint.z /= tintLuma;
+
+				auto& a = m_Data.ambientColor;
+				a.x = std::lerp(a.x, a.x * tint.x, ambientBlend);
+				a.y = std::lerp(a.y, a.y * tint.y, ambientBlend);
+				a.z = std::lerp(a.z, a.z * tint.z, ambientBlend);
+			}
 		}
 
 		m_Data.lightCount.x = static_cast<float>(count);
@@ -950,7 +1100,8 @@ public:
 				// ---- ロード ---- //
 				if (!src.clip && !src.clipPath.empty())
 				{
-					src.clip = AudioEngine::Get().Load(src.clipPath);
+					// 絶対パスで保存されたシーンでも Assets の中なら拾えるようにする
+					src.clip = AudioEngine::Get().Load(ResolveAssetPath(src.clipPath));
 					if (src.clip)
 						src.voice = AudioEngine::Get().CreateVoice(src.clip->format);
 				}
@@ -1550,6 +1701,15 @@ private:
 	/// @brief 全トラックを評価して Transform / Light に書き戻す
 	void ApplyTracks(World& world, const LiveTimeline& timeline, float t)
 	{
+		// 名前引きをトラックごとにやると「トラック数 × エンティティ数」の走査になる。
+		// トラックは灯数ぶん増えるので、1フレームに1回だけ表を作って引く
+		m_NameCache.clear();
+		world.Each<NameComponent>(
+			[&](Entity e, NameComponent& n)
+			{
+				m_NameCache.emplace(n.name, e);   // 同名は先勝ち(従来の挙動と同じ)
+			});
+
 		for (const auto& track : timeline.tracks)
 		{
 			if (!track.enabled || track.target.empty()) continue;
@@ -1557,8 +1717,9 @@ private:
 			float4 v{};
 			if (!track.Evaluate(t, v)) continue;
 
-			const Entity e = FindEntityByName(world, track.target);
-			if (e == INVALID_ENTITY) continue;
+			const auto it = m_NameCache.find(track.target);
+			if (it == m_NameCache.end()) continue;
+			const Entity e = it->second;
 
 			switch (track.property)
 			{
@@ -1648,5 +1809,8 @@ private:
 	}
 
 	std::vector<LiveCue> m_PendingFirework;
+
+	// 名前 → Entity。毎フレーム作り直すが clear() で容量は残るので確保は起きない
+	std::unordered_map<std::string, Entity> m_NameCache;
 };
 

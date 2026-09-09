@@ -249,6 +249,29 @@ public:
 
 	inline bool IsMeshShaderSupported() const noexcept { return m_MeshShaderSupported; }
 	inline ComPtr<ID3D12CommandQueue> GetCommandQueue() const noexcept { return m_CommandQueue; }
+
+	/// @brief 被写界深度をかける。シーンを描き終えたRTをその場で置き換える
+	/// @param scene シーンを描いたRT。読み書き両方に使うので状態遷移はこの中で行う
+	/// @param w,h   scene のうち実際に描いている範囲
+	/// @param cb    焦点などのパラメータ
+	void DepthOfFieldPass(
+		_In_ RenderTexture& scene,
+		_In_ UINT w, _In_ UINT h,
+		_In_ const DofCB& cb);
+
+	/// @brief 平面反射のレンダーターゲットを用意する
+	/// @note ウィンドウサイズで一度だけ確保する。ビューごとに作り直すと、
+	///       同じフレームに記録済みの描画が破棄されたリソースを参照して
+	///       GPUがページフォルトする。解像度の調整はサブ矩形(ビューポート)で行う
+	void EnsureReflectionTarget();
+
+	inline RenderTexture& GetReflectionRT() noexcept { return m_ReflectionRT; }
+	inline float GetReflectionScale() const noexcept { return m_ReflectionScale; }
+	inline D3D12_CPU_DESCRIPTOR_HANDLE GetReflectionDSV() const noexcept { return m_ReflectionDSV; }
+
+	/// @brief 反射RTを作り直すたびに増える。マテリアル側のSRV張り直しの判定に使う
+	inline UINT GetReflectionGeneration() const noexcept { return m_ReflectionGeneration; }
+	inline void  SetReflectionScale(float s) noexcept { m_ReflectionScale = s; }
 	inline UINT GetFrameIndex() const noexcept { return m_FrameIndex; }
 	inline ConstantBufferAllocator& GetConstantBufferAllocator() noexcept { return m_CBAllocator; }
 	inline RenderTexture& GetHdrScene() { return m_HdrScene; }
@@ -440,6 +463,29 @@ private:
 	RenderTexture m_BloomA;
 	RenderTexture m_BloomB;
 	RenderTexture m_VolumetricHalf;
+
+	// 被写界深度。どちらもウィンドウ全体ぶんで確保し、使う範囲はビューポートで絞る
+	RenderTexture m_DofSceneCopy;	// 合成前のシーン(等倍)
+	RenderTexture m_DofHalfA;		// 縮小 + CoC
+	RenderTexture m_DofHalfB;		// ぼかし済み
+	ComPtr<ID3D12PipelineState> m_DofDownsamplePso;
+	ComPtr<ID3D12PipelineState> m_DofBlurPso;
+	ComPtr<ID3D12PipelineState> m_DofCompositePso;
+	D3D12_GPU_DESCRIPTOR_HANDLE m_DofSrvStart{};	// t0:等倍 t1:ぼかし t2:深度
+	UINT m_DofSrvBase = UINT_MAX;
+
+	void CreateDofPSOs();
+	void EnsureDofTargets();
+
+	// 平面反射(床に映すぶん)。シーンRTの m_ReflectionScale 倍で持つ
+	RenderTexture m_ReflectionRT;
+	float m_ReflectionScale = 0.5f;
+
+	// 反射RTはシーンRTより小さいので、深度も専用に持つ
+	ComPtr<ID3D12Resource>      m_ReflectionDepth;
+	D3D12_CPU_DESCRIPTOR_HANDLE m_ReflectionDSV{};
+	UINT                        m_ReflectionDsvIndex = UINT_MAX;
+	UINT                        m_ReflectionGeneration = 0;
 	ComPtr<ID3D12PipelineState> m_BrightPso;
 	ComPtr<ID3D12PipelineState> m_BlurPso;
 	ComPtr<ID3D12PipelineState> m_CompositePso;

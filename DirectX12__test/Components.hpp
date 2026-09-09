@@ -149,6 +149,9 @@ struct SubMaterialRestore
 	float sheen = 0.0f;
 	COLOR sssColor = { 0.9f,0.35f,0.25f,1.0f };
 	float baseAlpha = 1.0f;
+	float reflectStrength = 0.0f;	// 平面反射。床のサブマテリアルだけ上げる
+	float reflectFade = 8.0f;
+	float reflectBlur = 1.0f;
 };
 
 struct MaterialComponent
@@ -292,6 +295,66 @@ struct FreeLookComponent
 	}
 };
 
+// 被写界深度。カメラに付ける。合焦距離をタイムラインで動かせばフォーカス送りになる
+struct DepthOfFieldComponent
+{
+	bool  enabled = true;
+	float focusDistance = 6.0f;	// ピントの合う距離(カメラから)
+	float focusRange = 1.0f;	// この幅は完全にシャープなまま
+	float falloff = 8.0f;		// 合焦幅の外、この距離で最大ボケになる
+	float maxBlur = 12.0f;		// 最大ボケ半径(半解像度でのピクセル)
+
+	void Reflect(FieldList& f)
+	{
+		f.Add("Enabled", enabled);
+		f.AddRange("FocusDistance", focusDistance, 0.1f, 60.0f);
+		f.AddRange("FocusRange", focusRange, 0.0f, 20.0f);
+		f.AddRange("Falloff", falloff, 0.1f, 40.0f);
+		f.AddRange("MaxBlur", maxBlur, 0.0f, 40.0f);
+	}
+};
+
+// このEntityに当たるライトを、影響の強い順に上位N灯へ絞る。
+// キャラのように小さく、多灯が集中する対象向け。
+// ステージのような巨大メッシュに付けると、遠い側の面が暗くなるので付けない
+struct LightCullComponent
+{
+	int   maxLights = 12;
+	float radius = 2.0f;	// この球に届かないライトは最初から捨てる
+
+	void Reflect(FieldList& f)
+	{
+		f.AddRange("MaxLights", maxLights, 1, 64);
+		f.AddRange("Radius", radius, 0.1f, 30.0f);
+	}
+};
+
+// 床などの平面に映り込みを出す。有効なものを1つだけ使う
+struct PlanarReflectionComponent
+{
+	bool  enabled = true;
+	float planeY = 0.0f;			// 反射面の高さ(ステージ床のY)
+	float resolutionScale = 0.5f;	// 反射RTをシーンRTの何倍で持つか
+
+	void Reflect(FieldList& f)
+	{
+		f.Add("Enabled", enabled);
+		f.AddRange("PlaneY", planeY, -20.0f, 20.0f);
+		f.AddRange("ResolutionScale", resolutionScale, 0.25f, 1.0f);
+	}
+};
+
+// このEntityを平面反射に映す(付いていないものは映らない)
+struct ReflectionCasterComponent
+{
+	bool enabled = true;
+
+	void Reflect(FieldList& f)
+	{
+		f.Add("Enabled", enabled);
+	}
+};
+
 struct MusicSyncComponent
 {
 	float offset = 0.0f;        // モーションを曲に対して前後させる(秒、+で遅らせる)
@@ -332,6 +395,11 @@ struct LightComponent
 	};
 	COLOR color{ 1.0f, 1.0f, 1.0f, 1.0f };
 	COLOR ambientColor{ 0.2f, 0.2f, 0.2f, 1.0f };
+
+	// 環境光の色を、そのとき点いているライトの色へどれだけ寄せるか。
+	// 0で ambientColor のまま。上げるほどキャラの影側とフォグが背景の色に沈み、
+	// 切り抜きを貼ったような浮きが減る
+	float ambientFromLights = 0.7f;
 	float intensity = 1.0f;
 	float range = 10.0f;
 	POSITION direction{ 0.0f, -1.0f, 0.0f };
@@ -357,6 +425,7 @@ struct LightComponent
 
 		f.Add("Color", color);
 		f.Add("AmbientColor", ambientColor);
+		f.AddRange("AmbientFromLights", ambientFromLights, 0.0f, 1.0f);
 		f.AddRange("Intensity", intensity, 0.0f, 10.0f);
 		f.AddRange("Range", range, 0.0f, 100.0f);
 		f.Add("Direction", direction);

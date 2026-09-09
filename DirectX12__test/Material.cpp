@@ -227,6 +227,7 @@ bool Material::SetToonRampTexture(const std::wstring& filepath)
 	if (srcImage == nullptr) return false;
 
 	// スロット1(t1)ぬアアプロード
+	m_HasCustomRamp = true;
 	return UploadTextureTo(
 		srcImage,
 		metadata,
@@ -268,6 +269,7 @@ void Material::Apply(
 	UpdateTextureIfNeeded(commandList);
 	BindEnvironmentIfNeeded();
 	BindShadowMapIfNeeded();
+	BindReflectionIfNeeded();
 
 	if (m_TextureSrvHeap != nullptr)
 	{
@@ -309,7 +311,10 @@ void Material::Apply(
 	mdata.roughness = roughness;
 	mdata.faceParam.y = baseAlpha;
 	mdata.faceParam.x = isFace ? 1.0f : 0.0f;	// 顔マテリアルをシェーダーへ渡す
+	mdata.faceParam.z = m_HasCustomRamp ? 1.0f : 0.0f;	// 既定ランプなら算術で済ませる
 	mdata.faceParam.w = outlineWidth;			// アウトラインの太さ
+	mdata.reflectParam = float4(reflectStrength, reflectFade,
+		reflectBlur, APP->GetReflectionScale());
 	mdata.metallic = metallic;
 	mdata.rimColor = rimColor;
 	mdata.sssParams = { sssStrength, sssWrap, sssTrans,sheen };
@@ -747,7 +752,7 @@ bool Material::EnsureSrvHeap()
 	auto device = APP->GetDevice();
 	D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
 	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-	heapDesc.NumDescriptors = 7;                       // t0..t6
+	heapDesc.NumDescriptors = 8;                       // t0..t6 と t8(反射)
 	heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	if (FAILED(device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(m_TextureSrvHeap.GetAddressOf()))))
 		return false;
@@ -760,7 +765,7 @@ bool Material::EnsureSrvHeap()
 	nullSrv.Texture2D.MipLevels = 1;
 	const UINT inc = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	auto cpu = m_TextureSrvHeap->GetCPUDescriptorHandleForHeapStart();
-	for (UINT i = 0; i < 5; ++i)
+	for (UINT i = 0; i < 8; ++i)
 	{
 		device->CreateShaderResourceView(nullptr, &nullSrv, cpu);  // null descriptor（サンプルすると0）
 		cpu.ptr += inc;
@@ -1008,4 +1013,31 @@ void Material::BindShadowMapIfNeeded()
 	cpu.ptr += 6 * inc;   // slot6 = t6
 	APP->GetDevice()->CreateShaderResourceView(sm, &srv, cpu);
 	m_ShadowBound = true;
+}
+
+void Material::BindReflectionIfNeeded()
+{
+	// 床など反射を使うマテリアルだけが対象。強度0なら張らない
+	if (reflectStrength <= 0.0f || !m_TextureSrvHeap) return;
+
+	auto* rt = APP->GetReflectionRT().GetResource().Get();
+	const UINT gen = APP->GetReflectionGeneration();
+	if (rt == nullptr || (rt == m_ReflectionBound && gen == m_ReflectionGen)) return;
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC srv = {};
+	srv.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	srv.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	srv.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	srv.Texture2D.MipLevels = 1;
+
+	const UINT inc = APP->GetDevice()->GetDescriptorHandleIncrementSize(
+		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+	auto cpu = m_TextureSrvHeap->GetCPUDescriptorHandleForHeapStart();
+	cpu.ptr += 7 * inc;   // slot7 = t8
+
+	APP->GetDevice()->CreateShaderResourceView(rt, &srv, cpu);
+
+	// RTを作り直したら張り直す必要があるので、相手を覚えておく
+	m_ReflectionBound = rt;
+	m_ReflectionGen = gen;
 }

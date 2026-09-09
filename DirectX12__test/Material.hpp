@@ -66,6 +66,11 @@ public:
 	float roughness = 0.5f;
 	float metallic = 0.0f;
 	float4 rimColor = { 1.0f,1.0f,1.0f,1.0f };
+
+	// 平面反射(ステージ床など)。0 なら反射テクスチャを参照しない
+	float reflectStrength = 0.0f;
+	float reflectFade = 8.0f;	// この距離で反射が消える
+	float reflectBlur = 1.0f;	// サンプルのぼかし半径(ピクセル)
 	bool isFace = false;
 	float outlineWidth = 1.0f;
 	float sssStrength = 0.0f;	// 肌 : 0.5 ~ 0.7
@@ -124,6 +129,7 @@ private:
 	);
 
 	ComPtr<ID3D12Resource> m_RampTexture;
+	bool m_HasCustomRamp = false;	// 既定ランプのままなら false
 	ComPtr<ID3D12Resource> m_RampUpload;
 	D3D12_PLACED_SUBRESOURCE_FOOTPRINT m_RampFootprint = {};
 	bool m_RampUploadPending = false;
@@ -143,6 +149,12 @@ private:
 	float m_EnvMaxMip = 0.0f;
 	void BindEnvironmentIfNeeded();
 	void BindShadowMapIfNeeded();
+	void BindReflectionIfNeeded();
 	bool m_ShadowBound = false;
+
+	// 反射RTは作り直されることがあるので、張った相手を覚えて差し替えを検知する
+	// 同じアドレスに作り直されても取りこぼさないよう世代でも見る
+	ID3D12Resource* m_ReflectionBound = nullptr;
+	UINT m_ReflectionGen = UINT_MAX;
 
 };

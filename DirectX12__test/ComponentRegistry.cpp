@@ -231,7 +231,7 @@ static void DrawPathField(const ReflectedField& f,
     if (ImGui::SmallButton((std::string("...##") + f.name).c_str()))
     {
         std::wstring picked;
-        if (OpenFileDialog(picked, dialogFilter)) { *path = WideToUtf8(picked); applyReset(); }
+        if (OpenFileDialog(picked, dialogFilter)) { *path = MakeAssetRelative(WideToUtf8(picked)); applyReset(); }
     }
 }
 
@@ -569,6 +569,10 @@ static const std::vector<ComponentMeta> g_Components =
 	MakeMeta<ParticleEmitterComponent>("Particle Emitter"),
 	MakeMeta<KawaiiPhysicsComponent>("Kawaii Physics"),
 	MakeMeta<LiveDirectorComponent>("Live Director"),
+	MakeMeta<DepthOfFieldComponent>("Depth Of Field"),
+	MakeMeta<LightCullComponent>("Light Cull"),
+	MakeMeta<PlanarReflectionComponent>("Planar Reflection"),
+	MakeMeta<ReflectionCasterComponent>("Reflection Caster"),
 };
 
 const std::vector<ComponentMeta>& ComponentRegistry::All()
