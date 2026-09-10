@@ -1143,7 +1143,7 @@ public:
 		std::vector<std::function<void()>> fired;
 
 		world.Each<RectTransformComponent, UIButtonComponent>(
-			[&](Entity, RectTransformComponent& rt, UIButtonComponent& btn)
+			[&](Entity e, RectTransformComponent& rt, UIButtonComponent& btn)
 			{
 				if (!btn.interactable)
 				{
@@ -1164,6 +1164,16 @@ public:
 					mouseY >= y0 && mouseY <= y1;
 
 				btn.isHovered = inside;
+
+				// 状態色を UIImage へ渡す。基準色(color)は残したまま掛け合わせる
+				if (world.HasComponent<UIImageComponent>(e))
+				{
+					auto& img = world.GetComponent<UIImageComponent>(e);
+					const COLOR st = StateColor(btn);
+					img.runtimeColor = COLOR{
+						img.color.x * st.x, img.color.y * st.y,
+						img.color.z * st.z, img.color.w * st.w };
+				}
 
 				if (inside && down)
 				{
@@ -1216,16 +1226,36 @@ public:
 		world.Each<RectTransformComponent, UIImageComponent>(
 			[&](Entity e, RectTransformComponent& rt, UIImageComponent& img)
 			{
-				// テクスチャ遅延ロード
-				if(!img.material && !img.texturePath.empty())
+				// マテリアルの遅延生成。
+				// テクスチャが無くても Init() の既定(2x2白)を色で塗って板として使う
+				if (!img.material)
 				{
 					auto mat = std::make_shared<Material>();
 					mat->Init();
-					mat->SetTextureFromFile(Utf8ToWide(img.texturePath));
+					if (!img.texturePath.empty())
+					{
+						mat->SetTextureFromFile(Utf8ToWide(img.texturePath));
+					}
 					img.material = mat;
+					img.uploadedColor = COLOR{ -1.0f, -1.0f, -1.0f, -1.0f };   // 次で必ず塗る
 				}
 
 				if (!img.material) return;
+
+				// 単色運用のときだけ塗り替える。画像がある場合は色を掛けられない
+				if (img.texturePath.empty())
+				{
+					// UIButton が無いエンティティは runtimeColor が更新されないので color を使う
+					const COLOR& want = world.HasComponent<UIButtonComponent>(e)
+						? img.runtimeColor : img.color;
+
+					if (want.x != img.uploadedColor.x || want.y != img.uploadedColor.y ||
+						want.z != img.uploadedColor.z || want.w != img.uploadedColor.w)
+					{
+						img.material->SetSolidColor(want);
+						img.uploadedColor = want;
+					}
+				}
 
 				// RectTransform -> ピクセル空間world座標
 				// quad は左上座標 + 半サイズで中心に置く
