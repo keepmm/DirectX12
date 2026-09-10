@@ -208,6 +208,9 @@ void RuntimeScene::PublishFrameObjects()
 
 	fp->AddFrameObject<FO_Light>(FO_Light{ m_LightSystem.GetLightData() });
 
+	// 描画対象のスナップショット。これ以降 RenderSystem は World を読まない
+	RenderSystem::Publish(m_World, *fp);
+
 	m_World.Each<CameraComponent>([&](Entity entity, CameraComponent& camera)
 		{
 			float3 position{ 0.0f, 0.0f, 0.0f };

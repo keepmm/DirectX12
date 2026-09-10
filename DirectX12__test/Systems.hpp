@@ -3,6 +3,7 @@
 #include "World.hpp"
 #include "Components.hpp"
 #include "RenderContext.hpp"
+#include "FramePipeline.hpp"
 #include "Mesh.hpp"
 #include "Material.hpp"
 #include "FontAtlas.hpp"
@@ -43,9 +44,114 @@ enum class DrawFilter : uint8_t
 	TRANSPARENTONLY,
 };
 
+#ifdef _FRAMEPIPELINE
+/// @brief そのフレームで確定した描画1件
+/// @note FramePipeline.hpp ではなくここで定義しているのは、
+///       Mesh / Material の完全型が要るため(あちらに include すると循環する)
+struct FO_DrawItem
+{
+	float4x4 world{};
+
+	std::shared_ptr<Mesh>     mesh;
+	std::shared_ptr<Material> material;
+	std::vector<std::shared_ptr<Material>> materials;   // サブメッシュ用(空なら単体)
+	std::string shaderName;
+
+	// ボーンパレット。スキン無しは共有の単位行列を指すのでフレームメモリを食わない
+	const BoneCB* boneCb = nullptr;
+
+	// 頂点モーフ。nullptr なら無し
+	const DirectX::XMFLOAT3* morphOffsets = nullptr;
+	UINT morphVertexCount = 0;
+};
+
+/// @brief スキン無しエンティティが共有する単位行列パレット
+inline const BoneCB& IdentityBoneCB()
+{
+	static const BoneCB cb = []
+		{
+			BoneCB c{};
+			DirectX::XMFLOAT4X4 id;
+			DirectX::XMStoreFloat4x4(&id, DirectX::XMMatrixIdentity());
+			for (auto& m : c.boneMatrices) m = id;
+			c.morph = 0.0f;
+			return c;
+		}();
+	return cb;
+}
+#endif
+
 class RenderSystem
 {
 public:
+#ifdef _FRAMEPIPELINE
+	/// @brief World を走査して FO_DrawItem を積む(Game フェーズで呼ぶ)
+	/// @note ここを通したあと Render 側は World を一切読まない
+	static void Publish(_In_ World& world, _In_ FramePipeline& fp)
+	{
+		world.Each<TransformComponent, MeshComponent, MaterialComponent>(
+			[&world, &fp](Entity entity,
+				TransformComponent& transform,
+				MeshComponent& mesh,
+				MaterialComponent& material)
+			{
+				if (mesh.mesh == nullptr || material.material == nullptr)
+				{
+					return;
+				}
+
+				FO_DrawItem item{};
+				item.world = transform.world;
+				item.mesh = mesh.mesh;
+				item.material = material.material;
+				item.materials = material.materials;
+				item.shaderName = material.shaderName;
+
+				if (world.HasComponent<AnimatorComponent>(entity))
+				{
+					const auto& an = world.GetComponent<AnimatorComponent>(entity);
+
+					// スキンありのぶんだけフレームメモリを使う(1体 32KB)
+					auto* cb = static_cast<BoneCB*>(
+						fp.AllocateFrameMemory(sizeof(BoneCB), alignof(BoneCB)));
+
+					const size_t n = (std::min)(an.palette.size(), static_cast<size_t>(MAX_BONES));
+					for (size_t i = 0; i < n; ++i) cb->boneMatrices[i] = an.palette[i];
+					for (size_t i = n; i < MAX_BONES; ++i)
+						DirectX::XMStoreFloat4x4(&cb->boneMatrices[i], DirectX::XMMatrixIdentity());
+
+					bool anyMorph = false;
+					for (float w : an.morphWeights)
+						if (fabsf(w) > 1e-6f) { anyMorph = true; break; }
+					cb->morph = anyMorph ? 1.0f : 0.0f;
+
+					item.boneCb = cb;
+
+					// モーフはフレームメモリへスナップショットする。
+					// World 側の配列を指すと、Game が次フレームを進めた瞬間に壊れる
+					const size_t vcount = mesh.mesh->GetVertexCount();
+					if (anyMorph && an.morphoffsets.size() == vcount && vcount > 0)
+					{
+						const size_t bytes = vcount * sizeof(DirectX::XMFLOAT3);
+						auto* dst = static_cast<DirectX::XMFLOAT3*>(
+							fp.AllocateFrameMemory(bytes, alignof(DirectX::XMFLOAT3)));
+						std::memcpy(dst, an.morphoffsets.data(), bytes);
+
+						item.morphOffsets = dst;
+						item.morphVertexCount = static_cast<UINT>(vcount);
+					}
+				}
+				else
+				{
+					// スキン無しは共有の単位行列を指す(フレームメモリを消費しない)
+					item.boneCb = &IdentityBoneCB();
+				}
+
+				fp.AddFrameObject<FO_DrawItem>(std::move(item));
+			});
+	}
+#endif
+
 	void Draw(
 		_In_ World& world,
 		_In_ const RenderContext& renderContext,
@@ -99,8 +205,146 @@ public:
 			s_zeroMorphVA = s_zeroMorph->GetGPUVirtualAddress();
 		}
 
+		// ---- 1件ぶんのコマンド発行 ---- //
+		// FrameObject 経路と従来経路で同じ実装を使うためのローカル関数
+		auto emit = [&](const float4x4& worldMat,
+			const std::shared_ptr<Mesh>& meshPtr,
+			const std::shared_ptr<Material>& materialPtr,
+			const std::vector<std::shared_ptr<Material>>& materials,
+			const std::string& shaderName,
+			const BoneCB* boneCb,
+			const DirectX::XMFLOAT3* morphOffsets,
+			UINT morphVertexCount)
+			{
+				if (meshPtr == nullptr || materialPtr == nullptr)
+				{
+					return;
+				}
+
+				// --- b4(root 5): ボーン行列パレット + morphActiveフラグ ---
+				// --- t7(root 6): 頂点モーフ ---
+				if (renderContext.cbAllocator && boneCb)
+				{
+					const UINT slot = renderContext.frameIndex % RTV_NUM;
+
+					auto b4 = renderContext.cbAllocator->Allocate(slot, boneCb, sizeof(BoneCB));
+					if (b4) renderContext.CommandList->SetGraphicsRootConstantBufferView(5, b4);
+
+					D3D12_GPU_VIRTUAL_ADDRESS morphVA = s_zeroMorphVA;   // 既定はゼロバッファ
+					if (morphOffsets != nullptr && morphVertexCount > 0)
+					{
+						auto va = renderContext.cbAllocator->Allocate(slot, morphOffsets,
+							morphVertexCount * sizeof(DirectX::XMFLOAT3));
+						if (va) morphVA = va;
+					}
+					renderContext.CommandList->SetGraphicsRootShaderResourceView(6, morphVA);
+				}
+
+				const bool multi =
+					!materials.empty() && meshPtr->GetSubMeshCount() > 0;
+
+				// --- 通常描画(全マテリアル・無条件) ---
+				if (multi)
+				{
+					const UINT sub = meshPtr->GetSubMeshCount();
+					for (UINT s = 0; s < sub; ++s)
+					{
+						UINT mi = meshPtr->GetSubMeshMaterialIndex(s);
+						if (mi >= materials.size()) mi = 0;
+						auto& mat = materials[mi];
+						if (!mat) continue;
+
+						// サブマテリアル側が空ならコンポーネントの値を継承
+						const std::string& sn = mat->shaderName.empty()
+							? shaderName : mat->shaderName;
+
+						const bool isTransparent = APP->IsShaderAlphaBlend(sn);
+						if (filter == DrawFilter::OPAQUEONLY && isTransparent)		 continue; // このエンティティskip
+						if (filter == DrawFilter::TRANSPARENTONLY && !isTransparent) continue;
+
+						mat->Apply(renderContext.CommandList, worldMat,
+							renderContext.view, renderContext.projection,
+							renderContext.wireframe, renderContext.frameIndex,
+							renderContext.cbAllocator, sn);
+						meshPtr->DrawSubMesh(renderContext.CommandList, s);
+					}
+				}
+				else
+				{
+					materialPtr->Apply(renderContext.CommandList, worldMat,
+						renderContext.view, renderContext.projection,
+						renderContext.wireframe, renderContext.frameIndex,
+						renderContext.cbAllocator, shaderName);
+					meshPtr->Draw(renderContext.CommandList);
+				}
+
+				// --- アウトラインパス(Genshin_Toonのみ・通常描画の後) ---
+				if (shaderName == "Genshin_Toon" && !renderContext.wireframe)
+				{
+					std::string outlineShaderName = "Genshin_Outline";
+					ID3D12PipelineState* outlinePso = APP->GetPipelineStateByName(outlineShaderName);
+					if (outlinePso)
+					{
+						if (multi)
+						{
+							const UINT sub = meshPtr->GetSubMeshCount();
+							for (UINT s = 0; s < sub; ++s)
+							{
+								UINT mi = meshPtr->GetSubMeshMaterialIndex(s);
+								if (mi >= materials.size()) mi = 0;
+								auto& mat = materials[mi];
+								if (!mat) continue;
+
+								const bool isTransparent = APP->IsShaderAlphaBlend(shaderName);
+								if (filter == DrawFilter::OPAQUEONLY && isTransparent)		 continue; // このエンティティskip
+								if (filter == DrawFilter::TRANSPARENTONLY && !isTransparent) continue;
+
+								mat->Apply(renderContext.CommandList, worldMat,
+									renderContext.view, renderContext.projection,
+									false, renderContext.frameIndex,
+									renderContext.cbAllocator, "", outlinePso);
+								meshPtr->DrawSubMesh(renderContext.CommandList, s);
+							}
+						}
+						else
+						{
+							materialPtr->Apply(renderContext.CommandList, worldMat,
+								renderContext.view, renderContext.projection,
+								false, renderContext.frameIndex,
+								renderContext.cbAllocator, "", outlinePso);
+							meshPtr->Draw(renderContext.CommandList);
+						}
+					}
+				}
+			};
+
+#ifdef _FRAMEPIPELINE
+		// ---- FrameObject 経路: World を一切読まない ---- //
+		if (FramePipeline* fp = GetFrameThreadPipelineNullable())
+		{
+			// リストは登録の逆順で回るので、いったん集めてから元の並びに戻す。
+			// 半透明の描画順を従来と変えないため
+			std::vector<const FO_DrawItem*> items;
+			fp->ForEachFrameObject<FO_DrawItem>([&items](const FO_DrawItem& it)
+				{
+					items.push_back(&it);
+				});
+
+			for (auto it = items.rbegin(); it != items.rend(); ++it)
+			{
+				const FO_DrawItem& d = **it;
+				emit(d.world, d.mesh, d.material, d.materials, d.shaderName,
+					d.boneCb, d.morphOffsets, d.morphVertexCount);
+			}
+
+			fp->FixFrameObject<FO_DrawItem>();
+			return;
+		}
+#endif
+
+		// ---- 従来経路(_FRAMEPIPELINE 無効時、およびスコープ外からの描画) ---- //
 		world.Each<TransformComponent, MeshComponent, MaterialComponent>(
-			[&world, &renderContext,filter](
+			[&world, &emit](
 				Entity entity,
 				TransformComponent& transform,
 				MeshComponent& mesh,
@@ -112,130 +356,40 @@ public:
 					return;
 				}
 
-				// --- b4(root 5): ボーン行列パレット + morphActiveフラグ ---
-				if (renderContext.cbAllocator)
+				BoneCB cb{};   // 全ゼロ初期化(morph=0含む)
+				const DirectX::XMFLOAT3* morphOffsets = nullptr;
+				UINT morphVertexCount = 0;
+
+				bool anyMorph = false;
+				if (world.HasComponent<AnimatorComponent>(entity))
 				{
-					const UINT slot = renderContext.frameIndex % RTV_NUM;
-					BoneCB cb{};   // 全ゼロ初期化(morph=0含む)
+					// 再計算は AnimatorSystem::Update 側で済んでいる。ここでは読むだけ
+					const auto& an = world.GetComponent<AnimatorComponent>(entity);
+					const size_t n = (std::min)(an.palette.size(), static_cast<size_t>(MAX_BONES));
+					for (size_t i = 0; i < n; ++i) cb.boneMatrices[i] = an.palette[i];
+					for (size_t i = n; i < MAX_BONES; ++i)
+						DirectX::XMStoreFloat4x4(&cb.boneMatrices[i], DirectX::XMMatrixIdentity());
 
-					bool anyMorph = false;
-					if (world.HasComponent<AnimatorComponent>(entity))
+					for (float w : an.morphWeights)
+						if (fabsf(w) > 1e-6f) { anyMorph = true; break; }
+
+					const size_t vcount = mesh.mesh->GetVertexCount();
+					if (anyMorph && an.morphoffsets.size() == vcount && vcount > 0)
 					{
-						auto& an = world.GetComponent<AnimatorComponent>(entity);
-						const size_t n = std::min<size_t>(an.palette.size(), MAX_BONES);
-						for (size_t i = 0; i < n; ++i) cb.boneMatrices[i] = an.palette[i];
-						for (size_t i = n; i < MAX_BONES; ++i)
-							DirectX::XMStoreFloat4x4(&cb.boneMatrices[i], DirectX::XMMatrixIdentity());
-
-						for (float w : an.morphWeights)
-							if (fabsf(w) > 1e-6f) { anyMorph = true; break; }
-					}
-					else
-					{
-						// アニメ無し: 全ボーンidentity(スキンされても原点維持)
-						for (size_t i = 0; i < MAX_BONES; ++i)
-							DirectX::XMStoreFloat4x4(&cb.boneMatrices[i], DirectX::XMMatrixIdentity());
-					}
-					cb.morph = anyMorph ? 1.0f : 0.0f;
-
-					auto b4 = renderContext.cbAllocator->Allocate(slot, &cb, sizeof(BoneCB));
-					if (b4) renderContext.CommandList->SetGraphicsRootConstantBufferView(5, b4);
-
-					// --- t7(root 6): 頂点モーフ (アニメあり かつ モーフがアクティブな時だけ) ---
-					D3D12_GPU_VIRTUAL_ADDRESS morphVA = s_zeroMorphVA;   // 既定はゼロバッファ
-
-					if (anyMorph && world.HasComponent<AnimatorComponent>(entity))
-					{
-						// 再計算は AnimatorSystem::Update 側で済んでいる。
-						// ここでは読むだけ(描画から World を書き換えない)
-						const auto& an = world.GetComponent<AnimatorComponent>(entity);
-						const size_t vcount = mesh.mesh->GetVertexCount();
-						if (an.morphoffsets.size() == vcount)
-						{
-							auto va = renderContext.cbAllocator->Allocate(slot, an.morphoffsets.data(),
-								an.morphoffsets.size() * sizeof(DirectX::XMFLOAT3));
-							if (va) morphVA = va;   // モーフありなら実データで上書き
-						}
-					}
-					renderContext.CommandList->SetGraphicsRootShaderResourceView(6, morphVA);
-				}
-
-				const bool multi =
-					!material.materials.empty() && mesh.mesh->GetSubMeshCount() > 0;
-
-				// --- 通常描画(全マテリアル・無条件) ---
-				if (multi)
-				{
-					const UINT sub = mesh.mesh->GetSubMeshCount();
-					for (UINT s = 0; s < sub; ++s)
-					{
-						UINT mi = mesh.mesh->GetSubMeshMaterialIndex(s);
-						if (mi >= material.materials.size()) mi = 0;
-						auto& mat = material.materials[mi];
-						if (!mat) continue;
-
-						// サブマテリアル側が空ならコンポーネントの値を継承
-						const std::string& sn = mat->shaderName.empty()
-							? material.shaderName : mat->shaderName;
-
-						const bool isTransparent = APP->IsShaderAlphaBlend(sn);
-						if (filter == DrawFilter::OPAQUEONLY && isTransparent)		 continue; // このエンティティskip
-						if (filter == DrawFilter::TRANSPARENTONLY && !isTransparent) continue;
-
-						mat->Apply(renderContext.CommandList, transform.world,
-							renderContext.view, renderContext.projection,
-							renderContext.wireframe, renderContext.frameIndex,
-							renderContext.cbAllocator, sn);
-						mesh.mesh->DrawSubMesh(renderContext.CommandList, s);
+						morphOffsets = an.morphoffsets.data();
+						morphVertexCount = static_cast<UINT>(vcount);
 					}
 				}
 				else
 				{
-					material.material->Apply(renderContext.CommandList, transform.world,
-						renderContext.view, renderContext.projection,
-						renderContext.wireframe, renderContext.frameIndex,
-						renderContext.cbAllocator, material.shaderName);
-					mesh.mesh->Draw(renderContext.CommandList);
+					// アニメ無し: 全ボーンidentity(スキンされても原点維持)
+					for (size_t i = 0; i < MAX_BONES; ++i)
+						DirectX::XMStoreFloat4x4(&cb.boneMatrices[i], DirectX::XMMatrixIdentity());
 				}
+				cb.morph = anyMorph ? 1.0f : 0.0f;
 
-				// --- アウトラインパス(Genshin_Toonのみ・通常描画の後) ---
-				if (material.shaderName == "Genshin_Toon" && !renderContext.wireframe)
-				{
-					std::string outlineShaderName = "Genshin_Outline";
-					ID3D12PipelineState* outlinePso = APP->GetPipelineStateByName(outlineShaderName);
-					if (outlinePso)
-					{
-						if (multi)
-						{
-							const UINT sub = mesh.mesh->GetSubMeshCount();
-							for (UINT s = 0; s < sub; ++s)
-							{
-								UINT mi = mesh.mesh->GetSubMeshMaterialIndex(s);
-								if (mi >= material.materials.size()) mi = 0;
-								auto& mat = material.materials[mi];
-								if (!mat) continue;
-
-								const bool isTransparent = APP->IsShaderAlphaBlend(material.shaderName);
-								if (filter == DrawFilter::OPAQUEONLY && isTransparent)		 continue; // このエンティティskip
-								if (filter == DrawFilter::TRANSPARENTONLY && !isTransparent) continue;
-
-								mat->Apply(renderContext.CommandList, transform.world,
-									renderContext.view, renderContext.projection,
-									false, renderContext.frameIndex,
-									renderContext.cbAllocator, "", outlinePso);
-								mesh.mesh->DrawSubMesh(renderContext.CommandList, s);
-							}
-						}
-						else
-						{
-							material.material->Apply(renderContext.CommandList, transform.world,
-								renderContext.view, renderContext.projection,
-								false, renderContext.frameIndex,
-								renderContext.cbAllocator, "", outlinePso); 
-							mesh.mesh->Draw(renderContext.CommandList);
-						}
-					}
-				}
+				emit(transform.world, mesh.mesh, material.material, material.materials,
+					material.shaderName, &cb, morphOffsets, morphVertexCount);
 			}
 		);
 	}

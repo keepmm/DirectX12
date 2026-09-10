@@ -171,6 +171,14 @@ public:
 		m_Fixed[GetFrameObjectTypeID<T>()].store(true, std::memory_order_release);
 	}
 
+	/// @brief FrameObject に添える可変長データ用のメモリを借りる
+	/// @note 生存期間は次の Reset まで。デストラクタは走らないので
+	///       trivially destructible なものだけを置くこと
+	void* AllocateFrameMemory(size_t size, size_t align = 16)
+	{
+		return m_Allocator.Allocate(size, align);
+	}
+
 private:
 	UINT64 m_FrameNumber = 0;
 	FrameAllocator m_Allocator;
