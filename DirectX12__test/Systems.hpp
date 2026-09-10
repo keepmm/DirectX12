@@ -786,7 +786,7 @@ public:
 				{
 					if (!b) continue;
 					b->SyncEnableState();
-					b->OnStart();
+					b->EnsureStarted();
 				}
 			});
 	}
@@ -802,6 +802,7 @@ public:
 					// 無効側でも呼ぶのは OnDisable を落とさないため
 					b->SyncEnableState();
 					if (!b->enabled) continue;
+					b->EnsureStarted();          // 遅延生成された分をここで拾う
 					b->TickInvokes(deltatime);   // 予約された処理を先に消化する
 					b->OnUpdate(deltatime);
 				}
@@ -815,7 +816,9 @@ public:
 			{
 				for (auto& b : sc.behaviors)
 				{
-					if (!b || !b->enabled || !b->runDuringPause) continue;
+					if (!b || !b->enabled) continue;
+					b->EnsureStarted();   // ポーズ中にロードされた場合もここで拾う
+					if (!b->runDuringPause) continue;
 					b->SyncEnableState();
 					b->TickInvokes(deltatime);
 					b->OnUpdate(deltatime);

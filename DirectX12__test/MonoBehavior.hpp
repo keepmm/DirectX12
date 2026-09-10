@@ -82,6 +82,17 @@ public:
 	/// @note ポーズメニューのように、止まっている間に操作させたいものだけ true にする
 	bool runDuringPause = false;
 
+	/// @brief まだなら OnStart を呼ぶ
+	/// @note スクリプトの実体は cr 側(CR_STEP)で遅延生成されるため、
+	///       ScriptSystem::Start の時点ではまだ存在しないことがある。
+	///       Play 中にロードされたシーンで OnStart が飛ぶのを防ぐ
+	void EnsureStarted()
+	{
+		if (m_StartCalled) return;
+		m_StartCalled = true;
+		OnStart();
+	}
+
 	/// @brief enabled の変化を見て OnEnable / OnDisable を発火する
 	/// @note ScriptSystem が毎フレーム呼ぶ。スクリプト側から呼ぶ必要はない
 	void SyncEnableState()
@@ -427,6 +438,7 @@ private:
 	mutable bool m_RegisterFieldsCalled = false;
 
 	bool m_PrevEnabled = true;
+	bool m_StartCalled = false;
 
 	/// @brief Invoke の予約
 	struct InvokeEntry
