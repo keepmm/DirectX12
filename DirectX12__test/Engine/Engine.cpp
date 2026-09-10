@@ -3,6 +3,7 @@
 #include "../Logger.hpp"
 #include "../Time.hpp"
 #include "../Input.hpp"
+#include "../PlayState.hpp"
 #include "../imguiinit.hpp"
 #include "../imgui-master/backends/imgui_impl_dx12.h"
 #include "../imgui-master/backends/imgui_impl_win32.h"
@@ -197,6 +198,18 @@ void Engine::Run()
 			IconLibrary::Get()->BeginFrame();
 			ImGuiIO& io = ImGui::GetIO();
 			INPUT->SetImGuiCapture(io.WantCaptureKeyboard, io.WantCaptureMouse, io.WantTextInput);
+
+			// ESC でポーズ切り替え。
+			// ポーズ中はスクリプトが止まる(RuntimeScene::Update が呼ばれない)ので、
+			// スクリプト側では自力で復帰できない。エンジン側で拾う必要がある
+			{
+				const EngineMode mode = PLAY.GetCurrentMode();
+				if (mode != EngineMode::EDITOR && INPUT->GetKeyDown(VK_ESCAPE))
+				{
+					PLAY.SetMode(mode == EngineMode::PAUSE
+						? EngineMode::Play : EngineMode::PAUSE);
+				}
+			}
 
 			// エンジン更新
 			{ PROFILE_SCOPE("Scene::Update"); m_SceneManager.Update(deltaTime); }

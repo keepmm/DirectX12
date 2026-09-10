@@ -1310,7 +1310,11 @@ public:
 class AudioSystem
 {
 public:
-	void Update(World& world, bool isPlaying)
+	/// @param isPlaying 再生中か
+	/// @param isPaused ポーズ中か
+	/// @note 停止(EDITOR復帰)は音を捨てるが、ポーズは位置を保って止めるだけ。
+	///       ライブ中に ESC で止めたとき曲が頭に戻らないようにするため
+	void Update(World& world, bool isPlaying, bool isPaused = false)
 	{
 		//static int f = 0;
 		//if ((f++ % 60) == 0)
@@ -1325,9 +1329,15 @@ public:
 		//	OutputDebugStringA(b);
 		//}
 
-		const bool justStarted = (isPlaying && !m_PrevPlaying);
-		const bool justStopped = (!isPlaying && m_PrevPlaying);
+		// ポーズ中は「再生していない」が「停止でもない」。
+		// 停止と同じ扱いにすると曲が捨てられて頭から鳴り直しになる
+		const bool justStarted = (isPlaying && !m_PrevPlaying && !m_PrevPaused);
+		const bool justStopped = (!isPlaying && !isPaused && m_PrevPlaying);
+		const bool justPaused = (isPaused && !m_PrevPaused);
+		const bool justResumed = (!isPaused && m_PrevPaused);
+
 		m_PrevPlaying = isPlaying;
+		m_PrevPaused = isPaused;
 
 		// ---- リスナー（耳）を1つ探す ---- //
 		X3DAUDIO_LISTENER listener{};
@@ -1366,6 +1376,8 @@ public:
 				// ---- playOnStart / 再生・停止（前回と同じ） ---- //
 				if (justStarted && src.playOnStart) src.playRequested = true;
 				if (justStopped) src.stopRequested = true;
+				if (justPaused)  src.pauseRequested = true;
+				if (justResumed) src.resumeRequested = true;
 
 				if (src.playRequested)
 				{
@@ -1454,6 +1466,7 @@ public:
 	}
 private:
 	bool m_PrevPlaying = false;
+	bool m_PrevPaused = false;
 };
 
 class TransformSystem
