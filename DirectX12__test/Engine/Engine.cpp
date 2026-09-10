@@ -201,8 +201,14 @@ void Engine::Run()
 			// エンジン更新
 			{ PROFILE_SCOPE("Scene::Update"); m_SceneManager.Update(deltaTime); }
 
+			// シーン切り替えの最中はアクティブシーンが一瞬 nullptr になる。
+			// アンロードで m_ActiveScene がクリアされ、次のロードで入り直すため
 			Scene* scene = m_SceneManager.GetActiveScene();
-			{ PROFILE_SCOPE("ScriptHost"); ScriptHost::Update(deltaTime,&scene->GetWorld()); }
+			if (scene != nullptr)
+			{
+				PROFILE_SCOPE("ScriptHost");
+				ScriptHost::Update(deltaTime, &scene->GetWorld());
+			}
 
 
 			// 固定タイムステップ更新
