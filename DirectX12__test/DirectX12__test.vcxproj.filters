@@ -40,7 +40,7 @@
     <Filter Include="Assets">
       <UniqueIdentifier>{2a56a89e-8bdc-4d97-833c-1fe18b4b1a00}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Assets\Icons">
+    <Filter Include="EngineAssets\Icons">
       <UniqueIdentifier>{3603e788-43a8-4df4-ab17-ce3f89b81a2e}</UniqueIdentifier>
     </Filter>
     <Filter Include="Assets\Model">
@@ -493,41 +493,41 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <None Include="BRDF.hlsli">
+    <None Include="EngineAssets\Shaders\BRDF.hlsli">
       <Filter>Shader\Include</Filter>
     </None>
-    <None Include="Common.hlsli">
+    <None Include="EngineAssets\Shaders\Common.hlsli">
       <Filter>Shader\Include</Filter>
     </None>
-    <None Include="Lighting.hlsli">
+    <None Include="EngineAssets\Shaders\Lighting.hlsli">
       <Filter>Shader\Include</Filter>
     </None>
     <None Include="packages.config">
       <Filter>Config</Filter>
     </None>
-    <None Include="Assets\Icons\CameraIcon.png">
-      <Filter>Assets\Icons</Filter>
+    <None Include="EngineAssets\Icons\CameraIcon.png">
+      <Filter>EngineAssets\Icons</Filter>
     </None>
-    <None Include="Assets\Icons\File.png">
-      <Filter>Assets\Icons</Filter>
+    <None Include="EngineAssets\Icons\File.png">
+      <Filter>EngineAssets\Icons</Filter>
     </None>
-    <None Include="Assets\Icons\Folder.png">
-      <Filter>Assets\Icons</Filter>
+    <None Include="EngineAssets\Icons\Folder.png">
+      <Filter>EngineAssets\Icons</Filter>
     </None>
-    <None Include="Assets\Icons\Image.png">
-      <Filter>Assets\Icons</Filter>
+    <None Include="EngineAssets\Icons\Image.png">
+      <Filter>EngineAssets\Icons</Filter>
     </None>
-    <None Include="Assets\Icons\Json.png">
-      <Filter>Assets\Icons</Filter>
+    <None Include="EngineAssets\Icons\Json.png">
+      <Filter>EngineAssets\Icons</Filter>
     </None>
-    <None Include="Assets\Icons\LightIcon.png">
-      <Filter>Assets\Icons</Filter>
+    <None Include="EngineAssets\Icons\LightIcon.png">
+      <Filter>EngineAssets\Icons</Filter>
     </None>
-    <None Include="Assets\Icons\Material.png">
-      <Filter>Assets\Icons</Filter>
+    <None Include="EngineAssets\Icons\Material.png">
+      <Filter>EngineAssets\Icons</Filter>
     </None>
-    <None Include="Assets\Icons\Model.png">
-      <Filter>Assets\Icons</Filter>
+    <None Include="EngineAssets\Icons\Model.png">
+      <Filter>EngineAssets\Icons</Filter>
     </None>
     <None Include="Assets\Model\akai\Akai.fbx">
       <Filter>Assets\Model</Filter>
@@ -577,61 +577,61 @@
     <None Include="Assets\Texture\RampTex.bmp">
       <Filter>Assets\Texture</Filter>
     </None>
-    <None Include="ToonShader.hlsl">
+    <None Include="EngineAssets\Shaders\ToonShader.hlsl">
       <Filter>Shader\HLSL\PixelShader</Filter>
     </None>
-    <None Include="BlinnPhongShader.hlsl">
+    <None Include="EngineAssets\Shaders\BlinnPhongShader.hlsl">
       <Filter>Shader\HLSL\PixelShader</Filter>
     </None>
-    <None Include="DissolveShader.hlsl">
+    <None Include="EngineAssets\Shaders\DissolveShader.hlsl">
       <Filter>Shader\HLSL\PixelShader</Filter>
     </None>
-    <None Include="FresnelShader.hlsl">
+    <None Include="EngineAssets\Shaders\FresnelShader.hlsl">
       <Filter>Shader\HLSL\PixelShader</Filter>
     </None>
-    <None Include="PBRShader.hlsl">
+    <None Include="EngineAssets\Shaders\PBRShader.hlsl">
       <Filter>Shader\HLSL\PixelShader</Filter>
     </None>
-    <None Include="PixelShader.hlsl">
+    <None Include="EngineAssets\Shaders\PixelShader.hlsl">
       <Filter>Shader\HLSL\PixelShader</Filter>
     </None>
-    <None Include="PS_LineShader.hlsl">
+    <None Include="EngineAssets\Shaders\PS_LineShader.hlsl">
       <Filter>Shader\HLSL\PixelShader</Filter>
     </None>
-    <None Include="RimShader.hlsl">
+    <None Include="EngineAssets\Shaders\RimShader.hlsl">
       <Filter>Shader\HLSL\PixelShader</Filter>
     </None>
-    <None Include="SkyBoxShader.hlsl">
+    <None Include="EngineAssets\Shaders\SkyBoxShader.hlsl">
       <Filter>Shader\HLSL\PixelShader</Filter>
     </None>
-    <None Include="VertexShader.hlsl">
+    <None Include="EngineAssets\Shaders\VertexShader.hlsl">
       <Filter>Shader\HLSL\VertexShader</Filter>
     </None>
-    <None Include="ShadowShader.hlsl">
+    <None Include="EngineAssets\Shaders\ShadowShader.hlsl">
       <Filter>Shader\HLSL\VertexShader</Filter>
     </None>
-    <None Include="SkinnedShader.hlsl">
+    <None Include="EngineAssets\Shaders\SkinnedShader.hlsl">
       <Filter>Shader\HLSL\VertexShader</Filter>
     </None>
-    <None Include="Genshin_ToonShader.hlsl">
+    <None Include="EngineAssets\Shaders\Genshin_ToonShader.hlsl">
       <Filter>Shader\HLSL\PixelShader</Filter>
     </None>
-    <None Include="GenshinOutline.hlsl">
+    <None Include="EngineAssets\Shaders\GenshinOutline.hlsl">
       <Filter>Shader\HLSL\VertexShader</Filter>
     </None>
-    <None Include="LaserBeamShader.hlsl">
+    <None Include="EngineAssets\Shaders\LaserBeamShader.hlsl">
       <Filter>Shader\HLSL\VertexShader</Filter>
     </None>
-    <None Include="DeferredLighting.hlsl">
+    <None Include="EngineAssets\Shaders\DeferredLighting.hlsl">
       <Filter>Shader\HLSL\VertexShader</Filter>
     </None>
-    <None Include="GBufferShader.hlsl">
+    <None Include="EngineAssets\Shaders\GBufferShader.hlsl">
       <Filter>Shader\HLSL\VertexShader</Filter>
     </None>
-    <None Include="PostProcess.hlsl">
+    <None Include="EngineAssets\Shaders\PostProcess.hlsl">
       <Filter>Shader\HLSL\VertexShader</Filter>
     </None>
-    <None Include="DepthOfField.hlsl">
+    <None Include="EngineAssets\Shaders\DepthOfField.hlsl">
       <Filter>Shader\HLSL\VertexShader</Filter>
     </None>
   </ItemGroup>

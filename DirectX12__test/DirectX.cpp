@@ -995,14 +995,18 @@ void DirectXApp::CreatePipelineStateObject()
 	BuildCompositeSrvTable();
 }
 
+#include "Util.hpp"
+
 void DirectXApp::RegisterBuiltinShaders()
 {
+	// パスの解決は ShaderLibrary::Load 側(ResolveShaderPath)に任せる。
+	// ここは従来どおりファイル名だけを書く
 	struct Entry { const char* name; ShaderPassDef def; };
 	const Entry builtins[] = {
 		{ "Basic", { L"VertexShader.hlsl","BasicVS","vs_5_0", L"PixelShader.hlsl","BasicPS","ps_5_0", false } },
 		{ "Toon",  { L"VertexShader.hlsl","BasicVS","vs_5_0", L"ToonShader.hlsl", "ToonPS", "ps_5_0", false } },
 		{ "Unlit", { L"VertexShader.hlsl","BasicVS","vs_5_0", L"PixelShader.hlsl","unlitPS","ps_5_0", true  } },
-		{ "PBR",   { L"VertexShader.hlsl","BasicVS","vs_5_0", L"PbrShader.hlsl",  "PbrPS",  "ps_5_0", false } },
+		{ "PBR",   { L"VertexShader.hlsl","BasicVS","vs_5_0", L"PBRShader.hlsl",  "PbrPS",  "ps_5_0", false } },
 		{ "Rim",   { L"VertexShader.hlsl","BasicVS","vs_5_0", L"RimShader.hlsl",  "RimPS",  "ps_5_0", false } },
 		{ "Fresnel",   { L"VertexShader.hlsl","BasicVS","vs_5_0", L"FresnelShader.hlsl",  "FresnelPS",  "ps_5_0", false } },
 		{ "Dissolve",   { L"VertexShader.hlsl","BasicVS","vs_5_0", L"DissolveShader.hlsl",  "DissolvePS",  "ps_5_0", false } },

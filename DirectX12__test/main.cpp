@@ -8,10 +8,14 @@
  *			2/12 DirectX12の初期化
  *			2/15 APPLICATIONクラスの作成
  *			5/02 初期化追加
+ *			9/10 プロジェクト管理機能の追加
  * *********************************************************************/
 #include "Application.hpp"
+#include "Project.hpp"
 #include "Defines.hpp"
 #include <filesystem>
+#include <shellapi.h>
+#include <vector>
 
 int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmdShow)
 {
@@ -47,6 +51,75 @@ int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCm
 				APPLICATION->SetStartScene(scene);
 		}
 	}
+
+	if (!gameMode)
+	{
+		PROJECT->LoadRecents();
+
+		// ランチャーから渡される -project <path> を最優先で見る
+		std::wstring projectArg;
+		int argc = 0;
+		if (LPWSTR* argv = CommandLineToArgvW(GetCommandLineW(), &argc))
+		{
+			for (int i = 1; i + 1 < argc; ++i)
+			{
+				if (_wcsicmp(argv[i], L"-project") == 0)
+				{
+					projectArg = argv[i + 1];
+					break;
+				}
+			}
+			LocalFree(argv);
+		}
+
+		std::string err;
+		if (!projectArg.empty())
+		{
+			if (!PROJECT->Open(projectArg, err))
+			{
+				MessageBoxA(nullptr, err.c_str(), "起動失敗", MB_OK | MB_ICONERROR);
+				CoUninitialize();
+				return 0;
+			}
+		}
+		else if (!PROJECT->GetRecents().empty())
+		{
+			// 直接起動されたときは最後のプロジェクトを復元する(VSからのデバッグ実行用)
+			if (!PROJECT->Open(PROJECT->GetRecents().front(), err))
+			{
+				OutputDebugStringA(("Project open failed: " + err + "\n").c_str());
+			}
+		}
+
+		// プロジェクトが決まらないならランチャーに委譲して自分は終了する
+		if (!PROJECT->IsOpen())
+		{
+			wchar_t exePath[MAX_PATH]{};
+			GetModuleFileNameW(nullptr, exePath, MAX_PATH);
+			const auto launcher = std::filesystem::path(exePath).parent_path() / L"Launcher.exe";
+
+			if (std::filesystem::exists(launcher))
+			{
+				STARTUPINFOW si{ sizeof(si) };
+				PROCESS_INFORMATION pi{};
+				std::wstring cmd = L"\"" + launcher.wstring() + L"\"";
+				std::vector<wchar_t> buf(cmd.begin(), cmd.end());
+				buf.push_back(L'\0');
+
+				if (CreateProcessW(launcher.c_str(), buf.data(), nullptr, nullptr, FALSE,
+					0, nullptr, nullptr, &si, &pi))
+				{
+					CloseHandle(pi.hThread);
+					CloseHandle(pi.hProcess);
+				}
+			}
+			CoUninitialize();
+			return 0;
+		}
+
+		APPLICATION->SetStartScene(PROJECT->GetStartScene());
+	}
+
 	APPLICATION->SetGameMode(gameMode);
 
 	APPLICATION->Init(hInstance,WINDOW_WIDTH,WINDOW_HEIGHT);

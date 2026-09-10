@@ -227,4 +227,12 @@ private:
 	std::array<char, 128> m_BuildGameName = { "MyGame" };
 	std::array<char, 256> m_BuildStartScene = { "Assets/Scenes/SampleScene.json" };
 	float m_BuildOverlayTimer = 0.0f;
+
+	// プロジェクト作成ダイアログ
+	bool m_ShowNewProject = false;
+	std::array<char, 128> m_NewProjectName = { "MyProject" };
+	std::array<char, 512> m_NewProjectDir = { "" };
+	std::string m_ProjectError;
+
+	void DrawProjectDialog();
 };

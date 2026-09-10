@@ -125,7 +125,9 @@
       <ShaderModel>6.8</ShaderModel>
     </FxCompile>
     <PostBuildEvent>
-      <Command>xcopy /Y /E /I /D "$(ProjectDir)Assets" "$(OutDir)Assets"</Command>
+      <Command>xcopy /Y /E /I /D "$(ProjectDir)Assets" "$(OutDir)Assets"
+xcopy /Y /E /I /D "$(ProjectDir)EngineAssets" "$(OutDir)EngineAssets"
+xcopy /Y /D "$(ProjectDir)*.dll" "$(OutDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -146,7 +148,9 @@
       <AdditionalDependencies>..\DirectX12__test\assimp-vc142-mt.lib;..\DirectX12__test\DirectXTex\x64\Release\DirectXTex.lib;%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
     <PostBuildEvent>
-      <Command>xcopy /Y /E /I /D "$(ProjectDir)Assets" "$(OutDir)Assets"</Command>
+      <Command>xcopy /Y /E /I /D "$(ProjectDir)Assets" "$(OutDir)Assets"
+xcopy /Y /E /I /D "$(ProjectDir)EngineAssets" "$(OutDir)EngineAssets"
+xcopy /Y /D "$(ProjectDir)*.dll" "$(OutDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -195,6 +199,7 @@
     <ClCompile Include="PipelineStateCache.cpp" />
     <ClCompile Include="PlayState.cpp" />
     <ClCompile Include="PMXLoader.cpp" />
+    <ClCompile Include="Project.cpp" />
     <ClCompile Include="Polygon.cpp" />
     <ClCompile Include="PrefabLibrary.cpp" />
     <ClCompile Include="PsoRegistry.cpp" />
@@ -255,6 +260,7 @@
     <ClInclude Include="LiveTimelineUI.hpp" />
     <ClInclude Include="AnimatorClipCache.hpp" />
     <ClInclude Include="Profiler.hpp" />
+    <ClInclude Include="Project.hpp" />
     <ClInclude Include="GpuProfiler.hpp" />
     <ClInclude Include="Logger.hpp" />
     <ClInclude Include="Material.hpp" />
@@ -300,44 +306,44 @@
     <ClInclude Include="World.hpp" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="GBufferShader.hlsl" />
-    <None Include="PBRShader.hlsl" />
-    <None Include="PixelShader.hlsl" />
-    <None Include="PS_LineShader.hlsl">
+    <None Include="EngineAssets\Shaders\GBufferShader.hlsl" />
+    <None Include="EngineAssets\Shaders\PBRShader.hlsl" />
+    <None Include="EngineAssets\Shaders\PixelShader.hlsl" />
+    <None Include="EngineAssets\Shaders\PS_LineShader.hlsl">
       <FileType>Document</FileType>
     </None>
-    <None Include="ToonShader.hlsl" />
-    <None Include="VertexShader.hlsl" />
+    <None Include="EngineAssets\Shaders\ToonShader.hlsl" />
+    <None Include="EngineAssets\Shaders\VertexShader.hlsl" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="BRDF.hlsli" />
-    <None Include="Common.hlsli" />
-    <None Include="Lighting.hlsli" />
+    <None Include="EngineAssets\Shaders\BRDF.hlsli" />
+    <None Include="EngineAssets\Shaders\Common.hlsli" />
+    <None Include="EngineAssets\Shaders\Lighting.hlsli" />
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Assets\Icons\CameraIcon.png">
+    <None Include="EngineAssets\Icons\CameraIcon.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="Assets\Icons\File.png">
+    <None Include="EngineAssets\Icons\File.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="Assets\Icons\Folder.png">
+    <None Include="EngineAssets\Icons\Folder.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="Assets\Icons\Image.png">
+    <None Include="EngineAssets\Icons\Image.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="Assets\Icons\Json.png">
+    <None Include="EngineAssets\Icons\Json.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="Assets\Icons\LightIcon.png">
+    <None Include="EngineAssets\Icons\LightIcon.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="Assets\Icons\Material.png">
+    <None Include="EngineAssets\Icons\Material.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Include="Assets\Icons\Model.png">
+    <None Include="EngineAssets\Icons\Model.png">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="Assets\Model\akai\Akai.fbx">
@@ -390,12 +396,12 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <None Include="RimShader.hlsl">
+    <None Include="EngineAssets\Shaders\RimShader.hlsl">
       <FileType>Document</FileType>
     </None>
   </ItemGroup>
   <ItemGroup>
-    <None Include="FresnelShader.hlsl">
+    <None Include="EngineAssets\Shaders\FresnelShader.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
@@ -405,7 +411,7 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <None Include="DissolveShader.hlsl">
+    <None Include="EngineAssets\Shaders\DissolveShader.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
@@ -415,7 +421,7 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <None Include="BlinnPhongShader.hlsl">
+    <None Include="EngineAssets\Shaders\BlinnPhongShader.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
@@ -425,7 +431,7 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <None Include="SkyBoxShader.hlsl">
+    <None Include="EngineAssets\Shaders\SkyBoxShader.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
@@ -439,7 +445,7 @@
     <Image Include="Assets\Texture\plate.png" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="ShadowShader.hlsl">
+    <None Include="EngineAssets\Shaders\ShadowShader.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
@@ -449,7 +455,7 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <None Include="SkinnedShader.hlsl">
+    <None Include="EngineAssets\Shaders\SkinnedShader.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
@@ -459,7 +465,7 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <None Include="Genshin_ToonShader.hlsl">
+    <None Include="EngineAssets\Shaders\Genshin_ToonShader.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
@@ -469,7 +475,7 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <None Include="GenshinOutline.hlsl">
+    <None Include="EngineAssets\Shaders\GenshinOutline.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
@@ -479,7 +485,7 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <None Include="LaserBeamShader.hlsl">
+    <None Include="EngineAssets\Shaders\LaserBeamShader.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
@@ -489,7 +495,7 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <None Include="DeferredLighting.hlsl">
+    <None Include="EngineAssets\Shaders\DeferredLighting.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
@@ -499,7 +505,7 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <None Include="PostProcess.hlsl">
+    <None Include="EngineAssets\Shaders\PostProcess.hlsl">
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Vertex</ShaderType>
       <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Vertex</ShaderType>
@@ -507,7 +513,7 @@
       <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
       <FileType>Document</FileType>
     </None>
-    <None Include="DepthOfField.hlsl">
+    <None Include="EngineAssets\Shaders\DepthOfField.hlsl">
       <FileType>Document</FileType>
     </None>
   </ItemGroup>

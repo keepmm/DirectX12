@@ -96,6 +96,6 @@ protected:
 	std::unique_ptr<PhysicsWorld> m_PhysicsWorld;
 	SceneState m_State = SceneState::Unloaded;
 	std::string m_SceneName;
-	std::string m_SkyboxPath = "Assets/Texture/sky.hdr";
+	std::string m_SkyboxPath/* = "Assets/Texture/sky.hdr"*/;
 };
 

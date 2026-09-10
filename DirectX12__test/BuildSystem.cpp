@@ -1,5 +1,6 @@
 ﻿#include "BuildSystem.hpp"
 #include "Logger.hpp"
+#include "Project.hpp"
 #include "imguiinit.hpp"
 #include <windows.h>
 #include <filesystem>
@@ -496,45 +497,44 @@ void BuildSystem::Build(const BuildSetting& settings)
             }
         }
 
-		SetStage(0.6f, IMGUI::ToUTF8("シェーダーコピー中..."));
+        SetStage(0.6f, IMGUI::ToUTF8("エンジンリソースコピー中..."));
 
-        // ---- 4. シェーダー(.hlsl/.hlsli)は Data/Shaders へ ----
-        for (auto& e : fs::directory_iterator(paths.srcDir, ec))
-        {
-            auto ext = e.path().extension();
-            if (ext == L".hlsl" || ext == L".hlsli")
-                fs::copy_file(e.path(), dataDir / "Shaders" / e.path().filename(),
-                    fs::copy_options::overwrite_existing, ec);
-        }
+        // ---- 4. エンジン同梱リソースは exe 横の EngineAssets へそのまま ----
+        // ユーザーからは見えないが実行には必要。Data/ ではなく outDir 直下に置く
+        fs::copy(paths.exeDir / "EngineAssets", outDir / "EngineAssets",
+            fs::copy_options::recursive | fs::copy_options::overwrite_existing, ec);
+        if (ec) PushLog("[Build] EngineAssets のコピーに失敗: " + ec.message());
 
-        // ---- 5. Assets は Data/Assets へ ----
+        // ---- 5. プロジェクトの Assets は Data/Assets へ ----
         SetStage(0.55f, IMGUI::ToUTF8("Assets コピー中..."));
 
+        // コピー元は開いているプロジェクト(エンジンのソースツリーではない)
+        const fs::path assetsRoot = PROJECT->GetRoot();
         bool assetsOk = false;
         if (settings.usedAssetsOnly)
         {
             PushLog("[Build] 使用アセットを収集中...");
             std::set<fs::path> files, dirs;
-            if (CollectUsedAssets(paths.srcDir, settings.startScene, files, dirs))
+            if (CollectUsedAssets(assetsRoot, settings.startScene, files, dirs))
             {
                 for (const auto& d : dirs)
                     PushLog("[Build]   フォルダ: " + d.string());
 
-                assetsOk = CopySelectedWithProgress(paths.srcDir, dataDir / "Assets",
+                assetsOk = CopySelectedWithProgress(assetsRoot, dataDir / "Assets",
                     files, dirs, 0.55f, 0.98f);
             }
             else
             {
                 // 収集できなかったときは取りこぼすより全部入れる
                 PushLog("[Build] 収集に失敗したため Assets を全部コピーします");
-                assetsOk = CopyTreeWithProgress(paths.srcDir / "Assets", dataDir / "Assets",
+                assetsOk = CopyTreeWithProgress(assetsRoot / "Assets", dataDir / "Assets",
                     0.55f, 0.98f);
             }
         }
         else
         {
             PushLog("[Build] Assets をコピー中...");
-            assetsOk = CopyTreeWithProgress(paths.srcDir / "Assets", dataDir / "Assets",
+            assetsOk = CopyTreeWithProgress(assetsRoot / "Assets", dataDir / "Assets",
                 0.55f, 0.98f);
         }
 

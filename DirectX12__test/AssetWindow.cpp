@@ -107,13 +107,13 @@ void EditorWindow::DrawAssetPanel(SceneManager& sceneManager)
 
 				if (isFolder)
 				{
-					iconPath = L"Assets/Icons/Folder.png";
+					iconPath = EngineAssetPath(L"Icons/Folder.png").wstring();
 					label = "DIR";
 					color = ImVec4(0.8f, 0.7f, 0.3f, 1.0f);
 				}
 				else if (ext == ".fbx" || ext == ".obj")
 				{
-					iconPath = L"Assets/Icons/Model.png";
+					iconPath = EngineAssetPath(L"Icons/Model.png").wstring();
 					label = "3D";
 					color = ImVec4(0.8f, 0.5f, 0.2f, 1.0f);
 				}
@@ -125,13 +125,13 @@ void EditorWindow::DrawAssetPanel(SceneManager& sceneManager)
 				}
 				else if (ext == ".json")
 				{
-					iconPath = L"Assets/Icons/Json.png";
+					iconPath = EngineAssetPath(L"Icons/Json.png").wstring();
 					label = "JSON";
 					color = ImVec4(0.3f, 0.5f, 0.8f, 1.0f);
 				}
 				else
 				{
-					iconPath = L"Assets/Icons/File.png";
+					iconPath = EngineAssetPath(L"Icons/File.png").wstring();
 				}
 
 				const bool selected = (m_SelectedAsset == fullPath);
