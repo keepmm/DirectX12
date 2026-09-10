@@ -45,6 +45,14 @@ public:
 		{
 			owner->RegisterFieldPtr(name, ptr);
 		}
+
+		/// @brief 範囲付き(SERIALIZE_FIELD_RANGE 用)
+		template<typename T, typename U>
+		FieldRegistrar(MonoBehavior* owner, const char* name, T* ptr, U minValue, U maxValue)
+		{
+			owner->RegisterFieldPtr(name, ptr);
+			owner->SetLastFieldRange(minValue, maxValue);
+		}
 	};
 
 	MonoBehavior() = default;
@@ -59,6 +67,26 @@ public:
 	virtual void OnFixedUpdate(_In_ float deltatime) {}
 	virtual void OnLateUpdate(_In_ float deltatime) {}
 	virtual void OnDraw(_In_ const RenderContext& context) {}
+
+	/// @brief enabled が false→true になったフレームに呼ばれる
+	virtual void OnEnable() {}
+	/// @brief enabled が true→false になったフレームに呼ばれる
+	virtual void OnDisable() {}
+	/// @brief Entity が破棄される直前に呼ばれる
+	virtual void OnDestroy() {}
+
+	/// @brief false の間は Update / FixedUpdate / LateUpdate / Draw が止まる
+	bool enabled = true;
+
+	/// @brief enabled の変化を見て OnEnable / OnDisable を発火する
+	/// @note ScriptSystem が毎フレーム呼ぶ。スクリプト側から呼ぶ必要はない
+	void SyncEnableState()
+	{
+		if (enabled == m_PrevEnabled) return;
+		m_PrevEnabled = enabled;
+		if (enabled) OnEnable();
+		else         OnDisable();
+	}
 
 	/*
 	*	当たり判定 
@@ -109,6 +137,66 @@ public:
 		return m_World->AddComponent<T>(m_Entity, component);
 	}
 
+	/// @brief 他のEntityのコンポーネントを取得する
+	/// @tparam T 取得するコンポーネントの型
+	/// @param entity 対象のEntity
+	template<typename T>
+	T& GetComponent(_In_ Entity entity)
+	{
+		return m_World->GetComponent<T>(entity);
+	}
+
+	/// @brief 他のEntityが指定したコンポーネントを持つか
+	template<typename T>
+	bool HasComponent(_In_ Entity entity) const
+	{
+		return m_World->HasComponent<T>(entity);
+	}
+
+	/// @brief Entityが生存しているか
+	/// @note EntityRef は破棄後も値が残るので、参照前にこれで確認する
+	bool IsAlive(_In_ Entity entity) const
+	{
+		return m_World->IsEntityAlive(entity);
+	}
+
+	/// @brief 名前でEntityを探す(最初に見つかったもの)
+	/// @param name NameComponent の名前
+	/// @return 見つからなければ INVALID_ENTITY
+	/// @note 毎回の全走査になるので OnUpdate では呼ばず OnStart で拾っておくこと
+	Entity Find(_In_ const std::string& name) const
+	{
+		Entity found = INVALID_ENTITY;
+		m_World->Each<NameComponent>([&found, &name](Entity e, NameComponent& n)
+			{
+				if (found == INVALID_ENTITY && n.name == name) found = e;
+			});
+		return found;
+	}
+
+	/// @brief 親のEntityを取得する
+	/// @return 親が無ければ INVALID_ENTITY
+	Entity GetParent() const
+	{
+		if (m_World->HasComponent<TransformComponent>(m_Entity))
+			return m_World->GetComponent<TransformComponent>(m_Entity).parent;
+		if (m_World->HasComponent<RectTransformComponent>(m_Entity))
+			return m_World->GetComponent<RectTransformComponent>(m_Entity).parent;
+		return INVALID_ENTITY;
+	}
+
+	/// @brief 自分の子のEntityを集める
+	std::vector<Entity> GetChildren() const
+	{
+		std::vector<Entity> children;
+		const Entity self = m_Entity;
+		m_World->Each<TransformComponent>([&children, self](Entity e, TransformComponent& tr)
+			{
+				if (tr.parent == self) children.push_back(e);
+			});
+		return children;
+	}
+
 	/// @brief BehaviorにWolrdとEntityを紐づける
 	/// @param world 紐づけるWolrdのポインタ
 	/// @param entity EntityのID
@@ -123,10 +211,12 @@ public:
 	/// @return シリアライズフィールドの配列の参照
 	inline const std::vector<SerializeField>& GetField() noexcept
 	{
-		if (m_FieldsBuilt == false)
+		// SERIALIZE_FIELD(コンストラクタ登録)と RegisterFields(virtual)は併用できる。
+		// 片方が走ったからといってもう片方を飛ばさない
+		if (m_RegisterFieldsCalled == false)
 		{
+			m_RegisterFieldsCalled = true;
 			RegisterFields();
-			m_FieldsBuilt = true;
 		}
 		return m_SerializeFields;
 	}
@@ -197,6 +287,7 @@ protected:
 		else if constexpr (std::is_same_v<T, float4>) return SerializeField::Type::Float4;
 		else if constexpr (std::is_same_v<T, std::string>) return SerializeField::Type::String;
 		else if constexpr (std::is_same_v<T, bool>) return SerializeField::Type::Bool;
+		else if constexpr (std::is_same_v<T, EntityRef>) return SerializeField::Type::Entity;
 		else static_assert(sizeof(T) == 0, "Unsupported type for Field");
 	}
 
@@ -204,7 +295,14 @@ protected:
 	void RegisterFieldPtr(const std::string& name, T* ptr)
 	{
 		m_SerializeFields.push_back({ name, FieldTypeOf<T>(), ptr });
-		m_FieldsBuilt = true;   // コンストラクタ登録済みフラグ
+	}
+
+	/// @brief 直前に登録したフィールドへ範囲を設定する
+	template<typename T>
+	void SetLastFieldRange(T minValue, T maxValue)
+	{
+		if (m_SerializeFields.empty()) return;
+		m_SerializeFields.back().Range(minValue, maxValue);
 	}
 
 	template<typename T>
@@ -265,9 +363,18 @@ private:
 	std::string m_ScriptName;
 
 	mutable std::vector<SerializeField> m_SerializeFields;
-	mutable bool m_FieldsBuilt = false;
+	mutable bool m_RegisterFieldsCalled = false;
+
+	bool m_PrevEnabled = true;
 };
 
-#define SERIALIZE_FIELD(Type,name, ...)		\
-	Type name{___VA_ARGS___};				\
-	MonoBehavior::FieldRegistrar _field_##name{ this, #name, &name}
+/// @brief メンバ宣言と同時にインスペクタへ公開する
+/// @note SERIALIZE_FIELD(float, speed, 5.0f) のように初期値を渡せる
+#define SERIALIZE_FIELD(Type, name, ...)	\
+	Type name{ __VA_ARGS__ };				\
+	MonoBehavior::FieldRegistrar _field_##name{ this, #name, &name }
+
+/// @brief 範囲付きで公開する(インスペクタがスライダーになる)
+#define SERIALIZE_FIELD_RANGE(Type, name, minValue, maxValue, ...)	\
+	Type name{ __VA_ARGS__ };										\
+	MonoBehavior::FieldRegistrar _field_##name{ this, #name, &name, minValue, maxValue }

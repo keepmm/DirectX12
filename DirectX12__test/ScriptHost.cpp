@@ -12,7 +12,8 @@
 #include "PlayState.hpp"
 #include "imguiinit.hpp"
 #include "RuntimeScene.hpp"
-
+#include "PrefabLibrary.hpp"
+#include "Project.hpp"
 
 static cr_plugin s_plugin;
 static ScriptContext s_ctx;
@@ -20,9 +21,11 @@ static std::vector<std::string> s_scriptNames;
 static bool s_isOpen = false;
 
 // ---- 自動ビルド用 ---- //
-static std::filesystem::path s_ScriptsSrcDir;
-static std::filesystem::path s_ProjPath;
+static std::filesystem::path s_ScriptsSrcDir;   // 監視対象(プロジェクトの Assets)
+static std::filesystem::path s_ProjPath;        // プロジェクトの Scripts.vcxproj
 static std::filesystem::path s_SlnDir;
+static std::filesystem::path s_EngineDir;       // エンジンのヘッダがある場所
+static std::filesystem::path s_EngineOutDir;    // DirectX12__test.lib がある場所(=exe横)
 static std::string s_msbuild =
     "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Current\\Bin\\MSBuild.exe";
 static std::filesystem::file_time_type s_lastSrcTime{};
@@ -76,6 +79,13 @@ static void LaunchBuild()
 {
     if (s_building.exchange(true)) return;
 
+    // ファイルが増減している可能性があるので一覧を作り直してからビルドする
+    std::string err;
+    if (!PROJECT->RefreshScriptProjectSources(err))
+    {
+        LOG->LogWarning(err);
+    }
+
     std::thread([] {
         // エンジン自身のビルド構成と必ず一致させる(Debug/Release混在はABI不一致で即クラッシュ)
 #ifdef _DEBUG
@@ -83,10 +93,13 @@ static void LaunchBuild()
 #else
         constexpr const char* kConfig = "Release";
 #endif
+        // 生成した vcxproj はエンジンの場所を焼き込んでいないので /p: で渡す。
+        // 末尾の区切りは付ける($(EngineDir)..\Scripts\ の連結が前提)
         std::string cmd =
             "\"" + s_msbuild + "\" \"" + s_ProjPath.string() + "\""
             " /p:Configuration=" + std::string(kConfig) + " /p:Platform=x64"
-            " /p:SolutionDir=" + s_SlnDir.string() + "\\"
+            " /p:EngineDir=\"" + s_EngineDir.string() + "\\\\\""
+            " /p:EngineOutDir=\"" + s_EngineOutDir.string() + "\\\\\""
             " /nologo /clp:NoSummary /v:minimal";
 
         // 子プロセスの stdout/stderr を受け取るパイプ
@@ -145,9 +158,11 @@ static void CheckAndBuild()
     std::error_code ec;
     std::filesystem::file_time_type maxT{};
     int count = 0;
-    for (auto& e : std::filesystem::directory_iterator(s_ScriptsSrcDir, ec))
+    // スクリプトは Assets のどこに置いてもよいので再帰で見る
+    for (auto& e : std::filesystem::recursive_directory_iterator(s_ScriptsSrcDir, ec))
     {
-        if (!e.is_regular_file()) continue;
+        if (ec) break;
+        if (!e.is_regular_file(ec)) continue;
         auto ext = e.path().extension();
         if (ext == ".cpp" || ext == ".hpp")
         {
@@ -196,26 +211,53 @@ void ScriptHost::Open(World* world)
                 rs->LaunchFirework(float3{ x,y,z }, shape, float3{ r,g,b }, text);
         };
 
-	// DLLのパスをexeの位置から逆算
+    // プレハブ生成。PrefabLibrary も Scene も exe 側にあるのでここで橋渡しする
+    s_ctx.instantiate = [](const char* prefabName) -> std::uint32_t
+        {
+            auto* rs = RuntimeScene::Current();
+            if (rs == nullptr || prefabName == nullptr) return INVALID_ENTITY;
+
+            if (!PrefabLibrary::Get().HasPrefab(prefabName))
+            {
+                LOG->LogWarning(std::string("Instantiate: プレハブが見つかりません: ") + prefabName);
+                return INVALID_ENTITY;
+            }
+            return PrefabLibrary::Get().Instantiate(prefabName, *rs, rs->GetWorld());
+        };
+
+    // 破棄は即時にしない。更新中のストレージを壊さないようフレーム末へ回す
+    s_ctx.destroyEntity = [](std::uint32_t entity)
+        {
+            if (auto* rs = RuntimeScene::Current())
+                rs->GetWorld().DestroyEntityDeferred(static_cast<Entity>(entity));
+        };
+
     char exePath[MAX_PATH];
     GetModuleFileNameA(nullptr, exePath, MAX_PATH);
-    auto exeDir = std::filesystem::path(exePath).parent_path();
-    std::filesystem::path dll = exeDir/ "Bin" / "Scripts.dll";
-    if(!std::filesystem::exists(dll))
-		dll = exeDir / "Scripts.dll";   // Binにない場合はexe直下も見る
+    const auto exeDir = std::filesystem::path(exePath).parent_path();
 
-    // ソース / プロジェクトパスをexeの位置から逆算
+    // ---- エンジン側(ヘッダ / 足場 / DirectX12__test.lib) ---- //
     s_SlnDir = exeDir.parent_path().parent_path();
-    s_ScriptsSrcDir = s_SlnDir / "DirectX12__test" / "Assets" / "Scripts";
-    s_ProjPath = s_SlnDir / "Scripts" / "Scripts.vcxproj";
+    s_EngineDir = s_SlnDir / "DirectX12__test";
+    s_EngineOutDir = exeDir;
 
-    OutputDebugStringA(("[ScriptHost] watch = " + dll.string() + "\n").c_str());
+    // ---- プロジェクト側 ---- //
+    s_ScriptsSrcDir = PROJECT->GetRoot() / "Assets";
+    s_ProjPath = PROJECT->GetScriptProjectPath();
+
+    const std::filesystem::path dll = PROJECT->GetLibraryDir() / "Scripts.dll";
+
+    LOG->LogInfo("[Scripts] watch  = " + s_ScriptsSrcDir.string());
+    LOG->LogInfo("[Scripts] proj   = " + s_ProjPath.string());
+    LOG->LogInfo("[Scripts] dll    = " + dll.string());
 
     if (!cr_plugin_open(s_plugin, dll.string().c_str()))
     {
-        OutputDebugStringA("[ScriptHost] cr_plugin_open 失敗\n");
+        // 初回はまだビルドされていないので普通に起きる。Update 側で開き直す
+        LOG->LogInfo("[Scripts] DLL 未生成。ビルド後に開き直します");
         return;
     }
+    LOG->LogInfo("[Scripts] cr_plugin_open 成功");
     s_isOpen = true;
 }
 
@@ -224,17 +266,12 @@ void ScriptHost::Update(float dt, World* world)
     // まだ開けていなければ、DLLの存在を見て開く（初回ビルド/後追い対応）
     if (!s_isOpen)
     {
-        char exePath[MAX_PATH];
-        GetModuleFileNameA(nullptr, exePath, MAX_PATH);
-        auto exeDir = std::filesystem::path(exePath).parent_path();
-        std::filesystem::path dll = exeDir / "Bin" / "Scripts.dll";
-        if (!std::filesystem::exists(dll))
-            dll = exeDir / "Scripts.dll";
+        const std::filesystem::path dll = PROJECT->GetLibraryDir() / "Scripts.dll";
         if (std::filesystem::exists(dll) &&
             cr_plugin_open(s_plugin, dll.string().c_str()))
         {
             s_isOpen = true;
-			OutputDebugStringA("[ScriptHost] cr_plugin_open 後追い成功\n");
+            LOG->LogInfo("[Scripts] cr_plugin_open 後追い成功: " + dll.string());
         }
     }
 
@@ -249,7 +286,26 @@ void ScriptHost::Update(float dt, World* world)
     s_ctx.deltaTime = dt;
     s_ctx.world = world;
     s_ctx.isPlaing = PLAY.isPlaying();
+
+    const unsigned int prevVersion = s_plugin.version;
     cr_plugin_update(s_plugin);
+
+    // ロード/リロードが起きたときだけ結果を出す(毎フレーム出すとログが埋まる)
+    if (s_plugin.version != prevVersion)
+    {
+        LOG->LogInfo("[Scripts] リロード完了 version=" + std::to_string(s_plugin.version)
+            + " scripts=" + std::to_string(s_scriptNames.size()));
+    }
+
+    static int lastFailure = -1;
+    if (static_cast<int>(s_plugin.failure) != lastFailure)
+    {
+        lastFailure = static_cast<int>(s_plugin.failure);
+        if (s_plugin.failure != CR_NONE)
+        {
+            LOG->LogError("[Scripts] cr failure = " + std::to_string(lastFailure));
+        }
+    }
 }
 void ScriptHost::Close()
 {

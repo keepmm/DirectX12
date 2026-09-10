@@ -6,6 +6,7 @@
 #include "Components.hpp"
 #include "AnimatorClipCache.hpp"
 #include "RenderContext.hpp"
+#include "FramePipeline.hpp"
 #include "Mesh.hpp"
 #include "Material.hpp"
 #include "FontAtlas.hpp"
@@ -122,10 +123,114 @@ inline bool IsToonShader(const std::string& name)
 {
 	return name.find("Toon") != std::string::npos;
 }
+#ifdef _FRAMEPIPELINE
+/// @brief そのフレームで確定した描画1件
+/// @note FramePipeline.hpp ではなくここで定義しているのは、
+///       Mesh / Material の完全型が要るため(あちらに include すると循環する)
+struct FO_DrawItem
+{
+	float4x4 world{};
+
+	std::shared_ptr<Mesh>     mesh;
+	std::shared_ptr<Material> material;
+	std::vector<std::shared_ptr<Material>> materials;   // サブメッシュ用(空なら単体)
+	std::string shaderName;
+
+	// ボーンパレット。スキン無しは共有の単位行列を指すのでフレームメモリを食わない
+	const BoneCB* boneCb = nullptr;
+
+	// 頂点モーフ。nullptr なら無し
+	const DirectX::XMFLOAT3* morphOffsets = nullptr;
+	UINT morphVertexCount = 0;
+};
+
+/// @brief スキン無しエンティティが共有する単位行列パレット
+inline const BoneCB& IdentityBoneCB()
+{
+	static const BoneCB cb = []
+		{
+			BoneCB c{};
+			DirectX::XMFLOAT4X4 id;
+			DirectX::XMStoreFloat4x4(&id, DirectX::XMMatrixIdentity());
+			for (auto& m : c.boneMatrices) m = id;
+			c.morph = 0.0f;
+			return c;
+		}();
+	return cb;
+}
+#endif
 
 class RenderSystem
 {
 public:
+#ifdef _FRAMEPIPELINE
+	/// @brief World を走査して FO_DrawItem を積む(Game フェーズで呼ぶ)
+	/// @note ここを通したあと Render 側は World を一切読まない
+	static void Publish(_In_ World& world, _In_ FramePipeline& fp)
+	{
+		world.Each<TransformComponent, MeshComponent, MaterialComponent>(
+			[&world, &fp](Entity entity,
+				TransformComponent& transform,
+				MeshComponent& mesh,
+				MaterialComponent& material)
+			{
+				if (mesh.mesh == nullptr || material.material == nullptr)
+				{
+					return;
+				}
+
+				FO_DrawItem item{};
+				item.world = transform.world;
+				item.mesh = mesh.mesh;
+				item.material = material.material;
+				item.materials = material.materials;
+				item.shaderName = material.shaderName;
+
+				if (world.HasComponent<AnimatorComponent>(entity))
+				{
+					const auto& an = world.GetComponent<AnimatorComponent>(entity);
+
+					// スキンありのぶんだけフレームメモリを使う(1体 32KB)
+					auto* cb = static_cast<BoneCB*>(
+						fp.AllocateFrameMemory(sizeof(BoneCB), alignof(BoneCB)));
+
+					const size_t n = (std::min)(an.palette.size(), static_cast<size_t>(MAX_BONES));
+					for (size_t i = 0; i < n; ++i) cb->boneMatrices[i] = an.palette[i];
+					for (size_t i = n; i < MAX_BONES; ++i)
+						DirectX::XMStoreFloat4x4(&cb->boneMatrices[i], DirectX::XMMatrixIdentity());
+
+					bool anyMorph = false;
+					for (float w : an.morphWeights)
+						if (fabsf(w) > 1e-6f) { anyMorph = true; break; }
+					cb->morph = anyMorph ? 1.0f : 0.0f;
+
+					item.boneCb = cb;
+
+					// モーフはフレームメモリへスナップショットする。
+					// World 側の配列を指すと、Game が次フレームを進めた瞬間に壊れる
+					const size_t vcount = mesh.mesh->GetVertexCount();
+					if (anyMorph && an.morphoffsets.size() == vcount && vcount > 0)
+					{
+						const size_t bytes = vcount * sizeof(DirectX::XMFLOAT3);
+						auto* dst = static_cast<DirectX::XMFLOAT3*>(
+							fp.AllocateFrameMemory(bytes, alignof(DirectX::XMFLOAT3)));
+						std::memcpy(dst, an.morphoffsets.data(), bytes);
+
+						item.morphOffsets = dst;
+						item.morphVertexCount = static_cast<UINT>(vcount);
+					}
+				}
+				else
+				{
+					// スキン無しは共有の単位行列を指す(フレームメモリを消費しない)
+					item.boneCb = &IdentityBoneCB();
+				}
+
+				fp.AddFrameObject<FO_DrawItem>(std::move(item));
+			});
+	}
+#endif
+
 	void Draw(
 		_In_ World& world,
 		_In_ const RenderContext& renderContext,
@@ -678,7 +783,11 @@ public:
 		world.Each<ScriptComponent>([](Entity, ScriptComponent& sc)
 			{
 				for (auto& b : sc.behaviors)
+				{
+					if (!b) continue;
+					b->SyncEnableState();
 					b->OnStart();
+				}
 			});
 	}
 
@@ -687,7 +796,14 @@ public:
 		world.Each<ScriptComponent>([deltatime](Entity, ScriptComponent& sc)
 			{
 				for (auto& b : sc.behaviors)
+				{
+					if (!b) continue;
+					// enabled の切り替わりはここで拾う。
+					// 無効側でも呼ぶのは OnDisable を落とさないため
+					b->SyncEnableState();
+					if (!b->enabled) continue;
 					b->OnUpdate(deltatime);
+				}
 			});
 	}
 
@@ -696,7 +812,10 @@ public:
 		world.Each<ScriptComponent>([deltatime](Entity, ScriptComponent& sc)
 			{
 				for (auto& b : sc.behaviors)
+				{
+					if (!b || !b->enabled) continue;
 					b->OnFixedUpdate(deltatime);
+				}
 			});
 	}
 
@@ -705,7 +824,10 @@ public:
 		world.Each<ScriptComponent>([deltatime](Entity, ScriptComponent& sc)
 			{
 				for (auto& b : sc.behaviors)
+				{
+					if (!b || !b->enabled) continue;
 					b->OnLateUpdate(deltatime);
+				}
 			});
 	}
 
@@ -714,7 +836,28 @@ public:
 		world.Each<ScriptComponent>([&context](Entity, ScriptComponent& sc)
 			{
 				for (auto& b : sc.behaviors)
+				{
+					if (!b || !b->enabled) continue;
 					b->OnDraw(context);
+				}
+			});
+	}
+
+	/// @brief 破棄予約されている Entity の OnDestroy を呼ぶ
+	/// @note World::FlushDestroyQueue の直前に呼ぶこと。
+	///       実際に消えたあとでは behaviors ごと無くなっている
+	void NotifyPendingDestroy(World& world)
+	{
+		if (!world.HasPendingDestroy()) return;
+
+		world.Each<ScriptComponent>([&world](Entity e, ScriptComponent& sc)
+			{
+				if (world.IsPendingDestroy(e) == false) return;
+				for (auto& b : sc.behaviors)
+				{
+					if (!b) continue;
+					b->OnDestroy();
+				}
 			});
 	}
 };
@@ -1346,6 +1489,27 @@ public:
 								a.clips.push_back(std::move(vc));
 							});
 					}
+				}
+
+				// ---- モーフオフセットの確定 ---- //
+				// 以前は RenderSystem::Draw の中で再計算していたが、
+				// 描画から World を書き換えることになり Game/Render を分けられない。
+				// クリップが無くてもモーフだけ動かすケースがあるので、
+				// 下の early return より前で処理する
+				if (an.morphDirty)
+				{
+					size_t vcount = 0;
+					if (world.HasComponent<MeshComponent>(e))
+					{
+						const auto& mc = world.GetComponent<MeshComponent>(e);
+						if (mc.mesh) vcount = mc.mesh->GetVertexCount();
+					}
+
+					if (vcount > 0)
+					{
+						RebuildMorphOffsets(an.morphs, an.morphWeights, vcount, an.morphoffsets);
+					}
+					an.morphDirty = false;
 				}
 
 				if (an.clips.empty()) return;

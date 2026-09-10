@@ -94,25 +94,7 @@ int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCm
 		// プロジェクトが決まらないならランチャーに委譲して自分は終了する
 		if (!PROJECT->IsOpen())
 		{
-			wchar_t exePath[MAX_PATH]{};
-			GetModuleFileNameW(nullptr, exePath, MAX_PATH);
-			const auto launcher = std::filesystem::path(exePath).parent_path() / L"Launcher.exe";
-
-			if (std::filesystem::exists(launcher))
-			{
-				STARTUPINFOW si{ sizeof(si) };
-				PROCESS_INFORMATION pi{};
-				std::wstring cmd = L"\"" + launcher.wstring() + L"\"";
-				std::vector<wchar_t> buf(cmd.begin(), cmd.end());
-				buf.push_back(L'\0');
-
-				if (CreateProcessW(launcher.c_str(), buf.data(), nullptr, nullptr, FALSE,
-					0, nullptr, nullptr, &si, &pi))
-				{
-					CloseHandle(pi.hThread);
-					CloseHandle(pi.hProcess);
-				}
-			}
+			LaunchLauncher();
 			CoUninitialize();
 			return 0;
 		}

@@ -10,6 +10,7 @@
 
 #include "Scene.hpp"
 #include "Systems.hpp"
+#include "FramePipeline.hpp"
 #include "DebugLineRenderer.hpp"
 #include "BeamRenderer.hpp"
 #include "FireworkSystem.hpp"
@@ -69,6 +70,11 @@ public:
 			static_cast<FireworkSystem::Shape>(shape), color, text ? text : "");
 	}
 	static RuntimeScene* Current() { return s_Current; }
+	/// @brief そのフレームで確定したカメラ/ライトを FramePipeline へ積む
+	/// @note Game フェーズの最後に、アクティブシーンに対してだけ呼ぶ
+	///       (SceneManager::LateUpdate)。これ以降 Draw は World を直接読まない
+	void PublishFrameObjects();
+
 private:
 	void DrawGizmos(const RenderContext& renderContext);
 

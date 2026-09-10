@@ -24,6 +24,9 @@
 #include <cstring>
 #include <algorithm>
 #include "Project.hpp"
+#include "json.hpp"
+
+using json = nlohmann::json;
 
 #pragma comment(lib, "psapi.lib")
 
@@ -171,53 +174,33 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 	{
 		if (ImGui::BeginMenu(u8("ファイル")))
 		{
-			if (ImGui::MenuItem(u8("新規プロジェクト...")))
+			// プロジェクトの切り替えはランチャーに任せる。
+			// プロセス内で CWD だけ変えても、シーンやアセットが古いまま残るため
+			if (ImGui::MenuItem(u8("プロジェクトを切り替え...")))
 			{
-				m_ShowNewProject = true;
+				m_ShowSwitchProject = true;
 				m_ProjectError.clear();
 			}
-
-			if (ImGui::MenuItem(u8("プロジェクトを開く...")))
-			{
-				const std::string dir = PickProjectFolder();
-				if (!dir.empty())
-				{
-					std::string err;
-					if (!PROJECT->Open(dir, err))
-					{
-						m_ProjectError = err;
-						m_ShowNewProject = true;   // エラー表示のため同じ窓を使う
-					}
-				}
-			}
-
-			if (ImGui::BeginMenu(u8("最近のプロジェクト")))
-			{
-				for (const auto& r : PROJECT->GetRecents())
-				{
-					if (ImGui::MenuItem(r.c_str()))
-					{
-						std::string err;
-						if (!PROJECT->Open(r, err)) m_ProjectError = err;
-					}
-				}
-				ImGui::EndMenu();
-			}
-
 			ImGui::Separator();
 
 			if (ImGui::MenuItem(u8("シーンを保存"), "Ctrl+S"))
 			{
-				if (ImGui::MenuItem(u8("シーンを保存"), "Ctrl+S"))
+				if (activeScene)
 				{
-					if (activeScene)
+					const std::string path =
+						SceneManager::ScenePathFromName(activeScene->GetSceneName());
+
+					if (SceneSerializer::Save(*activeScene, path))
 					{
-						SceneSerializer::Save(*activeScene,
-							SceneManager::ScenePathFromName(activeScene->GetSceneName()));
+						LOG->LogInfo("シーンを保存しました: " + path);
+					}
+					else
+					{
+						LOG->LogError("シーンの保存に失敗しました: " + path);
 					}
 				}
-				ImGui::EndMenu();
 			}
+
 			ImGui::EndMenu();
 		}
 
@@ -335,6 +318,8 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 
 		ImGui::EndMainMenuBar();
 	}
+
+	DrawProjectDialog();
 
 	// ドッキングスペースのセットアップ
 	ImGuiViewport* viewport = ImGui::GetMainViewport();
@@ -1491,7 +1476,12 @@ void EditorWindow::CreateScriptFile(const std::string& die, const std::string& n
 		LOG->LogWarning("スクリプトファイルが既に存在します: " + cpp.string());
 	}
 
-	std::ofstream out(hpp);
+	// UTF-8 BOM を付ける。無いと MSVC がシステムのコードページ(932)として読み、
+	// 日本語コメントの末尾が改行を飲み込んで次の行がコメント扱いになる
+	static const char* kUtf8Bom = "\xEF\xBB\xBF";
+
+	std::ofstream out(hpp, std::ios::binary);
+	out << kUtf8Bom;
 	out <<
 		"#pragma once\n"
 		"#include \"MonoBehavior.hpp\"\n"
@@ -1508,25 +1498,19 @@ void EditorWindow::CreateScriptFile(const std::string& die, const std::string& n
 		"    }\n"
 		"};\n";
 
-	std::ofstream outcpp(cpp);
+	std::ofstream outcpp(cpp, std::ios::binary);
+	outcpp << kUtf8Bom;
 	outcpp <<
 		"#include \"" << name << ".hpp\"\n"
 		"#include \"RegisterScript.hpp\"\n\n"
 		"REGISTER_SCRIPT(" << name << ");\n";
 
-	// vsproj にも追加
-	auto toProjRel = [](const fs::path& p)
-		{
-			std::string s = p.lexically_normal().string();
-			std::replace(s.begin(), s.end(), '/', '\\');
-			return s;
-		};
 	out.close();
 	outcpp.close();
 
-	// プロジェクトに追加
-	AddToProject(toProjRel(cpp), toProjRel(hpp));
-
+	// vcxproj への登録は不要。
+	// ビルド直前に Project::RefreshScriptProjectSources が
+	// Assets 配下を走査して一覧を作り直す
 	LOG->LogInfo("スクリプト生成: " + hpp.string());
 }
 
@@ -1534,78 +1518,37 @@ void EditorWindow::OpenInEditor(const std::string& path)
 {
 	namespace fs = std::filesystem;
 
-	// exeからソリューションを逆算して .slnを探索
-	char exePath[MAX_PATH];
-	GetModuleFileNameA(NULL, exePath, MAX_PATH);
-	fs::path slnDir = fs::path(exePath).parent_path().parent_path().parent_path();
-	fs::path sln = slnDir / "DirectX12__test.sln";
+	const fs::path file = fs::absolute(path);
 
-	std::wstring wpath = std::filesystem::path(path).wstring();
-	std::wstring args = L"/edit \"" + wpath + L"\"";
-	ShellExecuteW(NULL, L"open", L"devenv.exe", args.c_str(), nullptr, SW_SHOWNORMAL);
-}
-
-void EditorWindow::AddToProject(const std::string cppPath, const std::string hppPath)
-{
-	namespace fs = std::filesystem;
-
-	// exe の場所から solutionDir を逆算（sln\x64\Debug\exe -> sln）
-	char exePath[MAX_PATH];
-	GetModuleFileNameA(nullptr, exePath, MAX_PATH);
-	fs::path slnDir = fs::path(exePath).parent_path().parent_path().parent_path();
-	fs::path scriptProj = slnDir / "Scripts" / "Scripts.vcxproj";
-
-	if (!fs::exists(scriptProj))
+	// VS から見えるように、開く前にファイル一覧を作り直しておく。
+	// これをしないと未ビルドのプロジェクトでは vcxproj が空で、
+	// 開いた .cpp が「その他のファイル」扱いになり IntelliSense が効かない
 	{
-		LOG->LogWarning("プロジェクトが見つかりません: " + scriptProj.string());
+		std::string err;
+		if (!PROJECT->RefreshScriptProjectSources(err))
+		{
+			LOG->LogWarning(err);
+		}
+	}
+
+	const fs::path sln = PROJECT->GetScriptSolutionPath();
+
+	// プロジェクトの sln があればそれごと開く。
+	// エンジンの sln とは別ファイルなので VS が別インスタンスで立ち上がる。
+	// /edit は「起動中のVSで開く」動作なのでここでは使わない
+	if (fs::exists(sln))
+	{
+		const std::wstring args =
+			L"\"" + sln.wstring() + L"\" \"" + file.wstring() + L"\"";
+		ShellExecuteW(nullptr, L"open", L"devenv.exe", args.c_str(),
+			nullptr, SW_SHOWNORMAL);
 		return;
 	}
 
-	// vcxproj 読み込み
-	std::ifstream in(scriptProj);
-	std::string xml((std::istreambuf_iterator<char>(in)), {});
-	in.close();
-
-	// 絶対パス（Windows区切り）
-	auto toWin = [](const std::string& p)
-		{
-			return fs::absolute(p).make_preferred().string();
-		};
-	const std::string cppAbs = toWin(cppPath);
-	const std::string hppAbs = toWin(hppPath);
-
-	// 既に登録済みなら何もしない（二重登録防止）
-	if (xml.find(cppAbs) != std::string::npos) return;
-
-	// 挿入する行
-	const std::string includeEntry =
-		"    <ClInclude Include=\"" + hppAbs + "\" />\r\n";
-	const std::string compileEntry =
-		"    <ClCompile Include=\"" + cppAbs + "\">\r\n"
-		"      <PrecompiledHeader>NotUsing</PrecompiledHeader>\r\n"
-		"    </ClCompile>\r\n";
-
-	// 行頭位置を求めるヘルパ
-	auto lineHead = [&](size_t pos)
-		{
-			size_t nl = xml.rfind('\n', pos);
-			return (nl == std::string::npos) ? size_t(0) : nl + 1;
-		};
-
-	// <ClInclude Include="framework.h" /> の前に hpp を挿入
-	if (size_t p = xml.find("<ClInclude Include=\"framework.h\" />"); p != std::string::npos)
-		xml.insert(lineHead(p), includeEntry);
-
-	// <ClCompile Include="cr_main.cpp" /> の前に cpp を挿入
-	if (size_t p = xml.find("<ClCompile Include=\"cr_main.cpp\" />"); p != std::string::npos)
-		xml.insert(lineHead(p), compileEntry);
-
-	// 書き戻し（BOMなし・改行そのまま）
-	std::ofstream out(scriptProj, std::ios::binary | std::ios::trunc);
-	out << xml;
-	out.close();
-
-	LOG->LogInfo("Scripts.vcxproj に追加: " + fs::path(cppPath).filename().string());
+	// sln が無いときは従来どおりファイル単体で開く
+	const std::wstring args = L"/edit \"" + file.wstring() + L"\"";
+	ShellExecuteW(nullptr, L"open", L"devenv.exe", args.c_str(),
+		nullptr, SW_SHOWNORMAL);
 }
 
 void EditorWindow::CreateFolder(const std::string& dir)
@@ -1622,6 +1565,121 @@ void EditorWindow::CreateFolder(const std::string& dir)
 	fs::create_directory(target, ec);
 	if (ec) LOG->LogWarning("フォルダ作成失敗: " + ec.message());
 	else    LOG->LogInfo("フォルダ作成: " + target.string());
+}
+
+void EditorWindow::RevealInExplorer(const std::string& path)
+{
+	namespace fs = std::filesystem;
+
+	const fs::path target = fs::absolute(path);
+	if (!fs::exists(target))
+	{
+		LOG->LogWarning("エクスプローラーで開けません: " + target.string());
+		return;
+	}
+
+	if (fs::is_directory(target))
+	{
+		ShellExecuteW(nullptr, L"open", target.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+	}
+	else
+	{
+		// ファイルは選択状態で開く
+		const std::wstring args = L"/select,\"" + target.wstring() + L"\"";
+		ShellExecuteW(nullptr, L"open", L"explorer.exe", args.c_str(), nullptr, SW_SHOWNORMAL);
+	}
+}
+
+void EditorWindow::DuplicateAsset(const std::string& path)
+{
+	namespace fs = std::filesystem;
+
+	const fs::path src = path;
+	const fs::path dir = src.parent_path();
+	const std::string stem = src.stem().string();
+	const std::string ext = src.extension().string();
+
+	// "Foo" → "Foo 1", "Foo 2", ... と重複回避
+	fs::path dst;
+	int n = 1;
+	do
+	{
+		dst = dir / (stem + " " + std::to_string(n++) + ext);
+	} while (fs::exists(dst));
+
+	std::error_code ec;
+	if (fs::is_directory(src))
+	{
+		fs::copy(src, dst, fs::copy_options::recursive, ec);
+	}
+	else
+	{
+		fs::copy_file(src, dst, ec);
+	}
+
+	if (ec) LOG->LogWarning("複製に失敗: " + ec.message());
+	else    LOG->LogInfo("複製: " + dst.string());
+}
+
+void EditorWindow::RenameAsset(const std::string& path, const std::string& newName)
+{
+	namespace fs = std::filesystem;
+
+	const fs::path src = path;
+	fs::path dst = src.parent_path() / newName;
+
+	// 拡張子を省略された場合は元の拡張子を引き継ぐ
+	if (!fs::is_directory(src) && dst.extension().empty())
+	{
+		dst += src.extension();
+	}
+
+	if (fs::exists(dst))
+	{
+		LOG->LogWarning("同名のファイルが既にあります: " + dst.string());
+		return;
+	}
+
+	std::error_code ec;
+	fs::rename(src, dst, ec);
+	if (ec) LOG->LogWarning("リネームに失敗: " + ec.message());
+	else    LOG->LogInfo("リネーム: " + src.string() + " -> " + dst.string());
+}
+
+void EditorWindow::DeleteAsset(const std::string& path)
+{
+	namespace fs = std::filesystem;
+
+	std::error_code ec;
+	const std::uintmax_t removed = fs::remove_all(path, ec);
+
+	if (ec) LOG->LogWarning("削除に失敗: " + ec.message());
+	else    LOG->LogInfo("削除: " + path + " (" + std::to_string(removed) + " 件)");
+}
+
+void EditorWindow::CreateSceneFile(const std::string& dir)
+{
+	namespace fs = std::filesystem;
+
+	fs::path target = fs::path(dir) / "NewScene.json";
+	int n = 1;
+	while (fs::exists(target))
+		target = fs::path(dir) / ("NewScene" + std::to_string(n++) + ".json");
+
+	// Project::WriteEmptyScene と同じ最小構成
+	// (SceneSerializer::LoadFromString が要求するのは entities だけ)
+	json j;
+	j["sceneName"] = target.stem().string();
+	j["entities"] = json::array();
+
+	std::ofstream ofs(target);
+	if (!ofs)
+	{
+		LOG->LogWarning("シーン作成に失敗: " + target.string());
+		return;
+	}
+	ofs << j.dump(4);
+	LOG->LogInfo("シーン作成: " + target.string());
 }
 
 void EditorWindow::DrawMmdPlayer(World& world)
@@ -1653,27 +1711,17 @@ void EditorWindow::DrawMmdPlayer(World& world)
 
 void EditorWindow::DrawProjectDialog()
 {
-	if (!m_ShowNewProject) return;
+	if (!m_ShowSwitchProject) return;
 
-	ImGui::OpenPopup(u8("新規プロジェクト"));
-	if (!ImGui::BeginPopupModal(u8("新規プロジェクト"), &m_ShowNewProject,
+	ImGui::OpenPopup(u8("プロジェクトを切り替え"));
+	if (!ImGui::BeginPopupModal(u8("プロジェクトを切り替え"), &m_ShowSwitchProject,
 		ImGuiWindowFlags_AlwaysAutoResize))
 	{
 		return;
 	}
 
-	ImGui::InputText(u8("プロジェクト名"), m_NewProjectName.data(), m_NewProjectName.size());
-
-	ImGui::InputText(u8("作成先"), m_NewProjectDir.data(), m_NewProjectDir.size());
-	ImGui::SameLine();
-	if (ImGui::Button(u8("参照...")))
-	{
-		const std::string dir = PickProjectFolder();
-		if (!dir.empty())
-		{
-			std::snprintf(m_NewProjectDir.data(), m_NewProjectDir.size(), "%s", dir.c_str());
-		}
-	}
+	ImGui::TextUnformatted(u8("ランチャーを開いてエディタを終了します。"));
+	ImGui::TextUnformatted(u8("保存していない変更は失われます。"));
 
 	if (!m_ProjectError.empty())
 	{
@@ -1682,31 +1730,24 @@ void EditorWindow::DrawProjectDialog()
 
 	ImGui::Separator();
 
-	const bool canCreate =
-		m_NewProjectName[0] != '\0' && m_NewProjectDir[0] != '\0';
-
-	ImGui::BeginDisabled(!canCreate);
-	if (ImGui::Button(u8("作成")))
+	if (ImGui::Button(u8("ランチャーを開く")))
 	{
-		std::string err;
-		if (PROJECT->Create(m_NewProjectDir.data(), m_NewProjectName.data(), err))
+		if (LaunchLauncher())
 		{
-			m_ProjectError.clear();
-			m_ShowNewProject = false;
-			ImGui::CloseCurrentPopup();
+			// Engine::Run のメッセージループが WM_QUIT で抜ける
+			PostQuitMessage(0);
 		}
 		else
 		{
-			m_ProjectError = err;
+			m_ProjectError = "Launcher.exe が見つかりません";
 		}
 	}
-	ImGui::EndDisabled();
 
 	ImGui::SameLine();
 	if (ImGui::Button(u8("キャンセル")))
 	{
 		m_ProjectError.clear();
-		m_ShowNewProject = false;
+		m_ShowSwitchProject = false;
 		ImGui::CloseCurrentPopup();
 	}
 

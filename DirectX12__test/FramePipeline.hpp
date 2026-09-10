@@ -171,6 +171,14 @@ public:
 		m_Fixed[GetFrameObjectTypeID<T>()].store(true, std::memory_order_release);
 	}
 
+	/// @brief FrameObject に添える可変長データ用のメモリを借りる
+	/// @note 生存期間は次の Reset まで。デストラクタは走らないので
+	///       trivially destructible なものだけを置くこと
+	void* AllocateFrameMemory(size_t size, size_t align = 16)
+	{
+		return m_Allocator.Allocate(size, align);
+	}
+
 private:
 	UINT64 m_FrameNumber = 0;
 	FrameAllocator m_Allocator;
@@ -216,6 +224,34 @@ struct FO_RenderSettings
 	E_PIXEL_SHADER  pixelShader;
 	bool wireframe;
 	bool meshShader;
+};
+
+/// @brief カメラの用途
+/// @note CameraComponent::CameraType と同じ並び。
+///       Components.hpp への依存を持ち込まないためにここで定義し直している
+enum class FO_CameraType : int
+{
+	Main,
+	Secondary
+};
+
+// そのフレームで確定したカメラ(存在するぶんだけ登録される)
+struct FO_Camera
+{
+	FO_CameraType type;
+	float4x4 view;
+	float4x4 projection;
+	float3   position;
+
+	// 被写界深度などが射影の near/far を要求するので持たせる
+	float nearZ = 0.1f;
+	float farZ = 100.0f;
+};
+
+// そのフレームで確定したライト定数(LightSystem の出力スナップショット)
+struct FO_Light
+{
+	LightCB cb;
 };
 
 #endif

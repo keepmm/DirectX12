@@ -99,7 +99,9 @@ HRESULT Engine::Init(HINSTANCE hInstance, int width, int height)
 #ifdef _FRAMEPIPELINE
 	for(auto& frame : m_FramePipeline)
 	{
-		frame.Init();
+		// FO_DrawItem がボーンパレット(1体 32KB)とモーフを載せるので広めに取る。
+		// 足りないと FrameAllocator の assert に落ちる
+		frame.Init(32 * 1024 * 1024);
 	}
 #endif
 
@@ -154,6 +156,14 @@ void Engine::Run()
 				}
 			}
 #endif
+#ifdef _FRAMEPIPELINE
+			// Game フェーズより前にスコープを張る。
+			// シーン側(RuntimeScene::PublishFrameObjects)が更新の最後に
+			// カメラ/ライトをこのパイプラインへ積むため
+			FramePipeline& fp = m_FramePipeline[frameNumber % RTV_NUM];
+			fp.Reset(frameNumber);
+			FramePipelineScope fpscope(&fp);
+#endif
 			Profiler::Get().BeginFrame();
 			IMGUI::BeginFrame();
 			IconLibrary::Get()->BeginFrame();
@@ -180,9 +190,6 @@ void Engine::Run()
 			OnUpdate();
 
 #ifdef _FRAMEPIPELINE
-			FramePipeline& fp = m_FramePipeline[frameNumber % RTV_NUM];
-			fp.Reset(frameNumber);
-			FramePipelineScope fpscope(&fp);
 			{
 				const auto& s = RenderSettings::Get();
 				fp.AddFrameObject<FO_RenderSettings>(FO_RenderSettings{ s.vertexShader, s.pixelShader, s.wireframe, s.meshShader });

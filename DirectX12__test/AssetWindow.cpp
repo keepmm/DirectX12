@@ -14,6 +14,7 @@
 #include "ImGuizmo.h"
 #include "PlayState.hpp"
 #include <shellapi.h>
+#include "Project.hpp"
 
 #pragma comment(lib, "psapi.lib")
 
@@ -217,6 +218,69 @@ void EditorWindow::DrawAssetPanel(SceneManager& sceneManager)
 					ImGui::EndTooltip();
 				}
 
+				// ---- アイテム上の右クリック ---- //
+				if (ImGui::BeginPopupContextItem("ItemCtx"))
+				{
+					// 右クリックした時点で選択も移す(Unity と同じ挙動)
+					m_SelectedAsset = fullPath;
+					m_ContextTarget = fullPath;
+
+					if (isFolder)
+					{
+						if (ImGui::MenuItem(u8("開く")))
+						{
+							pendingDir = fullPath;
+						}
+					}
+					else if (ext == ".json")
+					{
+						if (ImGui::MenuItem(u8("シーンを開く")))
+						{
+							pendingScenepath = fullPath;
+						}
+					}
+					else if (ext == ".hpp" || ext == ".h" || ext == ".cpp" ||
+						ext == ".c" || ext == ".hlsl" || ext == ".hlsli")
+					{
+						if (ImGui::MenuItem(u8("Visual Studio で開く")))
+						{
+							OpenInEditor(fullPath);
+						}
+					}
+
+					if (ImGui::MenuItem(u8("エクスプローラーで表示")))
+					{
+						RevealInExplorer(fullPath);
+					}
+
+					ImGui::Separator();
+
+					if (ImGui::MenuItem(u8("名前を変更"), "F2"))
+					{
+						std::snprintf(m_RenameBuffer, sizeof(m_RenameBuffer), "%s", name.c_str());
+						m_ShowRenamePopup = true;
+					}
+
+					if (ImGui::MenuItem(u8("複製"), "Ctrl+D"))
+					{
+						DuplicateAsset(fullPath);
+					}
+
+					if (ImGui::MenuItem(u8("削除"), "Delete"))
+					{
+						m_ShowDeletePopup = true;
+					}
+
+					ImGui::Separator();
+
+					if (ImGui::MenuItem(u8("パスをコピー")))
+					{
+						ImGui::SetClipboardText(fullPath.c_str());
+					}
+
+					ImGui::EndPopup();
+				}
+
 				// ---- 名前（タイル幅で折り返し）---- //
 				ImGui::PushTextWrapPos(ImGui::GetCursorPos().x + cellSize);
 				ImGui::TextUnformatted(name.c_str());
@@ -232,34 +296,55 @@ void EditorWindow::DrawAssetPanel(SceneManager& sceneManager)
 					ImGui::SameLine();
 				}
 
-				// 右クリックでコンテキストメニュー
-				if (ImGui::BeginPopupContextWindow("AssetCtx##", ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems))
-				{
-					if (ImGui::BeginMenu(u8("作成")))
-					{
-
-
-						if (ImGui::MenuItem(u8("フォルダーの作成")))
-						{
-							CreateFolder(m_CurrentAssetDir);
-						}
-
-						if (ImGui::MenuItem(u8("C++ スクリプト")))
-						{
-							// 作成処理(予定)
-							m_ShowCreateScriptPopup = true;
-						}
-						ImGui::EndMenu();
-					}
-					ImGui::EndPopup();
-				}
-
 				ImGui::PopID();
 			};
 
 		// フォルダ → ファイルの順で描画
 		for (const auto& f : folders) { drawTile(f, true); }
 		for (const auto& f : files) { drawTile(f, false); }
+
+		// ---- 空白部分の右クリック(タイルの上では出さない) ---- //
+		if (ImGui::BeginPopupContextWindow("AssetCtx##",
+			ImGuiPopupFlags_MouseButtonRight | ImGuiPopupFlags_NoOpenOverItems))
+		{
+			m_ContextTarget.clear();
+
+			if (ImGui::BeginMenu(u8("作成")))
+			{
+				if (ImGui::MenuItem(u8("フォルダー")))
+				{
+					CreateFolder(m_CurrentAssetDir);
+				}
+
+				ImGui::Separator();
+
+				if (ImGui::MenuItem(u8("シーン")))
+				{
+					CreateSceneFile(m_CurrentAssetDir);
+				}
+
+				if (ImGui::MenuItem(u8("C++ スクリプト")))
+				{
+					m_ShowCreateScriptPopup = true;
+				}
+
+				ImGui::EndMenu();
+			}
+
+			ImGui::Separator();
+
+			if (ImGui::MenuItem(u8("エクスプローラーで開く")))
+			{
+				RevealInExplorer(m_CurrentAssetDir);
+			}
+
+			if (ImGui::MenuItem(u8("プロジェクトのルートを開く")))
+			{
+				RevealInExplorer(PROJECT->GetRoot().string());
+			}
+
+			ImGui::EndPopup();
+		}
 
 		// ループ後にフォルダ移動を反映
 		if (!pendingDir.empty())
@@ -280,6 +365,50 @@ void EditorWindow::DrawAssetPanel(SceneManager& sceneManager)
 			if (ImGui::Button(u8("作成")) && m_NewScriptName[0] != '\0')
 			{
 				CreateScriptFile(m_CurrentAssetDir, m_NewScriptName);
+				ImGui::CloseCurrentPopup();
+			}
+			ImGui::SameLine();
+			if (ImGui::Button(u8("キャンセル"))) ImGui::CloseCurrentPopup();
+			ImGui::EndPopup();
+		}
+
+		// ---- 名前を変更 ---- //
+		if (m_ShowRenamePopup) { ImGui::OpenPopup("RenameAsset"); m_ShowRenamePopup = false; }
+		if (ImGui::BeginPopupModal("RenameAsset", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+		{
+			ImGui::InputText(u8("新しい名前"), m_RenameBuffer, sizeof(m_RenameBuffer));
+
+			const bool ok = m_RenameBuffer[0] != '\0' && !m_ContextTarget.empty();
+
+			ImGui::BeginDisabled(!ok);
+			if (ImGui::Button(u8("変更")))
+			{
+				RenameAsset(m_ContextTarget, m_RenameBuffer);
+				m_SelectedAsset.clear();
+				ImGui::CloseCurrentPopup();
+			}
+			ImGui::EndDisabled();
+
+			ImGui::SameLine();
+			if (ImGui::Button(u8("キャンセル"))) ImGui::CloseCurrentPopup();
+			ImGui::EndPopup();
+		}
+
+		// ---- 削除 ---- //
+		if (m_ShowDeletePopup) { ImGui::OpenPopup("DeleteAsset"); m_ShowDeletePopup = false; }
+		if (ImGui::BeginPopupModal("DeleteAsset", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
+		{
+			ImGui::Text(u8("削除しますか？"));
+			ImGui::TextDisabled("%s", m_ContextTarget.c_str());
+			ImGui::TextColored(ImVec4(1, 0.6f, 0.3f, 1), u8("元に戻せません。"));
+
+			ImGui::Separator();
+
+			if (ImGui::Button(u8("削除")))
+			{
+				DeleteAsset(m_ContextTarget);
+				m_SelectedAsset.clear();
+				m_ContextTarget.clear();
 				ImGui::CloseCurrentPopup();
 			}
 			ImGui::SameLine();

@@ -546,6 +546,16 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 				const std::string& name = sc.scriptNames[i];
 				ImGui::PushID(i);
 
+				// enabled は behaviors 側に持っている。DLL未ロード中は触れない
+				MonoBehavior* behavior =
+					(i < (int)sc.behaviors.size()) ? sc.behaviors[i].get() : nullptr;
+
+				if (behavior)
+				{
+					ImGui::Checkbox("##enabled", &behavior->enabled);
+					ImGui::SameLine();
+				}
+
 				ImGui::Text("%s", name.c_str());
 				ImGui::SameLine();
 				if (ImGui::SmallButton("Remove")) removeIdx = i;
@@ -557,10 +567,21 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 				{
 					FieldValue& v = vals[d.name];
 					v.type = d.type;
+
+					// Range が指定されていればスライダーにする
+					const bool hasRange = (d.rangeMin != d.rangeMax);
+
 					switch (d.type)
 					{
-					case FieldType::Int:    ImGui::DragInt(d.name.c_str(), &v.i); break;
-					case FieldType::Float:  ImGui::DragFloat(d.name.c_str(), &v.f[0]); break;
+					case FieldType::Int:
+						if (hasRange) ImGui::SliderInt(d.name.c_str(), &v.i, d.rangeMin, d.rangeMax);
+						else          ImGui::DragInt(d.name.c_str(), &v.i);
+						break;
+					case FieldType::Float:
+						if (hasRange) ImGui::SliderFloat(d.name.c_str(), &v.f[0],
+							(float)d.rangeMin, (float)d.rangeMax);
+						else          ImGui::DragFloat(d.name.c_str(), &v.f[0]);
+						break;
 					case FieldType::Float2: ImGui::DragFloat2(d.name.c_str(), v.f); break;
 					case FieldType::Float3:
 					case FieldType::Vector3:ImGui::DragFloat3(d.name.c_str(), v.f); break;
@@ -568,7 +589,16 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 					case FieldType::Float4:
 					case FieldType::Vector4:ImGui::DragFloat4(d.name.c_str(), v.f); break;
 					case FieldType::Bool:   ImGui::Checkbox(d.name.c_str(), &v.b); break;
-					case FieldType::String: /* InputText: v.s を char buf に橋渡し */ break;
+					case FieldType::String:
+					{
+						char buf[256];
+						std::snprintf(buf, sizeof(buf), "%s", v.s.c_str());
+						if (ImGui::InputText(d.name.c_str(), buf, sizeof(buf)))
+						{
+							v.s = buf;
+						}
+						break;
+					}
 					case FieldType::Entity:
 					{
 						Entity cur = (Entity)v.i;

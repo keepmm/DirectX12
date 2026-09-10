@@ -203,32 +203,123 @@ void RuntimeScene::LateUpdate(float deltatime)
 {
 	m_ScriptSystem.LateUpdate(m_World, deltatime);
 	(void)deltatime;
+
+	// GameAPI::Destroy の予約をここで消化する。
+	// 更新中に消すとストレージの走査が壊れるのでフレーム末に回している
+	if (m_World.HasPendingDestroy())
+	{
+		m_ScriptSystem.NotifyPendingDestroy(m_World);   // 消える前に OnDestroy
+		m_World.FlushDestroyQueue();
+	}
+}
+
+void RuntimeScene::PublishFrameObjects()
+{
+#ifdef _FRAMEPIPELINE
+	// Game フェーズの最後に、そのフレームで確定したカメラとライトを積む。
+	// これ以降 Render 側は World を直接読まずに済む
+	FramePipeline* fp = GetFrameThreadPipelineNullable();
+	if (fp == nullptr)
+	{
+		return;
+	}
+
+	fp->AddFrameObject<FO_Light>(FO_Light{ m_LightSystem.GetLightData() });
+
+	// NOTE: mmd-live では RenderSystem::Draw が FO_DrawItem を消費していないので
+	//       積んでも捨てるだけになる(スキン1体につき32KB)。Draw を移植するまで止めておく
+	// RenderSystem::Publish(m_World, *fp);
+
+	m_World.Each<CameraComponent>([&](Entity entity, CameraComponent& camera)
+		{
+			float3 position{ 0.0f, 0.0f, 0.0f };
+			if (m_World.HasComponent<TransformComponent>(entity))
+			{
+				position = m_World.GetComponent<TransformComponent>(entity).position;
+			}
+
+			fp->AddFrameObject<FO_Camera>(FO_Camera{
+				static_cast<FO_CameraType>(camera.cameraType),
+				camera.view,
+				camera.proj,
+				position,
+				camera.nearZ,
+				camera.farZ });
+		});
+#endif
 }
 
 void RuntimeScene::Draw(const RenderContext& renderContext)
 {
 	RenderContext context = renderContext;
-	context.lightCb = m_LightSystem.GetLightData();
 
 	const CameraComponent::CameraType wantType =
 		context.isSceneView ? CameraComponent::CameraType::Secondary
 		: CameraComponent::CameraType::Main;
 
-	const CameraComponent* cam = nullptr;
-	const CameraComponent* fallback = nullptr;
+	// 被写界深度が後段で使う。カメラの取得経路が2つあるのでここへ引き上げておく
+	float camNearZ = 0.1f;
+	float camFarZ = 100.0f;
 
-	m_World.Each<CameraComponent>([&](Entity, CameraComponent& camera)
-		{
-			if (camera.cameraType == wantType) cam = &camera;
-			else                               fallback = &camera;
-		});
-
-	if (!cam) cam = fallback;
-
-	if (cam)
+#ifdef _FRAMEPIPELINE
+	FramePipeline* fp = GetFrameThreadPipelineNullable();
+	if (fp != nullptr)
 	{
-		context.view = cam->view;
-		context.projection = cam->proj;
+		// ---- FrameObject 経路: World を読まずにこのフレームの確定値だけを使う ----
+		if (const FO_Light* light = fp->GetFrameObject<FO_Light>())
+		{
+			context.lightCb = light->cb;
+		}
+
+		const FO_CameraType want = static_cast<FO_CameraType>(wantType);
+		const FO_Camera* cam = nullptr;
+		const FO_Camera* fallback = nullptr;
+
+		// リストは登録の逆順で回るので、最初に見つかったものが
+		// 「最後に登録されたカメラ」になる(従来の Each と同じ勝ち方)
+		fp->ForEachFrameObject<FO_Camera>([&](const FO_Camera& c)
+			{
+				if (c.type == want) { if (!cam)      cam = &c; }
+				else                { if (!fallback) fallback = &c; }
+			});
+
+		if (!cam) cam = fallback;
+
+		if (cam)
+		{
+			context.view = cam->view;
+			context.projection = cam->projection;
+			camNearZ = cam->nearZ;
+			camFarZ = cam->farZ;
+		}
+
+		fp->FixFrameObject<FO_Camera>();
+		fp->FixFrameObject<FO_Light>();
+	}
+	else
+#endif
+	{
+		// ---- 従来経路(_FRAMEPIPELINE 無効時、およびスコープ外からの描画) ----
+		context.lightCb = m_LightSystem.GetLightData();
+
+		const CameraComponent* cam = nullptr;
+		const CameraComponent* fallback = nullptr;
+
+		m_World.Each<CameraComponent>([&](Entity, CameraComponent& camera)
+			{
+				if (camera.cameraType == wantType) cam = &camera;
+				else                               fallback = &camera;
+			});
+
+		if (!cam) cam = fallback;
+
+		if (cam)
+		{
+			context.view = cam->view;
+			context.projection = cam->proj;
+			camNearZ = cam->nearZ;
+			camFarZ = cam->farZ;
+		}
 	}
 
 	// ビューポート用レンダーテクスチャへの描画設定
@@ -492,8 +583,7 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 				DofCB cb{};
 				cb.focus = float4(dof->focusDistance, dof->focusRange,
 					dof->maxBlur, dof->falloff);
-				cb.proj = float4(cam ? cam->nearZ : 0.1f,
-					cam ? cam->farZ : 100.0f, 0.0f, 0.0f);
+				cb.proj = float4(camNearZ, camFarZ, 0.0f, 0.0f);
 
 				// 中間RTはウィンドウ全体ぶん。今描いている範囲だけを使うので、
 				// サンプル位置に シーンRT/ウィンドウ を掛けて合わせる
