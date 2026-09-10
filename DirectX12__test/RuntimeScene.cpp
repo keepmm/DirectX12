@@ -161,7 +161,8 @@ void RuntimeScene::Update(float deltatime)
 	{ PROFILE_SCOPE("Script"); m_ScriptSystem.Update(m_World, deltatime); }
 	m_SpinSystem.Update(m_World, deltatime);
 	{ PROFILE_SCOPE("LightSystem"); m_LightSystem.Apply(m_World); }
-	m_AudioSystem.Update(m_World, PLAY.isPlaying());
+	m_AudioSystem.Update(m_World, PLAY.isPlaying(),
+		PLAY.GetCurrentMode() == EngineMode::PAUSE);
 	m_MusicSyncSystem.Update(m_World, PLAY.isPlaying());
 	m_FreeLookSystem.Update(m_World, deltatime, CameraComponent::CameraType::Secondary);
 	m_CameraAnimationSystem.Update(m_World, deltatime,PLAY.isPlaying());
@@ -952,6 +953,18 @@ void RuntimeScene::DrawLaserBeams(const RenderContext& context, ID3D12PipelineSt
 
 void RuntimeScene::EditorUpdate(float dt)
 {
+<<<<<<< HEAD
+=======
+	// エディタでも曲を流してタイムラインを確認できるよう、
+	// オーディオ → 曲位置 → タイムライン → ライト の順で回す
+	// ポーズ中はここが呼ばれる(Update ではなく EditorUpdate に切り替わるため)。
+	// エディタへ戻ったときは停止、ポーズ中は位置を保ったまま止める
+	m_AudioSystem.Update(m_World, false,
+		PLAY.GetCurrentMode() == EngineMode::PAUSE);
+	m_MusicSyncSystem.Update(m_World, false);
+	m_LiveDirectorSystem.Update(m_World, false);
+
+>>>>>>> ce2fdeb ([Feat]ESCでポーズできるようにした)
 	{ PROFILE_SCOPE("LightSystem"); m_LightSystem.Apply(m_World); }
 	m_FreeLookSystem.Update(m_World, dt,CameraComponent::CameraType::Secondary);   // エディタカメラ操作
 	m_CameraSystem.Update(m_World, 16.0f / 9.0f);
