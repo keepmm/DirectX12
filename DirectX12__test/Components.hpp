@@ -504,6 +504,11 @@ struct UIImageComponent
 	COLOR color{ 1.0f, 1.0f, 1.0f, 1.0f };
 	std::shared_ptr<Material> material;
 
+	// UIButton が付いていれば、その状態色を掛けたものがここに入る(非シリアライズ)
+	COLOR runtimeColor{ 1.0f, 1.0f, 1.0f, 1.0f };
+	// 実際にテクスチャへ書いた色。変化したときだけ塗り直すための記録
+	COLOR uploadedColor{ -1.0f, -1.0f, -1.0f, -1.0f };
+
 	void Reflect(FieldList& f)
 	{
 		f.Add("TexturePath", texturePath);

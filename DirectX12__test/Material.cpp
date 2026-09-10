@@ -481,6 +481,56 @@ void Material::CreateCheckerTexture(const ComPtr<ID3D12Device>& device)
 
 }
 
+bool Material::SetSolidColor(const COLOR& color)
+{
+	// Init() が 2x2 の白を作っているので、その中身を塗り替えるだけで済む。
+	// リソースを作り直さないので、ホバー色の切り替えのように毎フレーム呼ばれても安全
+	if (m_Texture == nullptr || m_TextureUpload == nullptr)
+	{
+		CreateCheckerTexture(APP->GetDevice());
+		if (m_Texture == nullptr || m_TextureUpload == nullptr)
+		{
+			return false;
+		}
+	}
+
+	auto to8 = [](float v)
+		{
+			const float c = (v < 0.0f) ? 0.0f : (v > 1.0f ? 1.0f : v);
+			return static_cast<std::uint8_t>(c * 255.0f + 0.5f);
+		};
+
+	const std::uint8_t px[4] =
+	{
+		to8(color.x), to8(color.y), to8(color.z), to8(color.w)
+	};
+
+	void* mapped = nullptr;
+	CD3DX12_RANGE readRange(0, 0);
+	if (FAILED(m_TextureUpload->Map(0, &readRange, &mapped)))
+	{
+		return false;
+	}
+
+	constexpr UINT kWidth = 2;
+	constexpr UINT kHeight = 2;
+
+	auto* dst = reinterpret_cast<std::uint8_t*>(mapped);
+	for (UINT y = 0; y < kHeight; ++y)
+	{
+		auto* row = dst + static_cast<size_t>(y) * m_TextureFootprint.Footprint.RowPitch;
+		for (UINT x = 0; x < kWidth; ++x)
+		{
+			std::memcpy(row + static_cast<size_t>(x) * 4, px, 4);
+		}
+	}
+	m_TextureUpload->Unmap(0, nullptr);
+
+	// 実際のコピーは UpdateTextureIfNeeded が描画時のコマンドリストに積む
+	m_TextureUploadPending = true;
+	return true;
+}
+
 void Material::UpdateTextureIfNeeded(ID3D12GraphicsCommandList* commandList)
 {
 	if (commandList == nullptr) return;

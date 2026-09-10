@@ -25,6 +25,13 @@ public:
 	*/
 	bool SetTextureFromMemory(_In_ const std::uint8_t* data, size_t size);
 
+	/// @brief テクスチャを単色で塗りつぶす
+	/// @param color 塗る色
+	/// @return 成功なら true
+	/// @note UI の板など、画像を用意せず色だけ出したいとき用。
+	///       アップロードバッファを書き換えるだけなのでリソースは作り直さない
+	bool SetSolidColor(_In_ const COLOR& color);
+
 	/// @brief トゥーンラップテクスチャの設定
 	bool SetToonRampTexture(_In_ const std::wstring& filepath);
 
