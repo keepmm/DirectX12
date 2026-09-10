@@ -14,6 +14,7 @@
 #include "RuntimeScene.hpp"
 #include "PrefabLibrary.hpp"
 #include "Project.hpp"
+#include "SceneManager.hpp"
 
 static cr_plugin s_plugin;
 static ScriptContext s_ctx;
@@ -28,6 +29,7 @@ static std::filesystem::path s_EngineDir;       // エンジンのヘッダが�
 static std::filesystem::path s_EngineOutDir;    // DirectX12__test.lib がある場所(=exe横)
 static std::filesystem::path s_ExePath;         // ABI の新しさを比べる基準
 static bool s_AutoBuild = false;                // ゲームモードではビルドしない
+static SceneManager* s_SceneManager = nullptr;  // シーン遷移の橋渡し先
 static std::string s_msbuild =
     "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Current\\Bin\\MSBuild.exe";
 static std::filesystem::file_time_type s_lastSrcTime{};
@@ -193,6 +195,11 @@ static void CheckAndBuild()
     }
 }
 
+void ScriptHost::SetSceneManager(SceneManager* sceneManager)
+{
+    s_SceneManager = sceneManager;
+}
+
 void ScriptHost::Open(World* world)
 {
     s_ctx.world = world;
@@ -234,6 +241,17 @@ void ScriptHost::Open(World* world)
         {
             if (auto* rs = RuntimeScene::Current())
                 rs->GetWorld().DestroyEntityDeferred(static_cast<Entity>(entity));
+        };
+
+    s_ctx.loadScene = [](const char* sceneName, bool withFade)
+        {
+            if (s_SceneManager == nullptr || sceneName == nullptr) return;
+
+            // 未登録の名前は LoadScene が弾くので、先に登録しておく
+            s_SceneManager->RegisterScene(sceneName);
+
+            if (withFade) s_SceneManager->RequestSceneChangeWithFade(sceneName);
+            else          s_SceneManager->LoadScene(sceneName);
         };
 
     char exePath[MAX_PATH];

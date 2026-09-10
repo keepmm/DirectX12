@@ -46,12 +46,6 @@
     <Filter Include="Assets\Scenes">
       <UniqueIdentifier>{fc4a19d1-29a2-4035-8f7e-be61b0ef9cdf}</UniqueIdentifier>
     </Filter>
-    <Filter Include="Assets\Scripts">
-      <UniqueIdentifier>{764dc060-3837-483a-b45e-6db33b27756a}</UniqueIdentifier>
-    </Filter>
-    <Filter Include="Assets\Texture">
-      <UniqueIdentifier>{97048fee-3f92-4d30-9fce-18953c3a0d26}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Config">
       <UniqueIdentifier>{106cad0e-77d8-4078-a328-6a67eabc18db}</UniqueIdentifier>
     </Filter>
@@ -509,15 +503,6 @@
     <None Include="packages.config">
       <Filter>Config</Filter>
     </None>
-    <None Include="Assets\Model\akai\Akai.fbx">
-      <Filter>Assets\Model</Filter>
-    </None>
-    <None Include="Assets\Model\akai\Akai_Idle.fbx">
-      <Filter>Assets\Model</Filter>
-    </None>
-    <None Include="Assets\Model\akai\Akai_Run.fbx">
-      <Filter>Assets\Model</Filter>
-    </None>
     <None Include="Assets\Model\Camera.fbx">
       <Filter>Assets\Model</Filter>
     </None>
@@ -535,21 +520,6 @@
     </None>
     <None Include="Assets\Model\test.fbx">
       <Filter>Assets\Model</Filter>
-    </None>
-    <None Include="Assets\Scenes\Ingame.json">
-      <Filter>Assets\Scenes</Filter>
-    </None>
-    <None Include="Assets\Scenes\Red.json">
-      <Filter>Assets\Scenes</Filter>
-    </None>
-    <None Include="Assets\Scenes\SampleScene.json">
-      <Filter>Assets\Scenes</Filter>
-    </None>
-    <None Include="Assets\Texture\Mutant_diffuse.png">
-      <Filter>Assets\Texture</Filter>
-    </None>
-    <None Include="Assets\Texture\RampTex.bmp">
-      <Filter>Assets\Texture</Filter>
     </None>
     <None Include="EngineAssets\Shaders\ToonShader.hlsl">
       <Filter>Shader\HLSL\PixelShader</Filter>
@@ -618,11 +588,5 @@
     <None Include="EngineAssets\Icons\Model.png" />
   </ItemGroup>
   <ItemGroup>
-    <Image Include="Assets\Texture\metal.jpg">
-      <Filter>Assets\Texture</Filter>
-    </Image>
-    <Image Include="Assets\Texture\plate.png">
-      <Filter>Assets\Texture</Filter>
-    </Image>
   </ItemGroup>
 </Project>

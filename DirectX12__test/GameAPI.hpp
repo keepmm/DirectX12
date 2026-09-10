@@ -35,4 +35,16 @@ namespace GameAPI
 	{
 		if (g_Destroy) g_Destroy(entity);
 	}
+
+	inline void (*g_LoadScene)(const char*, bool) = nullptr;
+
+	/// @brief シーンを切り替える
+	/// @param sceneName 拡張子もフォルダも付けない名前("MMDSample" など)
+	/// @param withFade 暗転を挟むか
+	/// @note 実際の切り替えはフレーム末(暗転の底)で起きる。呼んだ直後ではない。
+	///       切り替えで World ごと作り直されるので、呼び出し元のEntityも消える
+	inline void LoadScene(const char* sceneName, bool withFade = true)
+	{
+		if (g_LoadScene) g_LoadScene(sceneName, withFade);
+	}
 }

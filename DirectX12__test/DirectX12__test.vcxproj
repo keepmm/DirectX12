@@ -323,15 +323,6 @@
     <None Include="EngineAssets\Icons\LightIcon.png" />
     <None Include="EngineAssets\Icons\Material.png" />
     <None Include="EngineAssets\Icons\Model.png" />
-    <None Include="Assets\Model\akai\Akai.fbx">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Assets\Model\akai\Akai_Idle.fbx">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Assets\Model\akai\Akai_Run.fbx">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
     <None Include="Assets\Model\Camera.fbx">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
@@ -348,21 +339,6 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Include="Assets\Model\test.fbx">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Assets\Scenes\Ingame.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Assets\Scenes\Red.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Assets\Scenes\SampleScene.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Assets\Texture\Mutant_diffuse.png">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
-    </None>
-    <None Include="Assets\Texture\RampTex.bmp">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
@@ -412,8 +388,6 @@
     </None>
   </ItemGroup>
   <ItemGroup>
-    <Image Include="Assets\Texture\metal.jpg" />
-    <Image Include="Assets\Texture\plate.png" />
   </ItemGroup>
   <ItemGroup>
     <None Include="EngineAssets\Shaders\ShadowShader.hlsl">

@@ -56,6 +56,9 @@ HRESULT Application::OnInit()
 	Polygon::CreatePolygon();
 
 	// スクリプトホストの初期化
+	// シーン遷移の橋渡し先を先に渡す
+	ScriptHost::SetSceneManager(&m_SceneManager);
+
 	ScriptHost::Open(&m_SceneManager.GetActiveScene()->GetWorld());
 
 	// オーディオエンジンの初期化
