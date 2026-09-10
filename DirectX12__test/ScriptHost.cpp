@@ -323,8 +323,11 @@ void ScriptHost::Update(float dt, World* world)
     // まだ開けていなければ、DLLの存在を見て開く（初回ビルド/後追い対応）
     if (!s_isOpen)
     {
+        // ビルド中は開かない。
+        // リンカがファイルを作った瞬間に exists が true になるため、
+        // 書き込み途中の DLL を掴んで CR_BAD_IMAGE になる
         const std::filesystem::path dll = PROJECT->GetLibraryDir() / "Scripts.dll";
-        if (std::filesystem::exists(dll) &&
+        if (!s_building && std::filesystem::exists(dll) &&
             cr_plugin_open(s_plugin, dll.string().c_str()))
         {
             s_isOpen = true;
@@ -354,14 +357,18 @@ void ScriptHost::Update(float dt, World* world)
             + " scripts=" + std::to_string(s_scriptNames.size()));
     }
 
-    static int lastFailure = -1;
-    if (static_cast<int>(s_plugin.failure) != lastFailure)
+    // 失敗したら閉じてやり直す。
+    // 特に CR_INITIAL_FAILURE は「壊れたプラグインは以後リロードしない」なので、
+    // 放置するとスクリプトが二度と動かない
+    if (s_plugin.failure != CR_NONE)
     {
-        lastFailure = static_cast<int>(s_plugin.failure);
-        if (s_plugin.failure != CR_NONE)
-        {
-            LOG->LogError("[Scripts] cr failure = " + std::to_string(lastFailure));
-        }
+        LOG->LogError("[Scripts] cr failure = "
+            + std::to_string(static_cast<int>(s_plugin.failure))
+            + " (開き直します)");
+
+        cr_plugin_close(s_plugin);
+        s_isOpen = false;
+        s_plugin.failure = CR_NONE;
     }
 }
 void ScriptHost::Close()
