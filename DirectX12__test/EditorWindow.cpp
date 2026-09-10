@@ -244,6 +244,13 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 			static int configIndex = 0;
 			ImGui::Combo(u8("構成"), &configIndex, "Release\0Debug\0");
 			ImGui::InputText(u8("ゲーム名"), m_BuildGameName.data(), m_BuildGameName.size());
+			// 未設定ならプロジェクトの開始シーンを引き継ぐ。
+			// .dxproj で Title にしていても既定値のままビルドしてしまうのを防ぐ
+			if (m_BuildStartScene[0] == '\0' && PROJECT->IsOpen())
+			{
+				std::snprintf(m_BuildStartScene.data(), m_BuildStartScene.size(),
+					"%s", PROJECT->GetStartScene().c_str());
+			}
 			ImGui::InputText(u8("開始シーン"), m_BuildStartScene.data(), m_BuildStartScene.size());
 			ImGui::SameLine();
 			if(ImGui::Button(u8("参照...###BuildStartScene")))
