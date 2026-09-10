@@ -329,6 +329,12 @@ void SceneManager::LateUpdate(float deltatime)
 			scene->LateUpdate(deltatime);
 		}
 	}
+
+	// Game フェーズの締め。描画対象と揃えるためアクティブシーンだけが積む
+	if (m_ActiveScene)
+	{
+		static_cast<RuntimeScene*>(m_ActiveScene)->PublishFrameObjects();
+	}
 }
 
 void SceneManager::UpdateFade(float deltatime)

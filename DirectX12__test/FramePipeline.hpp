@@ -218,4 +218,28 @@ struct FO_RenderSettings
 	bool meshShader;
 };
 
+/// @brief カメラの用途
+/// @note CameraComponent::CameraType と同じ並び。
+///       Components.hpp への依存を持ち込まないためにここで定義し直している
+enum class FO_CameraType : int
+{
+	Main,
+	Secondary
+};
+
+// そのフレームで確定したカメラ(存在するぶんだけ登録される)
+struct FO_Camera
+{
+	FO_CameraType type;
+	float4x4 view;
+	float4x4 projection;
+	float3   position;
+};
+
+// そのフレームで確定したライト定数(LightSystem の出力スナップショット)
+struct FO_Light
+{
+	LightCB cb;
+};
+
 #endif

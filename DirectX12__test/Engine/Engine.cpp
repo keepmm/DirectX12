@@ -154,6 +154,14 @@ void Engine::Run()
 				}
 			}
 #endif
+#ifdef _FRAMEPIPELINE
+			// Game フェーズより前にスコープを張る。
+			// シーン側(RuntimeScene::PublishFrameObjects)が更新の最後に
+			// カメラ/ライトをこのパイプラインへ積むため
+			FramePipeline& fp = m_FramePipeline[frameNumber % RTV_NUM];
+			fp.Reset(frameNumber);
+			FramePipelineScope fpscope(&fp);
+#endif
 			Profiler::Get().BeginFrame();
 			IMGUI::BeginFrame();
 			IconLibrary::Get()->BeginFrame();
@@ -180,9 +188,6 @@ void Engine::Run()
 			OnUpdate();
 
 #ifdef _FRAMEPIPELINE
-			FramePipeline& fp = m_FramePipeline[frameNumber % RTV_NUM];
-			fp.Reset(frameNumber);
-			FramePipelineScope fpscope(&fp);
 			{
 				const auto& s = RenderSettings::Get();
 				fp.AddFrameObject<FO_RenderSettings>(FO_RenderSettings{ s.vertexShader, s.pixelShader, s.wireframe, s.meshShader });
