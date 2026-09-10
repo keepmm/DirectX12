@@ -584,15 +584,18 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 	}
 	ImGui::End();
 
-	if(ImGui::Begin(u8("MMDコントローラー")) && m_ShowMmdPlayer)
+	// シーン切り替えの最中はアクティブシーンが一瞬 nullptr になる
+	Scene* active = sceneManager.GetActiveScene();
+
+	if(ImGui::Begin(u8("MMDコントローラー")) && m_ShowMmdPlayer && active)
 	{
-		DrawMmdPlayer(sceneManager.GetActiveScene()->GetWorld());
+		DrawMmdPlayer(active->GetWorld());
 	}
 	ImGui::End();
 
-	if (ImGui::Begin(u8("ライブタイムライン")) && m_ShowLiveTimeline)
+	if (ImGui::Begin(u8("ライブタイムライン")) && m_ShowLiveTimeline && active)
 	{
-		DrawLiveTimelineEditor(sceneManager.GetActiveScene()->GetWorld(), m_SelectedEntity);
+		DrawLiveTimelineEditor(active->GetWorld(), m_SelectedEntity);
 	}
 	ImGui::End();
 

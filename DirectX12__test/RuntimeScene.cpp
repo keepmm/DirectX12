@@ -131,6 +131,13 @@ void RuntimeScene::OnLoad()
 void RuntimeScene::OnUnload()
 {
 	LOG->LogInfo("RuntimeScene : Unloading...");
+
+	// ここでメッシュやテクスチャが解放される。
+	// GPUがまだ参照しているまま捨てるとデバイスロスト(DRED PageFault)になるので、
+	// アンロードの直前で必ず待つ。
+	// アンロードはキュー経由で遅れて実行されるため、遷移を要求した側で待っても間に合わない
+	APP->WaitForGPUIdle();
+
 	ResetWorld();
 	m_Initialized = false;
 }
