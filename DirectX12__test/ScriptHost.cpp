@@ -12,6 +12,7 @@
 #include "PlayState.hpp"
 #include "imguiinit.hpp"
 #include "RuntimeScene.hpp"
+#include "PrefabLibrary.hpp"
 #include "Project.hpp"
 
 static cr_plugin s_plugin;
@@ -208,6 +209,27 @@ void ScriptHost::Open(World* world)
         {
             if (auto* rs = RuntimeScene::Current())
                 rs->LaunchFirework(float3{ x,y,z }, shape, float3{ r,g,b }, text);
+        };
+
+    // プレハブ生成。PrefabLibrary も Scene も exe 側にあるのでここで橋渡しする
+    s_ctx.instantiate = [](const char* prefabName) -> std::uint32_t
+        {
+            auto* rs = RuntimeScene::Current();
+            if (rs == nullptr || prefabName == nullptr) return INVALID_ENTITY;
+
+            if (!PrefabLibrary::Get().HasPrefab(prefabName))
+            {
+                LOG->LogWarning(std::string("Instantiate: プレハブが見つかりません: ") + prefabName);
+                return INVALID_ENTITY;
+            }
+            return PrefabLibrary::Get().Instantiate(prefabName, *rs, rs->GetWorld());
+        };
+
+    // 破棄は即時にしない。更新中のストレージを壊さないようフレーム末へ回す
+    s_ctx.destroyEntity = [](std::uint32_t entity)
+        {
+            if (auto* rs = RuntimeScene::Current())
+                rs->GetWorld().DestroyEntityDeferred(static_cast<Entity>(entity));
         };
 
     char exePath[MAX_PATH];

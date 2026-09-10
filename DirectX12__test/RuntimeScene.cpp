@@ -193,6 +193,14 @@ void RuntimeScene::LateUpdate(float deltatime)
 {
 	m_ScriptSystem.LateUpdate(m_World, deltatime);
 	(void)deltatime;
+
+	// GameAPI::Destroy の予約をここで消化する。
+	// 更新中に消すとストレージの走査が壊れるのでフレーム末に回している
+	if (m_World.HasPendingDestroy())
+	{
+		m_ScriptSystem.NotifyPendingDestroy(m_World);   // 消える前に OnDestroy
+		m_World.FlushDestroyQueue();
+	}
 }
 
 void RuntimeScene::PublishFrameObjects()

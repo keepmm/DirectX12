@@ -113,10 +113,50 @@ public:
 		return std::find(m_Entities.begin(), m_Entities.end(), entity) != m_Entities.end();
 	}
 
+	/// @brief 破棄を予約する
+	/// @note スクリプトの更新中に DestroyEntity を直接呼ぶと
+	///       走査中のストレージが壊れるので、フレーム末にまとめて消す
+	void DestroyEntityDeferred(Entity entity)
+	{
+		if (entity == INVALID_ENTITY) return;
+		if (std::find(m_PendingDestroy.begin(), m_PendingDestroy.end(), entity)
+			!= m_PendingDestroy.end())
+		{
+			return;   // 二重予約は無視
+		}
+		m_PendingDestroy.push_back(entity);
+	}
+
+	/// @brief 予約されている破棄があるか
+	bool HasPendingDestroy() const { return !m_PendingDestroy.empty(); }
+
+	/// @brief その Entity が破棄予約されているか
+	bool IsPendingDestroy(Entity entity) const
+	{
+		return std::find(m_PendingDestroy.begin(), m_PendingDestroy.end(), entity)
+			!= m_PendingDestroy.end();
+	}
+
+	/// @brief 予約された破棄をまとめて実行する
+	/// @note 破棄の連鎖に備えてキューを取り出してから回す
+	void FlushDestroyQueue()
+	{
+		while (!m_PendingDestroy.empty())
+		{
+			std::vector<Entity> batch;
+			batch.swap(m_PendingDestroy);
+			for (Entity e : batch)
+			{
+				DestroyEntity(e);
+			}
+		}
+	}
+
 	void Clear()
 	{
 		m_Entities.clear();
 		m_Storages.clear();
+		m_PendingDestroy.clear();
 		m_NextEntityId = 1;
 	}
 
@@ -180,5 +220,6 @@ private:
 private:
 	Entity m_NextEntityId = 1;
 	std::vector<Entity> m_Entities;
+	std::vector<Entity> m_PendingDestroy;   // DestroyEntityDeferred の予約
 	std::unordered_map<std::type_index, std::unique_ptr<IStorage>> m_Storages;
 };

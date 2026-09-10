@@ -44,9 +44,5 @@ protected:
 	void CreateGameWindow(int width, int height);
 };
 
-// crに渡すエンジン側コンテスト
-struct ScriptContext
-{
-	World* world;
-	std::vector<std::pair<Entity, std::string>> savedScripts;
-};
+// crに渡すコンテキストの定義は ScriptContext.hpp にある。
+// ここにも同名の struct があり ODR 違反になっていたので削除した

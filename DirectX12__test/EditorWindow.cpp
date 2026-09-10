@@ -1377,7 +1377,12 @@ void EditorWindow::CreateScriptFile(const std::string& die, const std::string& n
 		LOG->LogWarning("スクリプトファイルが既に存在します: " + cpp.string());
 	}
 
-	std::ofstream out(hpp);
+	// UTF-8 BOM を付ける。無いと MSVC がシステムのコードページ(932)として読み、
+	// 日本語コメントの末尾が改行を飲み込んで次の行がコメント扱いになる
+	static const char* kUtf8Bom = "\xEF\xBB\xBF";
+
+	std::ofstream out(hpp, std::ios::binary);
+	out << kUtf8Bom;
 	out <<
 		"#pragma once\n"
 		"#include \"MonoBehavior.hpp\"\n"
@@ -1394,7 +1399,8 @@ void EditorWindow::CreateScriptFile(const std::string& die, const std::string& n
 		"    }\n"
 		"};\n";
 
-	std::ofstream outcpp(cpp);
+	std::ofstream outcpp(cpp, std::ios::binary);
+	outcpp << kUtf8Bom;
 	outcpp <<
 		"#include \"" << name << ".hpp\"\n"
 		"#include \"RegisterScript.hpp\"\n\n"

@@ -55,6 +55,8 @@ CR_EXPORT int cr_main(cr_plugin* ctx, cr_op operation)
 		Debug::g_LogWarning = host->logWarning;
 		Debug::g_LogError	= host->logError;
 		GameAPI::g_LaunchFirework = host->launchFirework;
+		GameAPI::g_Instantiate = host->instantiate;
+		GameAPI::g_Destroy = host->destroyEntity;
 
 		break;
 	case CR_STEP:

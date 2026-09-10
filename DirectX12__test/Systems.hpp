@@ -582,7 +582,11 @@ public:
 		world.Each<ScriptComponent>([](Entity, ScriptComponent& sc)
 			{
 				for (auto& b : sc.behaviors)
+				{
+					if (!b) continue;
+					b->SyncEnableState();
 					b->OnStart();
+				}
 			});
 	}
 
@@ -591,7 +595,14 @@ public:
 		world.Each<ScriptComponent>([deltatime](Entity, ScriptComponent& sc)
 			{
 				for (auto& b : sc.behaviors)
+				{
+					if (!b) continue;
+					// enabled の切り替わりはここで拾う。
+					// 無効側でも呼ぶのは OnDisable を落とさないため
+					b->SyncEnableState();
+					if (!b->enabled) continue;
 					b->OnUpdate(deltatime);
+				}
 			});
 	}
 
@@ -600,7 +611,10 @@ public:
 		world.Each<ScriptComponent>([deltatime](Entity, ScriptComponent& sc)
 			{
 				for (auto& b : sc.behaviors)
+				{
+					if (!b || !b->enabled) continue;
 					b->OnFixedUpdate(deltatime);
+				}
 			});
 	}
 
@@ -609,7 +623,10 @@ public:
 		world.Each<ScriptComponent>([deltatime](Entity, ScriptComponent& sc)
 			{
 				for (auto& b : sc.behaviors)
+				{
+					if (!b || !b->enabled) continue;
 					b->OnLateUpdate(deltatime);
+				}
 			});
 	}
 
@@ -618,7 +635,28 @@ public:
 		world.Each<ScriptComponent>([&context](Entity, ScriptComponent& sc)
 			{
 				for (auto& b : sc.behaviors)
+				{
+					if (!b || !b->enabled) continue;
 					b->OnDraw(context);
+				}
+			});
+	}
+
+	/// @brief 破棄予約されている Entity の OnDestroy を呼ぶ
+	/// @note World::FlushDestroyQueue の直前に呼ぶこと。
+	///       実際に消えたあとでは behaviors ごと無くなっている
+	void NotifyPendingDestroy(World& world)
+	{
+		if (!world.HasPendingDestroy()) return;
+
+		world.Each<ScriptComponent>([&world](Entity e, ScriptComponent& sc)
+			{
+				if (world.IsPendingDestroy(e) == false) return;
+				for (auto& b : sc.behaviors)
+				{
+					if (!b) continue;
+					b->OnDestroy();
+				}
 			});
 	}
 };
