@@ -607,6 +607,21 @@ public:
 			});
 	}
 
+	/// @brief ポーズ中の更新。runDuringPause を立てたものだけ回す
+	void UpdateDuringPause(World& world, float deltatime)
+	{
+		world.Each<ScriptComponent>([deltatime](Entity, ScriptComponent& sc)
+			{
+				for (auto& b : sc.behaviors)
+				{
+					if (!b || !b->enabled || !b->runDuringPause) continue;
+					b->SyncEnableState();
+					b->TickInvokes(deltatime);
+					b->OnUpdate(deltatime);
+				}
+			});
+	}
+
 	void FixedUpdate(World& world, float deltatime)
 	{
 		world.Each<ScriptComponent>([deltatime](Entity, ScriptComponent& sc)
@@ -944,7 +959,12 @@ public:
 		world.Each<RectTransformComponent, UIButtonComponent>(
 			[&](Entity e, RectTransformComponent& rt, UIButtonComponent& btn)
 			{
-				if (!btn.interactable)
+				// 非表示のボタンは押せない(ポーズメニューを隠している間など)
+				const bool hidden =
+					world.HasComponent<UIImageComponent>(e) &&
+					!world.GetComponent<UIImageComponent>(e).visible;
+
+				if (!btn.interactable || hidden)
 				{
 					btn.isHovered = false;
 					btn.isPressed = false;
@@ -1025,6 +1045,8 @@ public:
 		world.Each<RectTransformComponent, UIImageComponent>(
 			[&](Entity e, RectTransformComponent& rt, UIImageComponent& img)
 			{
+				if (!img.visible) return;
+
 				// マテリアルの遅延生成。
 				// テクスチャが無くても Init() の既定(2x2白)を色で塗って板として使う
 				if (!img.material)
@@ -1078,6 +1100,8 @@ public:
 		world.Each<RectTransformComponent, UITextComponent>(
 			[&](Entity, RectTransformComponent& rt, UITextComponent& txt)
 			{
+				if (!txt.visible) return;
+
 				FontAtlas* atlas = FontLibrary::Get(txt.fontPath);
 				if (!atlas) return;
 

@@ -219,6 +219,21 @@ void RuntimeScene::LateUpdate(float deltatime)
 	}
 }
 
+void RuntimeScene::PauseUpdate(float deltatime)
+{
+	// ポーズ中に動かすのは UI とメニュー用スクリプトだけ。
+	// アニメーション/物理/タイムライン/カメラアニメは止めたままにする
+	m_UIButtonSystem.Update(m_World,
+		(float)WINDOW_WIDTH, (float)WINDOW_HEIGHT,
+		(float)INPUT->GetMouseX(), (float)INPUT->GetMouseY(),
+		true);
+
+	m_ScriptSystem.UpdateDuringPause(m_World, deltatime);
+
+	// 曲は位置を保ったまま止めておく
+	m_AudioSystem.Update(m_World, false, true);
+}
+
 void RuntimeScene::PublishFrameObjects()
 {
 #ifdef _FRAMEPIPELINE
@@ -957,10 +972,7 @@ void RuntimeScene::EditorUpdate(float dt)
 =======
 	// エディタでも曲を流してタイムラインを確認できるよう、
 	// オーディオ → 曲位置 → タイムライン → ライト の順で回す
-	// ポーズ中はここが呼ばれる(Update ではなく EditorUpdate に切り替わるため)。
-	// エディタへ戻ったときは停止、ポーズ中は位置を保ったまま止める
-	m_AudioSystem.Update(m_World, false,
-		PLAY.GetCurrentMode() == EngineMode::PAUSE);
+	m_AudioSystem.Update(m_World, false);
 	m_MusicSyncSystem.Update(m_World, false);
 	m_LiveDirectorSystem.Update(m_World, false);
 
