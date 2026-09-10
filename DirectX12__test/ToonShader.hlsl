@@ -13,6 +13,9 @@ cbuffer Material : register(b3)
     float metallic;     // ハイライトの強さ
     float2 _pad;
     float4 rimColor;    // rgb: リム色 / a: リム強さ
+    float4 mapFlags;
+    float4 faceParam;
+    float4 rimParam; // x: width, y: softness, z: lightMask, w: baseColor tint
 }
 
 float4 ToonPS(PSInput input) : SV_TARGET
@@ -26,6 +29,7 @@ float4 ToonPS(PSInput input) : SV_TARGET
     
     float3 diffuse = 0;
     float specMask = 0;
+    float3 rimLight = 0; // light color that drives the rim
     const int count = (int)lightCount.x;
     for (int i = 0; i < count; ++i)
     {
@@ -43,13 +47,17 @@ float4 ToonPS(PSInput input) : SV_TARGET
         float spec = pow(saturate(dot(N, H)), shininess);
         specMask = max(specMask, step(0.5f, spec) * atten);
 
+        // the rim follows the lights instead of being a constant white outline
+        rimLight += lights[i].color.rgb * atten * RimLightMask(N, L, rimParam.z);
+
     }
 
     float3 color = diffuse + baseColor * ambientColor.rgb;
     color += specMask * metallic;
     
-    float rim = Fresnel(N, V, 3.0f);
-    color += rimColor.rgb * rim * rimColor.a;
+    float rim = RimBand(N, V, rimParam.x, rimParam.y);
+    float3 rimTint = lerp(rimColor.rgb, rimColor.rgb * baseColor, saturate(rimParam.w));
+    color += rimTint * rim * rimColor.a * (rimLight + ambientColor.rgb);
     
     return float4(color, input.col.a * texColor.a);
 }

@@ -29,6 +29,7 @@ struct alignas(256) MaterialCB
 	float4 rimColor;
 	float4 mapFlags; // x: hasNormal, y: hasMetal, z: hasRough
 	float4 faceParam; // x isFace w Outline
+	float4 rimParam; // x: width, y: softness, z: lightMask, w: baseColor tint
 };
 
 struct LightData

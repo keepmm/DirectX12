@@ -64,6 +64,10 @@ public:
 	float roughness = 0.5f;
 	float metallic = 0.0f;
 	float4 rimColor = { 1.0f,1.0f,1.0f,1.0f };
+	float rimWidth = 0.25f;      // 0: narrow silhouette band  1: whole surface
+	float rimSoftness = 0.35f;   // 0: hard edge  1: wide gradient
+	float rimLightMask = 1.0f;   // 0: uniform rim  1: only on the lit side
+	float rimTint = 0.5f;        // 0: rimColor as is  1: tinted by base color
 	bool isFace = false;
 	float outlineWidth = 1.0f;
 

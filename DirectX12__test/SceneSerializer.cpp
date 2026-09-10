@@ -171,6 +171,12 @@ std::string SceneSerializer::SaveToString(Scene& scene)
 			entry["material"]["roughness"] = matComp.material->roughness;
             entry["material"]["metallic"] = matComp.material->metallic;
 			entry["material"]["rimColor"] = { matComp.material->rimColor.x, matComp.material->rimColor.y, matComp.material->rimColor.z, matComp.material->rimColor.w };
+			entry["material"]["rimWidth"] = matComp.material->rimWidth;
+			entry["material"]["rimSoftness"] = matComp.material->rimSoftness;
+			entry["material"]["rimLightMask"] = matComp.material->rimLightMask;
+			entry["material"]["rimTint"] = matComp.material->rimTint;
+			entry["material"]["isFace"] = matComp.material->isFace;
+			entry["material"]["outlineWidth"] = matComp.material->outlineWidth;
         }
 
         // ---- それ以外の汎用コンポーネント ---- //
@@ -382,6 +388,12 @@ bool SceneSerializer::LoadFromString(Scene& scene, const std::string& data)
 				mat.material->roughness = mj.value("roughness", 0.5f);
 				mat.material->metallic = mj.value("metallic", 0.0f);
 				mat.material->rimColor = ToFloat4(mj.value("rimColor", json::array({ 0.0f,0.0f,0.0f,1.0f })), float4(0, 0, 0, 1));
+				mat.material->rimWidth = mj.value("rimWidth", 0.25f);
+				mat.material->rimSoftness = mj.value("rimSoftness", 0.35f);
+				mat.material->rimLightMask = mj.value("rimLightMask", 1.0f);
+				mat.material->rimTint = mj.value("rimTint", 0.5f);
+				mat.material->isFace = mj.value("isFace", false);
+				mat.material->outlineWidth = mj.value("outlineWidth", 1.0f);
                 if (!mat.FilePath.empty())
                     mat.material->SetTextureFromFile(std::filesystem::path(mat.FilePath).wstring());
                 if (!mat.RampFilePath.empty())

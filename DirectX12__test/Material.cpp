@@ -309,6 +309,8 @@ void Material::Apply(
 	mdata.roughness = roughness;
 	mdata.metallic = metallic;
 	mdata.rimColor = rimColor;
+	mdata.rimParam = { rimWidth, rimSoftness, rimLightMask, rimTint };
+	mdata.faceParam = { isFace ? 1.f : 0.f, 0.f, 0.f, outlineWidth };
 	const D3D12_GPU_VIRTUAL_ADDRESS b3 = cbAlloc->Allocate(frameSlot, &mdata, sizeof(MaterialCB));
 
 

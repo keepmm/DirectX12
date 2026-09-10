@@ -18,6 +18,7 @@ cbuffer Material : register(b3)
     float4 rimColor; // rgb: リムカラー / a: リム強度
     float4 mapFlags; // x:hasNormal y:hasMetal z:hasRough w:envMaxMip
     float4 faceParam; // x:isFace y:未使用 z:未使用 w:アウトライン幅
+    float4 rimParam; // x: width, y: softness, z: lightMask, w: baseColor tint
 }
 
 float4 Genshin_ToonPS(PSInput input) : SV_TARGET
@@ -39,6 +40,7 @@ float4 Genshin_ToonPS(PSInput input) : SV_TARGET
 
     float3 diffuse = 0;
     float specMask = 0;
+    float3 rimLight = 0; // light color that drives the rim
     const int count = (int) lightCount.x;
     for (int i = 0; i < count; ++i)
     {
@@ -64,6 +66,9 @@ float4 Genshin_ToonPS(PSInput input) : SV_TARGET
         float3 H = normalize(L + V);
         float spec = pow(saturate(dot(N, H)), shininess);
         specMask = max(specMask, smoothstep(0.45f, 0.55f, spec) * atten);
+
+        // the rim follows the lights instead of being a constant white outline
+        rimLight += lights[i].color.rgb * atten * RimLightMask(N, L, rimParam.z);
     }
 
     float3 color = diffuse + baseColor * ambientColor.rgb;
@@ -72,8 +77,9 @@ float4 Genshin_ToonPS(PSInput input) : SV_TARGET
     // 顔にはリムライトを乗せない
     if (!isFace)
     {
-        float rim = Fresnel(N, V, 3.0f);
-        color += rimColor.rgb * rim * rimColor.a;
+        float rim = RimBand(N, V, rimParam.x, rimParam.y);
+        float3 tint = lerp(rimColor.rgb, rimColor.rgb * baseColor, saturate(rimParam.w));
+        color += tint * rim * rimColor.a * (rimLight + ambientColor.rgb);
     }
 
     return float4(color, input.col.a * texColor.a);

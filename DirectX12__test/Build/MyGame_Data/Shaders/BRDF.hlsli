@@ -15,6 +15,27 @@ float3 Rim(float3 N, float3 V, float3 rimColor, float rimPower)
     return rimColor * pow(rim, rimPower);
 }
 
+// --- Rim (band shaped) ---
+// width    : 0 = narrow band on the silhouette, 1 = covers the whole surface
+// softness : 0 = hard edge, 1 = wide gradient
+// Keeps the highlight on the silhouette only, so the model does not look
+// wrapped in a glowing outline like pow(fresnel, n) does.
+float RimBand(float3 N, float3 V, float width, float softness)
+{
+    float f = 1.0f - saturate(dot(N, V));
+    float edge = saturate(1.0f - width);
+    float soft = max(softness * 0.5f, 1e-3f);
+    return smoothstep(edge - soft, edge + soft, f);
+}
+
+// Rim mask driven by a light direction.
+// amount 0 : rim is applied uniformly (old behaviour)
+// amount 1 : rim only appears on the side the light comes from
+float RimLightMask(float3 N, float3 L, float amount)
+{
+    return lerp(1.0f, smoothstep(0.0f, 0.35f, dot(N, L)), saturate(amount));
+}
+
 // --- PBR: Cook-Torrance ÇÃäeçÄ ---
 static const float PI = 3.14159265f;
 

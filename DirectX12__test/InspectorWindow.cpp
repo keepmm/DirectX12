@@ -356,16 +356,28 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 					ImGui::SliderFloat(u8("Roughness##Mat"), &target->roughness, 0.0f, 1.0f);
 					ImGui::SliderFloat(u8("Metallic##Mat"), &target->metallic, 0.0f, 1.0f);
 					ImGui::ColorEdit4(u8("RimColor##Mat"), &target->rimColor.x);
+					ImGui::SliderFloat("Rim Width##Mat", &target->rimWidth, 0.0f, 1.0f);
+					ImGui::SliderFloat("Rim Softness##Mat", &target->rimSoftness, 0.0f, 1.0f);
+					ImGui::SliderFloat("Rim LightMask##Mat", &target->rimLightMask, 0.0f, 1.0f);
+					ImGui::SliderFloat("Rim Tint##Mat", &target->rimTint, 0.0f, 1.0f);
 				}
 				if (materialComp.shaderName == "Rim" || materialComp.shaderName == "SkinnedRim")
 				{
 					ImGui::ColorEdit4(u8("RimColor##Mat"), &target->rimColor.x);
+					ImGui::SliderFloat("Rim Width##Mat", &target->rimWidth, 0.0f, 1.0f);
+					ImGui::SliderFloat("Rim Softness##Mat", &target->rimSoftness, 0.0f, 1.0f);
+					ImGui::SliderFloat("Rim LightMask##Mat", &target->rimLightMask, 0.0f, 1.0f);
+					ImGui::SliderFloat("Rim Tint##Mat", &target->rimTint, 0.0f, 1.0f);
 				}
 
 				if (materialComp.shaderName == "Fresnel" || materialComp.shaderName == "SkinnedFresnel")
 				{
 					ImGui::SliderFloat(u8("Roughness##Mat"), &target->roughness, 0.0f, 1.0f);
 					ImGui::ColorEdit4(u8("RimColor##Mat"), &target->rimColor.x);
+					ImGui::SliderFloat("Rim Width##Mat", &target->rimWidth, 0.0f, 1.0f);
+					ImGui::SliderFloat("Rim Softness##Mat", &target->rimSoftness, 0.0f, 1.0f);
+					ImGui::SliderFloat("Rim LightMask##Mat", &target->rimLightMask, 0.0f, 1.0f);
+					ImGui::SliderFloat("Rim Tint##Mat", &target->rimTint, 0.0f, 1.0f);
 				}
 
 				if (materialComp.shaderName == "Dissolve" || materialComp.shaderName == "SkinnedDissolve")
@@ -387,6 +399,11 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 					ImGui::SliderFloat(u8("ハイライトの強さ##Mat"), &target->metallic, 0.0f, 1.0f);
 					ImGui::Checkbox(u8("フェイス描画##Mat"), &target->isFace);
 					ImGui::SliderFloat(u8("アウトライン幅##Mat"), &target->outlineWidth, 0.0f, 10.0f);
+					ImGui::ColorEdit4(u8("RimColor##Mat"), &target->rimColor.x);
+					ImGui::SliderFloat("Rim Width##Mat", &target->rimWidth, 0.0f, 1.0f);
+					ImGui::SliderFloat("Rim Softness##Mat", &target->rimSoftness, 0.0f, 1.0f);
+					ImGui::SliderFloat("Rim LightMask##Mat", &target->rimLightMask, 0.0f, 1.0f);
+					ImGui::SliderFloat("Rim Tint##Mat", &target->rimTint, 0.0f, 1.0f);
 				}
 			}
 
