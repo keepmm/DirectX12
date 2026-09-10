@@ -183,16 +183,22 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 
 			if (ImGui::MenuItem(u8("シーンを保存"), "Ctrl+S"))
 			{
-				if (ImGui::MenuItem(u8("シーンを保存"), "Ctrl+S"))
+				if (activeScene)
 				{
-					if (activeScene)
+					const std::string path =
+						SceneManager::ScenePathFromName(activeScene->GetSceneName());
+
+					if (SceneSerializer::Save(*activeScene, path))
 					{
-						SceneSerializer::Save(*activeScene,
-							SceneManager::ScenePathFromName(activeScene->GetSceneName()));
+						LOG->LogInfo("シーンを保存しました: " + path);
+					}
+					else
+					{
+						LOG->LogError("シーンの保存に失敗しました: " + path);
 					}
 				}
-				ImGui::EndMenu();
 			}
+
 			ImGui::EndMenu();
 		}
 

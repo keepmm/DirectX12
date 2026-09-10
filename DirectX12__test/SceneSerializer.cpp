@@ -72,6 +72,11 @@ namespace
 
 bool SceneSerializer::Save(Scene& scene, const std::string& filePath)
 {
+    // Assets/Scenes を消した状態でも保存できるようにしておく
+    std::error_code ec;
+    const auto dir = std::filesystem::path(filePath).parent_path();
+    if (!dir.empty()) std::filesystem::create_directories(dir, ec);
+
     std::ofstream out(filePath);
     if (!out) return false;
     out << SaveToString(scene);

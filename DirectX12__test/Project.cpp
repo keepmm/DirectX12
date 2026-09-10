@@ -293,8 +293,10 @@ bool Project::CreateSkeleton(const fs::path& root, std::string& outError)
 
 bool Project::WriteEmptyScene(const std::filesystem::path& scenePath) const
 {
+    // キー名は SceneSerializer::SaveToString に合わせる。
+    // "name" だと LoadFromString の sceneName 判定に引っかからない
     json j;
-	j["name"] = scenePath.stem().string();
+	j["sceneName"] = scenePath.stem().string();
 	j["entities"] = json::array();
 
     std::ofstream ofs(scenePath);
