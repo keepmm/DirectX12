@@ -564,6 +564,8 @@ static const std::vector<ComponentMeta> g_Components =
     MakeMeta<RectTransformComponent>("Rect Transform"),
     MakeMeta<UIImageComponent>("UI Image"),
     MakeMeta<UITextComponent>("UI Text"),
+    MakeMeta<UIButtonComponent>("UI Button"),
+    MakeMeta<TagComponent>("Tag"),
 	MakeMeta<MusicSyncComponent>("Music Sync"),
 	MakeMeta<RigidBodyComponent>("Rigid Body"),
 	MakeMeta<ParticleEmitterComponent>("Particle Emitter"),

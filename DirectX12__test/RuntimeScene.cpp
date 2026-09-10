@@ -143,6 +143,14 @@ void RuntimeScene::Update(float deltatime)
 		m_ScriptSystemStarted = true;
 	}
 
+	// UIのクリック判定はスクリプトより前。押した結果を同じフレームで拾えるようにする。
+	// マウス座標はウィンドウ空間そのまま。エディタのビューポート内に縮小表示している間は
+	// ずれるので、Play中だけ受け付ける
+	m_UIButtonSystem.Update(m_World,
+		(float)WINDOW_WIDTH, (float)WINDOW_HEIGHT,
+		(float)INPUT->GetMouseX(), (float)INPUT->GetMouseY(),
+		PLAY.isPlaying());
+
 	{ PROFILE_SCOPE("Script"); m_ScriptSystem.Update(m_World, deltatime); }
 	m_SpinSystem.Update(m_World, deltatime);
 	m_AudioSystem.Update(m_World, PLAY.isPlaying());

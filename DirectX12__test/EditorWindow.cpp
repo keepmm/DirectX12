@@ -1567,6 +1567,68 @@ void EditorWindow::CreateFolder(const std::string& dir)
 	else    LOG->LogInfo("フォルダ作成: " + target.string());
 }
 
+void EditorWindow::ImportAssets(const std::vector<std::string>& sources)
+{
+	namespace fs = std::filesystem;
+
+	const fs::path destDir = m_CurrentAssetDir;
+
+	std::error_code ec;
+	fs::create_directories(destDir, ec);
+
+	int copied = 0;
+	for (const auto& src : sources)
+	{
+		const fs::path from = src;
+		if (!fs::exists(from, ec)) continue;
+
+		// プロジェクト内のものを投げ込まれた場合は何もしない(自分自身への複製を防ぐ)
+		const fs::path fromAbs = fs::weakly_canonical(from, ec);
+		const fs::path destAbs = fs::weakly_canonical(destDir, ec);
+		if (fromAbs == destAbs || fromAbs == destAbs / from.filename())
+		{
+			continue;
+		}
+
+		// 同名があれば "Foo 1" のように退避する(黙って上書きしない)
+		fs::path to = destDir / from.filename();
+		if (fs::exists(to, ec))
+		{
+			const std::string stem = from.stem().string();
+			const std::string ext = from.extension().string();
+			int n = 1;
+			do
+			{
+				to = destDir / (stem + " " + std::to_string(n++) + ext);
+			} while (fs::exists(to, ec));
+		}
+
+		ec.clear();
+		if (fs::is_directory(from, ec))
+		{
+			fs::copy(from, to, fs::copy_options::recursive, ec);
+		}
+		else
+		{
+			fs::copy_file(from, to, ec);
+		}
+
+		if (ec)
+		{
+			LOG->LogWarning("取り込みに失敗: " + from.string() + " (" + ec.message() + ")");
+			continue;
+		}
+
+		LOG->LogInfo("取り込み: " + to.string());
+		++copied;
+	}
+
+	if (copied > 0)
+	{
+		LOG->LogInfo("取り込み完了: " + std::to_string(copied) + " 件");
+	}
+}
+
 void EditorWindow::RevealInExplorer(const std::string& path)
 {
 	namespace fs = std::filesystem;
