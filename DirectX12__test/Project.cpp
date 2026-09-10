@@ -305,3 +305,34 @@ void Project::SaveRecents() const
     if (!ofs) return;
     ofs << json(m_Recents).dump(2);
 }
+
+bool LaunchLauncher()
+{
+    wchar_t exePath[MAX_PATH]{};
+    GetModuleFileNameW(nullptr, exePath, MAX_PATH);
+    const fs::path launcher = fs::path(exePath).parent_path() / L"Launcher.exe";
+
+    if (!fs::exists(launcher))
+    {
+        return false;
+    }
+
+    std::wstring cmd = L"\"" + launcher.wstring() + L"\"";
+
+    // CreateProcessW は第2引数を書き換えるので可変バッファを渡す
+    std::vector<wchar_t> buf(cmd.begin(), cmd.end());
+    buf.push_back(L'\0');
+
+    STARTUPINFOW si{ sizeof(si) };
+    PROCESS_INFORMATION pi{};
+
+    if (!CreateProcessW(launcher.c_str(), buf.data(), nullptr, nullptr, FALSE,
+        0, nullptr, nullptr, &si, &pi))
+    {
+        return false;
+    }
+
+    CloseHandle(pi.hThread);
+    CloseHandle(pi.hProcess);
+    return true;
+}

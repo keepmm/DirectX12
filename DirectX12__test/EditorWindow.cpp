@@ -169,39 +169,13 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 	{
 		if (ImGui::BeginMenu(u8("ファイル")))
 		{
-			if (ImGui::MenuItem(u8("新規プロジェクト...")))
+			// プロジェクトの切り替えはランチャーに任せる。
+			// プロセス内で CWD だけ変えても、シーンやアセットが古いまま残るため
+			if (ImGui::MenuItem(u8("プロジェクトを切り替え...")))
 			{
-				m_ShowNewProject = true;
+				m_ShowSwitchProject = true;
 				m_ProjectError.clear();
 			}
-
-			if (ImGui::MenuItem(u8("プロジェクトを開く...")))
-			{
-				const std::string dir = PickProjectFolder();
-				if (!dir.empty())
-				{
-					std::string err;
-					if (!PROJECT->Open(dir, err))
-					{
-						m_ProjectError = err;
-						m_ShowNewProject = true;   // エラー表示のため同じ窓を使う
-					}
-				}
-			}
-
-			if (ImGui::BeginMenu(u8("最近のプロジェクト")))
-			{
-				for (const auto& r : PROJECT->GetRecents())
-				{
-					if (ImGui::MenuItem(r.c_str()))
-					{
-						std::string err;
-						if (!PROJECT->Open(r, err)) m_ProjectError = err;
-					}
-				}
-				ImGui::EndMenu();
-			}
-
 			ImGui::Separator();
 
 			if (ImGui::MenuItem(u8("シーンを保存"), "Ctrl+S"))
@@ -306,6 +280,8 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 
 		ImGui::EndMainMenuBar();
 	}
+
+	DrawProjectDialog();
 
 	// ドッキングスペースのセットアップ
 	ImGuiViewport* viewport = ImGui::GetMainViewport();
@@ -1554,27 +1530,17 @@ void EditorWindow::DrawMmdPlayer(World& world)
 
 void EditorWindow::DrawProjectDialog()
 {
-	if (!m_ShowNewProject) return;
+	if (!m_ShowSwitchProject) return;
 
-	ImGui::OpenPopup(u8("新規プロジェクト"));
-	if (!ImGui::BeginPopupModal(u8("新規プロジェクト"), &m_ShowNewProject,
+	ImGui::OpenPopup(u8("プロジェクトを切り替え"));
+	if (!ImGui::BeginPopupModal(u8("プロジェクトを切り替え"), &m_ShowSwitchProject,
 		ImGuiWindowFlags_AlwaysAutoResize))
 	{
 		return;
 	}
 
-	ImGui::InputText(u8("プロジェクト名"), m_NewProjectName.data(), m_NewProjectName.size());
-
-	ImGui::InputText(u8("作成先"), m_NewProjectDir.data(), m_NewProjectDir.size());
-	ImGui::SameLine();
-	if (ImGui::Button(u8("参照...")))
-	{
-		const std::string dir = PickProjectFolder();
-		if (!dir.empty())
-		{
-			std::snprintf(m_NewProjectDir.data(), m_NewProjectDir.size(), "%s", dir.c_str());
-		}
-	}
+	ImGui::TextUnformatted(u8("ランチャーを開いてエディタを終了します。"));
+	ImGui::TextUnformatted(u8("保存していない変更は失われます。"));
 
 	if (!m_ProjectError.empty())
 	{
@@ -1583,31 +1549,24 @@ void EditorWindow::DrawProjectDialog()
 
 	ImGui::Separator();
 
-	const bool canCreate =
-		m_NewProjectName[0] != '\0' && m_NewProjectDir[0] != '\0';
-
-	ImGui::BeginDisabled(!canCreate);
-	if (ImGui::Button(u8("作成")))
+	if (ImGui::Button(u8("ランチャーを開く")))
 	{
-		std::string err;
-		if (PROJECT->Create(m_NewProjectDir.data(), m_NewProjectName.data(), err))
+		if (LaunchLauncher())
 		{
-			m_ProjectError.clear();
-			m_ShowNewProject = false;
-			ImGui::CloseCurrentPopup();
+			// Engine::Run のメッセージループが WM_QUIT で抜ける
+			PostQuitMessage(0);
 		}
 		else
 		{
-			m_ProjectError = err;
+			m_ProjectError = "Launcher.exe が見つかりません";
 		}
 	}
-	ImGui::EndDisabled();
 
 	ImGui::SameLine();
 	if (ImGui::Button(u8("キャンセル")))
 	{
 		m_ProjectError.clear();
-		m_ShowNewProject = false;
+		m_ShowSwitchProject = false;
 		ImGui::CloseCurrentPopup();
 	}
 

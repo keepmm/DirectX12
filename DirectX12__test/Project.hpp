@@ -18,6 +18,11 @@
  /// @return 選択されたパス。キャンセル時は空文字
 std::string PickProjectFolder();
 
+/// @brief ランチャー(Launcher.exe)を起動する
+/// @note exe 横にある想定。プロジェクトを選び直すときに使う
+/// @return 起動できたら true
+bool LaunchLauncher();
+
 class Project
 {
 public:
