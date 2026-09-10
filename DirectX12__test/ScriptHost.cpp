@@ -225,13 +225,17 @@ void ScriptHost::Open(World* world)
 
     const std::filesystem::path dll = PROJECT->GetLibraryDir() / "Scripts.dll";
 
-    OutputDebugStringA(("[ScriptHost] watch = " + dll.string() + "\n").c_str());
+    LOG->LogInfo("[Scripts] watch  = " + s_ScriptsSrcDir.string());
+    LOG->LogInfo("[Scripts] proj   = " + s_ProjPath.string());
+    LOG->LogInfo("[Scripts] dll    = " + dll.string());
 
     if (!cr_plugin_open(s_plugin, dll.string().c_str()))
     {
-        OutputDebugStringA("[ScriptHost] cr_plugin_open 失敗\n");
+        // 初回はまだビルドされていないので普通に起きる。Update 側で開き直す
+        LOG->LogInfo("[Scripts] DLL 未生成。ビルド後に開き直します");
         return;
     }
+    LOG->LogInfo("[Scripts] cr_plugin_open 成功");
     s_isOpen = true;
 }
 
@@ -245,7 +249,7 @@ void ScriptHost::Update(float dt, World* world)
             cr_plugin_open(s_plugin, dll.string().c_str()))
         {
             s_isOpen = true;
-			OutputDebugStringA("[ScriptHost] cr_plugin_open 後追い成功\n");
+            LOG->LogInfo("[Scripts] cr_plugin_open 後追い成功: " + dll.string());
         }
     }
 
@@ -260,7 +264,26 @@ void ScriptHost::Update(float dt, World* world)
     s_ctx.deltaTime = dt;
     s_ctx.world = world;
     s_ctx.isPlaing = PLAY.isPlaying();
+
+    const unsigned int prevVersion = s_plugin.version;
     cr_plugin_update(s_plugin);
+
+    // ロード/リロードが起きたときだけ結果を出す(毎フレーム出すとログが埋まる)
+    if (s_plugin.version != prevVersion)
+    {
+        LOG->LogInfo("[Scripts] リロード完了 version=" + std::to_string(s_plugin.version)
+            + " scripts=" + std::to_string(s_scriptNames.size()));
+    }
+
+    static int lastFailure = -1;
+    if (static_cast<int>(s_plugin.failure) != lastFailure)
+    {
+        lastFailure = static_cast<int>(s_plugin.failure);
+        if (s_plugin.failure != CR_NONE)
+        {
+            LOG->LogError("[Scripts] cr failure = " + std::to_string(lastFailure));
+        }
+    }
 }
 void ScriptHost::Close()
 {
