@@ -547,12 +547,6 @@
     <None Include="Assets\Scenes\SampleScene.json">
       <Filter>Assets\Scenes</Filter>
     </None>
-    <None Include="Assets\Scripts\empty.txt">
-      <Filter>Assets\Scripts</Filter>
-    </None>
-    <None Include="Assets\Scripts\kawaguchi.cpp">
-      <Filter>Assets\Scripts</Filter>
-    </None>
     <None Include="Assets\Texture\Mutant_diffuse.png">
       <Filter>Assets\Texture</Filter>
     </None>

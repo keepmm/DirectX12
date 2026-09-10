@@ -198,7 +198,6 @@ private:
 
 	void OpenInEditor(const std::string& path);
 
-	void AddToProject(_In_ const std::string cppRel, _In_ const std::string hppRel);
 	void CreateFolder(_In_ const std::string& dir);
 
 	char m_ScriptSerachBuffer[128] = {};
@@ -220,4 +219,25 @@ private:
 	std::string m_ProjectError;
 
 	void DrawProjectDialog();
+
+	// リネーム / 削除の確認ダイアログ
+	bool m_ShowRenamePopup = false;
+	bool m_ShowDeletePopup = false;
+	char m_RenameBuffer[128] = "";
+	std::string m_ContextTarget;   // 右クリックされたアイテムのフルパス(空なら空白部分)
+
+	/// @brief エクスプローラーで開く(フォルダならその中、ファイルなら選択状態)
+	void RevealInExplorer(_In_ const std::string& path);
+
+	/// @brief 複製を作る("Foo.png" → "Foo 1.png")
+	void DuplicateAsset(_In_ const std::string& path);
+
+	/// @brief リネーム(失敗時はログのみ)
+	void RenameAsset(_In_ const std::string& path, _In_ const std::string& newName);
+
+	/// @brief 削除(フォルダは中身ごと)
+	void DeleteAsset(_In_ const std::string& path);
+
+	/// @brief 空のシーン json を作る
+	void CreateSceneFile(_In_ const std::string& dir);
 };

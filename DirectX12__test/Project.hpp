@@ -61,6 +61,26 @@ public:
 	/// @return 絶対パス
 	std::filesystem::path Resolve(const std::string& relative) const;
 
+	/// @brief 生成される Scripts.vcxproj のパス
+	std::filesystem::path GetScriptProjectPath() const { return m_Root / "Scripts.vcxproj"; }
+
+	/// @brief 生成される Scripts.sln のパス
+/// @note エンジンの sln とは別物にすることで VS が別インスタンスで開く
+	std::filesystem::path GetScriptSolutionPath() const { return m_Root / "Scripts.sln"; }
+
+	/// @brief Assets 配下の .cpp/.hpp を走査して Scripts.vcxproj の一覧を更新する
+/// @note ビルド直前に呼ぶ。VS がワイルドカードを展開してしまうため一覧は実体で持つ
+/// @return 更新した(または変更なしで正常)なら true
+	bool RefreshScriptProjectSources(_Out_ std::string& outError);
+
+	/// @brief Scripts.dll と cr の世代コピーの置き場
+	std::filesystem::path GetLibraryDir() const { return m_Root / "Library"; }
+
+	/// @brief Scripts.vcxproj が無ければ生成する
+	/// @note 既存プロジェクトを開いたときにも呼ぶ。既にあれば何もしない
+	/// @return 生成した or 既にある なら true
+	bool EnsureScriptProject(_Out_ std::string& outError);
+
 	/// @brief .dxproj ファイルを保存する
 	/// @param outError 失敗した場合の失敗理由
 	/// @return 成功時 true, 失敗時 false

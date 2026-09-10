@@ -22,6 +22,9 @@
 #include <cstring>
 #include <algorithm>
 #include "Project.hpp"
+#include "json.hpp"
+
+using json = nlohmann::json;
 
 #pragma comment(lib, "psapi.lib")
 
@@ -1391,19 +1394,12 @@ void EditorWindow::CreateScriptFile(const std::string& die, const std::string& n
 		"#include \"RegisterScript.hpp\"\n\n"
 		"REGISTER_SCRIPT(" << name << ");\n";
 
-	// vsproj にも追加
-	auto toProjRel = [](const fs::path& p)
-		{
-			std::string s = p.lexically_normal().string();
-			std::replace(s.begin(), s.end(), '/', '\\');
-			return s;
-		};
 	out.close();
 	outcpp.close();
 
-	// プロジェクトに追加
-	AddToProject(toProjRel(cpp), toProjRel(hpp));
-
+	// vcxproj への登録は不要。
+	// ビルド直前に Project::RefreshScriptProjectSources が
+	// Assets 配下を走査して一覧を作り直す
 	LOG->LogInfo("スクリプト生成: " + hpp.string());
 }
 
@@ -1411,78 +1407,25 @@ void EditorWindow::OpenInEditor(const std::string& path)
 {
 	namespace fs = std::filesystem;
 
-	// exeからソリューションを逆算して .slnを探索
-	char exePath[MAX_PATH];
-	GetModuleFileNameA(NULL, exePath, MAX_PATH);
-	fs::path slnDir = fs::path(exePath).parent_path().parent_path().parent_path();
-	fs::path sln = slnDir / "DirectX12__test.sln";
+	const fs::path file = fs::absolute(path);
+	const fs::path sln = PROJECT->GetScriptSolutionPath();
 
-	std::wstring wpath = std::filesystem::path(path).wstring();
-	std::wstring args = L"/edit \"" + wpath + L"\"";
-	ShellExecuteW(NULL, L"open", L"devenv.exe", args.c_str(), nullptr, SW_SHOWNORMAL);
-}
-
-void EditorWindow::AddToProject(const std::string cppPath, const std::string hppPath)
-{
-	namespace fs = std::filesystem;
-
-	// exe の場所から solutionDir を逆算（sln\x64\Debug\exe -> sln）
-	char exePath[MAX_PATH];
-	GetModuleFileNameA(nullptr, exePath, MAX_PATH);
-	fs::path slnDir = fs::path(exePath).parent_path().parent_path().parent_path();
-	fs::path scriptProj = slnDir / "Scripts" / "Scripts.vcxproj";
-
-	if (!fs::exists(scriptProj))
+	// プロジェクトの sln があればそれごと開く。
+	// エンジンの sln とは別ファイルなので VS が別インスタンスで立ち上がる。
+	// /edit は「起動中のVSで開く」動作なのでここでは使わない
+	if (fs::exists(sln))
 	{
-		LOG->LogWarning("プロジェクトが見つかりません: " + scriptProj.string());
+		const std::wstring args =
+			L"\"" + sln.wstring() + L"\" \"" + file.wstring() + L"\"";
+		ShellExecuteW(nullptr, L"open", L"devenv.exe", args.c_str(),
+			nullptr, SW_SHOWNORMAL);
 		return;
 	}
 
-	// vcxproj 読み込み
-	std::ifstream in(scriptProj);
-	std::string xml((std::istreambuf_iterator<char>(in)), {});
-	in.close();
-
-	// 絶対パス（Windows区切り）
-	auto toWin = [](const std::string& p)
-		{
-			return fs::absolute(p).make_preferred().string();
-		};
-	const std::string cppAbs = toWin(cppPath);
-	const std::string hppAbs = toWin(hppPath);
-
-	// 既に登録済みなら何もしない（二重登録防止）
-	if (xml.find(cppAbs) != std::string::npos) return;
-
-	// 挿入する行
-	const std::string includeEntry =
-		"    <ClInclude Include=\"" + hppAbs + "\" />\r\n";
-	const std::string compileEntry =
-		"    <ClCompile Include=\"" + cppAbs + "\">\r\n"
-		"      <PrecompiledHeader>NotUsing</PrecompiledHeader>\r\n"
-		"    </ClCompile>\r\n";
-
-	// 行頭位置を求めるヘルパ
-	auto lineHead = [&](size_t pos)
-		{
-			size_t nl = xml.rfind('\n', pos);
-			return (nl == std::string::npos) ? size_t(0) : nl + 1;
-		};
-
-	// <ClInclude Include="framework.h" /> の前に hpp を挿入
-	if (size_t p = xml.find("<ClInclude Include=\"framework.h\" />"); p != std::string::npos)
-		xml.insert(lineHead(p), includeEntry);
-
-	// <ClCompile Include="cr_main.cpp" /> の前に cpp を挿入
-	if (size_t p = xml.find("<ClCompile Include=\"cr_main.cpp\" />"); p != std::string::npos)
-		xml.insert(lineHead(p), compileEntry);
-
-	// 書き戻し（BOMなし・改行そのまま）
-	std::ofstream out(scriptProj, std::ios::binary | std::ios::trunc);
-	out << xml;
-	out.close();
-
-	LOG->LogInfo("Scripts.vcxproj に追加: " + fs::path(cppPath).filename().string());
+	// sln が無いときは従来どおりファイル単体で開く
+	const std::wstring args = L"/edit \"" + file.wstring() + L"\"";
+	ShellExecuteW(nullptr, L"open", L"devenv.exe", args.c_str(),
+		nullptr, SW_SHOWNORMAL);
 }
 
 void EditorWindow::CreateFolder(const std::string& dir)
@@ -1499,6 +1442,121 @@ void EditorWindow::CreateFolder(const std::string& dir)
 	fs::create_directory(target, ec);
 	if (ec) LOG->LogWarning("フォルダ作成失敗: " + ec.message());
 	else    LOG->LogInfo("フォルダ作成: " + target.string());
+}
+
+void EditorWindow::RevealInExplorer(const std::string& path)
+{
+	namespace fs = std::filesystem;
+
+	const fs::path target = fs::absolute(path);
+	if (!fs::exists(target))
+	{
+		LOG->LogWarning("エクスプローラーで開けません: " + target.string());
+		return;
+	}
+
+	if (fs::is_directory(target))
+	{
+		ShellExecuteW(nullptr, L"open", target.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+	}
+	else
+	{
+		// ファイルは選択状態で開く
+		const std::wstring args = L"/select,\"" + target.wstring() + L"\"";
+		ShellExecuteW(nullptr, L"open", L"explorer.exe", args.c_str(), nullptr, SW_SHOWNORMAL);
+	}
+}
+
+void EditorWindow::DuplicateAsset(const std::string& path)
+{
+	namespace fs = std::filesystem;
+
+	const fs::path src = path;
+	const fs::path dir = src.parent_path();
+	const std::string stem = src.stem().string();
+	const std::string ext = src.extension().string();
+
+	// "Foo" → "Foo 1", "Foo 2", ... と重複回避
+	fs::path dst;
+	int n = 1;
+	do
+	{
+		dst = dir / (stem + " " + std::to_string(n++) + ext);
+	} while (fs::exists(dst));
+
+	std::error_code ec;
+	if (fs::is_directory(src))
+	{
+		fs::copy(src, dst, fs::copy_options::recursive, ec);
+	}
+	else
+	{
+		fs::copy_file(src, dst, ec);
+	}
+
+	if (ec) LOG->LogWarning("複製に失敗: " + ec.message());
+	else    LOG->LogInfo("複製: " + dst.string());
+}
+
+void EditorWindow::RenameAsset(const std::string& path, const std::string& newName)
+{
+	namespace fs = std::filesystem;
+
+	const fs::path src = path;
+	fs::path dst = src.parent_path() / newName;
+
+	// 拡張子を省略された場合は元の拡張子を引き継ぐ
+	if (!fs::is_directory(src) && dst.extension().empty())
+	{
+		dst += src.extension();
+	}
+
+	if (fs::exists(dst))
+	{
+		LOG->LogWarning("同名のファイルが既にあります: " + dst.string());
+		return;
+	}
+
+	std::error_code ec;
+	fs::rename(src, dst, ec);
+	if (ec) LOG->LogWarning("リネームに失敗: " + ec.message());
+	else    LOG->LogInfo("リネーム: " + src.string() + " -> " + dst.string());
+}
+
+void EditorWindow::DeleteAsset(const std::string& path)
+{
+	namespace fs = std::filesystem;
+
+	std::error_code ec;
+	const std::uintmax_t removed = fs::remove_all(path, ec);
+
+	if (ec) LOG->LogWarning("削除に失敗: " + ec.message());
+	else    LOG->LogInfo("削除: " + path + " (" + std::to_string(removed) + " 件)");
+}
+
+void EditorWindow::CreateSceneFile(const std::string& dir)
+{
+	namespace fs = std::filesystem;
+
+	fs::path target = fs::path(dir) / "NewScene.json";
+	int n = 1;
+	while (fs::exists(target))
+		target = fs::path(dir) / ("NewScene" + std::to_string(n++) + ".json");
+
+	// Project::WriteEmptyScene と同じ最小構成
+	// (SceneSerializer::LoadFromString が要求するのは entities だけ)
+	json j;
+	j["sceneName"] = target.stem().string();
+	j["entities"] = json::array();
+
+	std::ofstream ofs(target);
+	if (!ofs)
+	{
+		LOG->LogWarning("シーン作成に失敗: " + target.string());
+		return;
+	}
+	ofs << j.dump(4);
+	LOG->LogInfo("シーン作成: " + target.string());
 }
 
 void EditorWindow::DrawMmdPlayer(World& world)
