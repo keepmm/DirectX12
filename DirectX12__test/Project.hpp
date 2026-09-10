@@ -120,7 +120,9 @@ private:
 	std::filesystem::path m_Root; // プロジェクトのルートフォルダ
 	std::string m_Name; // プロジェクト名
 	std::vector<std::string> m_Recents; // 最近開いたプロジェクトのパス
-	std::string m_StartScene = "Assets/Scenes/SampleScene.json"; // 起動時に開くシーンのパス
+	// 起動時に開くシーン。SceneManager::ScenePathFromName に渡す「名前」なので
+	// パスや拡張子は含めない("SampleScene" であって "Assets/Scenes/SampleScene.json" ではない)
+	std::string m_StartScene = "SampleScene";
 
 	Project() = default;
 	Project(const Project&) = delete;

@@ -91,8 +91,9 @@ void Application::OnInitPrefabs()
 	sharedBoxMesh->CreateCube(m_DirectX->GetDevice());
 
 	auto sharedBoxMaterial = MakeShared<Material>();
+	// Init が既定のチェッカーテクスチャを作る。
+	// ここで特定のアセットを読みに行くと、持っていないプロジェクトでエラーになる
 	sharedBoxMaterial->Init();
-	sharedBoxMaterial->SetTextureFromFile(L"Assets/Mutant_diffuse.png");
 
 	PrefabLibrary::Get().RegisterPrefab("Box",
 		[sharedBoxMesh, sharedBoxMaterial](Scene& scene, World& world, Entity entity)
@@ -120,7 +121,13 @@ void Application::OnInitPrefabs()
 			physicsWorld.SetActorPose(entity, transform.position, transform.rotation);
 		});
 
-	auto modelData = ModelLoader::LoadFromFile(m_DirectX->GetDevice(), "Assets/Player.fbx", 0.01f);
+	// プロジェクトが持っていない場合は読みに行かない(assimp がエラーを吐くため)
+	ModelLoadResult modelData{};
+	if (std::filesystem::exists("Assets/Player.fbx"))
+	{
+		modelData = ModelLoader::LoadFromFile(m_DirectX->GetDevice(), "Assets/Player.fbx", 0.01f);
+	}
+
 	auto modelMesh = modelData.mesh;
 	if (modelMesh == nullptr)
 	{
@@ -138,10 +145,7 @@ void Application::OnInitPrefabs()
 	{
 		modelMaterial->SetTextureFromFile(modelData.diffuseTexturePath);
 	}
-	else
-	{
-		modelMaterial->SetTextureFromFile(L"Assets/Mutant_diffuse.png");
-	}
+	// テクスチャが無いときは Init の既定(チェッカー)のまま
 
 	PrefabLibrary::Get().RegisterPrefab("PlayerModel",
 		[modelMesh, modelMaterial](Scene&, World& world, Entity entity)

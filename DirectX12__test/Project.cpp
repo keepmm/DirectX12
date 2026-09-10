@@ -118,7 +118,7 @@ bool Project::Create(const std::filesystem::path& parentDir, const std::string& 
 	// カレントディレクトリをプロジェクトルートに切り替える
     m_Root = fs::absolute(root);
 	m_Name = name;
-	m_StartScene = "Assets/Scenes/SampleScene.json";
+	m_StartScene = "SampleScene";
 
     if (!Save(outError))
     {
@@ -185,7 +185,13 @@ bool Project::Open(const std::filesystem::path& path, std::string& outError)
 
 	m_Root = fs::absolute(projFile.parent_path());
     m_Name = j.value("name", m_Root.filename().string());
-    m_StartScene = j.value("startScene", std::string("Assets/Scenes/SampleScene.json"));
+    // 旧形式では "Assets/Scenes/Foo.json" のようにパスで入っていることがある。
+    // SceneManager::ScenePathFromName が二重に組み立ててしまうので名前へ落とす
+    m_StartScene = fs::path(j.value("startScene", std::string("SampleScene"))).stem().string();
+    if (m_StartScene.empty())
+    {
+        m_StartScene = "SampleScene";
+    }
 
     if (!fs::exists(m_Root / "Assets", ec))
     {
