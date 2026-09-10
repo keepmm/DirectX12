@@ -26,8 +26,11 @@ DirectX12__test.sln
 │  ├ MonoBehavior.*       スクリプト基底（OnStart/OnUpdate/OnDraw/OnCollisionEnter…）
 │  ├ ScriptHost.*         cr.h による Scripts.dll ホットリロード
 │  ├ FramePipeline.*      フレームパイプライン（FrameAllocator / FrameObject）
-│  ├ *.hlsl / *.hlsli     シェーダー（実行時コンパイル）
-│  └ Assets/              Model / Texture / Audio / Scenes / Scripts
+│  ├ Project.*            プロジェクト（Assets ルート）の作成/オープン/カレント管理
+│  ├ EngineAssets/        エンジン同梱リソース（Icons / Shaders / 既定 sky.hdr）
+│  │                      ユーザープロジェクトからは見えない。exe 横に配置される
+│  └ Assets/              サンプル用アセット（ユーザープロジェクトは各自の Assets を持つ）
+├ Launcher/               プロジェクト選択ランチャー（Win32 exe。Project.cpp を共有コンパイル）
 └ Scripts/                ゲームスクリプト（Scripts.dll）
 ```
 

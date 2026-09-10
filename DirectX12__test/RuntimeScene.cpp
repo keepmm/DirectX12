@@ -99,15 +99,15 @@ void RuntimeScene::OnLoad()
 
 	m_CameraIcon = std::make_shared<Material>();
 	m_CameraIcon->Init();
-	m_CameraIcon->SetTextureFromFile(L"Assets/Icons/CameraIcon.png");
+	m_CameraIcon->SetTextureFromFile(EngineAssetPath(L"Icons/CameraIcon.png").wstring());
 
 	m_LightIcon = std::make_shared<Material>();
 	m_LightIcon->Init();
-	m_LightIcon->SetTextureFromFile(L"Assets/Icons/LightIcon.png");
+	m_LightIcon->SetTextureFromFile(EngineAssetPath(L"Icons/LightIcon.png").wstring());
 	n_IconReady = true;
 
 	// -----------------------------//
-	//      スカイボックスの用意     //
+	//      スカイボックスの用意    //
 	// -----------------------------//
 	m_SkyboxCube.CreateCube(APP->GetDevice());
 	ApplySkybox();
@@ -867,13 +867,24 @@ void RuntimeScene::EditorUpdate(float dt)
 
 void RuntimeScene::ApplySkybox()
 {
+	// 空パスは「エンジン既定の sky.hdr を使う」の意味。
+	// スカイボックスを消したいときは Scene 側で m_SkyBox を無効化する
 	const std::string& path = GetSkyboxPath();
-	if (path.empty())
+	const std::wstring resolved = path.empty()
+		? EngineAssetPath(L"Texture/sky.hdr").wstring()
+		: std::wstring(path.begin(), path.end());
+
+	// 初回はここで生成する(m_CameraIcon と同じ手順)
+	if (!m_SkyBox)
 	{
-		m_SkyBox.reset();   // 空パス=スカイボックスなし(描画側はnullチェック済み)
-		return;
+		m_SkyBox = std::make_shared<Material>();
+		m_SkyBox->Init();
 	}
-	m_SkyBox = std::make_shared<Material>();
-	m_SkyBox->Init();
-	m_SkyBox->SetTextureFromFile(std::wstring(path.begin(), path.end()));
+
+	if (!m_SkyBox->SetTextureFromFile(resolved))
+	{
+		LOG->LogWarning("RuntimeScene : スカイボックスの読み込みに失敗 "
+			+ WideToUtf8(resolved));
+		m_SkyBox.reset();
+	}
 }

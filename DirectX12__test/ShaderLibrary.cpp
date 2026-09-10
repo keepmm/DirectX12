@@ -1,4 +1,23 @@
 ﻿#include "ShaderLibrary.hpp"
+#include "Util.hpp"
+#include <filesystem>
+
+namespace
+{
+	/// @brief シェーダーのパスを解決する
+	/// @note プロジェクト側(Assets/Shaders 等)を優先し、無ければ exe 横の EngineAssets/Shaders を見る。
+	///       ビルトインは EngineAssets 側にあるので、CWD がユーザープロジェクトへ移っても解決できる
+	std::wstring ResolveShaderPath(const std::wstring& filePath)
+	{
+		const std::filesystem::path p = filePath;
+		if (p.is_absolute() || std::filesystem::exists(p))
+		{
+			return filePath;
+		}
+		return EngineAssetPath(std::filesystem::path(L"Shaders") / p).wstring();
+	}
+}
+
 
 const Shader* ShaderLibrary::Load(
     const std::wstring& filePath, 
@@ -7,8 +26,11 @@ const Shader* ShaderLibrary::Load(
     UINT compileFlags)
 {
 
+	// ビルトインは EngineAssets 側にあるので、キーは解決後のパスで作る
+	const std::wstring path = ResolveShaderPath(filePath);
+
 	// すでに同じShaderKeyが存在するか確認
-	const ShaderKey key{ filePath , entryPoint, profile, compileFlags };
+	const ShaderKey key{ path , entryPoint, profile, compileFlags };
 
     // 存在する場合はキャッシュを返す
 	auto it = m_Shaders.find(key);
@@ -20,7 +42,7 @@ const Shader* ShaderLibrary::Load(
     // 存在しない場合は新規に作成
 	auto shader = std::make_shared<Shader>();
     if (!shader->LoadFromFile(
-        filePath,
+        path,
         entryPoint,
         profile,
         compileFlags))
@@ -31,9 +53,9 @@ const Shader* ShaderLibrary::Load(
 	ShaderEntry entry{};
     entry.shader = shader;
 
-    if(std::filesystem::exists(filePath))
+    if(std::filesystem::exists(path))
     {
-        entry.lastWriteTime = std::filesystem::last_write_time(filePath);
+        entry.lastWriteTime = std::filesystem::last_write_time(path);
 	}
 
     // キャッシュを保存して返す
@@ -43,18 +65,19 @@ const Shader* ShaderLibrary::Load(
 
 const Shader* ShaderLibrary::Reload(const std::wstring& filePath, const std::string& entry, const std::string& profile, std::string& outError, UINT flags)
 {
-    const ShaderKey key{ filePath,entry,profile,flags };
+    const std::wstring path = ResolveShaderPath(filePath);
+    const ShaderKey key{ path,entry,profile,flags };
     auto shader = std::make_shared<Shader>();
-    if(!shader->LoadFromFile(filePath, entry, profile, flags))
+    if(!shader->LoadFromFile(path, entry, profile, flags))
     {
         outError = shader->GetLastError(); // UIへ戻す
         return nullptr;
 	}
     outError.clear();
     ShaderEntry e{ shader };
-    if (std::filesystem::exists(filePath))
+    if (std::filesystem::exists(path))
     {
-        e.lastWriteTime = std::filesystem::last_write_time(filePath);        
+        e.lastWriteTime = std::filesystem::last_write_time(path);        
     }
     m_Shaders[key] = e; // 上書き
     return shader.get();

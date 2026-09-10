@@ -1,5 +1,6 @@
 ﻿#include "BuildSystem.hpp"
 #include "Logger.hpp"
+#include "Project.hpp"
 #include "imguiinit.hpp"
 #include <windows.h>
 #include <filesystem>
@@ -352,21 +353,18 @@ void BuildSystem::Build(const BuildSetting& settings)
             }
         }
 
-		SetStage(0.6f, IMGUI::ToUTF8("シェーダーコピー中..."));
+        SetStage(0.6f, IMGUI::ToUTF8("エンジンリソースコピー中..."));
 
-        // ---- 4. シェーダー(.hlsl/.hlsli)は Data/Shaders へ ----
-        for (auto& e : fs::directory_iterator(paths.srcDir, ec))
-        {
-            auto ext = e.path().extension();
-            if (ext == L".hlsl" || ext == L".hlsli")
-                fs::copy_file(e.path(), dataDir / "Shaders" / e.path().filename(),
-                    fs::copy_options::overwrite_existing, ec);
-        }
+        // ---- 4. エンジン同梱リソースは exe 横の EngineAssets へそのまま ----
+        // ユーザーからは見えないが実行には必要。Data/ ではなく outDir 直下に置く
+        fs::copy(paths.exeDir / "EngineAssets", outDir / "EngineAssets",
+            fs::copy_options::recursive | fs::copy_options::overwrite_existing, ec);
+        if (ec) PushLog("[Build] EngineAssets のコピーに失敗: " + ec.message());
 
-        // ---- 5. Assets は Data/Assets へ ----
+        // ---- 5. プロジェクトの Assets は Data/Assets へ ----
         SetStage(0.55f, IMGUI::ToUTF8("Assets コピー中..."));
         PushLog("[Build] Assets をコピー中...");
-        if (!CopyTreeWithProgress(paths.srcDir / "Assets", dataDir / "Assets",
+        if (!CopyTreeWithProgress(PROJECT->GetRoot() / "Assets", dataDir / "Assets",
             0.55f, 0.98f))
         {
             SetStage(0.0f, "");

@@ -7,6 +7,11 @@ Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "DirectX12__test", "DirectX1
 EndProject
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Scripts", "Scripts\Scripts.vcxproj", "{479B11EE-6FD2-4BFB-95D4-8221E49862DB}"
 EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Launcher", "Launcher\Launcher.vcxproj", "{7B3E1C42-9A55-4F0D-8C21-5D6A0E4B7F19}"
+	ProjectSection(ProjectDependencies) = postProject
+		{FCBD813D-BF71-47CA-A9E9-080BC3B223B1} = {FCBD813D-BF71-47CA-A9E9-080BC3B223B1}
+	EndProjectSection
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|x64 = Debug|x64
@@ -30,6 +35,14 @@ Global
 		{479B11EE-6FD2-4BFB-95D4-8221E49862DB}.Release|x64.Build.0 = Release|x64
 		{479B11EE-6FD2-4BFB-95D4-8221E49862DB}.Release|x86.ActiveCfg = Release|Win32
 		{479B11EE-6FD2-4BFB-95D4-8221E49862DB}.Release|x86.Build.0 = Release|Win32
+		{7B3E1C42-9A55-4F0D-8C21-5D6A0E4B7F19}.Debug|x64.ActiveCfg = Debug|x64
+		{7B3E1C42-9A55-4F0D-8C21-5D6A0E4B7F19}.Debug|x64.Build.0 = Debug|x64
+		{7B3E1C42-9A55-4F0D-8C21-5D6A0E4B7F19}.Debug|x86.ActiveCfg = Debug|x64
+		{7B3E1C42-9A55-4F0D-8C21-5D6A0E4B7F19}.Debug|x86.Build.0 = Debug|x64
+		{7B3E1C42-9A55-4F0D-8C21-5D6A0E4B7F19}.Release|x64.ActiveCfg = Release|x64
+		{7B3E1C42-9A55-4F0D-8C21-5D6A0E4B7F19}.Release|x64.Build.0 = Release|x64
+		{7B3E1C42-9A55-4F0D-8C21-5D6A0E4B7F19}.Release|x86.ActiveCfg = Release|x64
+		{7B3E1C42-9A55-4F0D-8C21-5D6A0E4B7F19}.Release|x86.Build.0 = Release|x64
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

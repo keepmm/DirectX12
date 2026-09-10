@@ -21,6 +21,7 @@
 #include "Profiler.hpp"
 #include <cstring>
 #include <algorithm>
+#include "Project.hpp"
 
 #pragma comment(lib, "psapi.lib")
 
@@ -168,13 +169,52 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 	{
 		if (ImGui::BeginMenu(u8("ファイル")))
 		{
+			if (ImGui::MenuItem(u8("新規プロジェクト...")))
+			{
+				m_ShowNewProject = true;
+				m_ProjectError.clear();
+			}
+
+			if (ImGui::MenuItem(u8("プロジェクトを開く...")))
+			{
+				const std::string dir = PickProjectFolder();
+				if (!dir.empty())
+				{
+					std::string err;
+					if (!PROJECT->Open(dir, err))
+					{
+						m_ProjectError = err;
+						m_ShowNewProject = true;   // エラー表示のため同じ窓を使う
+					}
+				}
+			}
+
+			if (ImGui::BeginMenu(u8("最近のプロジェクト")))
+			{
+				for (const auto& r : PROJECT->GetRecents())
+				{
+					if (ImGui::MenuItem(r.c_str()))
+					{
+						std::string err;
+						if (!PROJECT->Open(r, err)) m_ProjectError = err;
+					}
+				}
+				ImGui::EndMenu();
+			}
+
+			ImGui::Separator();
+
 			if (ImGui::MenuItem(u8("シーンを保存"), "Ctrl+S"))
 			{
-				if (activeScene)
+				if (ImGui::MenuItem(u8("シーンを保存"), "Ctrl+S"))
 				{
-					SceneSerializer::Save(*activeScene,
-					SceneManager::ScenePathFromName(activeScene->GetSceneName()));
+					if (activeScene)
+					{
+						SceneSerializer::Save(*activeScene,
+							SceneManager::ScenePathFromName(activeScene->GetSceneName()));
+					}
 				}
+				ImGui::EndMenu();
 			}
 			ImGui::EndMenu();
 		}
@@ -1510,4 +1550,66 @@ void EditorWindow::DrawMmdPlayer(World& world)
 	}
 
 	DrawMmdPlayerControls(world, world.GetComponent<AnimatorComponent>(target));
+}
+
+void EditorWindow::DrawProjectDialog()
+{
+	if (!m_ShowNewProject) return;
+
+	ImGui::OpenPopup(u8("新規プロジェクト"));
+	if (!ImGui::BeginPopupModal(u8("新規プロジェクト"), &m_ShowNewProject,
+		ImGuiWindowFlags_AlwaysAutoResize))
+	{
+		return;
+	}
+
+	ImGui::InputText(u8("プロジェクト名"), m_NewProjectName.data(), m_NewProjectName.size());
+
+	ImGui::InputText(u8("作成先"), m_NewProjectDir.data(), m_NewProjectDir.size());
+	ImGui::SameLine();
+	if (ImGui::Button(u8("参照...")))
+	{
+		const std::string dir = PickProjectFolder();
+		if (!dir.empty())
+		{
+			std::snprintf(m_NewProjectDir.data(), m_NewProjectDir.size(), "%s", dir.c_str());
+		}
+	}
+
+	if (!m_ProjectError.empty())
+	{
+		ImGui::TextColored(ImVec4(1, 0.4f, 0.4f, 1), "%s", m_ProjectError.c_str());
+	}
+
+	ImGui::Separator();
+
+	const bool canCreate =
+		m_NewProjectName[0] != '\0' && m_NewProjectDir[0] != '\0';
+
+	ImGui::BeginDisabled(!canCreate);
+	if (ImGui::Button(u8("作成")))
+	{
+		std::string err;
+		if (PROJECT->Create(m_NewProjectDir.data(), m_NewProjectName.data(), err))
+		{
+			m_ProjectError.clear();
+			m_ShowNewProject = false;
+			ImGui::CloseCurrentPopup();
+		}
+		else
+		{
+			m_ProjectError = err;
+		}
+	}
+	ImGui::EndDisabled();
+
+	ImGui::SameLine();
+	if (ImGui::Button(u8("キャンセル")))
+	{
+		m_ProjectError.clear();
+		m_ShowNewProject = false;
+		ImGui::CloseCurrentPopup();
+	}
+
+	ImGui::EndPopup();
 }

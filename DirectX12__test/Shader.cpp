@@ -4,6 +4,7 @@
 namespace
 {
 	// キャッシュの置き場。ビルド成果物なので Git には入れない
+	// プロジェクト側に置く（プロジェクトごとにシェーダー構成が違いうるため）
 	constexpr const wchar_t* kShaderCacheDir = L"Assets/ShaderCache";
 	constexpr uint32_t kShaderCacheMagic = 0x31534843;	// 'CHS1'
 

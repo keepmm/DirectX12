@@ -1,10 +1,10 @@
-/*****************************************************************//**
+ï»¿/*****************************************************************//**
  * \file   Project.hpp
- * \brief  ƒvƒƒWƒFƒNƒg(Assets ƒ‹[ƒg)‚Ìì¬EƒI[ƒvƒ“EƒJƒŒƒ“ƒgŠÇ—
+ * \brief  ãƒ—ãƒ­ã‚¸ã‚§ã‚¯ãƒˆ(Assets ãƒ«ãƒ¼ãƒˆ)ã®ä½œæˆãƒ»ã‚ªãƒ¼ãƒ—ãƒ³ãƒ»ã‚«ãƒ¬ãƒ³ãƒˆç®¡ç†
  * 
- * ì¬Ò 
- * ì¬“ú 2026/9/8
- * XV—š—ğ 9.8 ì¬
+ * ä½œæˆè€… 
+ * ä½œæˆæ—¥ 2026/9/8
+ * æ›´æ–°å±¥æ­´ 9.8 ä½œæˆ
  * *********************************************************************/
 #pragma once
 
@@ -14,48 +14,88 @@
 
 #define PROJECT Project::GetInstance()
 
+ /// @brief ãƒ•ã‚©ãƒ«ãƒ€é¸æŠãƒ€ã‚¤ã‚¢ãƒ­ã‚°ã‚’å‡ºã™
+ /// @return é¸æŠã•ã‚ŒãŸãƒ‘ã‚¹ã€‚ã‚­ãƒ£ãƒ³ã‚»ãƒ«æ™‚ã¯ç©ºæ–‡å­—
+std::string PickProjectFolder();
+
 class Project
 {
 public:
 	static Project* GetInstance();
 
-	/// @brief V‹KƒvƒƒWƒFƒNƒg‚ğì¬‚µ‚ÄŠJ‚­
-	/// @param parentDir ì¬æ‚ÌeƒtƒHƒ‹ƒ_
-	/// @param name ƒvƒƒWƒFƒNƒg–¼
-	/// @param outError ¸”s‚µ‚½ê‡‚Ì¸”s——R
-	/// @return ¬Œ÷ true, ¸”s false
+	/// @brief æ–°è¦ãƒ—ãƒ­ã‚¸ã‚§ã‚¯ãƒˆã‚’ä½œæˆã—ã¦é–‹ã
+	/// @param parentDir ä½œæˆå…ˆã®è¦ªãƒ•ã‚©ãƒ«ãƒ€
+	/// @param name ãƒ—ãƒ­ã‚¸ã‚§ã‚¯ãƒˆå
+	/// @param outError å¤±æ•—ã—ãŸå ´åˆã®å¤±æ•—ç†ç”±
+	/// @return æˆåŠŸæ™‚ true, å¤±æ•—æ™‚ false
 	bool Create(
 		_In_ const std::filesystem::path& parentDir,
 		_In_ const std::string& name,
 		_Out_ std::string& outError
 	);
 
-	/// @brief Šù‘¶ƒvƒƒWƒFƒNƒg‚ğŠJ‚­(.dxproj ‚©A‚»‚ê‚ğŠÜ‚ŞƒtƒHƒ‹ƒ_)
-	/// @param path ŠJ‚­ƒvƒƒWƒFƒNƒg‚ÌƒpƒX
-	/// @param outError ¸”s‚µ‚½ê‡‚Ì¸”s——R
-	/// @return ¬Œ÷ true, ¸”s false
+	/// @brief æ—¢å­˜ãƒ—ãƒ­ã‚¸ã‚§ã‚¯ãƒˆã‚’é–‹ã(.dxproj ã‹ã€ãã‚Œã‚’å«ã‚€ãƒ•ã‚©ãƒ«ãƒ€)
+	/// @param path é–‹ããƒ—ãƒ­ã‚¸ã‚§ã‚¯ãƒˆã®ãƒ‘ã‚¹
+	/// @param outError å¤±æ•—ã—ãŸå ´åˆã®å¤±æ•—ç†ç”±
+	/// @return æˆåŠŸæ™‚ true, å¤±æ•—æ™‚ false
 	bool Open(
 		_In_ const std::filesystem::path& path,
 		_Out_ std::string& outError
 	);
 
-	/// @brief ŠJ‚¢‚Ä‚¢‚é‚©‚Ç‚¤‚©
-	/// @return ŠJ‚¯‚½ê‡ true, ŠJ‚¯‚È‚©‚Á‚½ê‡ false
+	/// @brief é–‹ã„ã¦ã„ã‚‹ã‹ã©ã†ã‹
+	/// @return é–‹ã‘ãŸå ´åˆ true, é–‹ã‘ãªã‹ã£ãŸå ´åˆ false
 	bool IsOpen() const noexcept { return !m_Root.empty(); }
 
 	const std::filesystem::path& GetRoot() const noexcept { return m_Root; }
 	const std::string& GetName() const noexcept { return m_Name; }
 	const std::string& GetStartScene() const noexcept { return m_StartScene; }
 
-	/// @brief ƒvƒƒWƒFƒNƒg‘Š‘ÎƒpƒX‚ğâ‘ÎƒpƒX‚É•ÏŠ·‚·‚é ("Assets/x.png" ¨ root/Assets/x.png)
-	/// @param relative ƒvƒƒWƒFƒNƒg‘Š‘ÎƒpƒX
-	/// @return â‘ÎƒpƒX
+	/// @brief ãƒ—ãƒ­ã‚¸ã‚§ã‚¯ãƒˆç›¸å¯¾ãƒ‘ã‚¹ã‚’çµ¶å¯¾ãƒ‘ã‚¹ã«å¤‰æ›ã™ã‚‹ ("Assets/x.png" â†’ root/Assets/x.png)
+	/// @param relative ãƒ—ãƒ­ã‚¸ã‚§ã‚¯ãƒˆç›¸å¯¾ãƒ‘ã‚¹
+	/// @return çµ¶å¯¾ãƒ‘ã‚¹
 	std::filesystem::path Resolve(const std::string& relative) const;
+
+	/// @brief .dxproj ãƒ•ã‚¡ã‚¤ãƒ«ã‚’ä¿å­˜ã™ã‚‹
+	/// @param outError å¤±æ•—ã—ãŸå ´åˆã®å¤±æ•—ç†ç”±
+	/// @return æˆåŠŸæ™‚ true, å¤±æ•—æ™‚ false
+	bool Save(_Out_ std::string& outError) const;
+
+	/// @brief æœ€è¿‘é–‹ã„ãŸãƒ—ãƒ­ã‚¸ã‚§ã‚¯ãƒˆ(æ–°ã—ã„é †)
+	/// @return æœ€è¿‘é–‹ã„ãŸãƒ—ãƒ­ã‚¸ã‚§ã‚¯ãƒˆã®ãƒ‘ã‚¹ã®ãƒªã‚¹ãƒˆ
+	const std::vector<std::string>& GetRecents() const noexcept { return m_Recents; }
+
+	/// @brief æœ€è¿‘é–‹ã„ãŸãƒ—ãƒ­ã‚¸ã‚§ã‚¯ãƒˆã‚’ä¿å­˜ã™ã‚‹
+	void LoadRecents();
 private:
-	std::filesystem::path m_Root; // ƒvƒƒWƒFƒNƒg‚Ìƒ‹[ƒgƒtƒHƒ‹ƒ_
-	std::string m_Name; // ƒvƒƒWƒFƒNƒg–¼
-	std::vector<std::string> m_Recents; // Å‹ßŠJ‚¢‚½ƒvƒƒWƒFƒNƒg‚ÌƒpƒX
-	std::string m_StartScene = "Assets/Scenes/SampleScene.json"; // ‹N“®‚ÉŠJ‚­ƒV[ƒ“‚ÌƒpƒX
+	/// @brief Assets ãƒ•ã‚©ãƒ«ãƒ€ãªã©ã®ãƒ—ãƒ­ã‚¸ã‚§ã‚¯ãƒˆã®éª¨æ ¼ã‚’ä½œæˆã™ã‚‹
+	/// @param root ãƒ—ãƒ­ã‚¸ã‚§ã‚¯ãƒˆã®ãƒ«ãƒ¼ãƒˆãƒ•ã‚©ãƒ«ãƒ€
+	/// @param outError å¤±æ•—ã—ãŸå ´åˆã®å¤±æ•—ç†ç”±
+	/// @return æˆåŠŸæ™‚ true, å¤±æ•—æ™‚ false
+	bool CreateSkeleton(
+		_In_ const std::filesystem::path& root,
+		_Out_ std::string& outError
+	);
+	/// @brief ç©ºã®ã‚·ãƒ¼ãƒ³ (json) ã‚’æ›¸ãã ã™
+	/// @param scenePath ã‚·ãƒ¼ãƒ³ã®ãƒ‘ã‚¹
+	/// @return æˆåŠŸæ™‚ true, å¤±æ•—æ™‚ false
+	bool WriteEmptyScene(_In_ const std::filesystem::path& scenePath) const;
+
+	/// @brief ã‚«ãƒ¬ãƒ³ãƒˆãƒ‡ã‚£ãƒ¬ã‚¯ãƒˆãƒªã‚’ root ã«åˆ‡ã‚Šæ›¿ãˆã‚‹
+	/// @param outError å¤±æ•—ã—ãŸå ´åˆã®å¤±æ•—ç†ç”±
+	/// @return æˆåŠŸæ™‚ true, å¤±æ•—æ™‚ false
+	bool Activate(_Out_ std::string& outError);
+
+	/// @brief æœ€è¿‘é–‹ã„ãŸãƒ—ãƒ­ã‚¸ã‚§ã‚¯ãƒˆã‚’è¿½åŠ ã™ã‚‹
+	/// @param root ãƒ—ãƒ­ã‚¸ã‚§ã‚¯ãƒˆã®ãƒ«ãƒ¼ãƒˆãƒ•ã‚©ãƒ«ãƒ€
+	void PushRecents(const std::filesystem::path& root);
+	/// @brief æœ€è¿‘é–‹ã„ãŸãƒ—ãƒ­ã‚¸ã‚§ã‚¯ãƒˆã‚’ä¿å­˜ã™ã‚‹
+	void SaveRecents()const;
+
+	std::filesystem::path m_Root; // ãƒ—ãƒ­ã‚¸ã‚§ã‚¯ãƒˆã®ãƒ«ãƒ¼ãƒˆãƒ•ã‚©ãƒ«ãƒ€
+	std::string m_Name; // ãƒ—ãƒ­ã‚¸ã‚§ã‚¯ãƒˆå
+	std::vector<std::string> m_Recents; // æœ€è¿‘é–‹ã„ãŸãƒ—ãƒ­ã‚¸ã‚§ã‚¯ãƒˆã®ãƒ‘ã‚¹
+	std::string m_StartScene = "Assets/Scenes/SampleScene.json"; // èµ·å‹•æ™‚ã«é–‹ãã‚·ãƒ¼ãƒ³ã®ãƒ‘ã‚¹
 
 	Project() = default;
 	Project(const Project&) = delete;

@@ -107,3 +107,13 @@ inline std::filesystem::path ResolveAssetPath(const std::filesystem::path& path)
 	GetModuleFileNameW(nullptr, exe, MAX_PATH);
     return std::filesystem::path(exe).parent_path() / path;
 }
+
+/// @brief エンジン同梱リソースのパスを解決する
+/// @note ユーザープロジェクトの Assets とは別管理。exe 横の EngineAssets を基準にする。
+///       CWD はプロジェクトルートへ移動しているので、必ず exe 基準で組み立てること
+inline std::filesystem::path EngineAssetPath(const std::filesystem::path& relative)
+{
+    wchar_t exe[MAX_PATH]{};
+    GetModuleFileNameW(nullptr, exe, MAX_PATH);
+    return std::filesystem::path(exe).parent_path() / L"EngineAssets" / relative;
+}
