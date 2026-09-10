@@ -40,9 +40,6 @@
     <Filter Include="Assets">
       <UniqueIdentifier>{2a56a89e-8bdc-4d97-833c-1fe18b4b1a00}</UniqueIdentifier>
     </Filter>
-    <Filter Include="EngineAssets\Icons">
-      <UniqueIdentifier>{3603e788-43a8-4df4-ab17-ce3f89b81a2e}</UniqueIdentifier>
-    </Filter>
     <Filter Include="Assets\Model">
       <UniqueIdentifier>{dec2bb9e-a313-48a2-9022-26d0fb4f8816}</UniqueIdentifier>
     </Filter>
@@ -243,6 +240,8 @@
     <ClCompile Include="FramePipeline.cpp">
       <Filter>FramePipeline</Filter>
     </ClCompile>
+    <ClCompile Include="GameState.cpp" />
+    <ClCompile Include="Project.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.hpp">
@@ -473,6 +472,11 @@
     <ClInclude Include="MmdPlayerUI.hpp">
       <Filter>UI</Filter>
     </ClInclude>
+    <ClInclude Include="GameState.hpp" />
+    <ClInclude Include="Project.hpp" />
+    <ClInclude Include="DragFiles.hpp">
+      <Filter>Editor</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="EngineAssets\Shaders\BRDF.hlsli">
@@ -486,30 +490,6 @@
     </None>
     <None Include="packages.config">
       <Filter>Config</Filter>
-    </None>
-    <None Include="EngineAssets\Icons\CameraIcon.png">
-      <Filter>EngineAssets\Icons</Filter>
-    </None>
-    <None Include="EngineAssets\Icons\File.png">
-      <Filter>EngineAssets\Icons</Filter>
-    </None>
-    <None Include="EngineAssets\Icons\Folder.png">
-      <Filter>EngineAssets\Icons</Filter>
-    </None>
-    <None Include="EngineAssets\Icons\Image.png">
-      <Filter>EngineAssets\Icons</Filter>
-    </None>
-    <None Include="EngineAssets\Icons\Json.png">
-      <Filter>EngineAssets\Icons</Filter>
-    </None>
-    <None Include="EngineAssets\Icons\LightIcon.png">
-      <Filter>EngineAssets\Icons</Filter>
-    </None>
-    <None Include="EngineAssets\Icons\Material.png">
-      <Filter>EngineAssets\Icons</Filter>
-    </None>
-    <None Include="EngineAssets\Icons\Model.png">
-      <Filter>EngineAssets\Icons</Filter>
     </None>
     <None Include="Assets\Model\akai\Akai.fbx">
       <Filter>Assets\Model</Filter>
@@ -607,6 +587,14 @@
     <None Include="EngineAssets\Shaders\PostProcess.hlsl">
       <Filter>Shader\HLSL\VertexShader</Filter>
     </None>
+    <None Include="EngineAssets\Icons\CameraIcon.png" />
+    <None Include="EngineAssets\Icons\File.png" />
+    <None Include="EngineAssets\Icons\Folder.png" />
+    <None Include="EngineAssets\Icons\Image.png" />
+    <None Include="EngineAssets\Icons\Json.png" />
+    <None Include="EngineAssets\Icons\LightIcon.png" />
+    <None Include="EngineAssets\Icons\Material.png" />
+    <None Include="EngineAssets\Icons\Model.png" />
   </ItemGroup>
   <ItemGroup>
     <Image Include="Assets\Texture\metal.jpg">

@@ -15,6 +15,7 @@
 #include "PlayState.hpp"
 #include <shellapi.h>
 #include "Project.hpp"
+#include "DragFiles.hpp"
 
 #pragma comment(lib, "psapi.lib")
 
@@ -64,6 +65,22 @@ void EditorWindow::DrawAssetPanel(SceneManager& sceneManager)
 
 	if (ImGui::BeginChild("AssetList", ImVec2(0.0f, 0.0f), true))
 	{
+		// ---- エクスプローラーからのドロップ ---- //
+		// ImGui はOSのドロップを受けないので、WndProc が拾ったものを
+		// 自分の矩形内かどうかで判定して取り込む
+		if (DropFiles::Get().HasPending())
+		{
+			const ImVec2 pos = ImGui::GetWindowPos();
+			const ImVec2 size = ImGui::GetWindowSize();
+			const float dx = static_cast<float>(DropFiles::Get().X());
+			const float dy = static_cast<float>(DropFiles::Get().Y());
+
+			if (dx >= pos.x && dx <= pos.x + size.x &&
+				dy >= pos.y && dy <= pos.y + size.y)
+			{
+				ImportAssets(DropFiles::Get().Consume());
+			}
+		}
 		const float windowRight =
 			ImGui::GetWindowPos().x + ImGui::GetWindowContentRegionMax().x;
 		const ImGuiStyle& style = ImGui::GetStyle();

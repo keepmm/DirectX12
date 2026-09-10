@@ -226,6 +226,7 @@
     <ClInclude Include="DebugLineRenderer.hpp" />
     <ClInclude Include="Defines.hpp" />
     <ClInclude Include="DirectX.hpp" />
+    <ClInclude Include="DragFiles.hpp" />
     <ClInclude Include="EditorWindow.hpp" />
     <ClInclude Include="Engine/Engine.hpp" />
     <ClInclude Include="EngineAPI.hpp" />

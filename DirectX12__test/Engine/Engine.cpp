@@ -10,6 +10,7 @@
 #include "../IconLibrary.hpp"
 #include "../Profiler.hpp"
 #include "../GpuProfiler.hpp"
+#include "../DragFiles.hpp"
 
 static LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -20,6 +21,30 @@ static LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lPara
 
 	switch (msg)
 	{
+	case WM_DROPFILES:
+	{
+		HDROP drop = reinterpret_cast<HDROP>(wParam);
+
+		const UINT count = DragQueryFileW(drop, 0xFFFFFFFF, nullptr, 0);
+		std::vector<std::string> paths;
+		paths.reserve(count);
+
+		for (UINT i = 0; i < count; ++i)
+		{
+			const UINT len = DragQueryFileW(drop, i, nullptr, 0);
+			std::wstring w(len, L'\0');
+			DragQueryFileW(drop, i, w.data(), len + 1);
+			paths.push_back(std::filesystem::path(w).string());
+		}
+
+		POINT pt{};
+		DragQueryPoint(drop, &pt);   // クライアント座標
+		DragFinish(drop);
+
+		DropFiles::Get().Push(std::move(paths), pt.x, pt.y);
+		return 0;
+	}
+
 	case WM_DESTROY:
 		PostQuitMessage(0);
 		break;
@@ -66,6 +91,9 @@ void Engine::CreateGameWindow(int width, int height)
 		screenW,screenH,
 		NULL, NULL, m_hInstance, NULL
 	);
+
+	// エクスプローラーからのドロップを受け付ける
+	DragAcceptFiles(m_hWnd, TRUE);
 }
 
 HRESULT Engine::Init(HINSTANCE hInstance, int width, int height)
@@ -241,6 +269,9 @@ void Engine::Run()
 			}
 			m_DirectX->KickExecuteAndPresent();	// 非同期投入して即時フレームへ
 			++frameNumber;
+			// 誰も受け取らなかったドロップは捨てる。
+			// 残すと次フレームに別の場所で誤爆する
+			DropFiles::Get().Discard();
 #else
 			{
 				// コマンド投入 + 提示。VSync(Present(1,0))の待ちもここに含まれる

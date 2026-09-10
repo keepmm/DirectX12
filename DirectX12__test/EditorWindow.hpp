@@ -240,4 +240,8 @@ private:
 
 	/// @brief 空のシーン json を作る
 	void CreateSceneFile(_In_ const std::string& dir);
+
+	/// @brief 外部から来たファイル / フォルダを現在のアセットフォルダへ取り込む
+	/// @param sources ドロップされた絶対パス
+	void ImportAssets(_In_ const std::vector<std::string>& sources);
 };
