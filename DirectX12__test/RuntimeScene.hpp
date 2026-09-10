@@ -110,6 +110,7 @@ private:
 	ScriptSystem m_ScriptSystem;
 	SpriteRenderSystem m_SpriteRenderSystem;
 	CanvasRenderSystem m_CanvasRenderSystem;
+	UIButtonSystem m_UIButtonSystem;
 	AudioSystem m_AudioSystem;
 	TransformSystem m_TransformSystem;
 	ShadowSystem m_ShadowSystem;

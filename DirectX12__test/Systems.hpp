@@ -601,6 +601,7 @@ public:
 					// 無効側でも呼ぶのは OnDisable を落とさないため
 					b->SyncEnableState();
 					if (!b->enabled) continue;
+					b->TickInvokes(deltatime);   // 予約された処理を先に消化する
 					b->OnUpdate(deltatime);
 				}
 			});
@@ -909,6 +910,88 @@ public:
 		}
 
 		return result;
+	}
+};
+
+/// @brief UIボタンのホバー / クリック判定
+/// @note CanvasRenderSystem と同じ矩形の求め方をしている。
+///       あちらを変えたらこちらも合わせること
+class UIButtonSystem
+{
+public:
+	/// @param screenW / screenH 描画に使っているスクリーンサイズ
+	/// @param mouseX / mouseY ビューポート左上を原点としたマウス座標
+	/// @param enabled 押下を受け付けるか(エディタでゲーム画面が非表示のときなど)
+	void Update(
+		_In_ World& world,
+		_In_ float screenW,
+		_In_ float screenH,
+		_In_ float mouseX,
+		_In_ float mouseY,
+		_In_ bool enabled)
+	{
+		(void)screenW;
+		(void)screenH;
+
+		const bool down = enabled && INPUT->GetMouseButtonDown(0);
+		const bool held = enabled && INPUT->GetMouseButton(0);
+		const bool up = enabled && INPUT->GetMouseButtonUp(0);
+
+		// クリック確定は走査の外で呼ぶ。
+		// onClick がエンティティを増減させると Each が壊れるため
+		std::vector<std::function<void()>> fired;
+
+		world.Each<RectTransformComponent, UIButtonComponent>(
+			[&](Entity, RectTransformComponent& rt, UIButtonComponent& btn)
+			{
+				if (!btn.interactable)
+				{
+					btn.isHovered = false;
+					btn.isPressed = false;
+					return;
+				}
+
+				// CanvasRenderSystem と同じ: AnchoredPosition が左上、SizeDelta が大きさ
+				const float x0 = rt.AnchoredPosition.x;
+				const float y0 = rt.AnchoredPosition.y;
+				const float x1 = x0 + rt.SizeDelta.x;
+				const float y1 = y0 + rt.SizeDelta.y;
+
+				const bool inside =
+					enabled &&
+					mouseX >= x0 && mouseX <= x1 &&
+					mouseY >= y0 && mouseY <= y1;
+
+				btn.isHovered = inside;
+
+				if (inside && down)
+				{
+					btn.isPressed = true;
+				}
+				else if (!held)
+				{
+					// 押したまま外へ出て離した場合はクリック扱いにしない
+					if (btn.isPressed && inside && up && btn.onClick)
+					{
+						fired.push_back(btn.onClick);
+					}
+					btn.isPressed = false;
+				}
+			});
+
+		for (auto& fn : fired)
+		{
+			fn();
+		}
+	}
+
+	/// @brief 状態に応じた色を返す(UIImage の色に掛ける)
+	static COLOR StateColor(const UIButtonComponent& btn)
+	{
+		if (!btn.interactable) return btn.disabledColor;
+		if (btn.isPressed)     return btn.pressedColor;
+		if (btn.isHovered)     return btn.hoverColor;
+		return btn.normalColor;
 	}
 };
 

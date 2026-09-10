@@ -203,6 +203,13 @@ struct ColliderComponent
 	float density = 1.0f;
 	bool isTrigger = false;
 
+	/// @brief 自分が属するレイヤー(0〜31)
+	int layer = 0;
+
+	/// @brief 衝突を許すレイヤーのビットマスク
+	/// @note 既定は全許可。片方でも相手を弾いていれば衝突しない
+	unsigned int collisionMask = 0xFFFFFFFFu;
+
 	PhysX::PxShape* shape = nullptr;
 	bool isShow = false;
 
@@ -215,7 +222,16 @@ struct ColliderComponent
 		f.AddRange("Restitution", restitution, 0.0f, 1.0f);
 		f.AddRange("Density", density, 0.01f, 1000.0f);
 		f.Add("IsTrigger", isTrigger);
+		f.AddRange("Layer", layer, 0, 31);
 		f.Add("IsShow", isShow);
+	}
+
+	/// @brief 相手と衝突してよいか
+	bool CanCollideWith(const ColliderComponent& other) const
+	{
+		const unsigned int selfBit = 1u << (layer & 31);
+		const unsigned int otherBit = 1u << (other.layer & 31);
+		return (collisionMask & otherBit) != 0 && (other.collisionMask & selfBit) != 0;
 	}
 };
 
@@ -438,6 +454,47 @@ struct RectTransformComponent
 		f.Add("AnchoredPosition", AnchoredPosition);
 		f.Add("SizeDelta", SizeDelta);
 		f.Add("Pivot", pivot);
+	}
+};
+
+/// @brief クリックできるUI
+/// @note RectTransform の矩形にマウスが入っているかで判定する。
+///       onClick はスクリプトの OnStart で差し込む
+struct UIButtonComponent
+{
+	bool interactable = true;
+
+	COLOR normalColor{ 1.0f, 1.0f, 1.0f, 1.0f };
+	COLOR hoverColor{ 0.85f, 0.85f, 0.85f, 1.0f };
+	COLOR pressedColor{ 0.6f, 0.6f, 0.6f, 1.0f };
+	COLOR disabledColor{ 0.4f, 0.4f, 0.4f, 0.5f };
+
+	// UIButtonSystem が更新する状態(シリアライズしない)
+	bool isHovered = false;
+	bool isPressed = false;
+
+	/// @brief 押して離されたときに呼ばれる
+	std::function<void()> onClick;
+
+	void Reflect(FieldList& f)
+	{
+		f.Add("Interactable", interactable);
+		f.Add("NormalColor", normalColor);
+		f.Add("HoverColor", hoverColor);
+		f.Add("PressedColor", pressedColor);
+		f.Add("DisabledColor", disabledColor);
+	}
+};
+
+/// @brief 種別の目印
+/// @note 衝突相手の判定などに使う。名前と違って重複してよい
+struct TagComponent
+{
+	std::string tag;
+
+	void Reflect(FieldList& f)
+	{
+		f.Add("Tag", tag);
 	}
 };
 

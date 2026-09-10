@@ -1,4 +1,4 @@
-#include "PhysicsWorld.hpp"
+﻿#include "PhysicsWorld.hpp"
 #include "Components.hpp"
 #include "MonoBehavior.hpp"
 
@@ -283,6 +283,16 @@ void PhysicsWorld::DispatchEvents(World& world)
 	if (!m_ErrorCallback) return;
 	for (auto& e : m_EventCallback->events)
 	{
+		// レイヤーで弾かれる組み合わせは通知しない。
+		// PhysX 側のフィルタまで手を入れずに済ませるため、ここで落としている
+		if (world.HasComponent<ColliderComponent>(e.a) &&
+			world.HasComponent<ColliderComponent>(e.b))
+		{
+			const auto& ca = world.GetComponent<ColliderComponent>(e.a);
+			const auto& cb = world.GetComponent<ColliderComponent>(e.b);
+			if (!ca.CanCollideWith(cb)) continue;
+		}
+
 		auto notify = [&](Entity self, Entity other)
 			{
 				if (!world.HasComponent<ScriptComponent>(self)) return;

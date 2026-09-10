@@ -88,6 +88,63 @@ public:
 		else         OnDisable();
 	}
 
+	/// @brief 指定秒後に一度だけ実行する
+	/// @param delaySeconds 待ち時間(秒)
+	/// @param fn 実行する処理
+	/// @return 取り消しに使うID
+	/// @note enabled が false の間は時間が進まない。Destroy されれば当然消える
+	int Invoke(_In_ float delaySeconds, _In_ std::function<void()> fn)
+	{
+		const int id = m_NextInvokeId++;
+		m_Invokes.emplace_back(id, delaySeconds, false, std::move(fn));
+		return id;
+	}
+
+	/// @brief 一定間隔で繰り返し実行する
+	/// @param intervalSeconds 間隔(秒)
+	int InvokeRepeating(_In_ float intervalSeconds, _In_ std::function<void()> fn)
+	{
+		const int id = m_NextInvokeId++;
+		m_Invokes.emplace_back(id, intervalSeconds, true, std::move(fn));
+		return id;
+	}
+
+	/// @brief Invoke / InvokeRepeating を取り消す
+	void CancelInvoke(_In_ int id)
+	{
+		for (auto& iv : m_Invokes)
+		{
+			if (iv.id == id) iv.canceled = true;
+		}
+	}
+
+	/// @brief 予約された処理の時間を進める
+	/// @note ScriptSystem が OnUpdate の前に呼ぶ
+	void TickInvokes(_In_ float deltatime)
+	{
+		if (m_Invokes.empty()) return;
+
+		// 実行中に Invoke が増えることがあるので、走査はインデックスで回す
+		for (size_t i = 0; i < m_Invokes.size(); ++i)
+		{
+			auto& iv = m_Invokes[i];
+			if (iv.canceled) continue;
+
+			iv.elapsed += deltatime;
+			if (iv.elapsed < iv.delay) continue;
+
+			if (iv.fn) iv.fn();
+
+			if (iv.repeat) iv.elapsed -= iv.delay;
+			else           iv.canceled = true;
+		}
+
+		m_Invokes.erase(
+			std::remove_if(m_Invokes.begin(), m_Invokes.end(),
+				[](const InvokeEntry& iv) { return iv.canceled; }),
+			m_Invokes.end());
+	}
+
 	/*
 	*	当たり判定 
 	*/
@@ -366,6 +423,24 @@ private:
 	mutable bool m_RegisterFieldsCalled = false;
 
 	bool m_PrevEnabled = true;
+
+	/// @brief Invoke の予約
+	struct InvokeEntry
+	{
+		int   id;
+		float delay;
+		float elapsed;
+		bool  repeat;
+		bool  canceled;
+		std::function<void()> fn;
+
+		InvokeEntry(int i, float d, bool r, std::function<void()> f)
+			: id(i), delay(d), elapsed(0.0f), repeat(r), canceled(false), fn(std::move(f))
+		{
+		}
+	};
+	std::vector<InvokeEntry> m_Invokes;
+	int m_NextInvokeId = 1;
 };
 
 /// @brief メンバ宣言と同時にインスペクタへ公開する
