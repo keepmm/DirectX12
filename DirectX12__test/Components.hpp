@@ -600,6 +600,9 @@ struct UIImageComponent
 	COLOR color{ 1.0f, 1.0f, 1.0f, 1.0f };
 	std::shared_ptr<Material> material;
 
+	/// @brief 描画するか。ポーズメニューの出し入れに使う
+	bool visible = true;
+
 	// UIButton が付いていれば、その状態色を掛けたものがここに入る(非シリアライズ)
 	COLOR runtimeColor{ 1.0f, 1.0f, 1.0f, 1.0f };
 	// 実際にテクスチャへ書いた色。変化したときだけ塗り直すための記録
@@ -609,6 +612,7 @@ struct UIImageComponent
 	{
 		f.Add("TexturePath", texturePath);
 		f.Add("Color", color);
+		f.Add("Visible", visible);
 
 		f.AddTexture("Texture", texturePath, material);
 	}
@@ -616,6 +620,8 @@ struct UIImageComponent
 
 struct UITextComponent
 {
+	/// @brief 描画するか
+	bool visible = true;
 	std::string text = "Text";
 	// Windowsフォント
 	std::string fontPath = "C:\\Windows\\Fonts\\meiryo.ttc";
@@ -628,6 +634,7 @@ struct UITextComponent
 
 	void Reflect(FieldList& f)
 	{
+		f.Add("Visible", visible);
 		f.Add("Text", text);
 		f.Add("FontPath", fontPath);
 		f.AddRange("FontSize", fontSize, 1.0f, 200.0f);

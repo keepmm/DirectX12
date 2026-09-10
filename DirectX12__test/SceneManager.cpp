@@ -271,6 +271,11 @@ void SceneManager::UpdateLoadedScenes(float deltatime)
 			{
 				scene->Update(deltatime);
 			}
+			else if (PLAY.GetCurrentMode() == EngineMode::PAUSE)
+			{
+				// ポーズ中は UI とメニュー用スクリプトだけを回す
+				static_cast<RuntimeScene*>(scene)->PauseUpdate(deltatime);
+			}
 			else
 			{
 				static_cast<RuntimeScene*>(scene)->EditorUpdate(deltatime);

@@ -73,6 +73,11 @@ public:
 	/// @brief そのフレームで確定したカメラ/ライトを FramePipeline へ積む
 	/// @note Game フェーズの最後に、アクティブシーンに対してだけ呼ぶ
 	///       (SceneManager::LateUpdate)。これ以降 Draw は World を直接読まない
+	/// @brief ポーズ中の更新
+	/// @note 動かすのは UI と runDuringPause を立てたスクリプトだけ。
+	///       アニメーション/物理/タイムラインは止めたままにする
+	void PauseUpdate(float deltatime);
+
 	void PublishFrameObjects();
 
 private:

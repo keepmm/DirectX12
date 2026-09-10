@@ -78,6 +78,10 @@ public:
 	/// @brief false の間は Update / FixedUpdate / LateUpdate / Draw が止まる
 	bool enabled = true;
 
+	/// @brief ポーズ中も OnUpdate を回すか
+	/// @note ポーズメニューのように、止まっている間に操作させたいものだけ true にする
+	bool runDuringPause = false;
+
 	/// @brief enabled の変化を見て OnEnable / OnDisable を発火する
 	/// @note ScriptSystem が毎フレーム呼ぶ。スクリプト側から呼ぶ必要はない
 	void SyncEnableState()
