@@ -26,6 +26,8 @@ static std::filesystem::path s_ProjPath;        // プロジェクトの Scripts
 static std::filesystem::path s_SlnDir;
 static std::filesystem::path s_EngineDir;       // エンジンのヘッダがある場所
 static std::filesystem::path s_EngineOutDir;    // DirectX12__test.lib がある場所(=exe横)
+static std::filesystem::path s_ExePath;         // ABI の新しさを比べる基準
+static bool s_AutoBuild = false;                // ゲームモードではビルドしない
 static std::string s_msbuild =
     "C:\\Program Files\\Microsoft Visual Studio\\2022\\Community\\MSBuild\\Current\\Bin\\MSBuild.exe";
 static std::filesystem::file_time_type s_lastSrcTime{};
@@ -154,6 +156,8 @@ static void LaunchBuild()
 
 static void CheckAndBuild()
 {
+    // 配布した exe に MSBuild は無い。プロジェクトが開いている=エディタのときだけ回す
+    if (!s_AutoBuild) return;
     if (s_building) return;
     std::error_code ec;
     std::filesystem::file_time_type maxT{};
@@ -245,7 +249,42 @@ void ScriptHost::Open(World* world)
     s_ScriptsSrcDir = PROJECT->GetRoot() / "Assets";
     s_ProjPath = PROJECT->GetScriptProjectPath();
 
+    s_ExePath = exeDir / std::filesystem::path(exePath).filename();
+    s_AutoBuild = PROJECT->IsOpen();
+
     const std::filesystem::path dll = PROJECT->GetLibraryDir() / "Scripts.dll";
+
+    // ---- ABI の食い違いを防ぐ ---- //
+    // Scripts.dll はエンジンのヘッダをそのまま取り込んでいるので、
+    // エンジンを作り直したのに DLL が古いままだと MonoBehavior の
+    // レイアウトがずれて即クラッシュする。
+    // CheckAndBuild はスクリプトの更新しか見ないため、ここで明示的に比べる
+    if (s_AutoBuild)
+    {
+        std::error_code ec;
+        const bool dllMissing = !std::filesystem::exists(dll, ec);
+        bool dllStale = false;
+
+        if (!dllMissing)
+        {
+            const auto dllTime = std::filesystem::last_write_time(dll, ec);
+            const auto exeTime = std::filesystem::last_write_time(s_ExePath, ec);
+            if (!ec) dllStale = exeTime > dllTime;
+        }
+
+        if (dllStale)
+        {
+            // 消してから作り直す。残したままだと下の cr_plugin_open や
+            // Update の後追いオープンが、古いABIのDLLを掴んでクラッシュする
+            LOG->LogInfo("[Scripts] エンジンの方が新しいので Scripts.dll を作り直します");
+            std::filesystem::remove(dll, ec);
+        }
+
+        if (dllMissing || dllStale)
+        {
+            LaunchBuild();
+        }
+    }
 
     LOG->LogInfo("[Scripts] watch  = " + s_ScriptsSrcDir.string());
     LOG->LogInfo("[Scripts] proj   = " + s_ProjPath.string());
