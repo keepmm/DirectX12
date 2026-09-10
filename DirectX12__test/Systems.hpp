@@ -146,9 +146,10 @@ public:
 
 					if (anyMorph && world.HasComponent<AnimatorComponent>(entity))
 					{
-						auto& an = world.GetComponent<AnimatorComponent>(entity);
+						// 再計算は AnimatorSystem::Update 側で済んでいる。
+						// ここでは読むだけ(描画から World を書き換えない)
+						const auto& an = world.GetComponent<AnimatorComponent>(entity);
 						const size_t vcount = mesh.mesh->GetVertexCount();
-						if (an.morphDirty) { RebuildMorphOffsets(an.morphs, an.morphWeights, vcount, an.morphoffsets); an.morphDirty = false; }
 						if (an.morphoffsets.size() == vcount)
 						{
 							auto va = renderContext.cbAllocator->Allocate(slot, an.morphoffsets.data(),
@@ -1052,6 +1053,27 @@ public:
 								a.clips.push_back(std::move(vc));
 							});
 					}
+				}
+
+				// ---- モーフオフセットの確定 ---- //
+				// 以前は RenderSystem::Draw の中で再計算していたが、
+				// 描画から World を書き換えることになり Game/Render を分けられない。
+				// クリップが無くてもモーフだけ動かすケースがあるので、
+				// 下の early return より前で処理する
+				if (an.morphDirty)
+				{
+					size_t vcount = 0;
+					if (world.HasComponent<MeshComponent>(e))
+					{
+						const auto& mc = world.GetComponent<MeshComponent>(e);
+						if (mc.mesh) vcount = mc.mesh->GetVertexCount();
+					}
+
+					if (vcount > 0)
+					{
+						RebuildMorphOffsets(an.morphs, an.morphWeights, vcount, an.morphoffsets);
+					}
+					an.morphDirty = false;
 				}
 
 				if (an.clips.empty()) return;
