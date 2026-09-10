@@ -1408,6 +1408,18 @@ void EditorWindow::OpenInEditor(const std::string& path)
 	namespace fs = std::filesystem;
 
 	const fs::path file = fs::absolute(path);
+
+	// VS から見えるように、開く前にファイル一覧を作り直しておく。
+	// これをしないと未ビルドのプロジェクトでは vcxproj が空で、
+	// 開いた .cpp が「その他のファイル」扱いになり IntelliSense が効かない
+	{
+		std::string err;
+		if (!PROJECT->RefreshScriptProjectSources(err))
+		{
+			LOG->LogWarning(err);
+		}
+	}
+
 	const fs::path sln = PROJECT->GetScriptSolutionPath();
 
 	// プロジェクトの sln があればそれごと開く。

@@ -128,6 +128,10 @@ bool Project::Create(const std::filesystem::path& parentDir, const std::string& 
     {
         return false;
     }
+    {
+        std::string ignore;
+        RefreshScriptProjectSources(ignore);
+    }
     if (!Activate(outError))
     {
         return false;
@@ -193,6 +197,13 @@ bool Project::Open(const std::filesystem::path& path, std::string& outError)
     if (!EnsureScriptProject(outError))
     {
         return false;
+    }
+
+    // 一覧が空のままだと VS 側でヘッダを解決できないので、開いた時点で埋めておく。
+    // 失敗してもプロジェクト自体は開けるので致命ではない
+    {
+        std::string ignore;
+        RefreshScriptProjectSources(ignore);
     }
 
     if (!Activate(outError))
@@ -347,6 +358,67 @@ bool LaunchLauncher()
     return true;
 }
 
+bool Project::RefreshScriptProjectSources(std::string& outError)
+{
+    const fs::path proj = GetScriptProjectPath();
+    if (!fs::exists(proj))
+    {
+        outError = "Scripts.vcxproj がありません: " + proj.string();
+        return false;
+    }
+
+    // Assets 配下を走査。プロジェクト相対で持つとフォルダごと移動しても壊れない
+    std::vector<std::string> cpps, hpps;
+    std::error_code ec;
+    for (const auto& e : fs::recursive_directory_iterator(m_Root / "Assets", ec))
+    {
+        if (!e.is_regular_file(ec)) continue;
+
+        const auto ext = e.path().extension();
+        const std::string rel =
+            fs::relative(e.path(), m_Root, ec).make_preferred().string();
+
+        if (ext == ".cpp")      cpps.push_back(rel);
+        else if (ext == ".hpp") hpps.push_back(rel);
+    }
+
+    std::string items;
+    for (const auto& c : cpps)
+        items += "    <ClCompile Include=\"" + c + "\" />\r\n";
+    for (const auto& h : hpps)
+        items += "    <ClInclude Include=\"" + h + "\" />\r\n";
+
+    // マーカーの間だけを差し替える
+    std::ifstream in(proj, std::ios::binary);
+    std::string xml((std::istreambuf_iterator<char>(in)), {});
+    in.close();
+
+    const std::string beginMark = "<!-- SCRIPTS_BEGIN -->";
+    const std::string endMark = "<!-- SCRIPTS_END -->";
+
+    const size_t b = xml.find(beginMark);
+    const size_t e = xml.find(endMark);
+    if (b == std::string::npos || e == std::string::npos || e < b)
+    {
+        outError = "Scripts.vcxproj のマーカーが見つかりません(手で編集された？)";
+        return false;
+    }
+
+    const std::string updated =
+        xml.substr(0, b + beginMark.size()) + "\r\n" + items + "    " + xml.substr(e);
+
+    if (updated == xml) return true;   // 変化なし(VSの再読み込みを起こさない)
+
+    std::ofstream out(proj, std::ios::binary);
+    if (!out)
+    {
+        outError = "Scripts.vcxproj の更新に失敗: " + proj.string();
+        return false;
+    }
+    out << updated;
+    return true;
+}
+
 // 生成する Scripts.vcxproj の中身。
 // エンジン側のパスは焼き込まず、ビルド時に /p:EngineDir /p:EngineOutDir で受け取る。
 // ソースはワイルドカードで拾うので、ファイルを足しても再生成は要らない。
@@ -390,7 +462,11 @@ R"XML(<?xml version="1.0" encoding="utf-8"?>
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
   <PropertyGroup>
-    <!-- EngineDir / EngineOutDir は ScriptHost が /p: で渡す -->
+    <!-- ScriptHost は /p:EngineDir /p:EngineOutDir で渡す。
+         VS で開いたとき用に既定値を焼いておく(IntelliSense と F7 のため)。
+         Condition 付きなので /p: が来ればそちらが勝つ -->
+    <EngineDir Condition="'$(EngineDir)'==''">@ENGINE_DIR@</EngineDir>
+    <EngineOutDir Condition="'$(EngineOutDir)'==''">@ENGINE_OUT_DIR@</EngineOutDir>
     <EngineScriptsDir>$(EngineDir)..\Scripts\</EngineScriptsDir>
     <OutDir>$(ProjectDir)Library\</OutDir>
     <IntDir>$(ProjectDir)Library\obj\$(Configuration)\</IntDir>
@@ -419,9 +495,9 @@ R"XML(<?xml version="1.0" encoding="utf-8"?>
     <ClCompile Include="$(EngineScriptsDir)dllmain.cpp" />
     <ClCompile Include="$(EngineScriptsDir)pch.cpp" />
     <!-- プロジェクトのスクリプト -->
-    <!-- この2行の間は RefreshScriptProjectSources が毎ビルド書き換える。
-         ワイルドカードにしないのは、VS で開いた時点で展開されて固定リストに
-         書き戻されてしまうため -->
+    <!-- この2行の間は RefreshScriptProjectSources が書き換える。
+         ワイルドカードにしないのは、VS で開いた時点で展開されて
+         固定リストに書き戻されてしまうため -->
     <!-- SCRIPTS_BEGIN -->
     <!-- SCRIPTS_END -->
   </ItemGroup>
@@ -478,7 +554,32 @@ bool Project::EnsureScriptProject(std::string& outError)
         return false;
     }
 
-    ofs << kScriptProjectTemplate;
+    // 既定値のプレースホルダを実パスに置き換えてから書き出す
+    {
+        wchar_t exePath[MAX_PATH]{};
+        GetModuleFileNameW(nullptr, exePath, MAX_PATH);
+        fs::path exeDir = fs::path(exePath).parent_path();
+        fs::path slnDir = exeDir.parent_path().parent_path();
+
+        // 末尾の区切りは付ける($(EngineDir)..\Scripts\ の連結が前提)
+        fs::path engineDirPath = slnDir / "DirectX12__test";
+        const std::string engineDir = engineDirPath.make_preferred().string() + "\\";
+        const std::string engineOut = exeDir.make_preferred().string() + "\\";
+
+        std::string xml = kScriptProjectTemplate;
+
+        auto replaceAll = [](std::string& s, const std::string& from, const std::string& to)
+            {
+                for (size_t p = s.find(from); p != std::string::npos; p = s.find(from, p + to.size()))
+                {
+                    s.replace(p, from.size(), to);
+                }
+            };
+        replaceAll(xml, "@ENGINE_DIR@", engineDir);
+        replaceAll(xml, "@ENGINE_OUT_DIR@", engineOut);
+
+        ofs << xml;
+    }
     ofs.close();
 
     // VS から開くための sln も一緒に用意する
@@ -494,88 +595,5 @@ bool Project::EnsureScriptProject(std::string& outError)
         slnOfs << kScriptSolutionTemplate;
     }
 
-    return true;
-}
-
-bool Project::RefreshScriptProjectSources(std::string& outError)
-{
-    const fs::path proj = GetScriptProjectPath();
-    std::error_code ec;
-
-    if (!fs::exists(proj, ec))
-    {
-        outError = "Scripts.vcxproj がありません: " + proj.string();
-        return false;
-    }
-
-    // Assets 配下を走査。プロジェクト相対で持つのでフォルダごと移動しても壊れない
-    std::vector<std::string> cpps, hpps;
-    for (const auto& e : fs::recursive_directory_iterator(m_Root / "Assets", ec))
-    {
-        if (ec) break;
-        if (!e.is_regular_file(ec)) continue;
-
-        const auto ext = e.path().extension();
-        if (ext != ".cpp" && ext != ".hpp") continue;
-
-        std::string rel = fs::relative(e.path(), m_Root, ec).make_preferred().string();
-        if (ec) continue;
-
-        if (ext == ".cpp") cpps.push_back(std::move(rel));
-        else               hpps.push_back(std::move(rel));
-    }
-
-    // 走査順が環境で揺れると差分が出て無駄な書き込みになるので並べておく
-    std::sort(cpps.begin(), cpps.end());
-    std::sort(hpps.begin(), hpps.end());
-
-    std::string items;
-    for (const auto& c : cpps)
-    {
-        items += "    <ClCompile Include=\"" + c + "\">\r\n"
-                 "      <PrecompiledHeader>NotUsing</PrecompiledHeader>\r\n"
-                 "    </ClCompile>\r\n";
-    }
-    for (const auto& h : hpps)
-    {
-        items += "    <ClInclude Include=\"" + h + "\" />\r\n";
-    }
-
-    std::ifstream in(proj, std::ios::binary);
-    if (!in)
-    {
-        outError = "Scripts.vcxproj を開けません: " + proj.string();
-        return false;
-    }
-    const std::string xml((std::istreambuf_iterator<char>(in)), {});
-    in.close();
-
-    const std::string beginMark = "<!-- SCRIPTS_BEGIN -->";
-    const std::string endMark = "<!-- SCRIPTS_END -->";
-
-    const size_t b = xml.find(beginMark);
-    const size_t e = xml.find(endMark);
-    if (b == std::string::npos || e == std::string::npos || e < b)
-    {
-        outError = "Scripts.vcxproj のマーカーが見つかりません(手で編集された?): " + proj.string();
-        return false;
-    }
-
-    const std::string updated =
-        xml.substr(0, b + beginMark.size()) + "\r\n" + items + "    " + xml.substr(e);
-
-    // 変化が無いときは書かない。VS を開いていると再読み込みが走ってうるさいため
-    if (updated == xml)
-    {
-        return true;
-    }
-
-    std::ofstream out(proj, std::ios::binary);
-    if (!out)
-    {
-        outError = "Scripts.vcxproj の更新に失敗: " + proj.string();
-        return false;
-    }
-    out << updated;
     return true;
 }
