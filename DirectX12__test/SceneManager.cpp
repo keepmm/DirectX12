@@ -18,6 +18,7 @@ bool SceneManager::RegisterScene(const std::string& name)
 		if (m_Scenes.count(name)) return true;
 	}
 	RegisterScene(name, m_SceneFactory(ScenePathFromName(name)));
+	return true;   // 戻り値が無く未定義動作になっていた(C4715)
 }
 
 void SceneManager::RegisterScene(const std::string& name, std::unique_ptr<Scene> scene)
@@ -360,7 +361,10 @@ void SceneManager::UpdateFade(float deltatime)
 			}
 			else if (!m_PendingSceneName.empty())
 			{
-				// 名前指定の切り替え
+				// 名前指定の切り替え。
+				// 旧シーンのメッシュ/テクスチャをGPUが使い終わる前に解放すると
+				// デバイスロスト(DRED PageFault)になるので、必ず待ってから捨てる
+				APP->WaitForGPUIdle();
 				LoadScene(m_PendingSceneName);
 				m_PendingSceneName.clear();
 			}
