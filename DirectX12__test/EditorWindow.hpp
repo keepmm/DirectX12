@@ -224,7 +224,8 @@ private:
 	// ビルド設定
 	std::array<char, 256> m_BuildOutputDir = { "Build" };
 	std::array<char, 128> m_BuildGameName = { "MyGame" };
-	std::array<char, 256> m_BuildStartScene = { "Assets/Scenes/SampleScene.json" };
+	// 空ならプロジェクトの開始シーンを引き継ぐ(ビルド設定を開いたときに埋まる)
+	std::array<char, 256> m_BuildStartScene{};
 	float m_BuildOverlayTimer = 0.0f;
 
 	// プロジェクト切り替え(ランチャーを開いて終了するかの確認)

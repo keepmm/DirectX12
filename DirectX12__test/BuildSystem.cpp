@@ -386,7 +386,9 @@ void BuildSystem::Build(const BuildSetting& settings)
             return;
         }
 
-        // ---- 1. エンジンexe と Scripts.dll を MSBuild ----
+        // ---- 1. エンジンexe を MSBuild ----
+        // スクリプトはプロジェクト単位になり、ソリューションからは外れている。
+        // ここではエンジンだけを建て、Scripts.dll は後段で個別に建てる
         fs::path stageDir = paths.slnDir / "x64" / "GameBuild";
         std::string cmd =
             "\"" + s_msbuild + "\" \"" + paths.slnDir.string() + "\\DirectX12__test.sln\""
@@ -394,14 +396,11 @@ void BuildSystem::Build(const BuildSetting& settings)
             " /p:OutDir=" + stageDir.string() + "\\"
             " /m /nologo /clp:NoSummary /v:minimal";
 
-        // ---- 1. エンジンexe と Scripts.dll を MSBuild ----
         constexpr float kMsBuildFrom = 0.02f;
         constexpr float kMsBuildTo = 0.38f;
 
-        // ソリューション全体の.cpp総数(エンジン + Scripts)
         const int totalUnits =
-            CountCompileUnits(paths.srcDir / "DirectX12__test.vcxproj") +
-            CountCompileUnits(paths.slnDir / "Scripts" / "Scripts.vcxproj");
+            CountCompileUnits(paths.srcDir / "DirectX12__test.vcxproj");
 
         int   doneUnits = 0;
         SetStage(kMsBuildFrom, ToUTF8Smart("MSBuild 0% (0/" + std::to_string(totalUnits) + ")"));
@@ -459,13 +458,67 @@ void BuildSystem::Build(const BuildSetting& settings)
             return;
         }
 
-        // Scripts.dll(Scripts.vcxproj の出力先を Bin/ に変えている場合はそちらを優先)
+        // ---- Scripts.dll ---- //
+        // スクリプトはプロジェクト単位になったので、プロジェクトの Scripts.vcxproj を
+        // ここで建てて <Game>_Data/Library/ へ置く。
+        // ゲームモードでは PROJECT が開かれず、ScriptHost はカレント(Data)からの
+        // 相対 "Library/Scripts.dll" を見るため、この場所でないと読まれない
         {
-            fs::path scriptsDll = binDir / "Bin" / "Scripts.dll";
-            if (!fs::exists(scriptsDll)) scriptsDll = binDir / "Scripts.dll";
-            fs::copy_file(scriptsDll, binOutDir / "Scripts.dll",
-                fs::copy_options::overwrite_existing, ec);
-            if (ec) PushLog("[Build] Scripts.dll が見つかりません: " + ec.message());
+            SetStage(0.5f, IMGUI::ToUTF8("Scripts.dll ビルド中..."));
+
+            std::string err;
+            if (!PROJECT->RefreshScriptProjectSources(err))
+            {
+                PushLog("[Build] " + err);
+            }
+
+            const fs::path scriptProj = PROJECT->GetScriptProjectPath();
+            if (!fs::exists(scriptProj))
+            {
+                PushLog("[Build] 警告: Scripts.vcxproj がありません。スクリプト無しで続行します");
+            }
+            else
+            {
+                const std::string scriptCmd =
+                    "\"" + s_msbuild + "\" \"" + scriptProj.string() + "\""
+                    " /p:Configuration=" + settings.configuration + " /p:Platform=x64"
+                    " /p:EngineDir=\"" + paths.srcDir.string() + "\\\\\""
+                    " /p:EngineOutDir=\"" + stageDir.string() + "\\\\\""
+                    " /nologo /clp:NoSummary /v:minimal";
+
+                std::string scriptOut;
+                const int scriptCode = RunCommand(scriptCmd, scriptOut);
+
+                if (scriptCode != 0)
+                {
+                    PushLog("[Build] Scripts.dll のビルドに失敗 (exit "
+                        + std::to_string(scriptCode) + ")");
+
+                    std::istringstream iss(scriptOut);
+                    std::string line;
+                    while (std::getline(iss, line))
+                    {
+                        if (!line.empty() && line.back() == '\r') line.pop_back();
+                        if (line.find(": error") != std::string::npos ||
+                            line.find(": fatal") != std::string::npos)
+                        {
+                            PushLog(ToUTF8Smart(line));
+                        }
+                    }
+                }
+                else
+                {
+                    const fs::path scriptsDll = PROJECT->GetLibraryDir() / "Scripts.dll";
+                    const fs::path scriptsOutDir = dataDir / "Library";
+                    fs::create_directories(scriptsOutDir, ec);
+                    ec.clear();
+
+                    fs::copy_file(scriptsDll, scriptsOutDir / "Scripts.dll",
+                        fs::copy_options::overwrite_existing, ec);
+                    if (ec) PushLog("[Build] Scripts.dll のコピーに失敗: " + ec.message());
+                    else    PushLog("[Build] Scripts.dll を配置: " + (scriptsOutDir / "Scripts.dll").string());
+                }
+            }
         }
 
         // エンジンが起動時にインポートするDLL(exe横に必須。Bin/ では起動できない)
