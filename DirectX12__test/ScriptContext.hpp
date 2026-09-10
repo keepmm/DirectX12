@@ -22,4 +22,7 @@ struct ScriptContext
 	// プレハブ生成と破棄。PrefabLibrary / Scene は exe 側の .cpp にあるので橋渡しする
 	uint32_t(*instantiate)(const char* prefabName) = nullptr;
 	void    (*destroyEntity)(uint32_t entity) = nullptr;
+
+	// シーン遷移。SceneManager は Engine のメンバで DLL から触れない
+	void    (*loadScene)(const char* sceneName, bool withFade) = nullptr;
 };
