@@ -110,9 +110,11 @@ namespace
 
 		for (const auto& r : PROJECT->GetRecents())
 		{
-			const bool exists = fs::exists(r);
-			std::wstring label = Widen(fs::path(r).filename().string())
-				+ L"    " + Widen(r);
+			// recents は UTF-8。fs::path に直接渡すと日本語が化ける
+			const fs::path root = Utf8ToPath(r);
+			const bool exists = fs::exists(root);
+			std::wstring label = root.filename().wstring()
+				+ L"    " + root.wstring();
 			if (!exists) label += L"   (見つかりません)";
 
 			SendMessageW(g_List, LB_ADDSTRING, 0,
@@ -150,14 +152,14 @@ namespace
 		const auto& recents = PROJECT->GetRecents();
 		if (sel < 0 || sel >= static_cast<LRESULT>(recents.size())) return;
 
-		OpenAndLaunch(hWnd, recents[static_cast<size_t>(sel)]);
+		OpenAndLaunch(hWnd, Utf8ToPath(recents[static_cast<size_t>(sel)]));
 	}
 
 	void OnBrowseOpen(HWND hWnd)
 	{
-		const std::string dir = PickProjectFolder();
+		const std::string dir = PickProjectFolder();	// UTF-8
 		if (dir.empty()) return;
-		OpenAndLaunch(hWnd, dir);
+		OpenAndLaunch(hWnd, Utf8ToPath(dir));
 	}
 
 	void OnCreate(HWND hWnd)

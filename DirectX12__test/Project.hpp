@@ -23,6 +23,22 @@ std::string PickProjectFolder();
 /// @return 起動できたら true
 bool LaunchLauncher();
 
+/// @brief UTF-8 文字列からパスを作る
+/// @note  std::filesystem::path に narrow な文字列を渡すと、MSVC は
+///        ANSI(日本語環境では CP932)として解釈する。UI やJSONから来る文字列は
+///        UTF-8 なので、そのまま渡すと日本語を含むパスが化けて開けなくなる
+inline std::filesystem::path Utf8ToPath(const std::string& s)
+{
+	return std::filesystem::path(reinterpret_cast<const char8_t*>(s.c_str()));
+}
+
+/// @brief パスを UTF-8 文字列にする(JSON / ImGui / ログ向け)
+inline std::string PathToUtf8(const std::filesystem::path& p)
+{
+	const auto u8 = p.u8string();
+	return std::string(reinterpret_cast<const char*>(u8.data()), u8.size());
+}
+
 class Project
 {
 public:

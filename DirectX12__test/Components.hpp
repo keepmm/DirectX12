@@ -667,6 +667,10 @@ struct AudioSourceComponent
 	bool  pauseRequested = false;	// 位置を保ったまま停止
 	bool  resumeRequested = false;	// 停止位置から再開
 
+	// いま鳴っているか(シリアライズ対象外)。
+	// シークでバッファを投げ直すとき、止まっていたのに再生が始まらないよう見る
+	bool  isPlaying = false;
+
 	void Reflect(FieldList& f)
 	{
 		f.AddAudio("Clip", clipPath, clip);
