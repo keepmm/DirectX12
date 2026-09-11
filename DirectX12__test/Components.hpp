@@ -499,6 +499,14 @@ struct LiveDirectorComponent
 	std::string  loadedPath;		// 今読んでいるパス(変更検知用)
 	bool  loadFailed = false;		// 読み込み失敗したパスを毎フレーム叩かない
 	float lastTime = -1.0f;			// 巻き戻し検出用
+
+	// エディタが「いまプレビューを更新してほしい」と立てる。
+	// 停止中に毎フレーム書き戻すと、ライトを手で動かせなくなる
+	bool  previewRequest = false;
+
+	// 曲(MusicSyncComponent)が無いときの時刻。エディタのヘッドが書き込む。
+	// これが無いと曲なしでは時刻が 0 から動かず、打つキーが全部同じ時刻になる
+	float editorTime = 0.0f;
 };
 
 

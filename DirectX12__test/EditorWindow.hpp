@@ -205,6 +205,11 @@ private:
 
 	std::string m_PlaySnap = "";
 
+	// LiveDirectorComponent::timeline はシリアライズ対象外なので、
+	// Play のスナップショットに乗らない。Stop で消えないようここに退避する
+	// (World の Each と同じ順で並ぶので添字で戻す)
+	std::vector<LiveTimeline> m_LiveSnap;
+
 	bool m_ShowCreateScriptPopup = false;
 	char m_NewScriptName[64] = "NewScript";
 	void CreateScriptFile(const std::string& die, const std::string& name);

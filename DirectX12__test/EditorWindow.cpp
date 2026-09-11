@@ -954,7 +954,18 @@ void EditorWindow::DrawPlayControl(Scene* activeScene)
 		{
 			APP->WaitForGPUIdle();
 			if(activeScene)
+			{
 				m_PlaySnap = SceneSerializer::SaveToString(*activeScene);
+
+				// タイムラインは JSON に保存するまで World の外に出ないので、
+				// ここで持っておかないと Stop の復元で消える
+				m_LiveSnap.clear();
+				activeScene->GetWorld().Each<LiveDirectorComponent>(
+					[this](Entity, LiveDirectorComponent& d)
+					{
+						m_LiveSnap.push_back(d.timeline);
+					});
+			}
 			PLAY.SetMode(EngineMode::Play);
 		}
 		else
@@ -1000,6 +1011,21 @@ void EditorWindow::DrawPlayControl(Scene* activeScene)
 			if(activeScene && !m_PlaySnap.empty())
 			{
 				SceneSerializer::LoadFromString(*activeScene, m_PlaySnap);
+
+				// 退避しておいたタイムラインを書き戻す。
+				// loadedPath も揃えておかないと、LiveDirectorSystem が
+				// 「パスが変わった」と見て JSON から読み直し、編集が消える
+				size_t i = 0;
+				activeScene->GetWorld().Each<LiveDirectorComponent>(
+					[this, &i](Entity, LiveDirectorComponent& d)
+					{
+						if (i >= m_LiveSnap.size()) return;
+						d.timeline = std::move(m_LiveSnap[i++]);
+						d.loadedPath = d.timelinePath;
+						d.loadFailed = false;
+						d.lastTime = -1.0f;
+					});
+				m_LiveSnap.clear();
 			}
 		}
 	}

@@ -1990,7 +1990,6 @@ public:
 			{
 				if (!hasMusic) { musicTime = s.musicTime; hasMusic = true; }
 			});
-		if (!hasMusic) return;
 
 		world.Each<LiveDirectorComponent>(
 			[&](Entity, LiveDirectorComponent& d)
@@ -2006,14 +2005,21 @@ public:
 				}
 				if (d.loadFailed) return;
 
-				const float t = musicTime * d.timeScale;
+				// 曲が無いシーンではエディタのヘッドを時間ソースにする
+				const float t = (hasMusic ? musicTime : d.editorTime) * d.timeScale;
 
 				// シーク/巻き戻しを検出したら fired を張り直す
+				const float prevTime = d.lastTime;
 				if (t + 1e-3f < d.lastTime) d.timeline.ResetFired(t);
 				d.lastTime = t;
 
-				// トラックは連続値なので、停止中(スクラブ中)も反映する
-				ApplyTracks(world, d.timeline, t);
+				// トラックは連続値なので、再生中とスクラブ中は反映する。
+				// 停止して時間も動いていない間は書き戻さない
+				// (そうしないとライトを手で動かせず、キーが打てない)
+				const bool timeMoved = std::fabs(t - prevTime) > 1e-4f;
+				if (isPlaying || timeMoved || d.previewRequest)
+					ApplyTracks(world, d.timeline, t);
+				d.previewRequest = false;
 
 				if (!isPlaying) return;
 

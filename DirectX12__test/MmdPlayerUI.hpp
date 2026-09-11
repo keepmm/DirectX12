@@ -71,7 +71,9 @@ inline void DrawMmdPlayerControls(World& world, AnimatorComponent& an)
         if (!an.morphs.morphs.empty())
         {
             std::vector<const char*> mnames;
-            mnames.push_back(u8("(本体と同じ)"));
+            // u8() は一時 std::string の c_str() なので、vector に積むと消える
+            static const std::string kSameAsBody = IMGUI::ToUTF8("(本体と同じ)");
+            mnames.push_back(kSameAsBody.c_str());
             for (const auto& c : an.clips) mnames.push_back(c.name.c_str());
 
             int sel = an.morphClip + 1;   // -1 -> 0

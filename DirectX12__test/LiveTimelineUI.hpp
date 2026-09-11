@@ -352,8 +352,13 @@ inline void LiveHandleViewInput(bool hovered, float x0, float w)
 
 /// @brief スナップ先を探す(グリッド / 他のキー / 再生ヘッド / 0秒)
 /// @param excludeTrack 自分自身のキーを吸着対象から外すためのトラック添字(-1で無効)
+/// @param includeKeys  他のキーへ吸着するか。
+///        ヘッドのスクラブや新規キーで true にすると、ズームアウト時に
+///        しきい値(8px)が広い時間幅になって既存キーの時刻ぴったりに吸い付き、
+///        「キーを打つ」が毎回そのキーの上書きになってしまう。
+///        キーをドラッグして他のキーに揃えたいときだけ true にする
 inline float LiveSnapTime(float t, const LiveTimeline& tl, int excludeTrack, int excludeKey,
-	float playhead, float pixelsPerSecond)
+	float playhead, float pixelsPerSecond, bool includeKeys = true)
 {
 	const LiveLaneView& view = LiveGetLaneView();
 	if (!view.snap || ImGui::GetIO().KeyCtrl) return t;	// Ctrl押下中はスナップ無効
@@ -373,12 +378,15 @@ inline float LiveSnapTime(float t, const LiveTimeline& tl, int excludeTrack, int
 	tryCandidate(playhead);
 	tryCandidate(std::round(t / view.snapStep) * view.snapStep);
 
-	for (int ti = 0; ti < (int)tl.tracks.size(); ++ti)
+	if (includeKeys)
 	{
-		for (int ki = 0; ki < (int)tl.tracks[ti].keys.size(); ++ki)
+		for (int ti = 0; ti < (int)tl.tracks.size(); ++ti)
 		{
-			if (ti == excludeTrack && ki == excludeKey) continue;
-			tryCandidate(tl.tracks[ti].keys[ki].time);
+			for (int ki = 0; ki < (int)tl.tracks[ti].keys.size(); ++ki)
+			{
+				if (ti == excludeTrack && ki == excludeKey) continue;
+				tryCandidate(tl.tracks[ti].keys[ki].time);
+			}
 		}
 	}
 	return best;
@@ -409,10 +417,28 @@ inline void LiveFollowPlayhead(float musicTime)
 	}
 }
 
+/// @brief タイムラインのヘッドを動かす。
+/// @note  曲があれば曲をシークし、無ければエディタ専用のヘッドを動かす。
+///        曲なしでも時刻が進まないと、打つキーが全部同じ時刻になって潰れる
+inline void LiveSeek(World& world, LiveDirectorComponent& dir, float time)
+{
+	dir.editorTime = std::max(0.0f, time);
+	dir.previewRequest = true;
+	SeekMusic(world, time);
+}
+
 /// @brief 曲の再生 / 一時停止 / 先頭へ(AudioSource を直接叩く)
-inline void LiveDrawTransport(World& world, float musicTime)
+inline void LiveDrawTransport(World& world, LiveDirectorComponent& dir,
+	float musicTime, bool hasMusic)
 {
 	static bool playing = false;
+
+	// 曲が無いときは、エディタのヘッドを自前で進める
+	if (!hasMusic && playing)
+	{
+		dir.editorTime += ImGui::GetIO().DeltaTime;
+		dir.previewRequest = true;
+	}
 
 	// シーンが作り直されて Voice が消えていたら、ボタンの表示を戻す
 	{
@@ -443,7 +469,7 @@ inline void LiveDrawTransport(World& world, float musicTime)
 	ImGui::SameLine();
 	if (ImGui::Button(u8("先頭へ##live")))
 	{
-		SeekMusic(world, 0.0f);
+		LiveSeek(world, dir, 0.0f);
 		LiveGetLaneView().start = 0.0f;
 	}
 	ImGui::SameLine();
@@ -455,7 +481,7 @@ inline void LiveDrawTransport(World& world, float musicTime)
 			{
 				src.stopRequested = true;
 			});
-		SeekMusic(world, 0.0f);
+		LiveSeek(world, dir, 0.0f);
 	}
 	ImGui::SameLine();
 	ImGui::Checkbox(u8("ヘッド追従"), &LiveGetLaneView().followHead);
@@ -525,7 +551,7 @@ inline float LiveDrawRuler(float musicTime, const LiveTimeline& tl, float height
 	if (active && !ImGui::GetIO().KeyAlt && ImGui::IsMouseDown(ImGuiMouseButton_Left))
 	{
 		const float raw = std::max(0.0f, view.ToTime(ImGui::GetIO().MousePos.x, p0.x, w));
-		seekTo = LiveSnapTime(raw, tl, -1, -1, raw, view.PixelsPerSecond(w));
+		seekTo = LiveSnapTime(raw, tl, -1, -1, raw, view.PixelsPerSecond(w), false);
 	}
 	return seekTo;
 }
@@ -607,7 +633,7 @@ inline float LiveDrawTrackLane(int trackIndex, LiveTrack& track, const LiveTimel
 	if (dblClick && hoveredKey < 0)
 	{
 		const float raw = std::max(0.0f, view.ToTime(mouse.x, p0.x, w));
-		const float t = LiveSnapTime(raw, tl, trackIndex, -1, musicTime, view.PixelsPerSecond(w));
+		const float t = LiveSnapTime(raw, tl, trackIndex, -1, musicTime, view.PixelsPerSecond(w), false);
 		float4 v{};
 		if (!track.Evaluate(t, v)) v = float4{ 0.0f, 0.0f, 0.0f, 0.0f };
 		track.SetKey(t, v);
@@ -644,7 +670,7 @@ inline float LiveDrawTrackLane(int trackIndex, LiveTrack& track, const LiveTimel
 		ImGui::IsMouseDown(ImGuiMouseButton_Left) && hoveredKey < 0)
 	{
 		const float raw = std::max(0.0f, view.ToTime(mouse.x, p0.x, w));
-		seekTo = LiveSnapTime(raw, tl, -1, -1, raw, view.PixelsPerSecond(w));
+		seekTo = LiveSnapTime(raw, tl, -1, -1, raw, view.PixelsPerSecond(w), false);
 	}
 
 	if (hoveredKey >= 0)
@@ -688,6 +714,18 @@ inline void DrawLiveTimelineEditor(World& world, Entity selected)
 	auto& dir = world.GetComponent<LiveDirectorComponent>(director);
 	LiveTimeline& tl = dir.timeline;
 
+	// タイムライン上で何か触っている間はプレビューを更新する。
+	// フォーカスで見てはいけない: ドッキング中は RootAndChildWindows の「ルート」が
+	// ドックのホストになり、インスペクタを触っただけでも真になる。
+	// そうなるとライトを手で変えた瞬間に評価値で上書きされ、
+	// 「キーを打つ」が毎回同じ値を拾って全部同じキーになる
+	if (view.dragTrack >= 0 ||
+		(ImGui::IsWindowHovered(ImGuiHoveredFlags_RootAndChildWindows) &&
+			ImGui::IsAnyItemActive()))
+	{
+		dir.previewRequest = true;
+	}
+
 	// --- 曲位置 ---
 	float musicTime = 0.0f;
 	bool  hasMusic = false;
@@ -697,13 +735,16 @@ inline void DrawLiveTimelineEditor(World& world, Entity selected)
 			if (!hasMusic) { musicTime = s.musicTime; hasMusic = true; }
 		});
 
+	// 曲が無いシーンでもキーを打てるよう、エディタ専用のヘッドを時刻にする
+	if (!hasMusic) musicTime = dir.editorTime;
+
 	const float duration = std::max(tl.Duration(), 1.0f);
 
 	// 再生に合わせて表示範囲を送る
 	LiveFollowPlayhead(musicTime);
 
 	// --- ツールバー ---
-	LiveDrawTransport(world, musicTime);
+	LiveDrawTransport(world, dir, musicTime, hasMusic);
 	ImGui::SameLine();
 	ImGui::TextDisabled("|");
 	ImGui::SameLine();
@@ -723,7 +764,8 @@ inline void DrawLiveTimelineEditor(World& world, Entity selected)
 	ImGui::Text(u8("%.2f / %.2f 秒"), musicTime, duration);
 
 	if (!hasMusic)
-		ImGui::TextDisabled(u8("MusicSyncComponent がありません(曲を再生するEntityに付けてください)"));
+		ImGui::TextDisabled(u8("曲がありません(エディタのヘッドで編集中。"
+			"曲に同期させるには AudioSource と MusicSync を同じEntityに付けてください)"));
 
 	// --- JSON ---
 	{
@@ -795,8 +837,15 @@ inline void DrawLiveTimelineEditor(World& world, Entity selected)
 	else
 	{
 		static int propIndex = 0;
-		const char* props[] = {
-			u8("位置"), u8("回転(度)"), u8("色"), u8("強度"), u8("届く距離"), u8("スポット角") };
+
+		// u8() は一時 std::string の c_str() なので、配列に溜めると全部ダングリングになる。
+		// 実体を static で持ってからポインタを並べる
+		static const std::string propNames[] = {
+			IMGUI::ToUTF8("位置"), IMGUI::ToUTF8("回転(度)"), IMGUI::ToUTF8("色"),
+			IMGUI::ToUTF8("強度"), IMGUI::ToUTF8("届く距離"), IMGUI::ToUTF8("スポット角") };
+		static const char* props[] = {
+			propNames[0].c_str(), propNames[1].c_str(), propNames[2].c_str(),
+			propNames[3].c_str(), propNames[4].c_str(), propNames[5].c_str() };
 		ImGui::SetNextItemWidth(140.0f);
 		ImGui::Combo("##prop", &propIndex, props, IM_ARRAYSIZE(props));
 		ImGui::SameLine();
@@ -811,6 +860,55 @@ inline void DrawLiveTimelineEditor(World& world, Entity selected)
 				t.target = selName;
 				t.property = prop;
 				tl.tracks.push_back(std::move(t));
+			}
+		}
+		ImGui::SameLine();
+
+		// --- 位置・回転・色… をまとめてキー ---
+		// 1プロパティずつトラックを作って打つのは手数が多いので、
+		// その Entity が持っているプロパティを全部いっぺんに焼く
+		if (ImGui::Button(u8("全部キーを打つ")))
+		{
+			const Entity target = LiveFindEntityByName(world, selName);
+			if (target != INVALID_ENTITY)
+			{
+				std::vector<LiveTrack::Property> props;
+				props.push_back(LiveTrack::Property::Position);
+				props.push_back(LiveTrack::Property::EulerAngles);
+
+				if (world.HasComponent<LightComponent>(target))
+				{
+					const auto type = world.GetComponent<LightComponent>(target).type;
+					props.push_back(LiveTrack::Property::Color);
+					props.push_back(LiveTrack::Property::Intensity);
+
+					// 使わないプロパティのトラックを作ってもレーンが増えるだけなので、
+					// ライトの種類で要るものだけに絞る
+					if (type != LightComponent::LightType::Directional)
+						props.push_back(LiveTrack::Property::Range);
+					if (type == LightComponent::LightType::Spot)
+						props.push_back(LiveTrack::Property::SpotAngle);
+				}
+
+				for (const auto prop : props)
+				{
+					float4 v{};
+					if (!LiveCaptureValue(world, target, prop, v)) continue;
+
+					auto it = std::find_if(tl.tracks.begin(), tl.tracks.end(),
+						[&](const LiveTrack& t) { return t.target == selName && t.property == prop; });
+
+					if (it == tl.tracks.end())
+					{
+						LiveTrack t;
+						t.target = selName;
+						t.property = prop;
+						tl.tracks.push_back(std::move(t));
+						it = tl.tracks.end() - 1;
+					}
+					it->SetKey(musicTime, v);
+				}
+				dir.previewRequest = true;
 			}
 		}
 		ImGui::SameLine();
@@ -848,7 +946,7 @@ inline void DrawLiveTimelineEditor(World& world, Entity selected)
 		ImGui::TableSetColumnIndex(1);
 		{
 			const float seekTo = LiveDrawRuler(musicTime, tl);
-			if (seekTo >= 0.0f) SeekMusic(world, seekTo);
+			if (seekTo >= 0.0f) LiveSeek(world, dir, seekTo);
 		}
 
 		int removeTrack = -1;
@@ -888,7 +986,7 @@ inline void DrawLiveTimelineEditor(World& world, Entity selected)
 			// --- レーン列 ---
 			ImGui::TableSetColumnIndex(1);
 			const float seekTo = LiveDrawTrackLane(i, track, tl, musicTime);
-			if (seekTo >= 0.0f) SeekMusic(world, seekTo);
+			if (seekTo >= 0.0f) LiveSeek(world, dir, seekTo);
 
 			ImGui::PopID();
 		}
@@ -918,25 +1016,30 @@ inline void DrawLiveTimelineEditor(World& world, Entity selected)
 
 			ImGui::SetNextItemWidth(120.0f);
 			if (ImGui::DragFloat(u8("時刻"), &key.time, 0.02f, 0.0f, 100000.0f, u8("%.2f秒")))
+			{
 				track.SortByTime();
+				dir.previewRequest = true;
+			}
 
 			ImGui::SameLine();
 			ImGui::SetNextItemWidth(240.0f);
+			bool valueEdited = false;
 			switch (track.property)
 			{
 			case LiveTrack::Property::Color:
-				ImGui::ColorEdit4(u8("値"), &key.value.x,
+				valueEdited = ImGui::ColorEdit4(u8("値"), &key.value.x,
 					ImGuiColorEditFlags_NoInputs | ImGuiColorEditFlags_HDR);
 				break;
 			case LiveTrack::Property::Intensity:
 			case LiveTrack::Property::Range:
 			case LiveTrack::Property::SpotAngle:
-				ImGui::DragFloat(u8("値"), &key.value.x, 0.05f);
+				valueEdited = ImGui::DragFloat(u8("値"), &key.value.x, 0.05f);
 				break;
 			default:
-				ImGui::DragFloat3(u8("値"), &key.value.x, 0.05f);
+				valueEdited = ImGui::DragFloat3(u8("値"), &key.value.x, 0.05f);
 				break;
 			}
+			if (valueEdited) dir.previewRequest = true;
 		}
 	}
 }
