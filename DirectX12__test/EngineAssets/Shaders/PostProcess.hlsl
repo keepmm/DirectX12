@@ -57,7 +57,7 @@ float4 CompositePS(VSOut i) : SV_TARGET
     float3 bloom = g_Bloom.Sample(g_Sampler, i.uv).rgb;
     float3 c = scene + bloom * intensity;
     
-    c *= 1.2f;
+    c *= 0.9f;   // 露出。トゥーンもHDR経由になり明るくなったぶんを戻す
     c = ACESFilm(c);
 //    c = pow(c, 1.9f / 2.2f);
     return float4(c, 1.0f);
