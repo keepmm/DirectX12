@@ -3,6 +3,7 @@
 #include "BRDF.hlsli"
 
 Texture2D g_Albedo : register(t0);
+Texture2D g_Emissive : register(t1);
 Texture2D g_Normal : register(t2);
 Texture2D g_ORM : register(t3);
 Texture2D g_Depth : register(t4);
@@ -94,9 +95,10 @@ float4 DeferredPS(VSOut input) : SV_TARGET
 
     float3 baseColor = g_Albedo.Sample(g_Sampler, input.uv).rgb;
     float3 N = g_Normal.Sample(g_Sampler, input.uv).rgb * 2.0f - 1.0f;
-    float2 mr = g_ORM.Sample(g_Sampler, input.uv).rg;
-    float metallic = mr.x;
-    float roughness = mr.y;
+    float3 orm = g_ORM.Sample(g_Sampler, input.uv).rgb;
+    float metallic = orm.x;
+    float roughness = orm.y;
+    float ao = orm.z;
 
     float3 V = normalize(cameraPos.xyz - worldPos);
     float shininess = lerp(64.0f, 8.0f, saturate(roughness));
@@ -144,12 +146,15 @@ float4 DeferredPS(VSOut input) : SV_TARGET
         float3 prefiltered = g_Env.SampleLevel(g_Sampler, DirToEquirect(R), roughness * maxMip).rgb;
         float3 specularIBL = prefiltered * metallic;
 
-        color += diffuseIBL + specularIBL;
+        // AO は間接光にだけ掛ける（直接光まで落とすと不自然に潰れる）
+        color += (diffuseIBL + specularIBL) * ao;
     }
     else
     {
-        color += baseColor * ambientColor.rgb;
+        color += baseColor * ambientColor.rgb * ao;
     }
+
+    color += g_Emissive.Sample(g_Sampler, input.uv).rgb;
 
     return float4(color, 1.0f);
 }

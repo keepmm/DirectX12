@@ -64,11 +64,14 @@ public:
 		_Inout_ ComPtr<ID3D12Resource>& outTexture,
 		_Inout_ ComPtr<ID3D12Resource>& outUpload,
 		_Out_ D3D12_PLACED_SUBRESOURCE_FOOTPRINT& outFootPrint,
-		_Out_ bool& outPending
+		_Out_ bool& outPending,
+		DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM
 	);
 	bool CreateNormalFromRGBA(UINT w, UINT h, const std::uint8_t* p);
 	bool CreateMetalFromRGBA(UINT w, UINT h, const std::uint8_t* p);
 	bool CreateRoughFromRGBA(UINT w, UINT h, const std::uint8_t* p);
+	bool CreateEmissiveFromRGBA(UINT w, UINT h, const std::uint8_t* p);
+	bool CreateOcclusionFromRGBA(UINT w, UINT h, const std::uint8_t* p);
 public:
 	float roughness = 0.5f;
 	float metallic = 0.0f;
@@ -87,6 +90,8 @@ public:
 	COLOR sssColor = {0.9f,0.35f,0.25f,1.0f};
 	float baseAlpha = 1.0f;
 	COLOR baseColor = { 1.0f,1.0f,1.0f,1.0f };
+	COLOR emissiveColor = { 0.0f,0.0f,0.0f,1.0f };	// glTF の emissiveFactor
+	float emissiveStrength = 1.0f;					// 演出用の倍率
 	std::string shaderName;
 
 	bool SetNormalTexture(_In_ const std::wstring& path);
@@ -149,6 +154,12 @@ private:
 	D3D12_PLACED_SUBRESOURCE_FOOTPRINT m_NormalFootprint = {}, m_MetalFootprint = {}, m_RoughFootprint = {};
 	bool m_NormalPending = false, m_MetalPending = false, m_RoughPending = false;
 	bool m_HasNormal = false, m_HasMetal = false, m_HasRough = false;
+
+	ComPtr<ID3D12Resource> m_EmissiveTexture, m_EmissiveUpload;
+	ComPtr<ID3D12Resource> m_OcclusionTexture, m_OcclusionUpload;
+	D3D12_PLACED_SUBRESOURCE_FOOTPRINT m_EmissiveFootprint = {}, m_OcclusionFootprint = {};
+	bool m_EmissivePending = false, m_OcclusionPending = false;
+	bool m_HasEmissive = false, m_HasOcclusion = false;
 
 	UINT m_UploadFenceValue = 0;
 

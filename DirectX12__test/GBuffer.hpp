@@ -1,10 +1,10 @@
-#pragma once
+﻿#pragma once
 #include "RenderTexture.hpp"
 
 class GBuffer
 {
 public:
-    static constexpr UINT RT_COUNT = 3;
+    static constexpr UINT RT_COUNT = 4;
 
     void Init(UINT width, UINT height,
         ID3D12Resource* depthSrvCpu,

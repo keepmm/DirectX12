@@ -19,6 +19,27 @@
 
 #pragma comment(lib, "psapi.lib")
 
+namespace
+{
+	/// @brief 拡張子を小文字化する（大文字の .FBX / .GLB でも同じ扱いにするため）
+	std::string ToLowerExt(const std::string& ext)
+	{
+		std::string out = ext;
+		for (char& c : out) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
+		return out;
+	}
+
+	/// @brief ModelLoader が読めるモデル拡張子か（BuildSystem.cpp のリストと揃える）
+	bool IsModelExtension(const std::string& extLower)
+	{
+		static const char* kModelExts[] = {
+			".pmx", ".pmd", ".fbx", ".obj", ".gltf", ".glb", ".dae", ".x" };
+		for (const char* e : kModelExts)
+			if (extLower == e) return true;
+		return false;
+	}
+}
+
 void EditorWindow::DrawAssetPanel(SceneManager& sceneManager)
 {
 	namespace fs = std::filesystem;
@@ -114,7 +135,7 @@ void EditorWindow::DrawAssetPanel(SceneManager& sceneManager)
 					};
 				const std::string name = U8(entry.path().filename());
 				const std::string fullPath = U8(entry.path());
-				const std::string ext = U8(entry.path().extension());
+				const std::string ext = ToLowerExt(U8(entry.path().extension()));
 
 				// -------------------------------------//
 				// アイコンとフォールバック色を決める	//
@@ -129,7 +150,7 @@ void EditorWindow::DrawAssetPanel(SceneManager& sceneManager)
 					label = "DIR";
 					color = ImVec4(0.8f, 0.7f, 0.3f, 1.0f);
 				}
-				else if (ext == ".fbx" || ext == ".obj" || ext == ".pmx" || ext == ".gltf")
+				else if (IsModelExtension(ext))
 				{
 					iconPath = EngineAssetPath(L"Icons/Model.png").wstring();
 					label = "3D";
@@ -211,7 +232,7 @@ void EditorWindow::DrawAssetPanel(SceneManager& sceneManager)
 				{
 					// 拡張子からペイロード種別を決める
 					const char* payloadType = "ASSET_FILE";   // 既定（汎用）
-					if (ext == ".fbx" || ext == ".obj" || ext == ".pmx")
+					if (IsModelExtension(ext))
 						payloadType = "ASSET_MODEL";
 					else if (ext == ".png" || ext == ".jpg" || ext == ".jpeg" ||
 						ext == ".dds" || ext == ".tga" || ext == ".bmp" || ext == ".hdr")

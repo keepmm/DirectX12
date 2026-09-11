@@ -674,9 +674,10 @@ void DirectXApp::CreateRootSignature()
 
 	// t7 は rootParameters[6] の頂点側SRV(ボーン)が使っているので、
 	// 反射だけレンジを分けて t8 に置く
-	CD3DX12_DESCRIPTOR_RANGE srvRange[2] = {};
-	srvRange[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 7, 0);
-	srvRange[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 8);
+	CD3DX12_DESCRIPTOR_RANGE srvRange[3] = {};
+	srvRange[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 8, 0);   // t0~t7（t7 = エミッシブ）
+	srvRange[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 8);   // t8  = 平面反射
+	srvRange[2].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 9);   // t9  = オクルージョン
 	// t0 albedo
 	// t1 toon ramp
 	// t2 normal
@@ -1100,10 +1101,11 @@ void DirectXApp::CreateGbufferPSO()
 
 	if (!vs || !ps) { OutputDebugStringA("GBuffer shader load failed\n"); assert(false); return; }
 
-	desc.NumRenderTargets = 3;
-	desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM;     // Albedo
+	desc.NumRenderTargets = GBuffer::RT_COUNT;
+	desc.RTVFormats[0] = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;// Albedo
 	desc.RTVFormats[1] = DXGI_FORMAT_R10G10B10A2_UNORM;  // Normal
-	desc.RTVFormats[2] = DXGI_FORMAT_R8G8B8A8_UNORM;     // ORM
+	desc.RTVFormats[2] = DXGI_FORMAT_R8G8B8A8_UNORM;     // ORM(b = AO)
+	desc.RTVFormats[3] = DXGI_FORMAT_R11G11B10_FLOAT;    // Emissive
 	desc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 
 	// 深度は「書き込みあり・テストあり」（不透明を前から手前判定）
@@ -1699,20 +1701,21 @@ void DirectXApp::BeginGeometryPass()
 	// 深度を書き込み状態へ
 	m_GBuffer.TransitionToWrite(cmd);
 
-	D3D12_CPU_DESCRIPTOR_HANDLE rtvs[3] =
+	D3D12_CPU_DESCRIPTOR_HANDLE rtvs[GBuffer::RT_COUNT] =
 	{
 		m_GBuffer.GetRTV(0),
 		m_GBuffer.GetRTV(1),
-		m_GBuffer.GetRTV(2)
+		m_GBuffer.GetRTV(2),
+		m_GBuffer.GetRTV(3)
 	};
 
-	for (int i = 0; i < 3; ++i)
+	for (UINT i = 0; i < GBuffer::RT_COUNT; ++i)
 	{
 		cmd->ClearRenderTargetView(rtvs[i], ClearColor, 0, nullptr);
 	}
 	cmd->ClearDepthStencilView(m_DSV_Handle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
-	cmd->OMSetRenderTargets(3, rtvs, FALSE, &m_DSV_Handle);
+	cmd->OMSetRenderTargets(GBuffer::RT_COUNT, rtvs, FALSE, &m_DSV_Handle);
 
 	cmd->SetGraphicsRootSignature(m_rootSignature.Get());
 }

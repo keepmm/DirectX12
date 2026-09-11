@@ -308,6 +308,9 @@ void Material::Apply(
 	MaterialCB mdata{};
 	mdata.mapFlags = { m_HasNormal ? 1.f : 0.f, m_HasMetal ? 1.f : 0.f,
 					   m_HasRough ? 1.f : 0.f, m_EnvMaxMip };   // w>0 なら環境あり
+	mdata.pbrParams = { m_HasEmissive ? 1.f : 0.f, m_HasOcclusion ? 1.f : 0.f,
+						emissiveStrength, 0.0f };
+	mdata.emissiveColor = emissiveColor;
 	mdata.roughness = roughness;
 	mdata.faceParam.y = baseAlpha;
 	mdata.faceParam.x = isFace ? 1.0f : 0.0f;	// 顔マテリアルをシェーダーへ渡す
@@ -626,6 +629,8 @@ void Material::UpdateTextureIfNeeded(ID3D12GraphicsCommandList* commandList)
 	flush(m_NormalPending, m_NormalTexture, m_NormalUpload, m_NormalFootprint);
 	flush(m_MetalPending, m_MetalTexture, m_MetalUpload, m_MetalFootprint);
 	flush(m_RoughPending, m_RoughTexture, m_RoughUpload, m_RoughFootprint);
+	flush(m_EmissivePending, m_EmissiveTexture, m_EmissiveUpload, m_EmissiveFootprint);
+	flush(m_OcclusionPending, m_OcclusionTexture, m_OcclusionUpload, m_OcclusionFootprint);
 }
 
 bool Material::CreateTextureFromRGBA(
@@ -634,7 +639,8 @@ bool Material::CreateTextureFromRGBA(
 	auto device = APP->GetDevice();
 	if (device == nullptr || rgba == nullptr || width == 0 || height == 0) return false;
 
-	constexpr DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	// ベースカラーは sRGB エンコード済み。GPU 側でリニアへ展開させる
+	constexpr DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
 	constexpr UINT pixelSize = 4;
 
 	// SRVヒープ（無ければ作る）
@@ -686,13 +692,13 @@ bool Material::CreateMapFromRGBA(
 	ComPtr<ID3D12Resource>& outTexture,
 	ComPtr<ID3D12Resource>& outUpload,
 	D3D12_PLACED_SUBRESOURCE_FOOTPRINT& outFootprint,
-	bool& outPending)
+	bool& outPending,
+	DXGI_FORMAT format)
 {
 	auto device = APP->GetDevice();
 	if (device == nullptr || rgba == nullptr || width == 0 || height == 0) return false;
-	if (!EnsureSrvHeap()) return false;   // 7枚ヒープ確保（t0..t6）
+	if (!EnsureSrvHeap()) return false;   // t0..t7 / t8(反射) / t9(AO)
 
-	constexpr DXGI_FORMAT format = DXGI_FORMAT_R8G8B8A8_UNORM;
 	constexpr UINT pixelSize = 4;
 
 	// テクスチャ本体（DEFAULTヒープ）
@@ -762,6 +768,22 @@ bool Material::CreateRoughFromRGBA(UINT w, UINT h, const std::uint8_t* p)
 	m_HasRough = CreateMapFromRGBA(4, w, h, p, m_RoughTexture, m_RoughUpload, m_RoughFootprint, m_RoughPending);  return m_HasRough;
 }
 
+bool Material::CreateEmissiveFromRGBA(UINT w, UINT h, const std::uint8_t* p)
+{
+	// エミッシブは sRGB エンコード済みなので展開して読む
+	m_HasEmissive = CreateMapFromRGBA(7, w, h, p, m_EmissiveTexture, m_EmissiveUpload,
+		m_EmissiveFootprint, m_EmissivePending, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB);
+	return m_HasEmissive;
+}
+
+bool Material::CreateOcclusionFromRGBA(UINT w, UINT h, const std::uint8_t* p)
+{
+	// AO はリニアデータ
+	m_HasOcclusion = CreateMapFromRGBA(9, w, h, p, m_OcclusionTexture, m_OcclusionUpload,
+		m_OcclusionFootprint, m_OcclusionPending);
+	return m_HasOcclusion;
+}
+
 bool Material::SetNormalTexture(const std::wstring& path)
 {
 	if (!EnsureSrvHeap()) return false;
@@ -802,7 +824,7 @@ bool Material::EnsureSrvHeap()
 	auto device = APP->GetDevice();
 	D3D12_DESCRIPTOR_HEAP_DESC heapDesc = {};
 	heapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
-	heapDesc.NumDescriptors = 8;                       // t0..t6 と t8(反射)
+	heapDesc.NumDescriptors = 10;                      // t0..t7 / t8(反射) / t9(AO)
 	heapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	if (FAILED(device->CreateDescriptorHeap(&heapDesc, IID_PPV_ARGS(m_TextureSrvHeap.GetAddressOf()))))
 		return false;
@@ -815,7 +837,7 @@ bool Material::EnsureSrvHeap()
 	nullSrv.Texture2D.MipLevels = 1;
 	const UINT inc = device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	auto cpu = m_TextureSrvHeap->GetCPUDescriptorHandleForHeapStart();
-	for (UINT i = 0; i < 8; ++i)
+	for (UINT i = 0; i < 10; ++i)
 	{
 		device->CreateShaderResourceView(nullptr, &nullSrv, cpu);  // null descriptor（サンプルすると0）
 		cpu.ptr += inc;
@@ -833,8 +855,11 @@ bool Material::UploadTextureData(const DirectX::Image* srcImage, const DirectX::
 	// ----------------------- //
 	//   テクスチャ本体の作成  //
 	// ----------------------- //
+	// ベースカラーは sRGB として読む（法線/メタル/ラフは UploadTextureTo 側で UNORM のまま）
+	const DXGI_FORMAT albedoFormat = DirectX::MakeSRGB(metadata.format);
+
 	const CD3DX12_RESOURCE_DESC texDesc = CD3DX12_RESOURCE_DESC::Tex2D(
-		metadata.format,
+		albedoFormat,
 		static_cast<UINT64>(metadata.width),
 		static_cast<UINT>(metadata.height),
 		static_cast<UINT16>(metadata.arraySize),
@@ -895,7 +920,7 @@ bool Material::UploadTextureData(const DirectX::Image* srcImage, const DirectX::
 	// SRVの作成 //
 	// --------- //
 	D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
-	srvDesc.Format = metadata.format;
+	srvDesc.Format = albedoFormat;
 	srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
 	srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
 	srvDesc.Texture2D.MipLevels = static_cast<UINT>(metadata.mipLevels);
@@ -1083,7 +1108,7 @@ void Material::BindReflectionIfNeeded()
 	const UINT inc = APP->GetDevice()->GetDescriptorHandleIncrementSize(
 		D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
 	auto cpu = m_TextureSrvHeap->GetCPUDescriptorHandleForHeapStart();
-	cpu.ptr += 7 * inc;   // slot7 = t8
+	cpu.ptr += 8 * inc;   // slot8 = t8
 
 	APP->GetDevice()->CreateShaderResourceView(rt, &srv, cpu);
 

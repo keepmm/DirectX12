@@ -11,9 +11,10 @@ void GBuffer::Init(UINT width, UINT height,
     m_Width = width; m_Height = height;
 	m_EnvMips = envMips;
 
-    m_RT[0].Init(width, height, DXGI_FORMAT_R8G8B8A8_UNORM);
+    m_RT[0].Init(width, height, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB);
     m_RT[1].Init(width, height, DXGI_FORMAT_R10G10B10A2_UNORM);
     m_RT[2].Init(width, height, DXGI_FORMAT_R8G8B8A8_UNORM);
+    m_RT[3].Init(width, height, DXGI_FORMAT_R11G11B10_FLOAT);   // Emissive（1を超える発光）
 
     BuildSrvTable(depthSrvCpu, envSrvCpu, shadowSrvCpu);
 }
@@ -38,7 +39,8 @@ void GBuffer::BuildSrvTable(ID3D12Resource* depthSrvCpu, ID3D12Resource* envSrvC
             dev->CreateShaderResourceView(res, &d, srv.Cpu(base + slot));
         };
 
-    MakeSrv(0, m_RT[0].GetResource().Get(), DXGI_FORMAT_R8G8B8A8_UNORM, 1);    // t0 Albedo
+    MakeSrv(0, m_RT[0].GetResource().Get(), DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, 1);// t0 Albedo
+    MakeSrv(1, m_RT[3].GetResource().Get(), DXGI_FORMAT_R11G11B10_FLOAT, 1);   // t1 Emissive
     MakeSrv(2, m_RT[1].GetResource().Get(), DXGI_FORMAT_R10G10B10A2_UNORM, 1); // t2 Normal
     MakeSrv(3, m_RT[2].GetResource().Get(), DXGI_FORMAT_R8G8B8A8_UNORM, 1);    // t3 ORM
     MakeSrv(4, depthSrvCpu, DXGI_FORMAT_R32_FLOAT, 1);                              // t4 Depth

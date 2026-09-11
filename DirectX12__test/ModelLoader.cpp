@@ -347,23 +347,116 @@ ModelCpuData ModelLoader::ParseFile(const std::string& filepath, float scale)
                 return L"";
             };
 
-        //// ---- glb / gltf埋め込みテクスチャをメモリ空でコード
-        //auto decodeEmbedded = [&](const aiTexture* tex)-> std::shared_ptr<DecodedImage>
-        //    {
-        //        if (tex == nullptr)
-        //        {
-        //            return nullptr;
-        //        }
+        // ---- glb / gltf埋め込みテクスチャをメモリ空でコード
+        auto decodeEmbedded = [&](const aiTexture* tex)-> std::shared_ptr<DecodedImage>
+            {
+                if (tex == nullptr)
+                {
+                    return nullptr;
+                }
 
-        //        DirectX::TexMetadata
-        //    };
-        // assimpが返すパスは basename 化して解決
-        auto resolveByType = [&](const aiMaterial* mat, aiTextureType type) -> std::wstring
+                DirectX::TexMetadata meta{};
+                DirectX::ScratchImage img{};
+
+                if (tex->mHeight == 0)
+                {
+                    // png / jpg などが丸ごと埋まっている
+                     // png / jpg などが丸ごと埋まっている
+                    if (FAILED(DirectX::LoadFromWICMemory(reinterpret_cast<const std::uint8_t*>(tex->pcData), tex->mWidth,
+                        DirectX::WIC_FLAGS_NONE, &meta, img)))
+                        return nullptr;
+                }
+                else
+                {
+                    // 非圧縮 aiTexel
+                    auto d = std::make_shared<DecodedImage>();
+                    d->width = tex->mWidth;
+					d->height = tex->mHeight;
+                    d->pixels.resize(static_cast<size_t>(tex->mWidth)* tex->mHeight * 4);
+                    for (size_t i = 0; i < static_cast<size_t>(tex->mWidth) * tex->mHeight; ++i)
+                    {
+						d->pixels[i * 4 + 0] = tex->pcData[i].r;
+						d->pixels[i * 4 + 1] = tex->pcData[i].g;
+						d->pixels[i * 4 + 2] = tex->pcData[i].b;
+						d->pixels[i * 4 + 3] = tex->pcData[i].a;
+                    }
+					d->ok = true;
+					return d;
+                }
+
+                const DirectX::Image* src = img.GetImage(0, 0, 0);
+                if (src == nullptr) return nullptr;
+
+                DirectX::ScratchImage converted{};
+                if (meta.format != DXGI_FORMAT_R8G8B8A8_UNORM)
+                {
+                    if (FAILED(DirectX::Convert(*src, DXGI_FORMAT_R8G8B8A8_UNORM,
+                        DirectX::TEX_FILTER_DEFAULT, DirectX::TEX_THRESHOLD_DEFAULT, converted)))
+                        return nullptr;
+                    src = converted.GetImage(0, 0, 0);
+                }
+
+                auto d = std::make_shared<DecodedImage>();
+                d->width = static_cast<UINT>(src->width);
+                d->height = static_cast<UINT>(src->height);
+                d->pixels.assign(src->pixels, src->pixels + src->rowPitch * src->height);
+                d->ok = true;
+                return d;
+            };
+
+        //1channelだけ取り出してRGB に複製
+        auto extractChannel = [](const std::shared_ptr<DecodedImage>& srcImg, int ch)
+            -> std::shared_ptr<DecodedImage>
+            {
+                if (srcImg == nullptr || !srcImg->ok) return nullptr;
+                auto d = std::make_shared<DecodedImage>();
+				d->width = srcImg->width;
+                d->height = srcImg->height;
+                d->pixels.resize(static_cast<size_t>(d->width) * d->height * 4);
+                for (size_t i = 0; i + 3 < srcImg->pixels.size(); i += 4)
+                {
+                    const std::uint8_t v = srcImg->pixels[i + ch];
+                    d->pixels[i + 0] = v;
+                    d->pixels[i + 1] = v;
+                    d->pixels[i + 2] = v;
+                    d->pixels[i + 3] = 255;
+                }
+                d->ok = true;
+                return d;
+            };
+
+        // 埋め込みテクスチャのでコード結果を "*0"単位でキャッシュ
+        std::unordered_map<std::string, std::shared_ptr<DecodedImage>> embCache;
+        auto embeddedOf = [&](const std::string& key) -> std::shared_ptr<DecodedImage>
+            {
+                auto it = embCache.find(key);
+                if (it != embCache.end()) return it->second;
+                const aiTexture* tex = nullptr;
+                if (key.size() >= 2 && key[0] == '*')
+                {
+                    const unsigned int idx = static_cast<unsigned int>(std::atoi(key.c_str() + 1));
+                    if (idx < scene->mNumTextures) tex = scene->mTextures[idx];
+                }
+                auto d = decodeEmbedded(tex);
+                embCache[key] = d;
+                return d;
+            };
+
+        // assimpが返すパスは basename 化して解決。
+        // "*N"（glb の埋め込み）はファイル実体が無いので、その場でデコードして outImage に返す
+        auto resolveByType = [&](const aiMaterial* mat, aiTextureType type,
+            std::shared_ptr<DecodedImage>* outImage = nullptr) -> std::wstring
             {
                 aiString p{};
                 if (mat->GetTexture(type, 0, &p) != AI_SUCCESS) return L"";
                 std::string s = p.C_Str();
-                if (s.empty() || s[0] == '*') return L"";
+                if (s.empty()) return L"";
+
+                if (s[0] == '*')
+                {
+                    if (outImage != nullptr) *outImage = embeddedOf(s);
+                    return L"";
+                }
                 return findInFolders(std::filesystem::path(s).filename());
             };
 
@@ -390,14 +483,54 @@ ModelCpuData ModelLoader::ParseFile(const std::string& filepath, float scale)
         for (unsigned int i = 0; i < scene->mNumMaterials; ++i)
         {
             const aiMaterial* material = scene->mMaterials[i];
-            std::wstring diff = resolveByType(material, aiTextureType_DIFFUSE);
-            std::wstring nor = resolveByType(material, aiTextureType_NORMALS);
-            if (nor.empty()) nor = deriveSibling(diff, L"_diff", L"_nor_gl");
+            auto& dst = out.materials[i];
 
-            out.materials[i].diffuse = diff;
-            out.materials[i].normal = nor;
-            out.materials[i].metal = deriveSibling(diff, L"_diff", L"_metal");
-            out.materials[i].rough = deriveSibling(diff, L"_diff", L"_rough");
+            std::shared_ptr<DecodedImage> embDiff, embNor, embORM, embEmi;
+
+            std::wstring diff = resolveByType(material, aiTextureType_DIFFUSE, &embDiff);
+            std::wstring nor = resolveByType(material, aiTextureType_NORMALS, &embNor);
+            if (nor.empty() && embNor == nullptr) nor = deriveSibling(diff, L"_diff", L"_nor_gl");
+
+            // 命名規則での派生（_diff → _metal / _rough）を優先（従来の fbx/obj 用）
+            std::wstring metal = deriveSibling(diff, L"_diff", L"_metal");
+            std::wstring rough = deriveSibling(diff, L"_diff", L"_rough");
+
+            // 派生できなければ glTF の metallicRoughness を見る。
+            // 同梱 assimp では UNKNOWN スロットに入る。1枚で G=rough / B=metal
+            if (metal.empty() && rough.empty())
+            {
+                std::wstring orm = resolveByType(material, aiTextureType_UNKNOWN, &embORM);
+                if (!orm.empty()) dst.ormPath = orm;
+            }
+
+            // --- エミッシブ（発光）---
+            const std::wstring emi = resolveByType(material, aiTextureType_EMISSIVE, &embEmi);
+
+            aiColor3D ec(0.0f, 0.0f, 0.0f);
+            if (material->Get(AI_MATKEY_COLOR_EMISSIVE, ec) == AI_SUCCESS)
+                dst.emissiveColor = { ec.r, ec.g, ec.b, 1.0f };
+
+            // テクスチャがあるのに factor が 0 なら白（=テクスチャそのまま）として扱う
+            if ((!emi.empty() || embEmi != nullptr) &&
+                dst.emissiveColor.x <= 0.0f && dst.emissiveColor.y <= 0.0f && dst.emissiveColor.z <= 0.0f)
+                dst.emissiveColor = { 1.0f, 1.0f, 1.0f, 1.0f };
+
+            dst.emissive = emi;
+
+            dst.diffuse = diff;
+            dst.normal = nor;
+            dst.metal = metal;
+            dst.rough = rough;
+
+            dst.diffuseImage = embDiff;
+            dst.normalImage = embNor;
+            if (embORM != nullptr)
+            {
+                dst.metalImage     = extractChannel(embORM, 2);   // B = metallic
+                dst.roughImage     = extractChannel(embORM, 1);   // G = roughness
+                dst.occlusionImage = extractChannel(embORM, 0);   // R = occlusion
+            }
+            dst.emissiveImage = embEmi;
         }
 
         for (unsigned int a = 0; a < scene->mNumAnimations; ++a)
@@ -490,17 +623,52 @@ ModelCpuData ModelLoader::ParseFile(const std::string& filepath, float scale)
             return d;
         };
 
+    // 1チャンネルだけ取り出して RGB に複製（シェーダーは metal/rough とも .r を読む）
+    auto splitChannel = [](const std::shared_ptr<DecodedImage>& srcImg, int ch)
+        -> std::shared_ptr<DecodedImage>
+        {
+            if (srcImg == nullptr || !srcImg->ok) return nullptr;
+            auto d = std::make_shared<DecodedImage>();
+            d->width  = srcImg->width;
+            d->height = srcImg->height;
+            d->pixels.resize(srcImg->pixels.size());
+            for (size_t i = 0; i + 3 < srcImg->pixels.size(); i += 4)
+            {
+                const std::uint8_t v = srcImg->pixels[i + ch];
+                d->pixels[i + 0] = v;
+                d->pixels[i + 1] = v;
+                d->pixels[i + 2] = v;
+                d->pixels[i + 3] = 255;
+            }
+            d->ok = true;
+            return d;
+        };
+
     for (auto& set : out.materials)
     {
-        set.diffuseImage    = decodeCached(set.diffuse);
-        set.normalImage     = decodeCached(set.normal);
-        set.metalImage      = decodeCached(set.metal);
-        set.roughImage      = decodeCached(set.rough);
+        // 埋め込み由来で既に入っているものはそのまま活かす
+        if (set.diffuseImage == nullptr) set.diffuseImage = decodeCached(set.diffuse);
+        if (set.normalImage  == nullptr) set.normalImage  = decodeCached(set.normal);
+        if (set.emissiveImage == nullptr) set.emissiveImage = decodeCached(set.emissive);
+
+        if (!set.ormPath.empty())
+        {
+            // glTF: 1枚の metallicRoughness を metal / rough に分解
+            auto orm = decodeCached(set.ormPath);
+            if (set.metalImage     == nullptr) set.metalImage     = splitChannel(orm, 2);   // B
+            if (set.roughImage     == nullptr) set.roughImage     = splitChannel(orm, 1);   // G
+            if (set.occlusionImage == nullptr) set.occlusionImage = splitChannel(orm, 0);   // R
+        }
+        else
+        {
+            if (set.metalImage == nullptr) set.metalImage = decodeCached(set.metal);
+            if (set.roughImage == nullptr) set.roughImage = decodeCached(set.rough);
+        }
     }
 
     // 単一マテリアル互換：法線を持つ最初のマテリアルを従来フィールドにも入れる
     for (auto& m : out.materials)
-        if (!m.normal.empty())
+        if (!m.normal.empty() || m.normalImage != nullptr)
         {
             out.diffuseTexturePath = m.diffuse; out.normalTexturePath = m.normal;
             out.metalTexturePath = m.metal;     out.roughTexturePath = m.rough;

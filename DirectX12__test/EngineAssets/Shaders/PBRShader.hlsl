@@ -8,6 +8,8 @@ Texture2D g_Metal : register(t3);
 Texture2D g_Rough : register(t4);
 Texture2D g_Env : register(t5);
 Texture2D g_Shadow : register(t6);
+Texture2D g_Emissive : register(t7);
+Texture2D g_Occlusion : register(t9);
 SamplerState g_Sampler : register(s0);
 SamplerComparisonState g_ShadowSampler : register(s2);
 
@@ -51,6 +53,10 @@ cbuffer Material : register(b3)
     float4 faceParam; // レイアウト合わせ(未使用)
     float4 sssParams; // x=SSS強度 y=ラップ z=透過 w=布シーン
     float4 sssColor;
+    float4 basecolor;
+    float4 reflectParam;
+    float4 pbrParams;     // x: hasEmissive, y: hasOcclusion, z: エミッシブ強度
+    float4 emissiveColor;
 }
 
 float4 PbrPS(PSInput input) : SV_TARGET
@@ -74,6 +80,8 @@ float4 PbrPS(PSInput input) : SV_TARGET
     // metal / rough（あればテクスチャ優先）
     float m = (mapFlags.y > 0.5f) ? g_Metal.Sample(g_Sampler, input.uv).r : metallic;
     float r = (mapFlags.z > 0.5f) ? g_Rough.Sample(g_Sampler, input.uv).r : roughness;
+
+    float ao = (pbrParams.y > 0.5f) ? g_Occlusion.Sample(g_Sampler, input.uv).r : 1.0f;
 
     float3 V = normalize(cameraPos.xyz - input.worldPos);
     float3 color = 0;
@@ -151,12 +159,18 @@ float4 PbrPS(PSInput input) : SV_TARGET
         float3 irradiance = g_Env.SampleLevel(g_Sampler, DirToEquirect(N), maxMip).rgb;
         float3 diffuseIBL = irradiance * albedo * kD;
 
-        color += diffuseIBL + specularIBL;
+        // AO は間接光にだけ掛ける
+        color += (diffuseIBL + specularIBL) * ao;
     }
     else
     {
-        color += albedo * ambientColor.rgb; // 従来のアンビエント
+        color += albedo * ambientColor.rgb * ao; // 従来のアンビエント
     }
+
+    float3 emissive = emissiveColor.rgb * pbrParams.z;
+    if (pbrParams.x > 0.5f)
+        emissive *= g_Emissive.Sample(g_Sampler, input.uv).rgb;
+    color += emissive;
 
     return float4(color, input.col.a);
 }
