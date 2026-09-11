@@ -44,6 +44,8 @@ struct RenderSettings
 	bool wireframe = false;
 	bool meshShader = false;
 	bool deferred = false;
+	/// @brief ボリュームライト(レイマーチ)。重いので切り分け用に実行時トグルできる
+	bool volumetric = true;
 
 	static RenderSettings& Get()
 	{

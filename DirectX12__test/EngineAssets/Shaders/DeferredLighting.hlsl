@@ -200,7 +200,7 @@ float4 VolumetricPS(VSOut input) : SV_TARGET
     const float maxDist = 60.0f;
     rayLen = min(rayLen, maxDist);
 
-    const int STEPS = 12; // 区間を絞ったので 24 → 12 で足りる
+    const int STEPS = 8; // 交差区間だけを刻むので8で足りる(下の適応ステップで更に減る)
     const float g = 0.3f; // 前方散乱の鋭さ(横から見ても筋が見えるように0.6→0.3)
 
     // ディザで開始位置をずらしてバンディングを消す
@@ -262,13 +262,16 @@ float4 VolumetricPS(VSOut input) : SV_TARGET
 
         // 交差区間だけを刻む(p はライトごとに必ず初期化する)
         float segLen = t1 - t0;
-        float stepLen = segLen / STEPS;
+        // 区間が短いライト(遠い/かすめただけ)はステップ数も減らす。
+        // ステージのように灯が数十本あると、この差が丸ごと効いてくる
+        int steps = clamp((int) (segLen * 0.5f), 3, STEPS);
+        float stepLen = segLen / steps;
         float3 p = camPos + rayDir * (t0 + stepLen * jitter);
 
         float3 lightScatter = 0;
 
         [loop]
-        for (int s = 0; s < STEPS; ++s)
+        for (int s = 0; s < steps; ++s)
         {
             float3 L;
             float atten;

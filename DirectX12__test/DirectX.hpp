@@ -128,6 +128,10 @@ public:
 	/// @brief グローバル SRV ヒープのスロット数
 	static constexpr UINT SRV_HEAP_SIZE = 256;
 
+	/// @brief ボリュームライトを何分の1の解像度でレイマーチするか。
+	///        ビームは滑らかなので落としても粗が出にくく、コストは除数の2乗で効く
+	static constexpr UINT VOLUMETRIC_DIV = 4;
+
 	/// @brief グローバル SRV ヒープを持つ唯一の DirectXApp インスタンスを返す
 	static DirectXApp* GetCurrent() noexcept { return s_Instance; }
 

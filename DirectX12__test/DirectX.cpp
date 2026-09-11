@@ -404,16 +404,21 @@ void DirectXApp::DeferredLightingPass(const RenderContext& ctx,
 	cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST); 
 	cmd->DrawInstanced(3, 1, 0, 0);
 
-	bool hasVolumetric = false;
+	bool hasVolumetric = RenderSettings::Get().volumetric;
+	bool hasAny = false;
+	UINT volCount = 0;
 	for (int i = 0; i < (int)ctx.lightCb.lightCount.x; ++i)
 	{
 		const auto& l = ctx.lightCb.lights[i];
 		if ((int)l.param.x >= 2 && l.param.w > 0.0f)
 		{
-			hasVolumetric = true;
-			break;
+			hasAny = true;
+			++volCount;
 		}
 	}
+	m_LastLightCount = (UINT)ctx.lightCb.lightCount.x;
+	m_LastVolumetricCount = volCount;
+	hasVolumetric = hasVolumetric && hasAny;
 
 
 	if(hasVolumetric)
@@ -421,7 +426,7 @@ void DirectXApp::DeferredLightingPass(const RenderContext& ctx,
 		GPU_PROFILE_SCOPE(cmd, "Draw/Volumetric");
 
 		// ---- ボリュームライト: ハーフ解像度で描いて加算アップサンプル ----
-		const UINT hw = m_Window_Width / 2, hh = m_Window_Height / 2;
+		const UINT hw = m_Window_Width / VOLUMETRIC_DIV, hh = m_Window_Height / VOLUMETRIC_DIV;
 
 		m_VolumetricHalf.Transition(cmd, D3D12_RESOURCE_STATE_RENDER_TARGET);
 		auto volRtv = m_VolumetricHalf.GetRTV();

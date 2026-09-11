@@ -659,6 +659,9 @@ void EditorWindow::DrawSceneInfo(Scene& scene)
 	ImGui::Text(u8("シーン: %s"), scene.GetSceneName().c_str());
 	ImGui::Separator();
 	ImGui::Checkbox("Deferred Rendering", &RenderSettings::Get().deferred);
+	ImGui::Checkbox("Volumetric Light", &RenderSettings::Get().volumetric);
+	ImGui::Text("Lights: %u (volumetric %u)",
+		APP->GetLastLightCount(), APP->GetLastVolumetricCount());
 	ImGui::Separator();
 }
 
