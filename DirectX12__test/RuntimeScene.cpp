@@ -497,24 +497,17 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 				APP->DeferredLightingPass(context, hdrRtv, fullvp, fullsc);
 			}
 
-			commandList->OMSetRenderTargets(1, &hdrRtv, FALSE, nullptr);
-			if (renderContext.viewport)    commandList->RSSetViewports(1, &fullvp);
-			if (renderContext.scissorRect) commandList->RSSetScissorRects(1, &fullsc);
+			// ---- ここから Bloom の手前。スカイボックス/トゥーン/半透明まで
+			//      すべて HDR(R16F) へ描き込み、同じトーンマップとブルームを通す。
+			//      LDR へ焼いた後に重ねるとキャラだけ別のトーンカーブになり、
+			//      ステージのブルームもシルエットに掛からず切り抜きに見える ----
+			commandList->OMSetRenderTargets(1, &hdrRtv, FALSE, &dsvHandle);
+			commandList->RSSetViewports(1, &fullvp);
+			commandList->RSSetScissorRects(1, &fullsc);
 			commandList->SetGraphicsRootSignature(APP->GetRootSignature().Get());
-			DrawLaserBeams(context, APP->GetBeamHdrPso());
 
-			// ---- Bloom + トーンマップ合成 -> renderTexture(R8) ----
-			{
-				PROFILE_SCOPE("Draw/Bloom");
-				GPU_PROFILE_SCOPE(commandList, "Draw/Bloom");
-				APP->PostProcessBloom(rtvHandle,
-					*renderContext.viewport, *renderContext.scissorRect);
-			}
-
-			commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
-			if (renderContext.viewport)    commandList->RSSetViewports(1, renderContext.viewport);
-			if (renderContext.scissorRect) commandList->RSSetScissorRects(1, renderContext.scissorRect);
-			commandList->SetGraphicsRootSignature(APP->GetRootSignature().Get());
+			// フォワード描画を HDR 用 PSO(@Hdr) へ向ける
+			context.psoSuffix = HDR_PASS_SUFFIX;
 
 			// b4 再バインド
 			if (renderContext.cbAllocator)
@@ -537,12 +530,11 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 				float4x4 identity;
 				DirectX::XMStoreFloat4x4(&identity, DirectX::XMMatrixIdentity());
 				m_SkyBox->Apply(context.CommandList, identity, context.view, context.projection,
-					false, context.frameIndex, context.cbAllocator, "", APP->GetSkyPso());
+					false, context.frameIndex, context.cbAllocator, "", APP->GetSkyHdrPso());
 				m_SkyboxCube.Draw(context.CommandList);
 			}
 
-			// トゥーンだけフォワードで重ねる。HDRターゲット(R16F)はトゥーンPSOの
-			// フォーマットと合わないので、ブルーム後の最終ターゲットへ従来どおり描く
+			// トゥーンをフォワードで重ねる。@Hdr パスなので描き先は HDR シーン
 			{
 				PROFILE_SCOPE("Draw/Toon(Forward)");
 				GPU_PROFILE_SCOPE(commandList, "Draw/Toon(Forward)");
@@ -555,16 +547,50 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 				GPU_PROFILE_SCOPE(commandList, "Draw/Transparent");
 				m_RenderSystem.Draw(m_World, context, nullptr, DrawFilter::TRANSPARENTONLY);
 			}
+
+			// レーザービームも HDR のまま(ブルームの芯になる)
+			DrawLaserBeams(context, APP->GetBeamHdrPso());
+
+			// 以降のデバッグ線/UI は素の LDR パスへ戻す
+			context.psoSuffix = "";
+
+			// ---- Bloom + トーンマップ合成 -> renderTexture(R8) ----
+			{
+				PROFILE_SCOPE("Draw/Bloom");
+				GPU_PROFILE_SCOPE(commandList, "Draw/Bloom");
+				APP->PostProcessBloom(rtvHandle,
+					*renderContext.viewport, *renderContext.scissorRect);
+			}
+
+			commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
+			if (renderContext.viewport)    commandList->RSSetViewports(1, renderContext.viewport);
+			if (renderContext.scissorRect) commandList->RSSetScissorRects(1, renderContext.scissorRect);
+			commandList->SetGraphicsRootSignature(APP->GetRootSignature().Get());
 		}
 		else
 		{
-			// ===== フォワード（従来）=====
-			commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
-			commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-			if (renderContext.viewport)    commandList->RSSetViewports(1, renderContext.viewport);
-			if (renderContext.scissorRect) commandList->RSSetScissorRects(1, renderContext.scissorRect);
+			// ===== フォワード =====
+			// HDRシーン(R16F)へ描いてから Bloom + トーンマップを通す。
+			// ここを LDR に直接描くと、ポストが丸ごと掛からず
+			// ステージもキャラも素のまま = 境界がまったく馴染まない
+			auto& hdr = APP->GetHdrScene();
+			const UINT fw = hdr.GetWidth();
+			const UINT fh = hdr.GetHeight();
+			D3D12_VIEWPORT fullvp{ 0.0f,0.0f, (float)fw, (float)fh, 0.0f, 1.0f };
+			D3D12_RECT fullsc{ 0,0, (LONG)fw, (LONG)fh };
 
-			renderTexture->Clear(commandList, { 0.2f, 0.2f, 0.2f, 1.0f });
+			hdr.Transition(commandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
+			auto hdrRtv = hdr.GetRTV();
+
+			commandList->OMSetRenderTargets(1, &hdrRtv, FALSE, &dsvHandle);
+			commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+			commandList->RSSetViewports(1, &fullvp);
+			commandList->RSSetScissorRects(1, &fullsc);
+
+			hdr.Clear(commandList, { 0.2f, 0.2f, 0.2f, 1.0f });
+
+			// フォワード描画を HDR 用 PSO(@Hdr) へ向ける
+			context.psoSuffix = HDR_PASS_SUFFIX;
 
 			if (m_SkyBox)
 			{
@@ -573,7 +599,7 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 				float4x4 identity;
 				DirectX::XMStoreFloat4x4(&identity, DirectX::XMMatrixIdentity());
 				m_SkyBox->Apply(context.CommandList, identity, context.view, context.projection,
-					false, context.frameIndex, context.cbAllocator, "", APP->GetSkyPso());
+					false, context.frameIndex, context.cbAllocator, "", APP->GetSkyHdrPso());
 				m_SkyboxCube.Draw(context.CommandList);
 			}
 
@@ -614,7 +640,12 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 				DofCB cb{};
 				cb.focus = float4(dof->focusDistance, dof->focusRange,
 					dof->maxBlur, dof->falloff);
-				cb.proj = float4(camNearZ, camFarZ, 0.0f, 0.0f);
+				// zw は深度テクスチャ側の uvScale。本描画は HDRシーン(ウィンドウ全面)
+				// へ行うので、深度もウィンドウ全面に入っている。カラー側(cb.uv)とは
+				// サブ矩形の大きさが違うので別々に渡す
+				cb.proj = float4(camNearZ, camFarZ,
+					(float)APP->GetHdrScene().GetWidth() / (float)WINDOW_WIDTH,
+					(float)APP->GetHdrScene().GetHeight() / (float)WINDOW_HEIGHT);
 
 				// 中間RTはウィンドウ全体ぶん。今描いている範囲だけを使うので、
 				// サンプル位置に シーンRT/ウィンドウ を掛けて合わせる

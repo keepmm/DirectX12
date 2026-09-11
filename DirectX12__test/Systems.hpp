@@ -284,8 +284,18 @@ public:
 			s_zeroMorphVA = s_zeroMorph->GetGPUVirtualAddress();
 		}
 
+		// マテリアルのシェーダー名に renderContext.psoSuffix を足した名前を返す。
+		// HDR用の双子が登録されていなければ素の名前へ戻す(旧パス互換)
+		auto resolvePass = [&renderContext](const std::string& base) -> std::string
+			{
+				if (renderContext.psoSuffix == nullptr || renderContext.psoSuffix[0] == 0)
+					return base;
+				std::string withSuffix = base + renderContext.psoSuffix;
+				return APP->HasShaderPass(withSuffix) ? withSuffix : base;
+			};
+
 		world.Each<TransformComponent, MeshComponent, MaterialComponent>(
-			[&world, &renderContext,filter](
+			[&world, &renderContext, filter, &resolvePass](
 				Entity entity,
 				TransformComponent& transform,
 				MeshComponent& mesh,
@@ -419,7 +429,7 @@ public:
 						mat->Apply(renderContext.CommandList, transform.world,
 							renderContext.view, renderContext.projection,
 							renderContext.wireframe, renderContext.frameIndex,
-							renderContext.cbAllocator, sn);
+							renderContext.cbAllocator, resolvePass(sn));
 						mesh.mesh->DrawSubMesh(renderContext.CommandList, s);
 					}
 				}
@@ -440,7 +450,7 @@ public:
 						material.material->Apply(renderContext.CommandList, transform.world,
 							renderContext.view, renderContext.projection,
 							renderContext.wireframe, renderContext.frameIndex,
-							renderContext.cbAllocator, material.shaderName);
+							renderContext.cbAllocator, resolvePass(material.shaderName));
 						mesh.mesh->Draw(renderContext.CommandList);
 					}
 				}
@@ -454,7 +464,7 @@ public:
 					filter != DrawFilter::REFLECTION;
 				if (wantsOutline && !renderContext.wireframe)
 				{
-					std::string outlineShaderName = "Genshin_Outline";
+					std::string outlineShaderName = resolvePass("Genshin_Outline");
 					ID3D12PipelineState* outlinePso = APP->GetPipelineStateByName(outlineShaderName);
 					if (outlinePso)
 					{

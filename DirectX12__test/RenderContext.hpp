@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include "Defines.hpp"
 #include <d3d12.h>
@@ -14,7 +14,13 @@ struct ShaderPassDef
 	std::string psProfile = "ps_5_0";
 	bool alphaBlend = false;
 	D3D12_CULL_MODE cullMode = D3D12_CULL_MODE_BACK;
+	/// @brief 描き込み先のRTVフォーマット。HDRシーンへ直接描くパスは R16G16B16A16_FLOAT
+	DXGI_FORMAT rtvFormat = DXGI_FORMAT_R8G8B8A8_UNORM;
 };
+
+/// @brief HDRシーン(R16F)へ描くパスの名前サフィックス。
+///        RegisterBuiltinShaders が全ビルトインにこの接尾辞つきの双子を登録する
+constexpr const char* HDR_PASS_SUFFIX = "@Hdr";
 
 enum class E_VERTEX_SHADER
 {
@@ -77,4 +83,9 @@ struct RenderContext
 	D3D12_RECT* scissorRect = nullptr;
 
 	D3D12_CPU_DESCRIPTOR_HANDLE depthStencilView = {};
+
+	/// @brief マテリアルのシェーダー名に付ける接尾辞。
+	///        HDR_PASS_SUFFIX を入れるとフォワード描画がHDRシーンへ向く。
+	///        該当パスが未登録なら自動で素の名前にフォールバックする
+	const char* psoSuffix = "";
 };

@@ -190,6 +190,8 @@ public:
 		_In_ std::string& name
 	)const;
 	std::vector<std::string> GetShaderNames() const;
+	/// @brief その名前のシェーダーパスが登録済みか(HDR双子の有無判定に使う)
+	bool HasShaderPass(_In_ const std::string& name) const;
 
 	// ---------------------------------------------------//
 	//						Getter						  //
@@ -226,6 +228,11 @@ public:
 	inline ID3D12PipelineState* GetMeshPso() const noexcept { return m_MeshPso.Get(); }
 	inline ID3D12PipelineState* GetUIPso() const noexcept { return m_UIPso.Get(); }
 	inline ID3D12PipelineState* GetSkyPso() const noexcept { return m_SkyPso.Get(); }
+	/// @brief 直近のディファードライティングに渡った灯数(プロファイル表示用)
+	inline UINT GetLastLightCount() const noexcept { return m_LastLightCount; }
+	/// @brief そのうちボリュームライトとして評価された灯数
+	inline UINT GetLastVolumetricCount() const noexcept { return m_LastVolumetricCount; }
+	inline ID3D12PipelineState* GetSkyHdrPso() const noexcept { return m_SkyHdrPso.Get(); }
 	inline ID3D12PipelineState* GetShadowPso() const noexcept { return m_ShadowPso.Get(); }
 	inline ID3D12PipelineState* GetBeamPso() const noexcept { return m_BeamPso.Get(); }
 	inline ID3D12PipelineState* GetGBufferPso() const noexcept { return m_GBufferPso.Get(); }
@@ -387,7 +394,10 @@ private:
 	ComPtr<ID3D12PipelineState> m_LinePso;
 	ComPtr<ID3D12PipelineState> m_IconPso;
 	ComPtr<ID3D12PipelineState> m_UIPso;
+	UINT m_LastLightCount = 0;
+	UINT m_LastVolumetricCount = 0;
 	ComPtr<ID3D12PipelineState> m_SkyPso;
+	ComPtr<ID3D12PipelineState> m_SkyHdrPso;
 	ComPtr<ID3D12PipelineState> m_ShadowPso;
 	ComPtr<ID3D12PipelineState> m_BeamPso;
 	ComPtr<ID3D12PipelineState> m_BeamHdrPso;

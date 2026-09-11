@@ -531,6 +531,7 @@ ID3D12PipelineState* DirectXApp::RegisterShaderPass(const std::string& name, con
 	desc.VS = vs->GetByteCode();
 	desc.PS = ps->GetByteCode();
 	desc.RasterizerState.CullMode = def.cullMode;
+	desc.RTVFormats[0] = def.rtvFormat;
 	if (def.alphaBlend)
 	{
 		auto& rt = desc.BlendState.RenderTarget[0];
@@ -548,6 +549,11 @@ ID3D12PipelineState* DirectXApp::RegisterShaderPass(const std::string& name, con
 
 	m_ShaderRegistry[name] = { def,pso };
 	return pso.Get();
+}
+
+bool DirectXApp::HasShaderPass(const std::string& name) const
+{
+	return m_ShaderRegistry.find(name) != m_ShaderRegistry.end();
 }
 
 ID3D12PipelineState* DirectXApp::GetPipelineStateByName(std::string& name) const
@@ -951,6 +957,12 @@ void DirectXApp::CreatePipelineStateObject()
 	m_SkyPso = m_PsoCache.GetOrCreate("SkyBoxPSO", m_Device.Get(), skyDesc);
 	if (m_SkyPso == nullptr) { assert(false); }
 
+	// --- HDR用（deferredのBloom前描画）---
+	auto skyHdrDesc = skyDesc;
+	skyHdrDesc.RTVFormats[0] = DXGI_FORMAT_R16G16B16A16_FLOAT;
+	m_SkyHdrPso = m_PsoCache.GetOrCreate("SkyBoxPSO_HDR", m_Device.Get(), skyHdrDesc);
+	if (m_SkyHdrPso == nullptr) { assert(false); }
+
 	// ---------------------------------- //
 	// 		Shadow用のPSOを作成			  //
 	// ---------------------------------- //
@@ -984,7 +996,8 @@ void DirectXApp::CreatePipelineStateObject()
 	UINT bw = m_Window_Width, bh = m_Window_Height;
 	m_BloomA.Init(bw, bh, DXGI_FORMAT_R16G16B16A16_FLOAT);
 	m_BloomB.Init(bw, bh, DXGI_FORMAT_R16G16B16A16_FLOAT);
-	m_VolumetricHalf.Init(m_Window_Width / 2, m_Window_Height / 2, DXGI_FORMAT_R16G16B16A16_FLOAT);
+	m_VolumetricHalf.Init(m_Window_Width / VOLUMETRIC_DIV, m_Window_Height / VOLUMETRIC_DIV,
+		DXGI_FORMAT_R16G16B16A16_FLOAT);
 	m_HdrScene.GetResource()->SetName(L"HDRScene");
 	m_BloomA.GetResource()->SetName(L"BloomA");
 	m_BloomB.GetResource()->SetName(L"BloomB");
@@ -1029,7 +1042,18 @@ void DirectXApp::RegisterBuiltinShaders()
 					   L"GenshinOutline.hlsl","Genshin_OutlinePS","ps_5_0",
 					   false, D3D12_CULL_MODE_FRONT } },
 	};
-	for (auto& e : builtins) RegisterShaderPass(e.name, e.def);
+	for (auto& e : builtins)
+	{
+		RegisterShaderPass(e.name, e.def);
+
+		// HDRシーン(R16F)へ直接描く双子を同時に登録する。
+		// フォワードのトゥーン/半透明を Bloom より前に描くために使う。
+		// これを通さないとキャラだけトーンマップもブルームも掛からず、
+		// 背景から浮いた切り抜きになる
+		ShaderPassDef hdr = e.def;
+		hdr.rtvFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
+		RegisterShaderPass(std::string(e.name) + HDR_PASS_SUFFIX, hdr);
+	}
 }
 
 D3D12_GRAPHICS_PIPELINE_STATE_DESC DirectXApp::MakeBasePsoDesc() const
