@@ -129,7 +129,7 @@ void EditorWindow::DrawAssetPanel(SceneManager& sceneManager)
 					label = "DIR";
 					color = ImVec4(0.8f, 0.7f, 0.3f, 1.0f);
 				}
-				else if (ext == ".fbx" || ext == ".obj")
+				else if (ext == ".fbx" || ext == ".obj" || ext == ".pmx" || ext == ".gltf")
 				{
 					iconPath = EngineAssetPath(L"Icons/Model.png").wstring();
 					label = "3D";

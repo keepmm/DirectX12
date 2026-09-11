@@ -347,6 +347,16 @@ ModelCpuData ModelLoader::ParseFile(const std::string& filepath, float scale)
                 return L"";
             };
 
+        //// ---- glb / gltf埋め込みテクスチャをメモリ空でコード
+        //auto decodeEmbedded = [&](const aiTexture* tex)-> std::shared_ptr<DecodedImage>
+        //    {
+        //        if (tex == nullptr)
+        //        {
+        //            return nullptr;
+        //        }
+
+        //        DirectX::TexMetadata
+        //    };
         // assimpが返すパスは basename 化して解決
         auto resolveByType = [&](const aiMaterial* mat, aiTextureType type) -> std::wstring
             {
