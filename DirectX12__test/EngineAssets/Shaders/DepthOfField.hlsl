@@ -12,7 +12,7 @@ SamplerState g_Sampler : register(s0);
 cbuffer Dof : register(b0)
 {
     float4 focus;   // x:焦点距離 y:合焦する幅 z:最大ボケ半径(px) w:ボケの立ち上がり距離
-    float4 proj;    // x:nearZ y:farZ zw:未使用
+    float4 proj;    // x:nearZ y:farZ zw:深度テクスチャのuvScale
     float4 uv;      // xy:uvScale zw:出力のテクセルサイズ
 }
 
@@ -33,7 +33,11 @@ float LinearDepth(float d)
 // 錯乱円。0で合焦、1で最大ボケ
 float CoC(float2 texUv)
 {
-    const float z = LinearDepth(g_Depth.SampleLevel(g_Sampler, texUv * uv.xy, 0).r);
+    // カラー(uv.xy)と深度(proj.zw)でサブ矩形の大きさが違う。
+    // 本描画はHDRシーン=ウィンドウ全面へ行うので深度は全面、
+    // カラーはシーンRTぶんしか埋まっていない。ここを共用すると
+    // 深度を拡大して読むことになり、ピントの位置がまるでずれる
+    const float z = LinearDepth(g_Depth.SampleLevel(g_Sampler, texUv * proj.zw, 0).r);
 
     // 焦点からの距離。合焦幅のぶんだけは完全にシャープに保つ
     float d = abs(z - focus.x) - focus.y;

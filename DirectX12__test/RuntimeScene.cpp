@@ -406,12 +406,17 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 					auto reflDsv = APP->GetReflectionDSV();
 					commandList->OMSetRenderTargets(1, &reflRtv, FALSE, &reflDsv);
 
-					// 反射RTはウィンドウ全体ぶん。今描いているシーンRTに対応する
-					// 左上のサブ矩形だけを使う(床シェーダーのUVがこの前提)
+					// 反射RTはウィンドウ全体ぶん。床を実際にラスタライズする
+					// 解像度に対応する左上のサブ矩形だけを使う(床シェーダーのUVがこの前提)。
+					// 本描画は HDRシーン(ウィンドウ解像度)へ fullvp で行うので、
+					// ここもシーンRTではなく HDRシーンのサイズに合わせる。
+					// ずらすと床に映る像が拡大されて別の位置に出る
+					const UINT sw = APP->GetHdrScene().GetWidth();
+					const UINT sh = APP->GetHdrScene().GetHeight();
 					const UINT rw = (std::min)(reflectRT.GetWidth(),
-						(std::max)(1u, static_cast<UINT>(renderTexture->GetWidth() * rscale)));
+						(std::max)(1u, static_cast<UINT>(sw * rscale)));
 					const UINT rh = (std::min)(reflectRT.GetHeight(),
-						(std::max)(1u, static_cast<UINT>(renderTexture->GetHeight() * rscale)));
+						(std::max)(1u, static_cast<UINT>(sh * rscale)));
 
 					D3D12_VIEWPORT rvp{ 0.0f, 0.0f, (float)rw, (float)rh, 0.0f, 1.0f };
 					D3D12_RECT rsc{ 0, 0, (LONG)rw, (LONG)rh };
@@ -608,6 +613,22 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 				GPU_PROFILE_SCOPE(commandList, "Draw/Forward(All)");
 				m_RenderSystem.Draw(m_World, context);   // 従来通り全部
 			}
+
+			// 以降のデバッグ線/UI は素の LDR パスへ戻す
+			context.psoSuffix = "";
+
+			// ---- Bloom + トーンマップ合成 -> renderTexture(R8) ----
+			{
+				PROFILE_SCOPE("Draw/Bloom");
+				GPU_PROFILE_SCOPE(commandList, "Draw/Bloom");
+				APP->PostProcessBloom(rtvHandle,
+					*renderContext.viewport, *renderContext.scissorRect);
+			}
+
+			commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
+			if (renderContext.viewport)    commandList->RSSetViewports(1, renderContext.viewport);
+			if (renderContext.scissorRect) commandList->RSSetScissorRects(1, renderContext.scissorRect);
+			commandList->SetGraphicsRootSignature(APP->GetRootSignature().Get());
 		}
 
 		//{
