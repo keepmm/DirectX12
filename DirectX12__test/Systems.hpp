@@ -1,7 +1,10 @@
 ﻿#pragma once
 
+#include "GpuProfiler.hpp"
+
 #include "World.hpp"
 #include "Components.hpp"
+#include "AnimatorClipCache.hpp"
 #include "RenderContext.hpp"
 #include "FramePipeline.hpp"
 #include "Mesh.hpp"
@@ -37,13 +40,89 @@ public:
 	}
 };
 
+/// @brief 対象の周囲に効くライトだけを、影響の強い順に上位 maxLights 灯へ詰め直す
+/// @param src    シーン全体のライト
+/// @param center 対象の中心(ワールド)
+/// @param radius 対象を包む球の半径
+/// @param maxLights 残す灯数
+/// @param dst    詰め直した結果
+/// @note 平行光は距離で切れないので常に残す。影を落とす灯の添字も詰め直しに追従させる
+inline void BuildCulledLightCB(const LightCB& src, const float3& center,
+	float radius, int maxLights, LightCB& dst)
+{
+	dst = src;
+
+	const int count = static_cast<int>(src.lightCount.x);
+	const int shadowIndex = static_cast<int>(src.shadowParams.w);
+
+	// (スコア, 元の添字)。スコアは「その灯がこの対象をどれだけ照らすか」の目安
+	struct Scored { float score; int index; };
+	Scored scored[MAX_LIGHTS];
+	int n = 0;
+
+	for (int i = 0; i < count && i < static_cast<int>(MAX_LIGHTS); ++i)
+	{
+		const LightData& l = src.lights[i];
+		const float lum = l.color.x * 0.299f + l.color.y * 0.587f + l.color.z * 0.114f;
+		if (lum <= 0.0f) continue;
+
+		// 平行光は距離減衰が無いので必ず残す(スコアを最大にする)
+		if (static_cast<int>(l.param.x) == 0)
+		{
+			scored[n++] = { FLT_MAX, i };
+			continue;
+		}
+
+		const float dx = l.posRange.x - center.x;
+		const float dy = l.posRange.y - center.y;
+		const float dz = l.posRange.z - center.z;
+		const float dist = sqrtf(dx * dx + dy * dy + dz * dz);
+
+		const float range = (std::max)(l.posRange.w, 0.0001f);
+		if (dist - radius > range) continue;		// 球に届かない
+
+		// 減衰はシェーダーと同じ形(1 - d/range)^2 を対象の一番近い点で見る
+		const float d = (std::max)(dist - radius, 0.0f);
+		const float atten = (1.0f - d / range) * (1.0f - d / range);
+		scored[n++] = { lum * atten, i };
+	}
+
+	const int keep = (std::min)(n, (std::max)(1, maxLights));
+
+	// 上位 keep 灯だけ前に寄せる(全体を並べ替える必要はない)
+	std::partial_sort(scored, scored + keep, scored + n,
+		[](const Scored& a, const Scored& b) { return a.score > b.score; });
+
+	int newShadow = -1;
+	for (int i = 0; i < keep; ++i)
+	{
+		dst.lights[i] = src.lights[scored[i].index];
+		if (scored[i].index == shadowIndex) newShadow = i;
+	}
+
+	dst.lightCount.x = static_cast<float>(keep);
+
+	// 影を落とす灯が落選したら、影そのものを切る(別の灯に影が付くと破綻する)
+	if (newShadow < 0) dst.shadowParams.y = 0.0f;
+	dst.shadowParams.w = static_cast<float>(newShadow);
+}
+
 enum class DrawFilter : uint8_t
 {
 	ALL,
 	OPAQUEONLY,
 	TRANSPARENTONLY,
+	OPAQUE_NOTOON,		// 不透明のうちトゥーン以外(デファードのG-Buffer用)
+	OPAQUE_TOON,		// 不透明のうちトゥーンだけ(フォワードで重ねる用)
+	REFLECTION,			// 平面反射に映すもの(ReflectionCaster が付いたEntityだけ)
 };
 
+// トゥーン系シェーダーか。デファードではG-Bufferに入れず、
+// フォワードで従来のシェーダーのまま描くために使う
+inline bool IsToonShader(const std::string& name)
+{
+	return name.find("Toon") != std::string::npos;
+}
 #ifdef _FRAMEPIPELINE
 /// @brief そのフレームで確定した描画1件
 /// @note FramePipeline.hpp ではなくここで定義しているのは、
@@ -205,146 +284,18 @@ public:
 			s_zeroMorphVA = s_zeroMorph->GetGPUVirtualAddress();
 		}
 
-		// ---- 1件ぶんのコマンド発行 ---- //
-		// FrameObject 経路と従来経路で同じ実装を使うためのローカル関数
-		auto emit = [&](const float4x4& worldMat,
-			const std::shared_ptr<Mesh>& meshPtr,
-			const std::shared_ptr<Material>& materialPtr,
-			const std::vector<std::shared_ptr<Material>>& materials,
-			const std::string& shaderName,
-			const BoneCB* boneCb,
-			const DirectX::XMFLOAT3* morphOffsets,
-			UINT morphVertexCount)
+		// マテリアルのシェーダー名に renderContext.psoSuffix を足した名前を返す。
+		// HDR用の双子が登録されていなければ素の名前へ戻す(旧パス互換)
+		auto resolvePass = [&renderContext](const std::string& base) -> std::string
 			{
-				if (meshPtr == nullptr || materialPtr == nullptr)
-				{
-					return;
-				}
-
-				// --- b4(root 5): ボーン行列パレット + morphActiveフラグ ---
-				// --- t7(root 6): 頂点モーフ ---
-				if (renderContext.cbAllocator && boneCb)
-				{
-					const UINT slot = renderContext.frameIndex % RTV_NUM;
-
-					auto b4 = renderContext.cbAllocator->Allocate(slot, boneCb, sizeof(BoneCB));
-					if (b4) renderContext.CommandList->SetGraphicsRootConstantBufferView(5, b4);
-
-					D3D12_GPU_VIRTUAL_ADDRESS morphVA = s_zeroMorphVA;   // 既定はゼロバッファ
-					if (morphOffsets != nullptr && morphVertexCount > 0)
-					{
-						auto va = renderContext.cbAllocator->Allocate(slot, morphOffsets,
-							morphVertexCount * sizeof(DirectX::XMFLOAT3));
-						if (va) morphVA = va;
-					}
-					renderContext.CommandList->SetGraphicsRootShaderResourceView(6, morphVA);
-				}
-
-				const bool multi =
-					!materials.empty() && meshPtr->GetSubMeshCount() > 0;
-
-				// --- 通常描画(全マテリアル・無条件) ---
-				if (multi)
-				{
-					const UINT sub = meshPtr->GetSubMeshCount();
-					for (UINT s = 0; s < sub; ++s)
-					{
-						UINT mi = meshPtr->GetSubMeshMaterialIndex(s);
-						if (mi >= materials.size()) mi = 0;
-						auto& mat = materials[mi];
-						if (!mat) continue;
-
-						// サブマテリアル側が空ならコンポーネントの値を継承
-						const std::string& sn = mat->shaderName.empty()
-							? shaderName : mat->shaderName;
-
-						const bool isTransparent = APP->IsShaderAlphaBlend(sn);
-						if (filter == DrawFilter::OPAQUEONLY && isTransparent)		 continue; // このエンティティskip
-						if (filter == DrawFilter::TRANSPARENTONLY && !isTransparent) continue;
-
-						mat->Apply(renderContext.CommandList, worldMat,
-							renderContext.view, renderContext.projection,
-							renderContext.wireframe, renderContext.frameIndex,
-							renderContext.cbAllocator, sn);
-						meshPtr->DrawSubMesh(renderContext.CommandList, s);
-					}
-				}
-				else
-				{
-					materialPtr->Apply(renderContext.CommandList, worldMat,
-						renderContext.view, renderContext.projection,
-						renderContext.wireframe, renderContext.frameIndex,
-						renderContext.cbAllocator, shaderName);
-					meshPtr->Draw(renderContext.CommandList);
-				}
-
-				// --- アウトラインパス(Genshin_Toonのみ・通常描画の後) ---
-				if (shaderName == "Genshin_Toon" && !renderContext.wireframe)
-				{
-					std::string outlineShaderName = "Genshin_Outline";
-					ID3D12PipelineState* outlinePso = APP->GetPipelineStateByName(outlineShaderName);
-					if (outlinePso)
-					{
-						if (multi)
-						{
-							const UINT sub = meshPtr->GetSubMeshCount();
-							for (UINT s = 0; s < sub; ++s)
-							{
-								UINT mi = meshPtr->GetSubMeshMaterialIndex(s);
-								if (mi >= materials.size()) mi = 0;
-								auto& mat = materials[mi];
-								if (!mat) continue;
-
-								const bool isTransparent = APP->IsShaderAlphaBlend(shaderName);
-								if (filter == DrawFilter::OPAQUEONLY && isTransparent)		 continue; // このエンティティskip
-								if (filter == DrawFilter::TRANSPARENTONLY && !isTransparent) continue;
-
-								mat->Apply(renderContext.CommandList, worldMat,
-									renderContext.view, renderContext.projection,
-									false, renderContext.frameIndex,
-									renderContext.cbAllocator, "", outlinePso);
-								meshPtr->DrawSubMesh(renderContext.CommandList, s);
-							}
-						}
-						else
-						{
-							materialPtr->Apply(renderContext.CommandList, worldMat,
-								renderContext.view, renderContext.projection,
-								false, renderContext.frameIndex,
-								renderContext.cbAllocator, "", outlinePso);
-							meshPtr->Draw(renderContext.CommandList);
-						}
-					}
-				}
+				if (renderContext.psoSuffix == nullptr || renderContext.psoSuffix[0] == 0)
+					return base;
+				std::string withSuffix = base + renderContext.psoSuffix;
+				return APP->HasShaderPass(withSuffix) ? withSuffix : base;
 			};
 
-#ifdef _FRAMEPIPELINE
-		// ---- FrameObject 経路: World を一切読まない ---- //
-		if (FramePipeline* fp = GetFrameThreadPipelineNullable())
-		{
-			// リストは登録の逆順で回るので、いったん集めてから元の並びに戻す。
-			// 半透明の描画順を従来と変えないため
-			std::vector<const FO_DrawItem*> items;
-			fp->ForEachFrameObject<FO_DrawItem>([&items](const FO_DrawItem& it)
-				{
-					items.push_back(&it);
-				});
-
-			for (auto it = items.rbegin(); it != items.rend(); ++it)
-			{
-				const FO_DrawItem& d = **it;
-				emit(d.world, d.mesh, d.material, d.materials, d.shaderName,
-					d.boneCb, d.morphOffsets, d.morphVertexCount);
-			}
-
-			fp->FixFrameObject<FO_DrawItem>();
-			return;
-		}
-#endif
-
-		// ---- 従来経路(_FRAMEPIPELINE 無効時、およびスコープ外からの描画) ---- //
 		world.Each<TransformComponent, MeshComponent, MaterialComponent>(
-			[&world, &emit](
+			[&world, &renderContext, filter, &resolvePass](
 				Entity entity,
 				TransformComponent& transform,
 				MeshComponent& mesh,
@@ -356,40 +307,204 @@ public:
 					return;
 				}
 
-				BoneCB cb{};   // 全ゼロ初期化(morph=0含む)
-				const DirectX::XMFLOAT3* morphOffsets = nullptr;
-				UINT morphVertexCount = 0;
-
-				bool anyMorph = false;
-				if (world.HasComponent<AnimatorComponent>(entity))
+				// b2: このEntity向けのライトCB。
+				// LightCull が付いていれば上位N灯に絞る。付いていなければ全体を張り直す
+				// (前のEntityで絞ったものが残らないように、どちらの場合も張る)
+				if (renderContext.cbAllocator != nullptr)
 				{
-					// 再計算は AnimatorSystem::Update 側で済んでいる。ここでは読むだけ
-					const auto& an = world.GetComponent<AnimatorComponent>(entity);
-					const size_t n = (std::min)(an.palette.size(), static_cast<size_t>(MAX_BONES));
-					for (size_t i = 0; i < n; ++i) cb.boneMatrices[i] = an.palette[i];
-					for (size_t i = n; i < MAX_BONES; ++i)
-						DirectX::XMStoreFloat4x4(&cb.boneMatrices[i], DirectX::XMMatrixIdentity());
+					const UINT slot = renderContext.frameIndex % RTV_NUM;
+					D3D12_GPU_VIRTUAL_ADDRESS b2 = 0;
 
-					for (float w : an.morphWeights)
-						if (fabsf(w) > 1e-6f) { anyMorph = true; break; }
-
-					const size_t vcount = mesh.mesh->GetVertexCount();
-					if (anyMorph && an.morphoffsets.size() == vcount && vcount > 0)
+					if (world.HasComponent<LightCullComponent>(entity))
 					{
-						morphOffsets = an.morphoffsets.data();
-						morphVertexCount = static_cast<UINT>(vcount);
+						const auto& cull = world.GetComponent<LightCullComponent>(entity);
+						LightCB culled{};
+						BuildCulledLightCB(renderContext.lightCb,
+							transform.position, cull.radius, cull.maxLights, culled);
+						b2 = renderContext.cbAllocator->Allocate(slot, &culled, sizeof(LightCB));
+					}
+					else
+					{
+						b2 = renderContext.cbAllocator->Allocate(slot,
+							&renderContext.lightCb, sizeof(LightCB));
+					}
+
+					if (b2 != 0) renderContext.CommandList->SetGraphicsRootConstantBufferView(2, b2);
+				}
+
+				// 反射パスは ReflectionCaster が付いたEntityだけを描く
+				if (filter == DrawFilter::REFLECTION &&
+					(!world.HasComponent<ReflectionCasterComponent>(entity) ||
+						!world.GetComponent<ReflectionCasterComponent>(entity).enabled))
+				{
+					return;
+				}
+
+				// --- b4(root 5): ボーン行列パレット + morphActiveフラグ ---
+				if (renderContext.cbAllocator)
+				{
+					const UINT slot = renderContext.frameIndex % RTV_NUM;
+					BoneCB cb{};   // 全ゼロ初期化(morph=0含む)
+
+					bool anyMorph = false;
+					if (world.HasComponent<AnimatorComponent>(entity))
+					{
+						auto& an = world.GetComponent<AnimatorComponent>(entity);
+						// MAX_BONES を超えると超過ぶんが単位行列になり、そのボーンに
+						// 割り当てられた頂点が原点方向へ引き伸ばされる（指などが尖る）
+						if (an.palette.size() > MAX_BONES)
+						{
+							static bool warned = false;
+							if (!warned)
+							{
+								warned = true;
+								LOG->LogError("ボーン数が MAX_BONES(" + std::to_string(MAX_BONES)
+									+ ") を超えています: " + std::to_string(an.palette.size())
+									+ " 超過ぶんは単位行列になりメッシュが破綻します");
+							}
+						}
+
+						const size_t n = std::min<size_t>(an.palette.size(), MAX_BONES);
+						for (size_t i = 0; i < n; ++i) cb.boneMatrices[i] = an.palette[i];
+						for (size_t i = n; i < MAX_BONES; ++i)
+							DirectX::XMStoreFloat4x4(&cb.boneMatrices[i], DirectX::XMMatrixIdentity());
+
+						for (float w : an.morphWeights)
+							if (fabsf(w) > 1e-6f) { anyMorph = true; break; }
+					}
+					else
+					{
+						// アニメ無し: 全ボーンidentity(スキンされても原点維持)
+						for (size_t i = 0; i < MAX_BONES; ++i)
+							DirectX::XMStoreFloat4x4(&cb.boneMatrices[i], DirectX::XMMatrixIdentity());
+					}
+					cb.morph = anyMorph ? 1.0f : 0.0f;
+
+					auto b4 = renderContext.cbAllocator->Allocate(slot, &cb, sizeof(BoneCB));
+					if (b4) renderContext.CommandList->SetGraphicsRootConstantBufferView(5, b4);
+
+					// --- t7(root 6): 頂点モーフ (アニメあり かつ モーフがアクティブな時だけ) ---
+					D3D12_GPU_VIRTUAL_ADDRESS morphVA = s_zeroMorphVA;   // 既定はゼロバッファ
+
+					if (anyMorph && world.HasComponent<AnimatorComponent>(entity))
+					{
+						auto& an = world.GetComponent<AnimatorComponent>(entity);
+						const size_t vcount = mesh.mesh->GetVertexCount();
+						if (an.morphDirty) { RebuildMorphOffsets(an.morphs, an.morphWeights, vcount, an.morphoffsets); an.morphDirty = false; }
+						if (an.morphoffsets.size() == vcount)
+						{
+							auto va = renderContext.cbAllocator->Allocate(slot, an.morphoffsets.data(),
+								an.morphoffsets.size() * sizeof(DirectX::XMFLOAT3));
+							if (va) morphVA = va;   // モーフありなら実データで上書き
+						}
+					}
+					renderContext.CommandList->SetGraphicsRootShaderResourceView(6, morphVA);
+				}
+
+				const bool multi =
+					!material.materials.empty() && mesh.mesh->GetSubMeshCount() > 0;
+
+				// --- 通常描画(全マテリアル・無条件) ---
+				if (multi)
+				{
+					const UINT sub = mesh.mesh->GetSubMeshCount();
+					for (UINT s = 0; s < sub; ++s)
+					{
+						UINT mi = mesh.mesh->GetSubMeshMaterialIndex(s);
+						if (mi >= material.materials.size()) mi = 0;
+						auto& mat = material.materials[mi];
+						if (!mat) continue;
+
+						// サブマテリアル側が空ならコンポーネントの値を継承
+						const std::string& sn = mat->shaderName.empty()
+							? material.shaderName : mat->shaderName;
+
+						const bool isTransparent = APP->IsShaderAlphaBlend(sn);
+						const bool isToon = IsToonShader(sn);
+						if (filter == DrawFilter::OPAQUE_NOTOON && (isTransparent || isToon))  continue;
+						if (filter == DrawFilter::OPAQUE_TOON && (isTransparent || !isToon)) continue;
+						if (filter == DrawFilter::OPAQUEONLY && isTransparent)		 continue; // このエンティティskip
+						if (filter == DrawFilter::TRANSPARENTONLY && !isTransparent) continue;
+
+						mat->Apply(renderContext.CommandList, transform.world,
+							renderContext.view, renderContext.projection,
+							renderContext.wireframe, renderContext.frameIndex,
+							renderContext.cbAllocator, resolvePass(sn));
+						mesh.mesh->DrawSubMesh(renderContext.CommandList, s);
 					}
 				}
 				else
 				{
-					// アニメ無し: 全ボーンidentity(スキンされても原点維持)
-					for (size_t i = 0; i < MAX_BONES; ++i)
-						DirectX::XMStoreFloat4x4(&cb.boneMatrices[i], DirectX::XMMatrixIdentity());
-				}
-				cb.morph = anyMorph ? 1.0f : 0.0f;
+					// 単一マテリアルもフィルタに従う。見ていないと不透明パスと
+					// 半透明パスの両方で描かれてしまう
+					const bool isTransparent = APP->IsShaderAlphaBlend(material.shaderName);
+					const bool isToon = IsToonShader(material.shaderName);
+					const bool skip =
+						(filter == DrawFilter::OPAQUEONLY && isTransparent) ||
+						(filter == DrawFilter::TRANSPARENTONLY && !isTransparent) ||
+						(filter == DrawFilter::OPAQUE_NOTOON && (isTransparent || isToon)) ||
+						(filter == DrawFilter::OPAQUE_TOON && (isTransparent || !isToon));
 
-				emit(transform.world, mesh.mesh, material.material, material.materials,
-					material.shaderName, &cb, morphOffsets, morphVertexCount);
+					if (!skip)
+					{
+						material.material->Apply(renderContext.CommandList, transform.world,
+							renderContext.view, renderContext.projection,
+							renderContext.wireframe, renderContext.frameIndex,
+							renderContext.cbAllocator, resolvePass(material.shaderName));
+						mesh.mesh->Draw(renderContext.CommandList);
+					}
+				}
+
+				// --- アウトラインパス(Genshin_Toonのみ・通常描画の後) ---
+				// トゥーン系はアウトラインを描く(SkinnedToon = MMDキャラ)
+				const bool wantsOutline =
+					(material.shaderName == "Genshin_Toon" || material.shaderName == "SkinnedToon") &&
+					filter != DrawFilter::OPAQUE_NOTOON &&
+					filter != DrawFilter::TRANSPARENTONLY &&
+					filter != DrawFilter::REFLECTION;
+				if (wantsOutline && !renderContext.wireframe)
+				{
+					std::string outlineShaderName = resolvePass("Genshin_Outline");
+					ID3D12PipelineState* outlinePso = APP->GetPipelineStateByName(outlineShaderName);
+					if (outlinePso)
+					{
+						// アウトラインはジオメトリをもう一周ぶん投げるので単独で測る
+						GPU_PROFILE_SCOPE(renderContext.CommandList, "Draw/Outline");
+
+						if (multi)
+						{
+							const UINT sub = mesh.mesh->GetSubMeshCount();
+							for (UINT s = 0; s < sub; ++s)
+							{
+								UINT mi = mesh.mesh->GetSubMeshMaterialIndex(s);
+								if (mi >= material.materials.size()) mi = 0;
+								auto& mat = material.materials[mi];
+								if (!mat) continue;
+
+								// 幅0なら押し出し量が0で何も出ない。描くだけ無駄なので省く
+								if (mat->outlineWidth <= 0.0f) continue;
+
+								const bool isTransparent = APP->IsShaderAlphaBlend(material.shaderName);
+								if (filter == DrawFilter::OPAQUEONLY && isTransparent)		 continue; // このエンティティskip
+								if (filter == DrawFilter::TRANSPARENTONLY && !isTransparent) continue;
+
+								mat->Apply(renderContext.CommandList, transform.world,
+									renderContext.view, renderContext.projection,
+									false, renderContext.frameIndex,
+									renderContext.cbAllocator, "", outlinePso);
+								mesh.mesh->DrawSubMesh(renderContext.CommandList, s);
+							}
+						}
+						else if (material.material->outlineWidth > 0.0f)
+						{
+							material.material->Apply(renderContext.CommandList, transform.world,
+								renderContext.view, renderContext.projection,
+								false, renderContext.frameIndex,
+								renderContext.cbAllocator, "", outlinePso); 
+							mesh.mesh->Draw(renderContext.CommandList);
+						}
+					}
+				}
 			}
 		);
 	}
@@ -404,6 +519,19 @@ public:
 		m_Data = {};
 
 		UINT count = 0;
+
+		// 環境光をシーンの灯りの色へ寄せるための集計
+		float3 tintSum{ 0.0f, 0.0f, 0.0f };
+		float  tintWeight = 0.0f;
+		float  ambientBlend = 0.0f;
+
+		// 影を落とすライト(先着1つ)。方向ライトでもスポットでもよい
+		int   shadowIndex = -1;
+		LightComponent::LightType shadowType = LightComponent::LightType::Directional;
+		float shadowAngle = 45.0f;
+		float shadowRange = 10.0f;
+		float3 shadowDir{};
+		float3 shadowPos{};
 
 		world.Each<LightComponent>([&](Entity entity, LightComponent& light)
 			{
@@ -446,25 +574,37 @@ public:
 							{
 								const auto right = DirectX::XMVector3Rotate(
 									DirectX::XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f), rot);
-								fwd = DirectX::XMVectorReciprocal(DirectX::XMVector3Rotate(fwd, DirectX::XMQuaternionRotationAxis(right, panRad)));
+								fwd = DirectX::XMVector3Rotate(fwd, DirectX::XMQuaternionRotationAxis(right, panRad));
 							}
 							else
 							{
 								const auto up = DirectX::XMVector3Rotate(DirectX::XMVectorSet(0, 1, 0, 0), rot);
-								fwd = DirectX::XMVectorReciprocal(DirectX::XMVector3Rotate(fwd, DirectX::XMQuaternionRotationAxis(up, panRad)));
+								fwd = DirectX::XMVector3Rotate(fwd, DirectX::XMQuaternionRotationAxis(up, panRad));
 
 								if (light.swingAxis == LightComponent::SwingAxis::PanTilt)
 								{
 									const auto right = DirectX::XMVector3Rotate(DirectX::XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f), rot);
 									const float tiltRad = DirectX::XMConvertToRadians(light.swingAngle * 0.5f) * 
 										sinf(DirectX::XMConvertToRadians(light.swingSpeed) * 0.7f * dt + 1.5f);
-									fwd = DirectX::XMVectorReciprocal(DirectX::XMVector3Rotate(fwd, DirectX::XMQuaternionRotationAxis(right,tiltRad)));
+									fwd = DirectX::XMVector3Rotate(fwd, DirectX::XMQuaternionRotationAxis(right, tiltRad));
 								}
 							}
 						}
 					}
 
 					fwd = DirectX::XMVector3Normalize(fwd);
+
+					// 不正な向き(NaN/Inf/ゼロ)はシェーダ側でNaNになり画面が黒く落ちるので弾く
+					{
+						float3 chk;
+						DirectX::XMStoreFloat3(&chk, fwd);
+						if (!std::isfinite(chk.x) || !std::isfinite(chk.y) || !std::isfinite(chk.z) ||
+							(chk.x == 0.0f && chk.y == 0.0f && chk.z == 0.0f))
+						{
+							fwd = DirectX::XMVectorSet(0.0f, -1.0f, 0.0f, 0.0f);
+						}
+					}
+
 					DirectX::XMStoreFloat4(&dst.dir, fwd);
 
 					// ギズモ表示用に書き戻す
@@ -484,9 +624,23 @@ public:
 				dst.param.z = light.beamWidth;
 				dst.param.w = light.volumetricIntensity;
 
+				// 環境光の色付け用に、点いている灯りの色を明るさで重み付けして集める
+				{
+					const float w = dst.color.x * 0.299f + dst.color.y * 0.587f
+						+ dst.color.z * 0.114f;
+					if (w > 0.0f)
+					{
+						tintSum.x += dst.color.x * w;
+						tintSum.y += dst.color.y * w;
+						tintSum.z += dst.color.z * w;
+						tintWeight += w;
+					}
+				}
+
 				// 環境光は最初のライトのものを採用
 				if (count == 0)
 				{
+					ambientBlend = std::clamp(light.ambientFromLights, 0.0f, 1.0f);
 					if (APP->HasEnvironment())
 					{
 						const float3 e = APP->GetEnvAmbient();
@@ -499,6 +653,19 @@ public:
 					}
 				}
 
+				// 影の担当を決める。CastShadows を切れば次のライトへ回る
+				if (shadowIndex < 0 && light.castShadows &&
+					(light.type == LightComponent::LightType::Directional ||
+						light.type == LightComponent::LightType::Spot))
+				{
+					shadowIndex = static_cast<int>(count);
+					shadowType = light.type;
+					shadowAngle = light.spotAngle;
+					shadowRange = light.range;
+					shadowPos = float3{ dst.posRange.x, dst.posRange.y, dst.posRange.z };
+					shadowDir = float3{ dst.dir.x, dst.dir.y, dst.dir.z };
+				}
+
 				++count;
 			});
 
@@ -506,17 +673,7 @@ public:
 		//		シャドウマッピング	     //
 		// ----------------------------- //
 		m_Data.shadowParams = { 0.005f, 0.0f, 2048.0f, 0.0f };
-		float3 shadowDir{};
-		bool found = false;
-		world.Each<LightComponent>([&](Entity e, LightComponent& light)
-			{
-				// 見つかった or 非アクティブならスキップ
-				if (found || !light.isActive) return;
-				// 方向ライト以外はスキップ
-				if (light.type != LightComponent::LightType::Directional) return;
-				shadowDir = light.direction;
-				found = true;
-			});
+		const bool found = (shadowIndex >= 0);
 
 		if (found)
 		{
@@ -551,15 +708,88 @@ public:
 				camPos.z + camFwd.z * (ortho * 0.4f)
 			};
 
-			// テクセル単位にスナップ（カメラ移動時の影のシマー防止）
-			const float texelWorld = ortho / mapSize;
-			focus.x = floorf(focus.x / texelWorld) * texelWorld;
-			focus.z = floorf(focus.z / texelWorld) * texelWorld;
-
-			DirectX::XMVECTOR center = DirectX::XMLoadFloat3(&focus);
-			DirectX::XMVECTOR lightPos = DirectX::XMVectorSubtract(center, DirectX::XMVectorScale(d, dist));
 			DirectX::XMVECTOR up = (fabsf(shadowDir.y) > 0.99f)
 				? DirectX::XMVectorSet(1, 0, 0, 0) : DirectX::XMVectorSet(0, 1, 0, 0);
+
+			DirectX::XMVECTOR center = DirectX::XMLoadFloat3(&focus);
+
+			// テクセル単位にスナップ（カメラ移動時の影のシマー防止）。
+			// シャドウマップのテクセル格子はライトの視線軸に沿って並ぶので、
+			// world の X/Z で丸めても格子には乗らない。丸めが効かないぶん、
+			// カメラを動かすたびに影が連続的に滑って「影がカメラに追従する」ように見える。
+			// ライト空間へ移してから丸め、world へ戻すこと
+			{
+				const float texelWorld = ortho / mapSize;
+				const DirectX::XMMATRIX lightRot =
+					DirectX::XMMatrixLookAtLH(DirectX::XMVectorZero(), d, up);
+
+				DirectX::XMVECTOR c = DirectX::XMVector3TransformCoord(center, lightRot);
+				c = DirectX::XMVectorSet(
+					floorf(DirectX::XMVectorGetX(c) / texelWorld) * texelWorld,
+					floorf(DirectX::XMVectorGetY(c) / texelWorld) * texelWorld,
+					DirectX::XMVectorGetZ(c),
+					0.0f);
+
+				DirectX::XMVECTOR det;
+				const DirectX::XMMATRIX inv = DirectX::XMMatrixInverse(&det, lightRot);
+				center = DirectX::XMVector3TransformCoord(c, inv);
+			}
+
+			DirectX::XMVECTOR lightPos = DirectX::XMVectorSubtract(center, DirectX::XMVectorScale(d, dist));
+
+			// ライト視点のビュー×プロジェクション。
+			// 他の行列と同じく転置して渡す(シェーダーは mul(頂点, 行列) の順)
+			DirectX::XMMATRIX lightView;
+			DirectX::XMMATRIX lightProj;
+
+			if (shadowType == LightComponent::LightType::Spot)
+			{
+				// スポットは自分の位置から円錐方向を透視投影で撮る。
+				// 平行投影だと円錐の広がりが再現できず、影の形が合わない
+				const float far_ = std::max(shadowRange, 2.0f);
+				const DirectX::XMVECTOR sp = DirectX::XMLoadFloat3(&shadowPos);
+				const DirectX::XMVECTOR target =
+					DirectX::XMVectorAdd(sp, DirectX::XMVectorScale(d, far_));
+
+				lightView = DirectX::XMMatrixLookAtLH(sp, target, up);
+
+				// 円錐の外周まで入るよう、スポット角そのものを画角にする
+				const float fov = DirectX::XMConvertToRadians(
+					std::min(std::max(shadowAngle, 5.0f), 170.0f));
+				lightProj = DirectX::XMMatrixPerspectiveFovLH(fov, 1.0f, 0.5f, far_);
+			}
+			else
+			{
+				lightView = DirectX::XMMatrixLookAtLH(lightPos, center, up);
+				lightProj = DirectX::XMMatrixOrthographicLH(ortho, ortho, 1.0f, dist * 2.0f);
+			}
+
+			DirectX::XMStoreFloat4x4(&m_Data.lightviewproj,
+				DirectX::XMMatrixTranspose(lightView * lightProj));
+
+			m_Data.shadowParams.y = 1.0f;                          // 影を有効化
+			m_Data.shadowParams.w = static_cast<float>(shadowIndex); // どのライトが落とすか
+		}
+
+		// --- 環境光をそのときの灯りの色へ寄せる ---
+		// 明るさは ambientColor のまま保ち、色味だけ差し替える。
+		// これでライトの色がセクションで変わると、キャラの影側とフォグも一緒に動く
+		if (tintWeight > 0.0f && ambientBlend > 0.0f)
+		{
+			float3 tint{ tintSum.x / tintWeight, tintSum.y / tintWeight,
+						 tintSum.z / tintWeight };
+
+			const float tintLuma = tint.x * 0.299f + tint.y * 0.587f + tint.z * 0.114f;
+			if (tintLuma > 1e-4f)
+			{
+				// 輝度で割って色味だけ取り出す(明るさは環境光側の値を尊重する)
+				tint.x /= tintLuma; tint.y /= tintLuma; tint.z /= tintLuma;
+
+				auto& a = m_Data.ambientColor;
+				a.x = std::lerp(a.x, a.x * tint.x, ambientBlend);
+				a.y = std::lerp(a.y, a.y * tint.y, ambientBlend);
+				a.z = std::lerp(a.z, a.z * tint.z, ambientBlend);
+			}
 		}
 
 		m_Data.lightCount.x = static_cast<float>(count);
@@ -1192,7 +1422,8 @@ public:
 				// ---- ロード ---- //
 				if (!src.clip && !src.clipPath.empty())
 				{
-					src.clip = AudioEngine::Get().Load(src.clipPath);
+					// 絶対パスで保存されたシーンでも Assets の中なら拾えるようにする
+					src.clip = AudioEngine::Get().Load(ResolveAssetPath(src.clipPath));
 					if (src.clip)
 						src.voice = AudioEngine::Get().CreateVoice(src.clip->format);
 				}
@@ -1357,6 +1588,26 @@ public:
 			[&](Entity e, TransformComponent& tr, MeshComponent& mc)
 			{
 				if (!mc.mesh) return;
+
+				// スキンメッシュ用の骨パレット。渡さないとキャラの影が
+				// バインドポーズのまま固まる
+				{
+					BoneCB bone{};
+					const size_t n = world.HasComponent<AnimatorComponent>(e)
+						? std::min<size_t>(world.GetComponent<AnimatorComponent>(e).palette.size(), MAX_BONES)
+						: 0;
+					if (n > 0)
+					{
+						const auto& palette = world.GetComponent<AnimatorComponent>(e).palette;
+						for (size_t i = 0; i < n; ++i) bone.boneMatrices[i] = palette[i];
+					}
+					for (size_t i = n; i < MAX_BONES; ++i)
+						DirectX::XMStoreFloat4x4(&bone.boneMatrices[i], DirectX::XMMatrixIdentity());
+
+					auto b4 = ctx.cbAllocator->Allocate(slot, &bone, sizeof(BoneCB));
+					if (b4) cmd->SetGraphicsRootConstantBufferView(5, b4);
+				}
+
 				struct { float4x4 world; } obj{};
 				const auto w = DirectX::XMLoadFloat4x4(&tr.world);
 				DirectX::XMStoreFloat4x4(&obj.world, DirectX::XMMatrixTranspose(w));
@@ -1378,6 +1629,25 @@ public:
 				using clk = std::chrono::high_resolution_clock;
 				auto t0 = clk::now();
 
+				// Play/Stop で退避したクリップがあれば、読み直さずに拾い直す
+				if (!an.clipsRestored && !an.skeleton.nodes.empty() &&
+					world.HasComponent<NameComponent>(e))
+				{
+					auto& cache = AnimatorClipCache();
+					const auto it = cache.find(world.GetComponent<NameComponent>(e).name);
+					if (it != cache.end() && !it->second.clips.empty())
+					{
+						an.clips = std::move(it->second.clips);
+						an.currentClip = it->second.currentClip;
+						an.currentClipName = it->second.currentClipName;
+						an.time = it->second.time;
+						an.playing = it->second.playing;
+						an.clipsRestored = true;   // 非同期ロードで二重に積まない
+						an.physicsResetRequest = true;
+						cache.erase(it);
+					}
+				}
+
 				// 保存されたVMDパスからクリップを復元(スケルトン準備後に1回だけ)
 				if (!an.clipsRestored && !an.clipPathsStr.empty() &&
 					!an.skeleton.nodes.empty())
@@ -1385,13 +1655,16 @@ public:
 					an.clipsRestored = true;
 					std::stringstream ss(an.clipPathsStr);
 					std::string path;
+					std::vector<std::string> seen;   // 重複したパスは1回だけ読む
 					while (std::getline(ss, path, '|'))
 					{
 						if (path.empty()) continue;
+						if (std::find(seen.begin(), seen.end(), path) != seen.end()) continue;
+						seen.push_back(path);
 						AsyncLoader::Get().LoadVMDAsync(path, an.skeleton,
 							[&world, e](AnimationClip vc)
 							{
-								if (vc.channels.empty()) return;
+								if (vc.channels.empty() && vc.morphChannels.empty()) return;
 								if (!world.IsEntityAlive(e) ||
 									!world.HasComponent<AnimatorComponent>(e)) return;
 								auto& a = world.GetComponent<AnimatorComponent>(e);
@@ -1422,6 +1695,23 @@ public:
 				}
 
 				if (an.clips.empty()) return;
+
+				// 保存された名前を正として添字を引き直す。
+				// クリップは非同期に届くので、並び順は毎回同じとは限らない
+				if (!an.currentClipName.empty() &&
+					(an.currentClip < 0 || an.currentClip >= (int)an.clips.size() ||
+						an.clips[an.currentClip].name != an.currentClipName))
+				{
+					for (int i = 0; i < (int)an.clips.size(); ++i)
+					{
+						if (an.clips[i].name == an.currentClipName)
+						{
+							an.currentClip = i;
+							break;
+						}
+					}
+				}
+
 				if (an.currentClip < 0 || an.currentClip >= (int)an.clips.size()) return;
 				const AnimationClip& clip = an.clips[an.currentClip];
 				if (an.playing && clip.duration > 0.0f)
@@ -1443,6 +1733,34 @@ public:
 				if (world.HasComponent<MmdPhysicsComponent>(e))
 					phys = world.GetComponent<MmdPhysicsComponent>(e).impl.get();
 
+				// ---- 揺れもの(Kawaii Physics) ---- //
+				KawaiiPhysics* kawaii = nullptr;
+				const KawaiiPhysicsSettings* kawaiiSettings = nullptr;
+				const float4x4* entityWorld = nullptr;
+				if (world.HasComponent<KawaiiPhysicsComponent>(e))
+				{
+					auto& kp = world.GetComponent<KawaiiPhysicsComponent>(e);
+					if (!kp.impl) kp.impl = std::make_shared<KawaiiPhysics>();
+
+					// シーンから読んだ設定文字列を一度だけ展開する
+					if (!kp.configRestored)
+					{
+						KawaiiDeserialize(kp.configStr, kp.settings);
+						kp.impl->MarkDirty();
+						kp.configRestored = true;
+					}
+					// シーク・スクラブ中は慣性を持ち込ませない
+					if (an.physicsResetRequest || an.scrubbing) kp.impl->RequestResync();
+
+					if (kp.enabled)
+					{
+						kawaii = kp.impl.get();
+						kawaiiSettings = &kp.settings;
+					}
+				}
+				if (world.HasComponent<TransformComponent>(e))
+					entityWorld = &world.GetComponent<TransformComponent>(e).world;
+
 				// シーク直後は剛体を現在のボーン姿勢へ再同期(爆発防止)
 				if (an.physicsResetRequest)
 				{
@@ -1450,9 +1768,37 @@ public:
 					an.physicsResetRequest = false;
 				}
 
+				// 揺れものは Kawaii Physics へ全面移行したので MmdPhysics は渡さない
 				// スライダーをドラッグしている間はFK/IKのみ(物理を進めない)
 				ComputePalette(an.skeleton, an.skinData, clip, an.time, an.palette,
-					an.scrubbing ? nullptr : phys, dt);
+					nullptr, dt,
+					an.scrubbing ? nullptr : kawaii, kawaiiSettings, entityWorld);
+
+				// 表情モーフをVMDから駆動する。
+				// morphClip が有効ならそちらを使う(体と表情でVMDが別のケース)
+				if (!an.morphs.morphs.empty())
+				{
+					const int mi = (an.morphClip >= 0 && an.morphClip < (int)an.clips.size())
+						? an.morphClip : an.currentClip;
+
+					std::vector<std::string> missing;
+					if (SampleMorphWeights(an.clips[mi], an.time, an.morphs,
+						an.morphWeights, &missing))
+					{
+						an.morphDirty = true;
+					}
+
+					// 解決できなかったモーフ名は一度だけ報告する
+					if (!missing.empty())
+					{
+						static std::unordered_set<std::string> warned;
+						for (const auto& n : missing)
+						{
+							if (warned.insert(n).second)
+								LOG->LogInfo("morph not found in model: " + n);
+						}
+					}
+				}
 
 				auto t1 = clk::now();
 				static int c = 0;
@@ -1563,7 +1909,9 @@ class MusicSyncSystem
 public:
 	void Update(World& world, bool isPlaying)
 	{
-		if (!isPlaying) return;
+		// isPlaying は見ない。音源が実際に鳴っているかどうかだけで判断するので、
+		// エディタで曲を流している間も musicTime が進む
+		(void)isPlaying;
 
 		world.Each<AudioSourceComponent, MusicSyncComponent>(
 			[&](Entity, AudioSourceComponent& src, MusicSyncComponent& sync)
@@ -1621,4 +1969,5 @@ public:
 			});
 	}
 };
+
 

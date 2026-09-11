@@ -123,11 +123,12 @@ void DrawExtraUI<AnimatorComponent>(World& world, Entity e, AnimatorComponent& a
 {
     auto onLoaded = [&world, e](AnimationClip vc)
         {
-            if (vc.channels.empty()) return;
+            if (vc.channels.empty() && vc.morphChannels.empty()) return;
             if (!world.IsEntityAlive(e) || !world.HasComponent<AnimatorComponent>(e)) return;
             auto& a = world.GetComponent<AnimatorComponent>(e);
             a.clips.push_back(std::move(vc));
             a.currentClip   = (int)a.clips.size() - 1;
+            a.currentClipName = a.clips[a.currentClip].name;   // 手動で読んだものを選択状態にする
             a.time          = 0.0f;
             a.playing       = true;
         };
@@ -138,8 +139,14 @@ void DrawExtraUI<AnimatorComponent>(World& world, Entity e, AnimatorComponent& a
             const std::string path = ImportToAssets(rawPath);
             AsyncLoader::Get().LoadVMDAsync(path, an.skeleton, onLoaded);
 
-            if (!an.clipPathsStr.empty()) an.clipPathsStr += "|";
-            an.clipPathsStr += path;
+            // 同じVMDを二重に記録しない(保存のたびにパスが増え続けるため)
+            const std::string token = "|" + path + "|";
+            const std::string haystack = "|" + an.clipPathsStr + "|";
+            if (haystack.find(token) == std::string::npos)
+            {
+                if (!an.clipPathsStr.empty()) an.clipPathsStr += "|";
+                an.clipPathsStr += path;
+            }
             an.clipsRestored = true;   // いま手で読んだ分を復元処理が二重ロードしないように
         };
 
@@ -176,12 +183,18 @@ void DrawExtraUI<AnimatorComponent>(World& world, Entity e, AnimatorComponent& a
             ImGui::TextDisabled(u8("クリップ読み込み中..."));
             return;
         }
+        // 範囲外でも書き換えない(非同期ロード中に選択を潰さないため)
         if (an.currentClip < 0 || an.currentClip >= (int)an.clips.size())
-            an.currentClip = 0;   // クランプ
-
-        std::vector<const char*> names;
-        for (const auto& c : an.clips) names.push_back(c.name.c_str());
-        ImGui::Combo(u8("Clip"), &an.currentClip, names.data(), (int)names.size());
+        {
+            ImGui::TextDisabled(u8("クリップ読み込み中..."));
+        }
+        else
+        {
+            std::vector<const char*> names;
+            for (const auto& c : an.clips) names.push_back(c.name.c_str());
+            if (ImGui::Combo(u8("Clip"), &an.currentClip, names.data(), (int)names.size()))
+                an.currentClipName = an.clips[an.currentClip].name;
+        }
 	}
 
     // --- 再生コントロール ---
@@ -218,7 +231,7 @@ static void DrawPathField(const ReflectedField& f,
     if (ImGui::SmallButton((std::string("...##") + f.name).c_str()))
     {
         std::wstring picked;
-        if (OpenFileDialog(picked, dialogFilter)) { *path = WideToUtf8(picked); applyReset(); }
+        if (OpenFileDialog(picked, dialogFilter)) { *path = MakeAssetRelative(WideToUtf8(picked)); applyReset(); }
     }
 }
 
@@ -335,6 +348,152 @@ static void JsonToField(const json& j, const ReflectedField& f)
     }
 }
 
+// Kawaii Physics: チェーンとコリジョンは配列なので FieldList では描けない。
+// ここで手編集し、変更があれば CommitConfig() で configStr へ畳み直す。
+template<>
+void DrawExtraUI<KawaiiPhysicsComponent>(World& world, Entity e, KawaiiPhysicsComponent& kp)
+{
+    bool changed = false;
+
+    // PMX の剛体から丸ごと作り直す（モデルロード時にも同じ処理が走っている）
+    if (!kp.sourcePhysics.rigidBodies.empty() && world.HasComponent<AnimatorComponent>(e))
+    {
+        if (ImGui::Button(u8("PMX の剛体から再生成")))
+        {
+            const auto& an = world.GetComponent<AnimatorComponent>(e);
+            KawaiiAutoSetupFromPmx(an.skeleton, kp.sourcePhysics, kp.settings);
+            changed = true;
+        }
+        ImGui::SameLine();
+        ImGui::TextDisabled(u8("剛体 %d 個"), (int)kp.sourcePhysics.rigidBodies.size());
+    }
+
+    // ボーン名の入力（std::string を ImGui に渡すための小道具）
+    auto boneInput = [&](const char* label, std::string& target)
+    {
+        char buf[128]{};
+        strncpy_s(buf, sizeof(buf), target.c_str(), _TRUNCATE);
+        if (ImGui::InputText(label, buf, sizeof(buf))) { target = buf; return true; }
+        return false;
+    };
+    // 根元/末端をまとめて編集する2値スライダ
+    auto pairSlider = [&](const char* label, float& root, float& tip, float lo, float hi)
+    {
+        float v[2] = { root, tip };
+        if (ImGui::SliderFloat2(label, v, lo, hi)) { root = v[0]; tip = v[1]; return true; }
+        return false;
+    };
+
+    // ---------------- チェーン ---------------- //
+    ImGui::SeparatorText(u8("チェーン"));
+    for (int i = 0; i < (int)kp.settings.chains.size(); ++i)
+    {
+        auto& c = kp.settings.chains[i];
+        ImGui::PushID(i);
+        const std::string title = (c.rootBone.empty() ? std::string(u8("(ルート未設定)")) : c.rootBone);
+        if (ImGui::TreeNodeEx(title.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
+        {
+            changed |= boneInput(u8("ルートボーン"), c.rootBone);
+            changed |= ImGui::Checkbox(u8("有効"), &c.enabled);
+            changed |= pairSlider(u8("減衰 根/先"), c.dampingRoot, c.dampingTip, 0.0f, 1.0f);
+            changed |= pairSlider(u8("剛性 根/先"), c.stiffnessRoot, c.stiffnessTip, 0.0f, 1.0f);
+            changed |= pairSlider(u8("半径 根/先"), c.radiusRoot, c.radiusTip, 0.0f, 1.0f);
+            changed |= pairSlider(u8("角度制限 根/先(負=無制限)"), c.limitAngleRoot, c.limitAngleTip, -1.0f, 180.0f);
+            changed |= ImGui::SliderFloat(u8("本体追従(移動)"), &c.worldDampingLocation, 0.0f, 1.0f);
+            changed |= ImGui::SliderFloat(u8("本体追従(回転)"), &c.worldDampingRotation, 0.0f, 1.0f);
+            changed |= ImGui::DragFloat(u8("ダミー長"), &c.dummyBoneLength, 0.001f, 0.001f, 1.0f);
+
+            if (ImGui::SmallButton(u8("このチェーンを削除")))
+            {
+                kp.settings.chains.erase(kp.settings.chains.begin() + i);
+                ImGui::TreePop();
+                ImGui::PopID();
+                kp.CommitConfig();
+                return;
+            }
+            ImGui::TreePop();
+        }
+        ImGui::PopID();
+    }
+    if (ImGui::Button(u8("チェーンを追加")))
+    {
+        kp.settings.chains.push_back(KawaiiChainSetting{});
+        changed = true;
+    }
+
+    // ---------------- コリジョン ---------------- //
+    ImGui::SeparatorText(u8("コリジョン"));
+
+    for (int i = 0; i < (int)kp.settings.spheres.size(); ++i)
+    {
+        auto& c = kp.settings.spheres[i];
+        ImGui::PushID(1000 + i);
+        ImGui::Text(u8("球 %d"), i);
+        changed |= boneInput(u8("追従ボーン##s"), c.bone);
+        changed |= ImGui::DragFloat3(u8("オフセット##s"), &c.offset.x, 0.01f);
+        changed |= ImGui::DragFloat(u8("半径##s"), &c.radius, 0.01f, 0.0f, 10.0f);
+        changed |= ImGui::Checkbox(u8("内側に閉じ込める"), &c.limitInside);
+        if (ImGui::SmallButton(u8("削除##s")))
+        {
+            kp.settings.spheres.erase(kp.settings.spheres.begin() + i);
+            ImGui::PopID();
+            kp.CommitConfig();
+            return;
+        }
+        ImGui::PopID();
+        ImGui::Separator();
+    }
+    for (int i = 0; i < (int)kp.settings.capsules.size(); ++i)
+    {
+        auto& c = kp.settings.capsules[i];
+        ImGui::PushID(2000 + i);
+        ImGui::Text(u8("カプセル %d"), i);
+        changed |= boneInput(u8("追従ボーン##c"), c.bone);
+        changed |= ImGui::DragFloat3(u8("オフセット##c"), &c.offset.x, 0.01f);
+        changed |= ImGui::DragFloat3(u8("終点##c"), &c.offsetTail.x, 0.01f);
+        changed |= ImGui::DragFloat(u8("半径##c"), &c.radius, 0.01f, 0.0f, 10.0f);
+        if (ImGui::SmallButton(u8("削除##c")))
+        {
+            kp.settings.capsules.erase(kp.settings.capsules.begin() + i);
+            ImGui::PopID();
+            kp.CommitConfig();
+            return;
+        }
+        ImGui::PopID();
+        ImGui::Separator();
+    }
+    for (int i = 0; i < (int)kp.settings.planars.size(); ++i)
+    {
+        auto& c = kp.settings.planars[i];
+        ImGui::PushID(3000 + i);
+        ImGui::Text(u8("平面 %d"), i);
+        changed |= boneInput(u8("追従ボーン##p"), c.bone);
+        changed |= ImGui::DragFloat3(u8("オフセット##p"), &c.offset.x, 0.01f);
+        changed |= ImGui::DragFloat3(u8("法線##p"), &c.normal.x, 0.01f);
+        if (ImGui::SmallButton(u8("削除##p")))
+        {
+            kp.settings.planars.erase(kp.settings.planars.begin() + i);
+            ImGui::PopID();
+            kp.CommitConfig();
+            return;
+        }
+        ImGui::PopID();
+        ImGui::Separator();
+    }
+
+    if (ImGui::Button(u8("球を追加"))) { kp.settings.spheres.push_back({}); changed = true; }
+    ImGui::SameLine();
+    if (ImGui::Button(u8("カプセルを追加"))) { kp.settings.capsules.push_back({}); changed = true; }
+    ImGui::SameLine();
+    if (ImGui::Button(u8("平面を追加"))) { kp.settings.planars.push_back({}); changed = true; }
+
+    ImGui::Spacing();
+    ImGui::SliderInt(u8("拘束の反復回数"), &kp.settings.collisionIterations, 1, 8);
+    if (ImGui::Button(u8("姿勢へ再同期")) && kp.impl) kp.impl->RequestResync();
+
+    if (changed) kp.CommitConfig();
+}
+
 template<typename T>
 static ComponentMeta MakeMeta(const std::string& name)
 {
@@ -410,6 +569,11 @@ static const std::vector<ComponentMeta> g_Components =
 	MakeMeta<MusicSyncComponent>("Music Sync"),
 	MakeMeta<RigidBodyComponent>("Rigid Body"),
 	MakeMeta<ParticleEmitterComponent>("Particle Emitter"),
+	MakeMeta<KawaiiPhysicsComponent>("Kawaii Physics"),
+	MakeMeta<DepthOfFieldComponent>("Depth Of Field"),
+	MakeMeta<LightCullComponent>("Light Cull"),
+	MakeMeta<PlanarReflectionComponent>("Planar Reflection"),
+	MakeMeta<ReflectionCasterComponent>("Reflection Caster"),
 };
 
 const std::vector<ComponentMeta>& ComponentRegistry::All()

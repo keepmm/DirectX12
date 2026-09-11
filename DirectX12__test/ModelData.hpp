@@ -170,12 +170,31 @@ struct BoneAnimationChannel
 	std::vector<KeyFrame> keyFrames;
 };
 
+/**
+ * .表情モーフのキーフレーム(VMD)
+ */
+struct MorphKeyFrame
+{
+	float time = 0.0f;		// 秒(frame/30)
+	float weight = 0.0f;	// 0.0 ~ 1.0
+};
+
+/**
+ * .1モーフ分のキーフレーム列
+ */
+struct MorphAnimationChannel
+{
+	std::string morphName;					// PMXのモーフ名
+	std::vector<MorphKeyFrame> keyFrames;	// time昇順
+};
+
 struct AnimationClip
 {
 	std::string name;
 	float duration = 0.0f;	// アニメーションの長さ(秒)
 	float tickPerSecond = 0.0f;	// 1秒あたりのティック数
 	std::vector<BoneAnimationChannel> channels;
+	std::vector<MorphAnimationChannel> morphChannels;	// 表情モーフ(VMD)
 };
 
 struct CameraKeyFrame

@@ -4,9 +4,37 @@
 #include "RuntimeScene.hpp"
 #include "SceneSerializer.hpp"
 
+#include <filesystem>
+
+namespace
+{
+	/// @brief Assets/Scenes/<name>.json が実在するか
+	bool SceneJsonExists(const std::string& name)
+	{
+		std::error_code ec;
+		return std::filesystem::exists(SceneManager::ScenePathFromName(name), ec);
+	}
+}
+
 SceneManager::SceneManager()
 	: m_ThreadPool(std::thread::hardware_concurrency())
 {
+}
+
+void SceneManager::EnsureRegistered(const std::string& name)
+{
+	{
+		std::lock_guard<std::mutex> lk(m_SceneMutex);
+		if (m_Scenes.count(name)) return;
+	}
+	if (!SceneJsonExists(name))
+	{
+		LOG->LogError("Scene '" + name + "'の JSON が見つかりません: "
+			+ ScenePathFromName(name));
+		return;
+	}
+	RegisterScene(name);
+	LOG->LogInfo("Scene '" + name + "'を遅延登録しました");
 }
 
 bool SceneManager::RegisterScene(const std::string& name)
@@ -41,6 +69,11 @@ void SceneManager::LoadScene(const std::string& name)
 	// 非同期処理をロック
 	//std::unique_lock<std::mutex> lock(m_SceneMutex);
 
+	// 未登録でも JSON があればここで登録する。
+	// ゲームビルド版は開始シーンしか登録されないので、スクリプトからの
+	// LoadScene("Foo") が「登録されていません」で落ちて遷移しなくなる
+	EnsureRegistered(name);
+
 	// シーンが登録されているか確認
 	if (m_Scenes.find(name) == m_Scenes.end())
 	{
@@ -64,6 +97,9 @@ void SceneManager::LoadScene(const std::string& name)
 
 void SceneManager::LoadSceneAdditive(const std::string& name)
 {
+	// ロックの外で登録する(RegisterScene が同じ mutex を取るため)
+	EnsureRegistered(name);
+
 	// 非同期処理をロック
 	std::unique_lock<std::mutex> lock(m_SceneMutex);
 

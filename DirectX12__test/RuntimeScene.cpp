@@ -160,10 +160,11 @@ void RuntimeScene::Update(float deltatime)
 
 	{ PROFILE_SCOPE("Script"); m_ScriptSystem.Update(m_World, deltatime); }
 	m_SpinSystem.Update(m_World, deltatime);
-	{ PROFILE_SCOPE("LightSystem"); m_LightSystem.Apply(m_World); }
 	m_AudioSystem.Update(m_World, PLAY.isPlaying(),
 		PLAY.GetCurrentMode() == EngineMode::PAUSE);
 	m_MusicSyncSystem.Update(m_World, PLAY.isPlaying());
+
+	{ PROFILE_SCOPE("LightSystem"); m_LightSystem.Apply(m_World); }
 	m_FreeLookSystem.Update(m_World, deltatime, CameraComponent::CameraType::Secondary);
 	m_CameraAnimationSystem.Update(m_World, deltatime,PLAY.isPlaying());
 	{ PROFILE_SCOPE("Transform"); m_TransformSystem.Update(m_World); }
@@ -247,8 +248,9 @@ void RuntimeScene::PublishFrameObjects()
 
 	fp->AddFrameObject<FO_Light>(FO_Light{ m_LightSystem.GetLightData() });
 
-	// 描画対象のスナップショット。これ以降 RenderSystem は World を読まない
-	RenderSystem::Publish(m_World, *fp);
+	// NOTE: mmd-live では RenderSystem::Draw が FO_DrawItem を消費していないので
+	//       積んでも捨てるだけになる(スキン1体につき32KB)。Draw を移植するまで止めておく
+	// RenderSystem::Publish(m_World, *fp);
 
 	m_World.Each<CameraComponent>([&](Entity entity, CameraComponent& camera)
 		{
@@ -262,7 +264,9 @@ void RuntimeScene::PublishFrameObjects()
 				static_cast<FO_CameraType>(camera.cameraType),
 				camera.view,
 				camera.proj,
-				position });
+				position,
+				camera.nearZ,
+				camera.farZ });
 		});
 #endif
 }
@@ -274,6 +278,10 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 	const CameraComponent::CameraType wantType =
 		context.isSceneView ? CameraComponent::CameraType::Secondary
 		: CameraComponent::CameraType::Main;
+
+	// 被写界深度が後段で使う。カメラの取得経路が2つあるのでここへ引き上げておく
+	float camNearZ = 0.1f;
+	float camFarZ = 100.0f;
 
 #ifdef _FRAMEPIPELINE
 	FramePipeline* fp = GetFrameThreadPipelineNullable();
@@ -303,6 +311,8 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 		{
 			context.view = cam->view;
 			context.projection = cam->projection;
+			camNearZ = cam->nearZ;
+			camFarZ = cam->farZ;
 		}
 
 		fp->FixFrameObject<FO_Camera>();
@@ -329,6 +339,8 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 		{
 			context.view = cam->view;
 			context.projection = cam->proj;
+			camNearZ = cam->nearZ;
+			camFarZ = cam->farZ;
 		}
 	}
 
@@ -350,6 +362,84 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 			GPU_PROFILE_SCOPE(commandList, "Draw/Shadow");
 			m_ShadowSystem.Draw(m_World, context, APP->GetShadowPso());
 			APP->GetShadowMap().EndRender(commandList);
+		}
+
+		// ---- 平面反射(床への映り込み) ----
+		// 床面でカメラを鏡像にして、ReflectionCaster だけを別RTへ描く。
+		// 平面鏡なので、床のピクセルに映る像は同じスクリーン位置の画素そのものになる
+		{
+			float planeY = 0.0f;
+			float rscale = 0.5f;
+			bool  useReflection = false;
+			m_World.Each<PlanarReflectionComponent>(
+				[&](Entity, PlanarReflectionComponent& pr)
+				{
+					if (useReflection || !pr.enabled) return;
+					useReflection = true;
+					planeY = pr.planeY;
+					rscale = pr.resolutionScale;
+				});
+
+			if (useReflection)
+			{
+				PROFILE_SCOPE("Draw/Reflection");
+				GPU_PROFILE_SCOPE(commandList, "Draw/Reflection");
+
+				APP->SetReflectionScale(rscale);
+				APP->EnsureReflectionTarget();
+
+				auto& reflectRT = APP->GetReflectionRT();
+				if (reflectRT.IsValid())
+				{
+					reflectRT.Transition(commandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
+
+					auto reflRtv = reflectRT.GetRTV();
+					auto reflDsv = APP->GetReflectionDSV();
+					commandList->OMSetRenderTargets(1, &reflRtv, FALSE, &reflDsv);
+
+					// 反射RTはウィンドウ全体ぶん。床を実際にラスタライズする
+					// 解像度に対応する左上のサブ矩形だけを使う(床シェーダーのUVがこの前提)。
+					// 本描画は HDRシーン(ウィンドウ解像度)へ fullvp で行うので、
+					// ここもシーンRTではなく HDRシーンのサイズに合わせる。
+					// ずらすと床に映る像が拡大されて別の位置に出る
+					const UINT sw = APP->GetHdrScene().GetWidth();
+					const UINT sh = APP->GetHdrScene().GetHeight();
+					const UINT rw = (std::min)(reflectRT.GetWidth(),
+						(std::max)(1u, static_cast<UINT>(sw * rscale)));
+					const UINT rh = (std::min)(reflectRT.GetHeight(),
+						(std::max)(1u, static_cast<UINT>(sh * rscale)));
+
+					D3D12_VIEWPORT rvp{ 0.0f, 0.0f, (float)rw, (float)rh, 0.0f, 1.0f };
+					D3D12_RECT rsc{ 0, 0, (LONG)rw, (LONG)rh };
+					commandList->RSSetViewports(1, &rvp);
+					commandList->RSSetScissorRects(1, &rsc);
+
+					// 反射RTはウィンドウ全体ぶんあるが、使うのは左上のサブ矩形だけ。
+					// 全面をクリアすると使わない領域まで毎フレーム塗ることになる
+					const float clearColor[4] = { 0.0f, 0.0f, 0.0f, 1.0f };
+					commandList->ClearRenderTargetView(reflRtv, clearColor, 1, &rsc);
+					commandList->ClearDepthStencilView(reflDsv,
+						D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 1, &rsc);
+
+					// 床面で鏡像にしたビュー行列。射影は据え置きでよい
+					RenderContext reflCtx = context;
+					reflCtx.viewport = &rvp;
+					reflCtx.scissorRect = &rsc;
+					const auto mirror = DirectX::XMMatrixReflect(
+						DirectX::XMVectorSet(0.0f, 1.0f, 0.0f, -planeY));
+					DirectX::XMStoreFloat4x4(&reflCtx.view,
+						mirror * DirectX::XMLoadFloat4x4(&context.view));
+
+					commandList->SetGraphicsRootSignature(APP->GetRootSignature().Get());
+
+					// 鏡像は巻き順が反転するので、前面カリングのPSOで描く
+					std::string mirrorPass = "SkinnedToonMirror";
+					m_RenderSystem.Draw(m_World, reflCtx,
+						APP->GetPipelineStateByName(mirrorPass), DrawFilter::REFLECTION);
+
+					reflectRT.Transition(commandList, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+				}
+			}
 		}
 
 		auto rtvHandle = renderTexture->GetRTV();
@@ -389,10 +479,11 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 			APP->BeginGeometryPass();
 			commandList->RSSetViewports(1, &fullvp);
 			commandList->RSSetScissorRects(1, &fullsc);
+			// トゥーンはG-Bufferに入れない(PBRで塗られてランプもリムも失われる)
 			{
 				PROFILE_SCOPE("Draw/GBuffer");
 				GPU_PROFILE_SCOPE(commandList, "Draw/GBuffer");
-				m_RenderSystem.Draw(m_World, context, APP->GetGBufferPso(), DrawFilter::OPAQUEONLY);
+				m_RenderSystem.Draw(m_World, context, APP->GetGBufferPso(), DrawFilter::OPAQUE_NOTOON);
 			}
 
 			// ---- ライティング -> HDR(R16F) ----
@@ -402,24 +493,17 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 				APP->DeferredLightingPass(context, hdrRtv, fullvp, fullsc);
 			}
 
-			commandList->OMSetRenderTargets(1, &hdrRtv, FALSE, nullptr);
-			if (renderContext.viewport)    commandList->RSSetViewports(1, &fullvp);
-			if (renderContext.scissorRect) commandList->RSSetScissorRects(1, &fullsc);
+			// ---- ここから Bloom の手前。スカイボックス/トゥーン/半透明まで
+			//      すべて HDR(R16F) へ描き込み、同じトーンマップとブルームを通す。
+			//      LDR へ焼いた後に重ねるとキャラだけ別のトーンカーブになり、
+			//      ステージのブルームもシルエットに掛からず切り抜きに見える ----
+			commandList->OMSetRenderTargets(1, &hdrRtv, FALSE, &dsvHandle);
+			commandList->RSSetViewports(1, &fullvp);
+			commandList->RSSetScissorRects(1, &fullsc);
 			commandList->SetGraphicsRootSignature(APP->GetRootSignature().Get());
-			DrawLaserBeams(context, APP->GetBeamHdrPso());
 
-			// ---- Bloom + トーンマップ合成 -> renderTexture(R8) ----
-			{
-				PROFILE_SCOPE("Draw/Bloom");
-				GPU_PROFILE_SCOPE(commandList, "Draw/Bloom");
-				APP->PostProcessBloom(rtvHandle,
-					*renderContext.viewport, *renderContext.scissorRect);
-			}
-
-			commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
-			if (renderContext.viewport)    commandList->RSSetViewports(1, renderContext.viewport);
-			if (renderContext.scissorRect) commandList->RSSetScissorRects(1, renderContext.scissorRect);
-			commandList->SetGraphicsRootSignature(APP->GetRootSignature().Get());
+			// フォワード描画を HDR 用 PSO(@Hdr) へ向ける
+			context.psoSuffix = HDR_PASS_SUFFIX;
 
 			// b4 再バインド
 			if (renderContext.cbAllocator)
@@ -442,8 +526,15 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 				float4x4 identity;
 				DirectX::XMStoreFloat4x4(&identity, DirectX::XMMatrixIdentity());
 				m_SkyBox->Apply(context.CommandList, identity, context.view, context.projection,
-					false, context.frameIndex, context.cbAllocator, "", APP->GetSkyPso());
+					false, context.frameIndex, context.cbAllocator, "", APP->GetSkyHdrPso());
 				m_SkyboxCube.Draw(context.CommandList);
+			}
+
+			// トゥーンをフォワードで重ねる。@Hdr パスなので描き先は HDR シーン
+			{
+				PROFILE_SCOPE("Draw/Toon(Forward)");
+				GPU_PROFILE_SCOPE(commandList, "Draw/Toon(Forward)");
+				m_RenderSystem.Draw(m_World, context, nullptr, DrawFilter::OPAQUE_TOON);
 			}
 
 			// 半透明
@@ -452,16 +543,50 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 				GPU_PROFILE_SCOPE(commandList, "Draw/Transparent");
 				m_RenderSystem.Draw(m_World, context, nullptr, DrawFilter::TRANSPARENTONLY);
 			}
+
+			// レーザービームも HDR のまま(ブルームの芯になる)
+			DrawLaserBeams(context, APP->GetBeamHdrPso());
+
+			// 以降のデバッグ線/UI は素の LDR パスへ戻す
+			context.psoSuffix = "";
+
+			// ---- Bloom + トーンマップ合成 -> renderTexture(R8) ----
+			{
+				PROFILE_SCOPE("Draw/Bloom");
+				GPU_PROFILE_SCOPE(commandList, "Draw/Bloom");
+				APP->PostProcessBloom(rtvHandle,
+					*renderContext.viewport, *renderContext.scissorRect);
+			}
+
+			commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
+			if (renderContext.viewport)    commandList->RSSetViewports(1, renderContext.viewport);
+			if (renderContext.scissorRect) commandList->RSSetScissorRects(1, renderContext.scissorRect);
+			commandList->SetGraphicsRootSignature(APP->GetRootSignature().Get());
 		}
 		else
 		{
-			// ===== フォワード（従来）=====
-			commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
-			commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
-			if (renderContext.viewport)    commandList->RSSetViewports(1, renderContext.viewport);
-			if (renderContext.scissorRect) commandList->RSSetScissorRects(1, renderContext.scissorRect);
+			// ===== フォワード =====
+			// HDRシーン(R16F)へ描いてから Bloom + トーンマップを通す。
+			// ここを LDR に直接描くと、ポストが丸ごと掛からず
+			// ステージもキャラも素のまま = 境界がまったく馴染まない
+			auto& hdr = APP->GetHdrScene();
+			const UINT fw = hdr.GetWidth();
+			const UINT fh = hdr.GetHeight();
+			D3D12_VIEWPORT fullvp{ 0.0f,0.0f, (float)fw, (float)fh, 0.0f, 1.0f };
+			D3D12_RECT fullsc{ 0,0, (LONG)fw, (LONG)fh };
 
-			renderTexture->Clear(commandList, { 0.2f, 0.2f, 0.2f, 1.0f });
+			hdr.Transition(commandList, D3D12_RESOURCE_STATE_RENDER_TARGET);
+			auto hdrRtv = hdr.GetRTV();
+
+			commandList->OMSetRenderTargets(1, &hdrRtv, FALSE, &dsvHandle);
+			commandList->ClearDepthStencilView(dsvHandle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
+			commandList->RSSetViewports(1, &fullvp);
+			commandList->RSSetScissorRects(1, &fullsc);
+
+			hdr.Clear(commandList, { 0.2f, 0.2f, 0.2f, 1.0f });
+
+			// フォワード描画を HDR 用 PSO(@Hdr) へ向ける
+			context.psoSuffix = HDR_PASS_SUFFIX;
 
 			if (m_SkyBox)
 			{
@@ -470,7 +595,7 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 				float4x4 identity;
 				DirectX::XMStoreFloat4x4(&identity, DirectX::XMMatrixIdentity());
 				m_SkyBox->Apply(context.CommandList, identity, context.view, context.projection,
-					false, context.frameIndex, context.cbAllocator, "", APP->GetSkyPso());
+					false, context.frameIndex, context.cbAllocator, "", APP->GetSkyHdrPso());
 				m_SkyboxCube.Draw(context.CommandList);
 			}
 
@@ -479,6 +604,22 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 				GPU_PROFILE_SCOPE(commandList, "Draw/Forward(All)");
 				m_RenderSystem.Draw(m_World, context);   // 従来通り全部
 			}
+
+			// 以降のデバッグ線/UI は素の LDR パスへ戻す
+			context.psoSuffix = "";
+
+			// ---- Bloom + トーンマップ合成 -> renderTexture(R8) ----
+			{
+				PROFILE_SCOPE("Draw/Bloom");
+				GPU_PROFILE_SCOPE(commandList, "Draw/Bloom");
+				APP->PostProcessBloom(rtvHandle,
+					*renderContext.viewport, *renderContext.scissorRect);
+			}
+
+			commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
+			if (renderContext.viewport)    commandList->RSSetViewports(1, renderContext.viewport);
+			if (renderContext.scissorRect) commandList->RSSetScissorRects(1, renderContext.scissorRect);
+			commandList->SetGraphicsRootSignature(APP->GetRootSignature().Get());
 		}
 
 		//{
@@ -493,10 +634,51 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 		//	m_FireworkBeamRenderer.Draw(context);   // Init時のBeamPso(深度なし)
 		//}
 
+		// ---- 被写界深度 ----
+		// 不透明・半透明を描き終えた時点でかける。デバッグ線やUIはボケさせない
+		{
+			const DepthOfFieldComponent* dof = nullptr;
+			m_World.Each<DepthOfFieldComponent>(
+				[&](Entity, DepthOfFieldComponent& d)
+				{
+					if (dof == nullptr && d.enabled && d.maxBlur > 0.0f) dof = &d;
+				});
+
+			if (dof != nullptr)
+			{
+				PROFILE_SCOPE("Draw/DoF");
+				GPU_PROFILE_SCOPE(commandList, "Draw/DoF");
+
+				DofCB cb{};
+				cb.focus = float4(dof->focusDistance, dof->focusRange,
+					dof->maxBlur, dof->falloff);
+				// zw は深度テクスチャ側の uvScale。本描画は HDRシーン(ウィンドウ全面)
+				// へ行うので、深度もウィンドウ全面に入っている。カラー側(cb.uv)とは
+				// サブ矩形の大きさが違うので別々に渡す
+				cb.proj = float4(camNearZ, camFarZ,
+					(float)APP->GetHdrScene().GetWidth() / (float)WINDOW_WIDTH,
+					(float)APP->GetHdrScene().GetHeight() / (float)WINDOW_HEIGHT);
+
+				// 中間RTはウィンドウ全体ぶん。今描いている範囲だけを使うので、
+				// サンプル位置に シーンRT/ウィンドウ を掛けて合わせる
+				cb.uv.x = (float)renderTexture->GetWidth() / (float)WINDOW_WIDTH;
+				cb.uv.y = (float)renderTexture->GetHeight() / (float)WINDOW_HEIGHT;
+
+				APP->DepthOfFieldPass(*renderTexture,
+					renderTexture->GetWidth(), renderTexture->GetHeight(), cb);
+
+				// ポストパスがRT/ビューポートを付け替えたので戻す
+				commandList->OMSetRenderTargets(1, &rtvHandle, FALSE, &dsvHandle);
+				if (renderContext.viewport)    commandList->RSSetViewports(1, renderContext.viewport);
+				if (renderContext.scissorRect) commandList->RSSetScissorRects(1, renderContext.scissorRect);
+				commandList->SetGraphicsRootSignature(APP->GetRootSignature().Get());
+			}
+		}
+
 		// ===== デバッグライン / ビーム / UI（両モード共通・現在バインド中のRTへ）=====
 		GPU_PROFILE_SCOPE(commandList, "Draw/Debug+UI");
 		m_DebugLineRenderer.Begin();
-		if (context.isSceneView) { DrawGrid(); DrawLight(); DrawGizmos(context); DrawColliders(); }
+		if (context.isSceneView) { DrawGrid(); DrawLight(); DrawGizmos(context); DrawColliders(); DrawKawaiiPhysics(); }
 		for (const auto& line : m_DebugLines)
 			m_DebugLineRenderer.AddLine(line.start, line.end, line.color);
 		m_DebugLineRenderer.Draw(context);
@@ -618,9 +800,116 @@ void RuntimeScene::DrawGrid()
 	{
 		const float offset = -half + i * gridSize;
 
-		m_DebugLineRenderer.AddLine(float3{ offset, 0.0f, -half }, float3{ offset, 0.0f, half }, gridColor, true);
-		m_DebugLineRenderer.AddLine(float3{ -half, 0.0f, offset }, float3{ half, 0.0f, offset }, gridColor, true);
+		m_DebugLineRenderer.AddLine(float3{ offset, 0.0f, -half }, float3{ offset, 0.0f, half }, gridColor);
+		m_DebugLineRenderer.AddLine(float3{ -half, 0.0f, offset }, float3{ half, 0.0f, offset }, gridColor);
 	}
+}
+
+void RuntimeScene::DrawKawaiiPhysics()
+{
+	using namespace DirectX;
+
+	// 円を1つ描く（法線 n に垂直な平面上）
+	auto drawCircle = [this](const float3& center, const float3& n, float radius,
+		const COLOR& color)
+		{
+			const XMVECTOR c = XMLoadFloat3(&center);
+			const XMVECTOR axis = XMVector3Normalize(XMLoadFloat3(&n));
+
+			// 軸に垂直な基底を作る
+			XMVECTOR u = XMVector3Cross(axis, XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
+			if (XMVectorGetX(XMVector3LengthSq(u)) < 1e-6f)
+				u = XMVector3Cross(axis, XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f));
+			u = XMVector3Normalize(u);
+			const XMVECTOR v = XMVector3Cross(axis, u);
+
+			constexpr int SEG = 16;
+			float3 prev{};
+			for (int i = 0; i <= SEG; ++i)
+			{
+				const float t = XM_2PI * i / SEG;
+				const XMVECTOR p = XMVectorAdd(c,
+					XMVectorScale(XMVectorAdd(XMVectorScale(u, cosf(t)),
+						XMVectorScale(v, sinf(t))), radius));
+				float3 cur; XMStoreFloat3(&cur, p);
+				if (i > 0) m_DebugLineRenderer.AddLine(prev, cur, color);
+				prev = cur;
+			}
+		};
+
+	// ソルバはモデル空間で動く（global にワールド行列は掛かっていない）ので、
+	// 描画するときだけエンティティのワールド行列を掛ける。
+	m_World.Each<TransformComponent, KawaiiPhysicsComponent>(
+		[&](Entity, TransformComponent& transform, KawaiiPhysicsComponent& kp)
+		{
+			if (!kp.debugDraw || !kp.impl) return;
+
+			const XMMATRIX W = XMLoadFloat4x4(&transform.world);
+			auto toWorld = [&W](const float3& p)
+				{
+					float3 o;
+					XMStoreFloat3(&o, XMVector3Transform(XMLoadFloat3(&p), W));
+					return o;
+				};
+			// スケールぶんだけ半径も換算する
+			const float wscale = XMVectorGetX(XMVector3Length(W.r[0]));
+
+			// --- チェーン（緑。支点から出る区間は黄色） --- //
+			std::vector<KawaiiPhysics::DebugSegment> segs;
+			kp.impl->GetDebugChains(segs);
+			for (const auto& s : segs)
+			{
+				const COLOR col = s.anchor
+					? COLOR{ 1.0f, 0.9f, 0.2f, 1.0f }
+					: COLOR{ 0.2f, 1.0f, 0.3f, 1.0f };
+				m_DebugLineRenderer.AddLine(toWorld(s.a), toWorld(s.b), col);
+			}
+
+			// --- 球コリジョン（水色。3面の円で表す） --- //
+			const COLOR sphereCol{ 0.3f, 0.8f, 1.0f, 1.0f };
+			for (const auto& sp : kp.impl->GetDebugSpheres())
+			{
+				const float3 c = toWorld(sp.center);
+				const float r = sp.radius * wscale;
+				drawCircle(c, float3{ 1,0,0 }, r, sphereCol);
+				drawCircle(c, float3{ 0,1,0 }, r, sphereCol);
+				drawCircle(c, float3{ 0,0,1 }, r, sphereCol);
+			}
+
+			// --- カプセルコリジョン（橙。両端の円＋4本の稜線） --- //
+			const COLOR capCol{ 1.0f, 0.55f, 0.2f, 1.0f };
+			for (const auto& cap : kp.impl->GetDebugCapsules())
+			{
+				const float3 capA = toWorld(cap.a);
+				const float3 capB = toWorld(cap.b);
+				const float capR = cap.radius * wscale;
+				const XMVECTOR a = XMLoadFloat3(&capA);
+				const XMVECTOR b = XMLoadFloat3(&capB);
+				XMVECTOR axis = XMVectorSubtract(b, a);
+				if (XMVectorGetX(XMVector3LengthSq(axis)) < 1e-8f)
+					axis = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+				axis = XMVector3Normalize(axis);
+
+				float3 axisF; XMStoreFloat3(&axisF, axis);
+				drawCircle(capA, axisF, capR, capCol);
+				drawCircle(capB, axisF, capR, capCol);
+
+				XMVECTOR u = XMVector3Cross(axis, XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f));
+				if (XMVectorGetX(XMVector3LengthSq(u)) < 1e-6f)
+					u = XMVector3Cross(axis, XMVectorSet(1.0f, 0.0f, 0.0f, 0.0f));
+				u = XMVector3Normalize(u);
+				const XMVECTOR v = XMVector3Cross(axis, u);
+
+				const XMVECTOR dirs[4] = { u, XMVectorNegate(u), v, XMVectorNegate(v) };
+				for (const XMVECTOR& d : dirs)
+				{
+					float3 s0, s1;
+					XMStoreFloat3(&s0, XMVectorAdd(a, XMVectorScale(d, capR)));
+					XMStoreFloat3(&s1, XMVectorAdd(b, XMVectorScale(d, capR)));
+					m_DebugLineRenderer.AddLine(s0, s1, capCol);
+				}
+			}
+		});
 }
 
 void RuntimeScene::DrawLight()
@@ -968,11 +1257,15 @@ void RuntimeScene::DrawLaserBeams(const RenderContext& context, ID3D12PipelineSt
 
 void RuntimeScene::EditorUpdate(float dt)
 {
+	// エディタでも曲を流してタイムラインを確認できるよう、
+	// オーディオ → 曲位置 → タイムライン → ライト の順で回す
+	m_AudioSystem.Update(m_World, false);
+	m_MusicSyncSystem.Update(m_World, false);
+
 	{ PROFILE_SCOPE("LightSystem"); m_LightSystem.Apply(m_World); }
 	m_FreeLookSystem.Update(m_World, dt,CameraComponent::CameraType::Secondary);   // エディタカメラ操作
 	m_CameraSystem.Update(m_World, 16.0f / 9.0f);
 	{ PROFILE_SCOPE("Transform"); m_TransformSystem.Update(m_World); }
-	m_AudioSystem.Update(m_World, false);
 	// m_AnimatorSystem.Update(m_World, dt);
 }
 

@@ -242,6 +242,10 @@ struct FO_Camera
 	float4x4 view;
 	float4x4 projection;
 	float3   position;
+
+	// 被写界深度などが射影の near/far を要求するので持たせる
+	float nearZ = 0.1f;
+	float farZ = 100.0f;
 };
 
 // そのフレームで確定したライト定数(LightSystem の出力スナップショット)

@@ -135,6 +135,7 @@ private:
 	bool m_DockLayout = false;
 	bool m_ShowMmdPlayer = true;
 	bool m_ShowProfiler = true;		// 処理時間の内訳
+	bool m_BuildUsedAssetsOnly = true;	// ビルド時に未使用アセットを出力しない
 
 	// タブで隠れているビューポートは描画を省くための可視フラグ
 	bool m_GameViewVisible = true;
@@ -148,6 +149,17 @@ public:
 	bool IsEditorViewVisible() const noexcept { return m_EditorViewVisible; }
 
 private:
+
+	/// @brief 用途ごとのパネル配置
+	enum class Workspace
+	{
+		Engine,		// ゲームエンジン用(従来のレイアウト)
+		Lighting,	// ライト/演出編集用(下半分がタイムライン)
+	};
+	Workspace m_Workspace = Workspace::Engine;
+
+	/// @brief 現在のワークスペースに合わせてドック配置を組み直す
+	void BuildWorkspaceLayout(_In_ unsigned int dockspaceID, _In_ const ImVec2& size);
 
 	// ビューポート情報
 	ImVec2 m_ViewportSize{ 0.0f, 0.0f };

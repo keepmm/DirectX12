@@ -213,6 +213,9 @@
     <ClCompile Include="MmdPhysics.cpp">
       <Filter>Input_Audio_Physics</Filter>
     </ClCompile>
+    <ClCompile Include="KawaiiPhysics.cpp">
+      <Filter>Input_Audio_Physics</Filter>
+    </ClCompile>
     <ClCompile Include="ComponentRegistry.cpp">
       <Filter>ECS</Filter>
     </ClCompile>
@@ -430,6 +433,12 @@
     <ClInclude Include="MmdPhysics.hpp">
       <Filter>Input_Audio_Physics</Filter>
     </ClInclude>
+    <ClInclude Include="KawaiiPhysics.hpp">
+      <Filter>Input_Audio_Physics</Filter>
+    </ClInclude>
+    <ClInclude Include="AnimatorClipCache.hpp">
+      <Filter>Mesh_Model</Filter>
+    </ClInclude>
     <ClInclude Include="Profiler.hpp">
       <Filter>Core</Filter>
     </ClInclude>
@@ -555,6 +564,9 @@
       <Filter>Shader\HLSL\VertexShader</Filter>
     </None>
     <None Include="EngineAssets\Shaders\PostProcess.hlsl">
+      <Filter>Shader\HLSL\VertexShader</Filter>
+    </None>
+    <None Include="EngineAssets\Shaders\DepthOfField.hlsl">
       <Filter>Shader\HLSL\VertexShader</Filter>
     </None>
     <None Include="EngineAssets\Icons\CameraIcon.png" />

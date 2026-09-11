@@ -1,6 +1,7 @@
 ﻿#include "EditorWindow.hpp"
 #include "SceneSerializer.hpp"
 #include "Components.hpp"
+#include "AnimatorClipCache.hpp"
 #include "PrefabLibrary.hpp"
 #include "imguiinit.hpp"
 #include <filesystem>
@@ -202,6 +203,23 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 			ImGui::EndMenu();
 		}
 
+		if (ImGui::BeginMenu(u8("ワークスペース")))
+		{
+			if (ImGui::MenuItem(u8("ゲームエンジン"), nullptr, m_Workspace == Workspace::Engine))
+			{
+				m_Workspace = Workspace::Engine;
+				m_DockLayout = false;	// 次のフレームで組み直す
+			}
+			if (ImGui::MenuItem(u8("ライト編集"), nullptr, m_Workspace == Workspace::Lighting))
+			{
+				m_Workspace = Workspace::Lighting;
+				m_DockLayout = false;
+			}
+			ImGui::Separator();
+			if (ImGui::MenuItem(u8("配置をリセット"))) m_DockLayout = false;
+			ImGui::EndMenu();
+		}
+
 		if (ImGui::BeginMenu(u8("ウィンドウ")))
 		{
 			ImGui::Checkbox(u8("アウトライナーを表示"), &m_ShowOutliner);
@@ -277,6 +295,11 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 				}
 			}
 
+			ImGui::Checkbox(u8("使用アセットのみコピー"), &m_BuildUsedAssetsOnly);
+			if (ImGui::IsItemHovered())
+				ImGui::SetTooltip(u8("開始シーンから参照されているアセットだけを出力します。\n"
+					"スクリプトから文字列で読むアセットは検出できません。"));
+
 			ImGui::BeginDisabled(BuildSystem::IsBuilding());
 			if (ImGui::MenuItem(u8("ゲームをビルド")))
 			{
@@ -285,6 +308,7 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 				s.gameName = m_BuildGameName.data();
 				s.startScene = m_BuildStartScene.data();
 				s.configuration = (configIndex == 0) ? "Release" : "Debug";
+				s.usedAssetsOnly = m_BuildUsedAssetsOnly;
 				BuildSystem::Build(s);
 			}
 			ImGui::EndDisabled();
@@ -333,26 +357,10 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 	ImGuiID dockspaceID = ImGui::GetID("EditorDockSpace");
 	ImGui::DockSpace(dockspaceID, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
 
-	// ドッキングレイアウトの初期設定
+	// ドッキングレイアウトの初期設定(ワークスペース切替時にも組み直す)
 	if (!m_DockLayout || ImGui::DockBuilderGetNode(dockspaceID) == nullptr)
 	{
-		ImGui::DockBuilderRemoveNode(dockspaceID);
-		ImGui::DockBuilderAddNode(dockspaceID, ImGuiDockNodeFlags_None);
-		ImGui::DockBuilderSetNodeSize(dockspaceID, viewport->WorkSize);
-
-		ImGuiID dockMainID = dockspaceID;
-		ImGuiID dockLeftID = ImGui::DockBuilderSplitNode(dockMainID, ImGuiDir_Left, 0.12f, nullptr, &dockMainID);
-		ImGuiID dockRightID = ImGui::DockBuilderSplitNode(dockMainID, ImGuiDir_Right, 0.15f, nullptr, &dockMainID);
-		ImGuiID dockBottomID = ImGui::DockBuilderSplitNode(dockMainID, ImGuiDir_Down, 0.20f, nullptr, &dockMainID);
-
-		ImGui::DockBuilderDockWindow(u8("アウトライナー"), dockLeftID);
-		ImGui::DockBuilderDockWindow(u8("ゲーム画面"), dockMainID);
-		ImGui::DockBuilderDockWindow(u8("エディタ画面"), dockMainID);
-		ImGui::DockBuilderDockWindow(u8("プロパティパネル"), dockRightID);
-		ImGui::DockBuilderDockWindow(u8("詳細パネル"), dockBottomID);
-		ImGui::DockBuilderDockWindow(u8("コンソール"), dockBottomID);
-
-		ImGui::DockBuilderFinish(dockspaceID);
+		BuildWorkspaceLayout(dockspaceID, viewport->WorkSize);
 		m_DockLayout = true;
 	}
 	ImGui::End();
@@ -640,6 +648,9 @@ void EditorWindow::DrawSceneInfo(Scene& scene)
 	ImGui::Text(u8("シーン: %s"), scene.GetSceneName().c_str());
 	ImGui::Separator();
 	ImGui::Checkbox("Deferred Rendering", &RenderSettings::Get().deferred);
+	ImGui::Checkbox("Volumetric Light", &RenderSettings::Get().volumetric);
+	ImGui::Text("Lights: %u (volumetric %u)",
+		APP->GetLastLightCount(), APP->GetLastVolumetricCount());
 	ImGui::Separator();
 }
 
@@ -939,6 +950,42 @@ void EditorWindow::DrawPlayControl(Scene* activeScene)
 		{
 			PLAY.SetMode(EngineMode::EDITOR);
 			APP->WaitForGPUIdle();
+
+			// 読み込み済みVMDを退避しておく(復元後に AnimatorSystem が拾い直す)。
+			// これをしないと Stop のたびに AsyncLoader から読み直しになる
+			if (activeScene)
+			{
+				auto& cache = AnimatorClipCache();
+				cache.clear();
+				activeScene->GetWorld().Each<AnimatorComponent, NameComponent>(
+					[&cache](Entity, AnimatorComponent& an, NameComponent& n)
+					{
+						if (an.clips.empty()) return;
+						AnimatorClipSnapshot snap;
+						snap.clips = std::move(an.clips);
+						snap.currentClip = an.currentClip;
+						snap.currentClipName = an.currentClipName;
+						snap.time = an.time;
+						snap.playing = an.playing;
+						cache[n.name] = std::move(snap);
+					});
+			}
+
+			// シーンを作り直す前に音を止める。
+			// Voice は AudioEngine 側の寿命なので、Component を捨てるだけでは鳴り続ける
+			if (activeScene)
+			{
+				activeScene->GetWorld().Each<AudioSourceComponent>(
+					[](Entity, AudioSourceComponent& src)
+					{
+						if (src.voice)
+						{
+							src.voice->Stop();
+							src.voice->FlushSourceBuffers();
+						}
+					});
+			}
+
 			if(activeScene && !m_PlaySnap.empty())
 			{
 				SceneSerializer::LoadFromString(*activeScene, m_PlaySnap);
@@ -1360,6 +1407,50 @@ void EditorWindow::DrawStyleSetting()
 
 #include "ModelLoader.hpp"
 #include "Systems.hpp"
+
+void EditorWindow::BuildWorkspaceLayout(unsigned int dockspaceID, const ImVec2& size)
+{
+	ImGui::DockBuilderRemoveNode(dockspaceID);
+	ImGui::DockBuilderAddNode(dockspaceID, ImGuiDockNodeFlags_None);
+	ImGui::DockBuilderSetNodeSize(dockspaceID, size);
+
+	ImGuiID dockMainID = dockspaceID;
+
+	if (m_Workspace == Workspace::Lighting)
+	{
+		// ライト編集: 下半分をタイムラインに使い、画面は上に大きく取る
+		ImGuiID dockLeftID = ImGui::DockBuilderSplitNode(dockMainID, ImGuiDir_Left, 0.14f, nullptr, &dockMainID);
+		ImGuiID dockRightID = ImGui::DockBuilderSplitNode(dockMainID, ImGuiDir_Right, 0.20f, nullptr, &dockMainID);
+		ImGuiID dockBottomID = ImGui::DockBuilderSplitNode(dockMainID, ImGuiDir_Down, 0.42f, nullptr, &dockMainID);
+
+		ImGui::DockBuilderDockWindow(u8("アウトライナー"), dockLeftID);
+		ImGui::DockBuilderDockWindow(u8("ゲーム画面"), dockMainID);
+		ImGui::DockBuilderDockWindow(u8("エディタ画面"), dockMainID);
+		ImGui::DockBuilderDockWindow(u8("プロパティパネル"), dockRightID);
+		ImGui::DockBuilderDockWindow(u8("ライブタイムライン"), dockBottomID);
+		ImGui::DockBuilderDockWindow(u8("MMDコントローラー"), dockBottomID);
+		ImGui::DockBuilderDockWindow(u8("コンソール"), dockBottomID);
+		ImGui::DockBuilderDockWindow(u8("詳細パネル"), dockBottomID);
+	}
+	else
+	{
+		// ゲームエンジン: 従来のレイアウト
+		ImGuiID dockLeftID = ImGui::DockBuilderSplitNode(dockMainID, ImGuiDir_Left, 0.12f, nullptr, &dockMainID);
+		ImGuiID dockRightID = ImGui::DockBuilderSplitNode(dockMainID, ImGuiDir_Right, 0.15f, nullptr, &dockMainID);
+		ImGuiID dockBottomID = ImGui::DockBuilderSplitNode(dockMainID, ImGuiDir_Down, 0.20f, nullptr, &dockMainID);
+
+		ImGui::DockBuilderDockWindow(u8("アウトライナー"), dockLeftID);
+		ImGui::DockBuilderDockWindow(u8("ゲーム画面"), dockMainID);
+		ImGui::DockBuilderDockWindow(u8("エディタ画面"), dockMainID);
+		ImGui::DockBuilderDockWindow(u8("プロパティパネル"), dockRightID);
+		ImGui::DockBuilderDockWindow(u8("詳細パネル"), dockBottomID);
+		ImGui::DockBuilderDockWindow(u8("コンソール"), dockBottomID);
+		ImGui::DockBuilderDockWindow(u8("ライブタイムライン"), dockBottomID);
+		ImGui::DockBuilderDockWindow(u8("MMDコントローラー"), dockBottomID);
+	}
+
+	ImGui::DockBuilderFinish(dockspaceID);
+}
 
 void EditorWindow::SpawnModelFromFile(World& world, const std::string& modelpath, const float3& pos, Scene* scene)
 {

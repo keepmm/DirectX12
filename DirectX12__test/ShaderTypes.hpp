@@ -32,7 +32,9 @@ struct alignas(256) MaterialCB
 	float4 sssParams; // x = SSS強度 y = ラップ量 z = 逆光透過 w = 布シーン強度
 	float4 sssColor;  // x = SSS色R y = SSS色G z = SSS色B
 	float4 basecolor;
-
+	// 平面反射。x:強度 y:フェード距離 z:ぼかし半径 w:反射RTの解像度スケール
+	// x が 0 なら床シェーダー側で一切サンプルしない
+	float4 reflectParam{ 0.0f, 8.0f, 1.0f, 0.5f };
 };
 
 struct LightData
@@ -66,4 +68,11 @@ struct alignas(256) PostCB
 	float2 texelSize;
 	float threshold;
 	float intensity;
+};
+
+struct alignas(256) DofCB
+{
+	float4 focus{ 6.0f, 1.0f, 12.0f, 8.0f };	// x:焦点距離 y:合焦幅 z:最大ボケ半径(px) w:立ち上がり
+	float4 proj{ 0.1f, 100.0f, 0.0f, 0.0f };	// x:nearZ y:farZ
+	float4 uv{ 1.0f, 1.0f, 0.0f, 0.0f };		// xy:uvScale zw:出力のテクセルサイズ
 };

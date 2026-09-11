@@ -10,6 +10,10 @@
 #include <mutex>
 #include <atomic>
 #include <vector>
+#include <set>
+#include <algorithm>
+#include <cctype>
+#include "json.hpp"
 
 #undef min
 #undef max
@@ -224,6 +228,173 @@ static bool CopyTreeWithProgress(const fs::path& from, const fs::path& to,
     return true;
 }
 
+// ---- 使用アセットの収集 ---- //
+
+// モデルはテクスチャを相対パスで参照するので、ファイル単位ではなくフォルダごと持っていく
+static bool IsModelExt(const std::string& ext)
+{
+    static const char* kModel[] = {
+        ".pmx", ".pmd", ".fbx", ".obj", ".gltf", ".glb", ".dae", ".x" };
+    for (const char* m : kModel) if (ext == m) return true;
+    return false;
+}
+
+static std::string ToLowerAscii(std::string s)
+{
+    std::transform(s.begin(), s.end(), s.begin(),
+        [](unsigned char c) { return (char)std::tolower(c); });
+    return s;
+}
+
+// 文字列がアセットを指していれば files / dirs に積む。
+// ClipPaths のように '|' 区切りで複数入っている場合も分解する
+static void AddAssetRef(const std::string& raw, const fs::path& srcDir,
+    std::set<fs::path>& files, std::set<fs::path>& dirs)
+{
+    std::stringstream ss(raw);
+    std::string token;
+    while (std::getline(ss, token, '|'))
+    {
+        if (token.empty()) continue;
+        std::replace(token.begin(), token.end(), '\\', '/');
+
+        // 絶対パスでも "Assets/" 以降を相対として扱う
+        const size_t pos = ToLowerAscii(token).find("assets/");
+        if (pos == std::string::npos) continue;
+        const fs::path rel = fs::path(token.substr(pos)).lexically_normal();
+
+        std::error_code ec;
+        const fs::path abs = srcDir / rel;
+        if (!fs::exists(abs, ec) || !fs::is_regular_file(abs, ec)) continue;
+
+        if (IsModelExt(ToLowerAscii(rel.extension().string())))
+            dirs.insert(rel.parent_path());
+        else
+            files.insert(rel);
+    }
+}
+
+static void CollectFromJson(const nlohmann::json& j, const fs::path& srcDir,
+    std::set<fs::path>& files, std::set<fs::path>& dirs)
+{
+    if (j.is_string())
+    {
+        AddAssetRef(j.get<std::string>(), srcDir, files, dirs);
+        return;
+    }
+    if (j.is_array() || j.is_object())
+        for (const auto& v : j) CollectFromJson(v, srcDir, files, dirs);
+}
+
+// 開始シーンを起点に、参照されているアセットを集める。
+// 参照先が .json ならその中身も辿る(タイムライン・プレハブなど)
+//
+// シーン遷移は SceneManager::LoadScene("Foo") のようにスクリプト側の
+// C++ コードで書かれるので、JSON を辿るだけでは遷移先シーンを発見できない。
+// 取りこぼすとゲーム版で「シーンが登録されていません」になって遷移が死ぬため、
+// Assets/Scenes/*.json は全部を起点として無条件に積む(シーンJSON自体は軽い)
+static bool CollectUsedAssets(const fs::path& srcDir, const std::string& startScene,
+    std::set<fs::path>& files, std::set<fs::path>& dirs)
+{
+    const fs::path sceneRel =
+        fs::path("Assets") / "Scenes" / (fs::path(startScene).stem().string() + ".json");
+
+    std::error_code ec;
+    if (!fs::exists(srcDir / sceneRel, ec))
+    {
+        PushLog("[Build] 開始シーンが見つかりません: " + sceneRel.string());
+        return false;
+    }
+
+    std::vector<fs::path> pending{ sceneRel };
+    std::set<fs::path>    visited;
+
+    // Assets/Scenes 以下のシーンを全部起点に加える
+    {
+        const fs::path scenesDir = srcDir / "Assets" / "Scenes";
+        int added = 0;
+        if (fs::exists(scenesDir, ec))
+        {
+            for (auto& e : fs::recursive_directory_iterator(scenesDir, ec))
+            {
+                if (ec) break;
+                if (!e.is_regular_file(ec)) continue;
+                if (ToLowerAscii(e.path().extension().string()) != ".json") continue;
+
+                const fs::path rel = fs::relative(e.path(), srcDir, ec);
+                if (ec) { ec.clear(); continue; }
+                if (rel == sceneRel) continue;   // 開始シーンは既に積んである
+                pending.push_back(rel);
+                ++added;
+            }
+        }
+        PushLog("[Build] シーンを " + std::to_string(added + 1) + " 個収集しました");
+    }
+
+    while (!pending.empty())
+    {
+        const fs::path rel = pending.back();
+        pending.pop_back();
+        if (!visited.insert(rel).second) continue;
+
+        files.insert(rel);
+
+        std::ifstream in(srcDir / rel);
+        if (!in) continue;
+        nlohmann::json root = nlohmann::json::parse(in, nullptr, false);
+        if (root.is_discarded()) continue;
+
+        std::set<fs::path> found;
+        CollectFromJson(root, srcDir, found, dirs);
+        for (const auto& f : found)
+        {
+            files.insert(f);
+            if (ToLowerAscii(f.extension().string()) == ".json") pending.push_back(f);
+        }
+    }
+    return true;
+}
+
+// 収集した相対パス(ファイル群 + フォルダ群)だけをコピーする
+static bool CopySelectedWithProgress(const fs::path& srcDir, const fs::path& dstAssetsRoot,
+    const std::set<fs::path>& files, const std::set<fs::path>& dirs,
+    float progressFrom, float progressTo)
+{
+    std::error_code ec;
+
+    // コピー対象を実ファイル一覧に展開する
+    std::set<fs::path> targets = files;
+    for (const auto& d : dirs)
+    {
+        for (auto& e : fs::recursive_directory_iterator(srcDir / d, ec))
+            if (e.is_regular_file())
+                targets.insert(fs::relative(e.path(), srcDir, ec));
+    }
+
+    const size_t total = targets.empty() ? 1 : targets.size();
+    size_t done = 0;
+
+    for (const auto& rel : targets)
+    {
+        // rel は "Assets/..." 始まりなので、Assets を1段外して連結する
+        const fs::path tail = fs::relative(rel, "Assets", ec);
+        const fs::path dest = dstAssetsRoot / tail;
+
+        fs::create_directories(dest.parent_path(), ec);
+        fs::copy_file(srcDir / rel, dest, fs::copy_options::overwrite_existing, ec);
+        if (ec)
+        {
+            PushLog("[Build] コピー失敗: " + rel.string() + " (" + ec.message() + ")");
+            return false;
+        }
+        done++;
+        s_Progress = progressFrom + (progressTo - progressFrom) * (float)done / (float)total;
+    }
+
+    PushLog("[Build] 使用アセットのみコピー: " + std::to_string(targets.size()) + " ファイル");
+    return true;
+}
+
 void BuildSystem::Build(const BuildSetting& settings)
 {
     if (s_Building.exchange(true)) return;
@@ -303,8 +474,15 @@ void BuildSystem::Build(const BuildSetting& settings)
         // ---- 3. exe はルート、DLL は Bin/ へ ----
         fs::path binDir = stageDir;
 
-        fs::copy_file(binDir / "DirectX12__test.exe",
-            outDir / (settings.gameName + ".exe"),
+        // exe の名前は変えられない。
+        // Scripts.dll は Scripts.vcxproj が DirectX12__test.lib(exe の import library)を
+        // リンクしているため、モジュール "DirectX12__test.exe" をインポートしている。
+        // <ゲーム名>.exe にリネームするとローダーがこのインポートを解決できず、
+        // cr_plugin_open が CR_BAD_IMAGE(8) で失敗してスクリプトが丸ごと動かなくなる。
+        // 同名のコピーを並べるのも不可(プロセス本体と名前が一致しないので
+        // 2つ目のエンジンが読み込まれ、シングルトンが二重になる)
+        const fs::path exeOut = outDir / "DirectX12__test.exe";
+        fs::copy_file(binDir / "DirectX12__test.exe", exeOut,
             fs::copy_options::overwrite_existing, ec);
         if (ec)
         {
@@ -416,9 +594,38 @@ void BuildSystem::Build(const BuildSetting& settings)
 
         // ---- 5. プロジェクトの Assets は Data/Assets へ ----
         SetStage(0.55f, IMGUI::ToUTF8("Assets コピー中..."));
-        PushLog("[Build] Assets をコピー中...");
-        if (!CopyTreeWithProgress(PROJECT->GetRoot() / "Assets", dataDir / "Assets",
-            0.55f, 0.98f))
+
+        // コピー元は開いているプロジェクト(エンジンのソースツリーではない)
+        const fs::path assetsRoot = PROJECT->GetRoot();
+        bool assetsOk = false;
+        if (settings.usedAssetsOnly)
+        {
+            PushLog("[Build] 使用アセットを収集中...");
+            std::set<fs::path> files, dirs;
+            if (CollectUsedAssets(assetsRoot, settings.startScene, files, dirs))
+            {
+                for (const auto& d : dirs)
+                    PushLog("[Build]   フォルダ: " + d.string());
+
+                assetsOk = CopySelectedWithProgress(assetsRoot, dataDir / "Assets",
+                    files, dirs, 0.55f, 0.98f);
+            }
+            else
+            {
+                // 収集できなかったときは取りこぼすより全部入れる
+                PushLog("[Build] 収集に失敗したため Assets を全部コピーします");
+                assetsOk = CopyTreeWithProgress(assetsRoot / "Assets", dataDir / "Assets",
+                    0.55f, 0.98f);
+            }
+        }
+        else
+        {
+            PushLog("[Build] Assets をコピー中...");
+            assetsOk = CopyTreeWithProgress(assetsRoot / "Assets", dataDir / "Assets",
+                0.55f, 0.98f);
+        }
+
+        if (!assetsOk)
         {
             SetStage(0.0f, "");
             s_Building = false;
@@ -436,6 +643,16 @@ void BuildSystem::Build(const BuildSetting& settings)
         }
 
 		SetStage(1.0f, IMGUI::ToUTF8("完了"));
+        // exe 名は固定なので、ゲーム名で起動できる小さなランチャーを置く
+        {
+            std::ofstream bat(outDir / (settings.gameName + ".bat"));
+            bat << R"(@echo off)" << std::endl
+                << R"(start "" "%~dp0DirectX12__test.exe")" << std::endl;
+        }
+        PushLog("[Build] 実行ファイルは DirectX12__test.exe で固定です"
+            " (Scripts.dll が exe 名をインポートしているため)。起動用に "
+            + settings.gameName + ".bat を置きました");
+
         PushLog("[Build] 完了: " + fs::absolute(outDir).string());
         s_Building = false;
         }).detach();

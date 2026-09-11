@@ -194,7 +194,7 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 					L"MMD Model (*.pmx)\0*.pmx\0"
 					L"All\0*.*\0"))
 				{
-					pendingSwap = WideToUtf8(picked);
+					pendingSwap = MakeAssetRelative(WideToUtf8(picked));
 				}
 			}
 			ImGui::SameLine();
@@ -426,6 +426,14 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 					ImGui::SliderFloat(u8("SSS強度##Mat"), &target->sssStrength, 0.0f, 1.0f);
 					ImGui::SliderFloat(u8("SSSラップ##Mat"), &target->sssWrap, 0.0f, 1.0f);
 					ImGui::SliderFloat(u8("逆光透過##Mat"), &target->sssTrans, 0.0f, 2.0f);
+
+					// 床など、平面反射を映すサブマテリアルだけ強度を上げる
+					ImGui::SliderFloat(u8("反射強度##Mat"), &target->reflectStrength, 0.0f, 1.5f);
+					if (target->reflectStrength > 0.0f)
+					{
+						ImGui::SliderFloat(u8("反射フェード距離##Mat"), &target->reflectFade, 1.0f, 40.0f);
+						ImGui::SliderFloat(u8("反射ぼかし##Mat"), &target->reflectBlur, 0.0f, 8.0f);
+					}
 					ImGui::ColorEdit3(u8("散乱色##Mat"), &target->sssColor.x);
 					ImGui::SliderFloat(u8("布シーン##Mat"), &target->sheen, 0.0f, 2.0f);
 				}

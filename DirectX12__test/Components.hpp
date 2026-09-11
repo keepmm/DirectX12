@@ -8,6 +8,7 @@
 #include "ScriptField.hpp"
 #include "AudioEngine.hpp"
 #include "ModelData.hpp"
+#include "KawaiiPhysics.hpp"
 
 class Mesh;
 class Material;
@@ -147,6 +148,9 @@ struct SubMaterialRestore
 	float sheen = 0.0f;
 	COLOR sssColor = { 0.9f,0.35f,0.25f,1.0f };
 	float baseAlpha = 1.0f;
+	float reflectStrength = 0.0f;	// 平面反射。床のサブマテリアルだけ上げる
+	float reflectFade = 8.0f;
+	float reflectBlur = 1.0f;
 };
 
 struct MaterialComponent
@@ -306,6 +310,66 @@ struct FreeLookComponent
 	}
 };
 
+// 被写界深度。カメラに付ける。合焦距離をタイムラインで動かせばフォーカス送りになる
+struct DepthOfFieldComponent
+{
+	bool  enabled = true;
+	float focusDistance = 6.0f;	// ピントの合う距離(カメラから)
+	float focusRange = 1.0f;	// この幅は完全にシャープなまま
+	float falloff = 8.0f;		// 合焦幅の外、この距離で最大ボケになる
+	float maxBlur = 12.0f;		// 最大ボケ半径(半解像度でのピクセル)
+
+	void Reflect(FieldList& f)
+	{
+		f.Add("Enabled", enabled);
+		f.AddRange("FocusDistance", focusDistance, 0.1f, 60.0f);
+		f.AddRange("FocusRange", focusRange, 0.0f, 20.0f);
+		f.AddRange("Falloff", falloff, 0.1f, 40.0f);
+		f.AddRange("MaxBlur", maxBlur, 0.0f, 40.0f);
+	}
+};
+
+// このEntityに当たるライトを、影響の強い順に上位N灯へ絞る。
+// キャラのように小さく、多灯が集中する対象向け。
+// ステージのような巨大メッシュに付けると、遠い側の面が暗くなるので付けない
+struct LightCullComponent
+{
+	int   maxLights = 12;
+	float radius = 2.0f;	// この球に届かないライトは最初から捨てる
+
+	void Reflect(FieldList& f)
+	{
+		f.AddRange("MaxLights", maxLights, 1, 64);
+		f.AddRange("Radius", radius, 0.1f, 30.0f);
+	}
+};
+
+// 床などの平面に映り込みを出す。有効なものを1つだけ使う
+struct PlanarReflectionComponent
+{
+	bool  enabled = true;
+	float planeY = 0.0f;			// 反射面の高さ(ステージ床のY)
+	float resolutionScale = 0.5f;	// 反射RTをシーンRTの何倍で持つか
+
+	void Reflect(FieldList& f)
+	{
+		f.Add("Enabled", enabled);
+		f.AddRange("PlaneY", planeY, -20.0f, 20.0f);
+		f.AddRange("ResolutionScale", resolutionScale, 0.25f, 1.0f);
+	}
+};
+
+// このEntityを平面反射に映す(付いていないものは映らない)
+struct ReflectionCasterComponent
+{
+	bool enabled = true;
+
+	void Reflect(FieldList& f)
+	{
+		f.Add("Enabled", enabled);
+	}
+};
+
 struct MusicSyncComponent
 {
 	float offset = 0.0f;        // モーションを曲に対して前後させる(秒、+で遅らせる)
@@ -336,7 +400,9 @@ struct LightComponent
 		Laser
 	} type = LightType::Directional;
 
-	enum class SwingAxis : uint8_t
+	// Reflect が (int&) でキャストして4バイト書き込むので、1バイト幅にはできない
+	// (uint8_t のままだと隣接メンバへ書き込む未定義動作になる)
+	enum class SwingAxis : int
 	{
 		Pan,
 		Tilt,
@@ -344,6 +410,11 @@ struct LightComponent
 	};
 	COLOR color{ 1.0f, 1.0f, 1.0f, 1.0f };
 	COLOR ambientColor{ 0.2f, 0.2f, 0.2f, 1.0f };
+
+	// 環境光の色を、そのとき点いているライトの色へどれだけ寄せるか。
+	// 0で ambientColor のまま。上げるほどキャラの影側とフォグが背景の色に沈み、
+	// 切り抜きを貼ったような浮きが減る
+	float ambientFromLights = 0.7f;
 	float intensity = 1.0f;
 	float range = 10.0f;
 	POSITION direction{ 0.0f, -1.0f, 0.0f };
@@ -369,6 +440,7 @@ struct LightComponent
 
 		f.Add("Color", color);
 		f.Add("AmbientColor", ambientColor);
+		f.AddRange("AmbientFromLights", ambientFromLights, 0.0f, 1.0f);
 		f.AddRange("Intensity", intensity, 0.0f, 10.0f);
 		f.AddRange("Range", range, 0.0f, 100.0f);
 		f.Add("Direction", direction);
@@ -387,6 +459,7 @@ struct LightComponent
 		f.AddRange("GlowPower", glowPower, 1.0f, 32.0f);
 		f.AddRange("GlowIntensity", glowIntensity, 0.1f, 20.0f);
 		f.AddRange("VolumetricIntensity", volumetricIntensity, 0.0f, 10.0f);
+		f.Add("CastShadows", castShadows);	// 影を落とす担当を選ぶ(先着1つだけ有効)
 	}
 	bool castShadows = true;
 	bool isShow = false;
@@ -404,6 +477,8 @@ struct PrefabComponent
 	std::string name;
 	std::string guid;
 };
+
+
 
 
 struct SpriteComponent
@@ -607,21 +682,33 @@ struct AnimatorComponent
 	bool  scrubbing = false;		// スライダー操作中(この間は物理を止める)
 	bool  physicsResetRequest = false;	// 次フレームで物理を再同期する
 
-	std::string clipPathsStr;  
+	std::string clipPathsStr;
 	bool clipsRestored = false;
+
+	// 選択中クリップの名前。非同期ロードの完了順でclipsの並びが変わるため、
+	// 添字ではなく名前を正として復元する
+	std::string currentClipName;
 
 	MorphSet morphs;					// もーフ定義
 	std::vector<float> morphWeights;	// 各モーフの重み(0.0 ~ 1.0)
 	std::vector<float3> morphoffsets;	// CPUでブレンド済みの頂点オフセット
 	bool morphDirty = true;				// モーフの重みが変更されたかどうか
 
+	// 表情を再生するクリップ。-1 = currentClip と同じものを使う。
+	// MMDでは体(FightingMyWay.vmd)と表情(face.vmd)が別ファイルのことがあるため、
+	// ボーン用とは別のクリップを指定できるようにしている。
+	int morphClip = -1;
+
 	void Reflect(FieldList& f)
 	{
 		f.Add("Time", time);
 		f.Add("Playing", playing);
 		f.Add("ClipPaths", clipPathsStr);
+		f.Add("CurrentClip", currentClip);			// 復元直後の暫定値
+		f.Add("CurrentClipName", currentClipName);	// 正はこちら
 		f.Add("Speed", speed);
 		f.Add("Loop",loop);
+		f.Add("MorphClip", morphClip);
 	}
 };
 
@@ -629,6 +716,42 @@ struct MmdPhysicsComponent
 {
 	std::shared_ptr<MmdPhysics> impl;
 	void Reflect(FieldList& f) {}
+};
+
+/// @brief ボーンチェーンの疑似物理（髪・スカート等の揺れもの）
+///        チェーンとコリジョンは配列なので、FieldList に載せられる
+///        文字列 configStr へ畳んでシリアライズする。編集は
+///        ComponentRegistry の DrawExtraUI 特殊化で行う。
+struct KawaiiPhysicsComponent
+{
+	KawaiiPhysicsSettings settings;
+	std::shared_ptr<KawaiiPhysics> impl;	// 実行時のソルバ（シリアライズ対象外）
+
+	bool enabled = true;
+	bool debugDraw = false;					// チェーンとコリジョンのワイヤ表示
+	std::string configStr;					// chains/colliders のシリアライズ結果
+	bool configRestored = false;			// ロード直後に一度だけ復元する
+
+	// 自動生成の元データ（PMX の剛体。シリアライズ対象外、再生成用に保持）
+	PmxPhysics sourcePhysics;
+
+	void Reflect(FieldList& f)
+	{
+		f.Add("Enabled", enabled);
+		f.Add("DebugDraw", debugDraw);
+		f.Add("Gravity", settings.gravity);
+		f.Add("Wind", settings.wind);
+		f.AddRange("TimeScale", settings.timeScale, 0.0f, 2.0f);
+		f.Add("PropagateToDescendants", settings.propagateToDescendants);
+		f.Add("Config", configStr);
+	}
+
+	/// @brief UI で編集した内容を configStr へ書き戻し、ソルバに再構築を要求する
+	void CommitConfig()
+	{
+		configStr = KawaiiSerialize(settings);
+		if (impl) impl->MarkDirty();
+	}
 };
 
 struct ParticleEmitterComponent

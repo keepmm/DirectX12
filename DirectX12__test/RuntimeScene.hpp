@@ -87,6 +87,9 @@ private:
 
 	void DrawLight();
 
+	/// @brief Kawaii Physics のチェーンとコリジョンのデバッグ描画
+	void DrawKawaiiPhysics();
+
 	void DrawColliders();
 
 	void DrawLaserBeams(const RenderContext& renderContext, ID3D12PipelineState* psoOverride = nullptr,bool emitFirework = false);

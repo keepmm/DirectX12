@@ -404,16 +404,21 @@ void DirectXApp::DeferredLightingPass(const RenderContext& ctx,
 	cmd->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST); 
 	cmd->DrawInstanced(3, 1, 0, 0);
 
-	bool hasVolumetric = false;
+	bool hasVolumetric = RenderSettings::Get().volumetric;
+	bool hasAny = false;
+	UINT volCount = 0;
 	for (int i = 0; i < (int)ctx.lightCb.lightCount.x; ++i)
 	{
 		const auto& l = ctx.lightCb.lights[i];
 		if ((int)l.param.x >= 2 && l.param.w > 0.0f)
 		{
-			hasVolumetric = true;
-			break;
+			hasAny = true;
+			++volCount;
 		}
 	}
+	m_LastLightCount = (UINT)ctx.lightCb.lightCount.x;
+	m_LastVolumetricCount = volCount;
+	hasVolumetric = hasVolumetric && hasAny;
 
 
 	if(hasVolumetric)
@@ -421,7 +426,7 @@ void DirectXApp::DeferredLightingPass(const RenderContext& ctx,
 		GPU_PROFILE_SCOPE(cmd, "Draw/Volumetric");
 
 		// ---- ボリュームライト: ハーフ解像度で描いて加算アップサンプル ----
-		const UINT hw = m_Window_Width / 2, hh = m_Window_Height / 2;
+		const UINT hw = m_Window_Width / VOLUMETRIC_DIV, hh = m_Window_Height / VOLUMETRIC_DIV;
 
 		m_VolumetricHalf.Transition(cmd, D3D12_RESOURCE_STATE_RENDER_TARGET);
 		auto volRtv = m_VolumetricHalf.GetRTV();
@@ -531,6 +536,7 @@ ID3D12PipelineState* DirectXApp::RegisterShaderPass(const std::string& name, con
 	desc.VS = vs->GetByteCode();
 	desc.PS = ps->GetByteCode();
 	desc.RasterizerState.CullMode = def.cullMode;
+	desc.RTVFormats[0] = def.rtvFormat;
 	if (def.alphaBlend)
 	{
 		auto& rt = desc.BlendState.RenderTarget[0];
@@ -548,6 +554,11 @@ ID3D12PipelineState* DirectXApp::RegisterShaderPass(const std::string& name, con
 
 	m_ShaderRegistry[name] = { def,pso };
 	return pso.Get();
+}
+
+bool DirectXApp::HasShaderPass(const std::string& name) const
+{
+	return m_ShaderRegistry.find(name) != m_ShaderRegistry.end();
 }
 
 ID3D12PipelineState* DirectXApp::GetPipelineStateByName(std::string& name) const
@@ -636,7 +647,8 @@ CD3DX12_STATIC_SAMPLER_DESC(
 void DirectXApp::CreatePostRootSignature()
 {
 	CD3DX12_DESCRIPTOR_RANGE srv;
-	srv.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 2, 0);	// t0
+	// t0:入力 t1:ブルーム/ぼかし t2:深度(被写界深度で使う)
+	srv.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 3, 0);
 	CD3DX12_ROOT_PARAMETER rp[2];
 	rp[0].InitAsDescriptorTable(1, &srv, D3D12_SHADER_VISIBILITY_PIXEL);
 	rp[1].InitAsConstantBufferView(0, 0, D3D12_SHADER_VISIBILITY_PIXEL);	// b0
@@ -660,14 +672,19 @@ void DirectXApp::CreatePostRootSignature()
 void DirectXApp::CreateRootSignature()
 {
 
-	CD3DX12_DESCRIPTOR_RANGE srvRange = {};
-	srvRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 7, 0);
+	// t7 は rootParameters[6] の頂点側SRV(ボーン)が使っているので、
+	// 反射だけレンジを分けて t8 に置く
+	CD3DX12_DESCRIPTOR_RANGE srvRange[2] = {};
+	srvRange[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 7, 0);
+	srvRange[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 8);
 	// t0 albedo
 	// t1 toon ramp
 	// t2 normal
 	// t3 metal
 	// t4 roughness
 	// t5 環境
+	// t6 シャドウマップ
+	// t8 平面反射
 
 	// 配列の数がそのまま定数バッファやSRVの数になる
 	CD3DX12_ROOT_PARAMETER rootParameters[7] = {};
@@ -678,7 +695,7 @@ void DirectXApp::CreateRootSignature()
 	rootParameters[3].InitAsConstantBufferView(3, 0, D3D12_SHADER_VISIBILITY_ALL);
 
 	// t0 にSRVを割り当てる
-	rootParameters[4].InitAsDescriptorTable(1, &srvRange, D3D12_SHADER_VISIBILITY_PIXEL);
+	rootParameters[4].InitAsDescriptorTable(_countof(srvRange), srvRange, D3D12_SHADER_VISIBILITY_PIXEL);
 	rootParameters[5].InitAsConstantBufferView(4,0,D3D12_SHADER_VISIBILITY_VERTEX);
 	rootParameters[6].InitAsShaderResourceView(7,0,D3D12_SHADER_VISIBILITY_VERTEX);
 
@@ -945,6 +962,12 @@ void DirectXApp::CreatePipelineStateObject()
 	m_SkyPso = m_PsoCache.GetOrCreate("SkyBoxPSO", m_Device.Get(), skyDesc);
 	if (m_SkyPso == nullptr) { assert(false); }
 
+	// --- HDR用（deferredのBloom前描画）---
+	auto skyHdrDesc = skyDesc;
+	skyHdrDesc.RTVFormats[0] = DXGI_FORMAT_R16G16B16A16_FLOAT;
+	m_SkyHdrPso = m_PsoCache.GetOrCreate("SkyBoxPSO_HDR", m_Device.Get(), skyHdrDesc);
+	if (m_SkyHdrPso == nullptr) { assert(false); }
+
 	// ---------------------------------- //
 	// 		Shadow用のPSOを作成			  //
 	// ---------------------------------- //
@@ -978,12 +1001,14 @@ void DirectXApp::CreatePipelineStateObject()
 	UINT bw = m_Window_Width, bh = m_Window_Height;
 	m_BloomA.Init(bw, bh, DXGI_FORMAT_R16G16B16A16_FLOAT);
 	m_BloomB.Init(bw, bh, DXGI_FORMAT_R16G16B16A16_FLOAT);
-	m_VolumetricHalf.Init(m_Window_Width / 2, m_Window_Height / 2, DXGI_FORMAT_R16G16B16A16_FLOAT);
+	m_VolumetricHalf.Init(m_Window_Width / VOLUMETRIC_DIV, m_Window_Height / VOLUMETRIC_DIV,
+		DXGI_FORMAT_R16G16B16A16_FLOAT);
 	m_HdrScene.GetResource()->SetName(L"HDRScene");
 	m_BloomA.GetResource()->SetName(L"BloomA");
 	m_BloomB.GetResource()->SetName(L"BloomB");
 
 	CreateBloomPSOs();
+	CreateDofPSOs();
 	CreateVolumetricPSO();
 	BuildCompositeSrvTable();
 }
@@ -1007,6 +1032,9 @@ void DirectXApp::RegisterBuiltinShaders()
 
 		{ "SkinnedPBR", { L"SkinnedShader.hlsl","SkinnedVS","vs_5_0", L"PBRShader.hlsl","PbrPS","ps_5_0", false } },
 		{ "SkinnedToon",{ L"SkinnedShader.hlsl","SkinnedVS","vs_5_0", L"ToonShader.hlsl","ToonPS","ps_5_0", false } },
+		// 平面反射パス用。鏡像はワインディングが反転するのでカリングを裏返す
+		{ "SkinnedToonMirror",{ L"SkinnedShader.hlsl","SkinnedVS","vs_5_0", L"ToonShader.hlsl","ToonPS","ps_5_0",
+					   false, D3D12_CULL_MODE_FRONT } },
 		{ "SkinnedUnlit",{ L"SkinnedShader.hlsl","SkinnedVS","vs_5_0", L"PixelShader.hlsl","unlitPS","ps_5_0", true } },
 		{ "SkinnedRim",{ L"SkinnedShader.hlsl","SkinnedVS","vs_5_0", L"RimShader.hlsl","RimPS","ps_5_0", false } },
 		{ "SkinnedFresnel",{ L"SkinnedShader.hlsl","SkinnedVS","vs_5_0", L"FresnelShader.hlsl","FresnelPS","ps_5_0", false } },
@@ -1019,7 +1047,18 @@ void DirectXApp::RegisterBuiltinShaders()
 					   L"GenshinOutline.hlsl","Genshin_OutlinePS","ps_5_0",
 					   false, D3D12_CULL_MODE_FRONT } },
 	};
-	for (auto& e : builtins) RegisterShaderPass(e.name, e.def);
+	for (auto& e : builtins)
+	{
+		RegisterShaderPass(e.name, e.def);
+
+		// HDRシーン(R16F)へ直接描く双子を同時に登録する。
+		// フォワードのトゥーン/半透明を Bloom より前に描くために使う。
+		// これを通さないとキャラだけトーンマップもブルームも掛からず、
+		// 背景から浮いた切り抜きになる
+		ShaderPassDef hdr = e.def;
+		hdr.rtvFormat = DXGI_FORMAT_R16G16B16A16_FLOAT;
+		RegisterShaderPass(std::string(e.name) + HDR_PASS_SUFFIX, hdr);
+	}
 }
 
 D3D12_GRAPHICS_PIPELINE_STATE_DESC DirectXApp::MakeBasePsoDesc() const
@@ -1281,6 +1320,157 @@ void DirectXApp::CreateBloomPSOs()
 	make("CompositePS", DXGI_FORMAT_R8G8B8A8_UNORM, m_CompositePso);
 }
 
+void DirectXApp::CreateDofPSOs()
+{
+	auto make = [&](const wchar_t* file, const char* psEntry, DXGI_FORMAT rtv,
+		ComPtr<ID3D12PipelineState>& out)
+		{
+			D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = {};
+			desc.pRootSignature = m_PostRootSignature.Get();
+			const Shader* vs = m_ShaderLibrary.Load(L"PostProcess.hlsl", "FullScreenVS", "vs_5_0");
+			const Shader* ps = m_ShaderLibrary.Load(file, psEntry, "ps_5_0");
+			if (!vs || !ps) { OutputDebugStringA("DoF shader load failed\n"); assert(false); return; }
+			desc.VS = vs->GetByteCode();
+			desc.PS = ps->GetByteCode();
+			desc.InputLayout = { nullptr, 0 };
+			desc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
+			desc.RasterizerState = CD3DX12_RASTERIZER_DESC(D3D12_DEFAULT);
+			desc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
+			desc.BlendState = CD3DX12_BLEND_DESC(D3D12_DEFAULT);
+			desc.DepthStencilState.DepthEnable = FALSE;
+			desc.DepthStencilState.StencilEnable = FALSE;
+			desc.DSVFormat = DXGI_FORMAT_UNKNOWN;
+			desc.SampleMask = UINT_MAX;
+			desc.SampleDesc.Count = 1;
+			desc.NumRenderTargets = 1;
+			desc.RTVFormats[0] = rtv;
+			m_Device->CreateGraphicsPipelineState(&desc, IID_PPV_ARGS(out.GetAddressOf()));
+		};
+
+	make(L"DepthOfField.hlsl", "DofDownsamplePS", DXGI_FORMAT_R8G8B8A8_UNORM, m_DofDownsamplePso);
+	make(L"DepthOfField.hlsl", "DofBlurPS", DXGI_FORMAT_R8G8B8A8_UNORM, m_DofBlurPso);
+	make(L"DepthOfField.hlsl", "DofCompositePS", DXGI_FORMAT_R8G8B8A8_UNORM, m_DofCompositePso);
+}
+
+void DirectXApp::EnsureDofTargets()
+{
+	const UINT w = (std::max)(1u, static_cast<UINT>(m_Window_Width));
+	const UINT h = (std::max)(1u, static_cast<UINT>(m_Window_Height));
+
+	if (m_DofSceneCopy.IsValid() &&
+		m_DofSceneCopy.GetWidth() == w && m_DofSceneCopy.GetHeight() == h)
+	{
+		return;
+	}
+
+	// 反射RTと同じ方針。ビューごとに作り直すと記録済みの描画が
+	// 破棄されたリソースを踏むので、ウィンドウ全体ぶんで1回だけ確保する
+	if (m_DofSceneCopy.IsValid()) m_DofSceneCopy.Release();
+	if (m_DofHalfA.IsValid())     m_DofHalfA.Release();
+	if (m_DofHalfB.IsValid())     m_DofHalfB.Release();
+
+	m_DofSceneCopy.Init(w, h);
+	m_DofHalfA.Init((std::max)(1u, w / 2), (std::max)(1u, h / 2));
+	m_DofHalfB.Init((std::max)(1u, w / 2), (std::max)(1u, h / 2));
+
+	// 合成用のSRVテーブル(3枚が連続している必要がある)
+	if (m_DofSrvBase == UINT_MAX)
+	{
+		m_DofSrvBase = m_SrvAllocator.AllocateRange(3);
+		m_DofSrvStart = m_SrvAllocator.Gpu(m_DofSrvBase);
+	}
+
+	D3D12_SHADER_RESOURCE_VIEW_DESC d = {};
+	d.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+	d.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+	d.Texture2D.MipLevels = 1;
+
+	d.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+	m_Device->CreateShaderResourceView(m_DofSceneCopy.GetResource().Get(), &d,
+		m_SrvAllocator.Cpu(m_DofSrvBase + 0));
+	m_Device->CreateShaderResourceView(m_DofHalfB.GetResource().Get(), &d,
+		m_SrvAllocator.Cpu(m_DofSrvBase + 1));
+
+	d.Format = DXGI_FORMAT_R32_FLOAT;	// TYPELESS深度をR32として読む
+	m_Device->CreateShaderResourceView(m_Depthbuffer.Get(), &d,
+		m_SrvAllocator.Cpu(m_DofSrvBase + 2));
+}
+
+void DirectXApp::DepthOfFieldPass(
+	RenderTexture& scene,
+	UINT w, UINT h,
+	const DofCB& cb)
+{
+	EnsureDofTargets();
+	if (!m_DofSceneCopy.IsValid() || m_DofCompositePso == nullptr) return;
+
+	auto* cmd = Cmd();
+	const UINT slot = RecordSlot();
+
+	// 合成でシャープ側を読むために、いったんコピーを取る
+	// (同じRTを読みながら書くことはできない)
+	scene.Transition(cmd, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	m_DofSceneCopy.Transition(cmd, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	{
+		PostCB dummy{};
+		const auto cbv = m_CBAllocator.Allocate(slot, &dummy, sizeof(dummy));
+		PostPass(m_CopyPso.Get(), scene.GetSRV(), cbv, m_DofSceneCopy.GetRTV(), w, h);
+	}
+	m_DofSceneCopy.Transition(cmd, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+	// 深度を読めるようにする
+	SetResourceBarrier(cmd, m_Depthbuffer.Get(),
+		D3D12_RESOURCE_STATE_DEPTH_WRITE, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+	const UINT hw = (std::max)(1u, w / 2);
+	const UINT hh = (std::max)(1u, h / 2);
+
+	// 縮小 + CoC
+	DofCB down = cb;
+	down.uv.z = 1.0f / (float)m_DofHalfA.GetWidth();
+	down.uv.w = 1.0f / (float)m_DofHalfA.GetHeight();
+	{
+		const auto cbv = m_CBAllocator.Allocate(slot, &down, sizeof(DofCB));
+		m_DofHalfA.Transition(cmd, D3D12_RESOURCE_STATE_RENDER_TARGET);
+		PostPass(m_DofDownsamplePso.Get(), m_DofSrvStart, cbv, m_DofHalfA.GetRTV(), hw, hh);
+		m_DofHalfA.Transition(cmd, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	}
+
+	// ぼかし。入力は HalfA なので t1 を差し替えたテーブルが要る
+	{
+		D3D12_SHADER_RESOURCE_VIEW_DESC d = {};
+		d.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		d.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		d.Texture2D.MipLevels = 1;
+		d.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		m_Device->CreateShaderResourceView(m_DofHalfA.GetResource().Get(), &d,
+			m_SrvAllocator.Cpu(m_DofSrvBase + 1));
+
+		DofCB blur = down;
+		blur.uv.x = 1.0f;	// ぼかしは半解像度どうしなので等倍で引く
+		blur.uv.y = 1.0f;
+		const auto cbv = m_CBAllocator.Allocate(slot, &blur, sizeof(DofCB));
+
+		m_DofHalfB.Transition(cmd, D3D12_RESOURCE_STATE_RENDER_TARGET);
+		PostPass(m_DofBlurPso.Get(), m_DofSrvStart, cbv, m_DofHalfB.GetRTV(), hw, hh);
+		m_DofHalfB.Transition(cmd, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+
+		// t1 をぼかし結果へ戻す
+		m_Device->CreateShaderResourceView(m_DofHalfB.GetResource().Get(), &d,
+			m_SrvAllocator.Cpu(m_DofSrvBase + 1));
+	}
+
+	// 合成。ここで scene を書き戻す
+	scene.Transition(cmd, D3D12_RESOURCE_STATE_RENDER_TARGET);
+	{
+		const auto cbv = m_CBAllocator.Allocate(slot, &down, sizeof(DofCB));
+		PostPass(m_DofCompositePso.Get(), m_DofSrvStart, cbv, scene.GetRTV(), w, h);
+	}
+
+	SetResourceBarrier(cmd, m_Depthbuffer.Get(),
+		D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE, D3D12_RESOURCE_STATE_DEPTH_WRITE);
+}
+
 void DirectXApp::BuildCompositeSrvTable()
 {
 	UINT base = m_SrvAllocator.AllocateRange(2);
@@ -1458,6 +1648,50 @@ HRESULT DirectXApp::EndRender()
 }
 
 #endif
+void DirectXApp::EnsureReflectionTarget()
+{
+	// ウィンドウ全体ぶんで確保しておき、実際に使う範囲はビューポートで絞る。
+	// こうしておけばビューを切り替えても作り直しが起きない
+	const UINT w = (std::max)(1u, static_cast<UINT>(m_Window_Width));
+	const UINT h = (std::max)(1u, static_cast<UINT>(m_Window_Height));
+
+	if (m_ReflectionRT.IsValid() &&
+		m_ReflectionRT.GetWidth() == w && m_ReflectionRT.GetHeight() == h)
+	{
+		return;
+	}
+
+	// ここに来るのは初回とウィンドウリサイズのときだけ
+	if (m_ReflectionRT.IsValid()) m_ReflectionRT.Release();
+	m_ReflectionRT.Init(w, h);
+	++m_ReflectionGeneration;
+
+	// 深度も同じ大きさで作り直す(RTVとDSVはサイズを揃える必要がある)
+	CD3DX12_RESOURCE_DESC depthDesc = CD3DX12_RESOURCE_DESC::Tex2D(
+		DXGI_FORMAT_R32_TYPELESS, w, h,
+		1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_DEPTH_STENCIL);
+	CD3DX12_CLEAR_VALUE clear(DXGI_FORMAT_D32_FLOAT, 1.0f, 0);
+	CD3DX12_HEAP_PROPERTIES heapProp(D3D12_HEAP_TYPE_DEFAULT);
+
+	m_ReflectionDepth.Reset();
+	m_Device->CreateCommittedResource(
+		&heapProp, D3D12_HEAP_FLAG_NONE, &depthDesc,
+		D3D12_RESOURCE_STATE_DEPTH_WRITE, &clear,
+		IID_PPV_ARGS(m_ReflectionDepth.GetAddressOf()));
+
+	// DSVスロットは作り直しても使い回す
+	if (m_ReflectionDsvIndex == UINT_MAX)
+	{
+		m_DsvAllocator.Allocate(m_ReflectionDsvIndex);
+		m_ReflectionDSV = m_DsvAllocator.Cpu(m_ReflectionDsvIndex);
+	}
+
+	D3D12_DEPTH_STENCIL_VIEW_DESC dsvDesc = {};
+	dsvDesc.Format = DXGI_FORMAT_D32_FLOAT;
+	dsvDesc.ViewDimension = D3D12_DSV_DIMENSION_TEXTURE2D;
+	m_Device->CreateDepthStencilView(m_ReflectionDepth.Get(), &dsvDesc, m_ReflectionDSV);
+}
+
 void DirectXApp::BeginGeometryPass()
 {
 	auto* cmd = Cmd();

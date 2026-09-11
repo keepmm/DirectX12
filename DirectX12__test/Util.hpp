@@ -26,6 +26,48 @@ inline std::string WideToUtf8(const std::wstring& w)
     return s;
 }
 
+// ---- アセットのパス ---- //
+// ダイアログが返すのは絶対パス。そのまま保存するとシーンが他のPCで開けなくなるので、
+// 作業ディレクトリの下にあるものは相対パスへ畳んでから持つ。
+inline std::string MakeAssetRelative(const std::string& path)
+{
+    if (path.empty()) return path;
+
+    std::error_code ec;
+    const std::filesystem::path p(path);
+    if (!p.is_absolute()) return path;
+
+    const auto rel = std::filesystem::relative(p, std::filesystem::current_path(), ec);
+    if (ec || rel.empty()) return path;
+
+    // 作業ディレクトリの外(".." で始まる)は畳まずそのまま返す
+    auto s = rel.generic_string();
+    if (s.rfind("..", 0) == 0) return path;
+    return s;
+}
+
+// 保存済みの絶対パスを開き直すための救済。
+// そのまま存在すればそれを使い、無ければ "Assets/" 以降を切り出して相対で探す。
+// 別のPCで作られたシーンでも、Assets の中にあるものなら拾える
+inline std::string ResolveAssetPath(const std::string& path)
+{
+    if (path.empty()) return path;
+
+    std::error_code ec;
+    if (std::filesystem::exists(path, ec)) return path;
+
+    // 区切りを揃えてから "Assets" の位置を探す
+    std::string norm = path;
+    for (auto& c : norm) if (c == '\\') c = '/';
+
+    const size_t at = norm.rfind("Assets/");
+    if (at == std::string::npos) return path;
+
+    const std::string tail = norm.substr(at);
+    if (std::filesystem::exists(tail, ec)) return tail;
+    return path;
+}
+
 // ---- ファイル選択ダイアログ ---- //
 // filter は "Image\0*.png;*.jpg\0All\0*.*\0" 形式（ダブルNUL終端）
 inline bool OpenFileDialog(std::wstring& out, const wchar_t* filter)
@@ -54,6 +96,29 @@ inline std::vector<std::shared_ptr<Material>> BuildMaterials(
 		m->baseAlpha = set.diffuseColor.w;
 		m->baseColor = set.diffuseColor;
         m->baseColor.w = 1.0f;
+
+        // 肌系マテリアルは既定で SSS を有効化（PMX の日本語名 / FBX の英語名）
+        {
+            // set.name は UTF-8。/utf-8 オプションが無く素の "肌" は CP932 になるため、UTF-8 バイトを直接書く
+            static const char* kSkinKeys[] = {
+                "\xE8\x82\x8C",   // hada (肌)
+                "\xE9\xA1\x94",   // kao (顔)
+                "\xE4\xBD\x93",   // karada (体)
+                "skin", "Skin", "face", "Face", "body", "Body"
+            };
+            for (const char* key : kSkinKeys)
+            {
+                if (set.name.find(key) != std::string::npos)
+                {
+                    m->sssStrength = 0.6f;
+                    m->sssWrap     = 0.4f;
+                    m->sssTrans    = 0.15f;
+                    m->sssColor    = { 0.95f, 0.55f, 0.45f, 1.0f }; // 赤すぎない血色
+                    m->roughness   = 0.7f;                          // 肌はテカらせない
+                    break;
+                }
+            }
+        }
 
         if (!set.diffuse.empty())
         {
