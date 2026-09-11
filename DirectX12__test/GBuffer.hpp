@@ -21,10 +21,14 @@ public:
         for (auto& rt : m_RT) rt.Transition(cmd, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
     }
 
+    /// @brief 環境マップを後から差し替える（起動時は null で張られているため）
+    void SetEnvironment(ID3D12Resource* env, UINT mips);
+
     D3D12_CPU_DESCRIPTOR_HANDLE GetRTV(UINT i) const { return m_RT[i].GetRTV(); }
     D3D12_GPU_DESCRIPTOR_HANDLE GetSrvTableStart() const { return m_SrvTableStartGpu; }
 
 private:
+
     void BuildSrvTable(
         ID3D12Resource* depthSrvCpu,
         ID3D12Resource* envSrvCpu,
@@ -33,5 +37,6 @@ private:
     RenderTexture m_RT[RT_COUNT];
     D3D12_GPU_DESCRIPTOR_HANDLE m_SrvTableStartGpu{};
     UINT m_Width = 0, m_Height = 0;
+    UINT m_SrvBase = 0;     // BuildSrvTable が確保した先頭スロット
 	UINT m_EnvMips = 1;
 };

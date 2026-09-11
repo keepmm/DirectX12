@@ -143,9 +143,19 @@ inline std::vector<std::shared_ptr<Material>> BuildMaterials(
         if (set.normalImage && set.normalImage->ok) m->CreateNormalFromRGBA(set.normalImage->width, set.normalImage->height, set.normalImage->pixels.data());
         if (set.metalImage && set.metalImage->ok)   m->CreateMetalFromRGBA(set.metalImage->width, set.metalImage->height, set.metalImage->pixels.data());
         if (set.roughImage && set.roughImage->ok)   m->CreateRoughFromRGBA(set.roughImage->width, set.roughImage->height, set.roughImage->pixels.data());
-        if (set.emissiveImage && set.emissiveImage->ok)   m->CreateEmissiveFromRGBA(set.emissiveImage->width, set.emissiveImage->height, set.emissiveImage->pixels.data());
+        if (set.emissiveImage && set.emissiveImage->ok &&
+            m->CreateEmissiveFromRGBA(set.emissiveImage->width, set.emissiveImage->height, set.emissiveImage->pixels.data()))
+        {
+            // テクスチャが貼れたときだけ、factor 未設定を白（テクスチャそのまま）とみなす
+            m->emissiveColor = (set.emissiveColor.x <= 0.0f && set.emissiveColor.y <= 0.0f && set.emissiveColor.z <= 0.0f)
+                ? COLOR{ 1.0f, 1.0f, 1.0f, 1.0f } : set.emissiveColor;
+        }
+        else
+        {
+            m->emissiveColor = set.emissiveColor;   // 既定は黒＝発光なし
+        }
         if (set.occlusionImage && set.occlusionImage->ok) m->CreateOcclusionFromRGBA(set.occlusionImage->width, set.occlusionImage->height, set.occlusionImage->pixels.data());
-        m->emissiveColor = set.emissiveColor;
+        if (set.occlusionImage && set.occlusionImage->ok) m->CreateOcclusionFromRGBA(set.occlusionImage->width, set.occlusionImage->height, set.occlusionImage->pixels.data());
 
         out.push_back(m);
         LOG->LogInfo("SubMat: " + set.name

@@ -863,6 +863,17 @@ void DirectXApp::CreatePipelineStateObject()
 		assert(false);
 	}
 
+	// HDRパス用（RTフォーマットが違うと PSO は使い回せない）
+	auto lineHdrDepthDesc = lineDepthDesc;
+	lineHdrDepthDesc.RTVFormats[0] = DXGI_FORMAT_R16G16B16A16_FLOAT;
+	m_LineHdrDepthPso = m_PsoCache.GetOrCreate("LineVS_LinePS_DepthHdr",
+		m_Device.Get(),
+		lineHdrDepthDesc
+	);
+	if (m_LineHdrDepthPso == nullptr) {
+		assert(false);
+	}
+
 	auto BeamDesc = lineDesc;
 	BeamDesc.PrimitiveTopologyType = D3D12_PRIMITIVE_TOPOLOGY_TYPE_TRIANGLE;
 	BeamDesc.RasterizerState.CullMode = D3D12_CULL_MODE_NONE;
@@ -1088,6 +1099,70 @@ D3D12_GRAPHICS_PIPELINE_STATE_DESC DirectXApp::MakeBasePsoDesc() const
 	desc.DSVFormat = DXGI_FORMAT_D32_FLOAT;
 	desc.SampleDesc.Count = 1;
 	return desc;
+}
+
+bool DirectXApp::CreateEnvTextureFromImage(const DirectX::ScratchImage& image)
+{
+	const DirectX::TexMetadata& meta = image.GetMetadata();
+	if (meta.mipLevels == 0) return false;
+
+	CD3DX12_RESOURCE_DESC desc = CD3DX12_RESOURCE_DESC::Tex2D(
+		meta.format,
+		static_cast<UINT64>(meta.width),
+		static_cast<UINT>(meta.height),
+		1,
+		static_cast<UINT16>(meta.mipLevels));
+
+	CD3DX12_HEAP_PROPERTIES defaultHeap(D3D12_HEAP_TYPE_DEFAULT);
+	if (FAILED(m_Device->CreateCommittedResource(
+		&defaultHeap, D3D12_HEAP_FLAG_NONE, &desc,
+		D3D12_RESOURCE_STATE_COPY_DEST, nullptr,
+		IID_PPV_ARGS(m_EnvTexture.ReleaseAndGetAddressOf()))))
+		return false;
+
+	std::vector<D3D12_SUBRESOURCE_DATA> subs(meta.mipLevels);
+	for (size_t m = 0; m < meta.mipLevels; ++m)
+	{
+		const DirectX::Image* im = image.GetImage(m, 0, 0);
+		if (im == nullptr) return false;
+		subs[m].pData = im->pixels;
+		subs[m].RowPitch = static_cast<LONG_PTR>(im->rowPitch);
+		subs[m].SlicePitch = static_cast<LONG_PTR>(im->slicePitch);
+	}
+
+	const UINT64 uploadSize = GetRequiredIntermediateSize(
+		m_EnvTexture.Get(), 0, static_cast<UINT>(meta.mipLevels));
+
+	ComPtr<ID3D12Resource> upload;
+	CD3DX12_HEAP_PROPERTIES uploadHeap(D3D12_HEAP_TYPE_UPLOAD);
+	CD3DX12_RESOURCE_DESC uploadDesc = CD3DX12_RESOURCE_DESC::Buffer(uploadSize);
+	if (FAILED(m_Device->CreateCommittedResource(
+		&uploadHeap, D3D12_HEAP_FLAG_NONE, &uploadDesc,
+		D3D12_RESOURCE_STATE_GENERIC_READ, nullptr,
+		IID_PPV_ARGS(upload.GetAddressOf()))))
+		return false;
+
+	// ロード時なので使い捨てのリストで転送して待つ
+	ComPtr<ID3D12CommandAllocator> alloc;
+	ComPtr<ID3D12GraphicsCommandList> list;
+	if (FAILED(m_Device->CreateCommandAllocator(D3D12_COMMAND_LIST_TYPE_DIRECT, IID_PPV_ARGS(&alloc))) ||
+		FAILED(m_Device->CreateCommandList(0, D3D12_COMMAND_LIST_TYPE_DIRECT, alloc.Get(), nullptr, IID_PPV_ARGS(&list))))
+		return false;
+
+	UpdateSubresources(list.Get(), m_EnvTexture.Get(), upload.Get(),
+		0, 0, static_cast<UINT>(meta.mipLevels), subs.data());
+
+	auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(m_EnvTexture.Get(),
+		D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE);
+	list->ResourceBarrier(1, &barrier);
+	list->Close();
+
+	ID3D12CommandList* lists[] = { list.Get() };
+	m_CommandQueue->ExecuteCommandLists(1, lists);
+	WaitForGPUIdle();
+
+	++m_EnvGeneration;
+	return true;
 }
 
 void DirectXApp::CreateGbufferPSO()
@@ -1709,9 +1784,11 @@ void DirectXApp::BeginGeometryPass()
 		m_GBuffer.GetRTV(3)
 	};
 
+	constexpr float BlackClear[4] = { 0.0f,0.0f,0.0f,0.0f };
+
 	for (UINT i = 0; i < GBuffer::RT_COUNT; ++i)
 	{
-		cmd->ClearRenderTargetView(rtvs[i], ClearColor, 0, nullptr);
+		cmd->ClearRenderTargetView(rtvs[i], (i == 3) ? BlackClear : ClearColor, 0, nullptr);
 	}
 	cmd->ClearDepthStencilView(m_DSV_Handle, D3D12_CLEAR_FLAG_DEPTH, 1.0f, 0, 0, nullptr);
 
@@ -1977,6 +2054,155 @@ void DirectXApp::FlushGpuExec()
 
 #endif
 
+namespace
+{
+	/// @brief 等距円筒の (u,v) → 方向ベクトル
+	inline float3 EquirectToDirCpu(float u, float v)
+	{
+		const float phi   = (u * 2.0f - 1.0f) * DirectX::XM_PI;
+		const float theta = v * DirectX::XM_PI;
+		const float st = sinf(theta);
+		return { st * sinf(phi), cosf(theta), -st * cosf(phi) };
+	}
+
+	/// @brief 方向ベクトル → 等距円筒の (u,v)
+	inline void DirToEquirectCpu(const float3& d, float& u, float& v)
+	{
+		u = atan2f(d.x, -d.z) / (2.0f * DirectX::XM_PI) + 0.5f;
+		v = acosf(std::clamp(d.y, -1.0f, 1.0f)) / DirectX::XM_PI;
+	}
+
+	inline const float* EnvTexel(const DirectX::Image& img, int x, int y)
+	{
+		x = std::clamp(x, 0, static_cast<int>(img.width) - 1);
+		y = std::clamp(y, 0, static_cast<int>(img.height) - 1);
+		return reinterpret_cast<const float*>(img.pixels + y * img.rowPitch) + x * 4;
+	}
+
+	/// @brief 方向でサンプル（最近傍。元が粗いミップなので十分）
+	inline float3 SampleEnvDir(const DirectX::Image& img, const float3& d)
+	{
+		float u, v; DirToEquirectCpu(d, u, v);
+		const float* p = EnvTexel(img,
+			static_cast<int>(u * img.width), static_cast<int>(v * img.height));
+		return { p[0], p[1], p[2] };
+	}
+
+	/// @brief Hammersley 列
+	inline void HammersleyCpu(uint32_t i, uint32_t n, float& x, float& y)
+	{
+		uint32_t b = i;
+		b = (b << 16) | (b >> 16);
+		b = ((b & 0x55555555u) << 1) | ((b & 0xAAAAAAAAu) >> 1);
+		b = ((b & 0x33333333u) << 2) | ((b & 0xCCCCCCCCu) >> 2);
+		b = ((b & 0x0F0F0F0Fu) << 4) | ((b & 0xF0F0F0F0u) >> 4);
+		b = ((b & 0x00FF00FFu) << 8) | ((b & 0xFF00FF00u) >> 8);
+		x = static_cast<float>(i) / static_cast<float>(n);
+		y = static_cast<float>(b) * 2.3283064365386963e-10f;
+	}
+
+	/// @brief GGX 重点サンプリング（N=V=R 仮定なので反射方向を返す）
+	inline float3 ImportanceGGX(float u1, float u2, const float3& n, float roughness)
+	{
+		using namespace DirectX;
+		const float a = roughness * roughness;
+		const float phi = 2.0f * XM_PI * u1;
+		const float cosT = sqrtf((1.0f - u2) / (1.0f + (a * a - 1.0f) * u2));
+		const float sinT = sqrtf((std::max)(0.0f, 1.0f - cosT * cosT));
+
+		const XMVECTOR N = XMVector3Normalize(XMLoadFloat3(&n));
+		const XMVECTOR up = (fabsf(n.y) < 0.999f) ? XMVectorSet(0, 1, 0, 0) : XMVectorSet(1, 0, 0, 0);
+		const XMVECTOR T = XMVector3Normalize(XMVector3Cross(up, N));
+		const XMVECTOR B = XMVector3Cross(N, T);
+
+		XMVECTOR h = XMVectorAdd(XMVectorAdd(
+			XMVectorScale(T, sinT * cosf(phi)),
+			XMVectorScale(B, sinT * sinf(phi))),
+			XMVectorScale(N, cosT));
+		h = XMVector3Normalize(h);
+
+		const XMVECTOR l = XMVectorSubtract(
+			XMVectorScale(h, 2.0f * XMVectorGetX(XMVector3Dot(N, h))), N);
+		float3 out; XMStoreFloat3(&out, XMVector3Normalize(l));
+		return out;
+	}
+
+	/// @brief ミップ列を IBL 用に作り直す。
+	///        ミップ n = roughness n/(mips-1) の GGX プレフィルタ。
+	///        最も粗い 2 枚はコサイン畳み込み（拡散の放射照度）で上書きする
+	void PrefilterEnvironment(DirectX::ScratchImage& chain)
+	{
+		const size_t mips = chain.GetMetadata().mipLevels;
+		if (mips < 3) return;
+
+		// 元データはフィルタ済みの粗めのミップから引く（ファイアフライ抑制）
+		const size_t srcMip = (std::min)(static_cast<size_t>(3), mips - 1);
+		const DirectX::Image& src = *chain.GetImage(srcMip, 0, 0);
+
+		constexpr uint32_t SAMPLES = 64;
+
+		for (size_t m = 1; m < mips; ++m)
+		{
+			const DirectX::Image& dst = *chain.GetImage(m, 0, 0);
+			const bool diffuse = (m >= mips - 2);           // 最も粗い 2 枚は拡散用
+			const float roughness = static_cast<float>(m) / static_cast<float>(mips - 1);
+
+			for (size_t y = 0; y < dst.height; ++y)
+			{
+				float* row = reinterpret_cast<float*>(dst.pixels + y * dst.rowPitch);
+				for (size_t x = 0; x < dst.width; ++x)
+				{
+					const float3 n = EquirectToDirCpu(
+						(x + 0.5f) / dst.width, (y + 0.5f) / dst.height);
+
+					float3 sum{ 0.0f, 0.0f, 0.0f };
+					float weight = 0.0f;
+
+					if (diffuse)
+					{
+						// コサイン畳み込み（総当たり。粗いミップなので軽い）
+						for (size_t sy = 0; sy < src.height; ++sy)
+						{
+							const float theta = (sy + 0.5f) / src.height * DirectX::XM_PI;
+							const float solid = sinf(theta);
+							for (size_t sx = 0; sx < src.width; ++sx)
+							{
+								const float3 d = EquirectToDirCpu(
+									(sx + 0.5f) / src.width, (sy + 0.5f) / src.height);
+								const float ndotl = n.x * d.x + n.y * d.y + n.z * d.z;
+								if (ndotl <= 0.0f) continue;
+								const float* p = EnvTexel(src, static_cast<int>(sx), static_cast<int>(sy));
+								const float w = ndotl * solid;
+								sum.x += p[0] * w; sum.y += p[1] * w; sum.z += p[2] * w;
+								weight += w;
+							}
+						}
+					}
+					else
+					{
+						for (uint32_t s = 0; s < SAMPLES; ++s)
+						{
+							float u1, u2; HammersleyCpu(s, SAMPLES, u1, u2);
+							const float3 l = ImportanceGGX(u1, u2, n, roughness);
+							const float ndotl = n.x * l.x + n.y * l.y + n.z * l.z;
+							if (ndotl <= 0.0f) continue;
+							const float3 c = SampleEnvDir(src, l);
+							sum.x += c.x * ndotl; sum.y += c.y * ndotl; sum.z += c.z * ndotl;
+							weight += ndotl;
+						}
+					}
+
+					const float inv = (weight > 0.0f) ? 1.0f / weight : 0.0f;
+					row[x * 4 + 0] = sum.x * inv;
+					row[x * 4 + 1] = sum.y * inv;
+					row[x * 4 + 2] = sum.z * inv;
+					row[x * 4 + 3] = 1.0f;
+				}
+			}
+		}
+	}
+}
+
 bool DirectXApp::LoadEnvironment(const std::wstring& hdrpath)
 {
 	std::filesystem::path resolved = hdrpath;
@@ -1995,6 +2221,10 @@ bool DirectXApp::LoadEnvironment(const std::wstring& hdrpath)
 	if (FAILED(DirectX::GenerateMipMaps(*img.GetImage(0, 0, 0),
 		DirectX::TEX_FILTER_LINEAR, 0, mipped)))
 		mipped = std::move(img);   // 失敗時はミップ無しで続行
+
+	// ミップを IBL 用に作り直す（GGX プレフィルタ＋最粗2枚はコサイン畳み込み）
+	PrefilterEnvironment(mipped);
+
 	const DirectX::TexMetadata& mm = mipped.GetMetadata();
 	m_EnvMipLevels = static_cast<UINT>(mm.mipLevels);
 	{
@@ -2007,7 +2237,12 @@ bool DirectXApp::LoadEnvironment(const std::wstring& hdrpath)
 		}
 	}
 
+	if (!CreateEnvTextureFromImage(mipped)) return false;
+
 	CreateEnvSrv();
+
+	// ディファードの t5 は起動時に null で張られているので差し替える
+	m_GBuffer.SetEnvironment(m_EnvTexture.Get(), m_EnvMipLevels);
 
 	return true;
 }

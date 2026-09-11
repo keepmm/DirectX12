@@ -23,8 +23,8 @@ void GBuffer::BuildSrvTable(ID3D12Resource* depthSrvCpu, ID3D12Resource* envSrvC
 {
     auto& srv = APP->GetSrvAllocator();
     auto dev  = APP->GetDevice();
-
     UINT base = srv.AllocateRange(7);
+    m_SrvBase = base;
     m_SrvTableStartGpu = srv.Gpu(base);
 
     // 連続スロットへ直接SRVを作るヘルパ
@@ -46,4 +46,19 @@ void GBuffer::BuildSrvTable(ID3D12Resource* depthSrvCpu, ID3D12Resource* envSrvC
     MakeSrv(4, depthSrvCpu, DXGI_FORMAT_R32_FLOAT, 1);                              // t4 Depth
     MakeSrv(5, envSrvCpu, DXGI_FORMAT_R32G32B32A32_FLOAT, m_EnvMips);        // t5 Env(null可)
     MakeSrv(6, shadowSrvCpu, DXGI_FORMAT_R32_FLOAT, 1);                             // t6 Shadow(null可)
+}
+
+void GBuffer::SetEnvironment(ID3D12Resource* env, UINT mips)
+{
+    if (env == nullptr) return;
+    m_EnvMips = mips;
+
+    D3D12_SHADER_RESOURCE_VIEW_DESC d = {};
+    d.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+    d.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+    d.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+    d.Texture2D.MipLevels = mips;
+
+    APP->GetDevice()->CreateShaderResourceView(
+        env, &d, APP->GetSrvAllocator().Cpu(m_SrvBase + 5));   // t5 Env
 }

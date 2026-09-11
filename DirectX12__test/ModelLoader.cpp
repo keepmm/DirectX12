@@ -510,11 +510,6 @@ ModelCpuData ModelLoader::ParseFile(const std::string& filepath, float scale)
             if (material->Get(AI_MATKEY_COLOR_EMISSIVE, ec) == AI_SUCCESS)
                 dst.emissiveColor = { ec.r, ec.g, ec.b, 1.0f };
 
-            // テクスチャがあるのに factor が 0 なら白（=テクスチャそのまま）として扱う
-            if ((!emi.empty() || embEmi != nullptr) &&
-                dst.emissiveColor.x <= 0.0f && dst.emissiveColor.y <= 0.0f && dst.emissiveColor.z <= 0.0f)
-                dst.emissiveColor = { 1.0f, 1.0f, 1.0f, 1.0f };
-
             dst.emissive = emi;
 
             dst.diffuse = diff;

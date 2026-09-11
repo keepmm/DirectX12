@@ -164,6 +164,7 @@ private:
 	UINT m_UploadFenceValue = 0;
 
 	bool m_EnvBound = false;
+	UINT m_EnvGen = UINT_MAX;	// 環境マップの差し替え検知
 	float m_EnvMaxMip = 0.0f;
 	void BindEnvironmentIfNeeded();
 	void BindShadowMapIfNeeded();

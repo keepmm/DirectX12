@@ -147,16 +147,18 @@ float4 PbrPS(PSInput input) : SV_TARGET
         float maxMip = mapFlags.w;
         float3 F0 = lerp(0.04, albedo, m);
         float ndotv = saturate(dot(N, V));
-        float3 kS = F0 + (max(1.0 - r, F0) - F0) * pow(1.0 - ndotv, 5.0); // Fresnel(rough)
-        float3 kD = (1.0 - kS) * (1.0 - m);
 
-        // 鏡面：反射ベクトル方向をラフネスでミップ選択
+        // 鏡面：最も粗い2ミップは拡散用に潰してあるのでそこまでは使わない
         float3 R = reflect(-V, N);
-        float3 prefiltered = g_Env.SampleLevel(g_Sampler, DirToEquirect(R), r * maxMip).rgb;
-        float3 specularIBL = prefiltered * kS;
+        float3 prefiltered = g_Env.SampleLevel(g_Sampler, DirToEquirect(R), r * max(maxMip - 2.0f, 0.0f)).rgb;
 
-        // 拡散：法線方向を最粗ミップ（放射照度）
+        // split-sum の第2項（解析近似）
+        float2 dfg = EnvBRDFApprox(r, ndotv);
+        float3 specularIBL = prefiltered * (F0 * dfg.x + dfg.y);
+
+        // 拡散：最粗ミップ＝コサイン畳み込み済みの放射照度
         float3 irradiance = g_Env.SampleLevel(g_Sampler, DirToEquirect(N), maxMip).rgb;
+        float3 kD = (1.0f - F0) * (1.0f - m);
         float3 diffuseIBL = irradiance * albedo * kD;
 
         // AO は間接光にだけ掛ける

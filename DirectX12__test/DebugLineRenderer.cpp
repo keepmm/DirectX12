@@ -102,7 +102,7 @@ void DebugLineRenderer::AddLine(
 	dst.push_back({ end, color });
 }
 
-void DebugLineRenderer::Draw(const RenderContext& render)
+void DebugLineRenderer::Draw(const RenderContext& render, ID3D12PipelineState* depthPsoOverride)
 {
 	if (render.CommandList == nullptr || m_LinePSO == nullptr)
 	{
@@ -145,9 +145,10 @@ void DebugLineRenderer::Draw(const RenderContext& render)
 	render.CommandList->SetGraphicsRootConstantBufferView(0, cbAddress);
 
 	// 深度テストあり（モデルに隠れる）
-	if (depthCount > 0 && m_LineDepthPSO != nullptr)
+	ID3D12PipelineState* depthPso = (depthPsoOverride != nullptr) ? depthPsoOverride : m_LineDepthPSO.Get();
+	if (depthCount > 0 && depthPso != nullptr)
 	{
-		render.CommandList->SetPipelineState(m_LineDepthPSO.Get());
+		render.CommandList->SetPipelineState(depthPso);
 		render.CommandList->DrawInstanced(depthCount, 1, 0, 0);
 	}
 

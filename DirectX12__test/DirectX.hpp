@@ -5,6 +5,7 @@
 #include <d3d12shader.h>
 #include <dxgi1_4.h>
 #include <d3dcompiler.h>
+#include <DirectXTex.h>
 
 #include <atomic>
 #include <thread>
@@ -248,6 +249,7 @@ public:
 	inline ID3D12PipelineState* GetVolumetricAddPso() const noexcept {return m_VolumetricAddPso.Get(); }
 	inline ID3D12PipelineState* GetFireworkPso() const noexcept { return m_FireworkPso.Get(); }
 	inline ComPtr<ID3D12PipelineState> GetLineDepthPso() const noexcept { return m_LineDepthPso; }
+	inline ComPtr<ID3D12PipelineState> GetLineHdrDepthPso() const noexcept { return m_LineHdrDepthPso; }
 
 	template<class T>
 	void DederredRelease(T&& r)
@@ -318,6 +320,7 @@ public:
 	UINT GetEnvMipLevels() const { return m_EnvMipLevels; }
 	const float3& GetEnvAmbient() const { return m_EnvAmbient; }
 	bool HasEnvironment() const { return m_EnvTexture != nullptr; }
+	UINT GetEnvGeneration() const noexcept { return m_EnvGeneration; }
 	inline ShadowMap& GetShadowMap() noexcept { return m_ShadowMap; }
 
 	void WaitForGPUIdle();
@@ -325,6 +328,7 @@ public:
 	{
 		if (r) m_DeferredReleases[RecordSlot()].push_back(std::move(r));
 	}
+
 private:
 	static DirectXApp* s_Instance;
 
@@ -412,6 +416,7 @@ private:
 	ComPtr<ID3D12PipelineState> m_VolumetricPso;
 	ComPtr<ID3D12PipelineState> m_VolumetricAddPso;
 	ComPtr<ID3D12PipelineState> m_LineDepthPso;
+	ComPtr<ID3D12PipelineState> m_LineHdrDepthPso;
 
 	ComPtr<ID3D12PipelineState> m_FireworkPso;
 
@@ -451,6 +456,10 @@ private:
 	// Environment Map
 	ComPtr<ID3D12Resource> m_EnvTexture;
 	UINT m_EnvMipLevels = 1;
+	UINT m_EnvGeneration = 0;	// 差し替えを検知させる
+
+	/// @brief ScratchImage を GPU テクスチャにして m_EnvTexture に入れる
+	bool CreateEnvTextureFromImage(const DirectX::ScratchImage& image);
 
 	float3 m_EnvAmbient = { 0.1f,0.1f,0.1f };
 	ShadowMap m_ShadowMap{};

@@ -1049,7 +1049,7 @@ void Material::CreateDefaultRampTexture()
 
 void Material::BindEnvironmentIfNeeded()
 {
-	if (m_EnvBound) return;
+	if (m_EnvBound && m_EnvGen == APP->GetEnvGeneration()) return;
 	if (!EnsureSrvHeap()) return;
 	auto* env = APP->GetEnvTexture();
 	if (!env || !m_TextureSrvHeap) return;
@@ -1068,6 +1068,7 @@ void Material::BindEnvironmentIfNeeded()
 
 	m_EnvMaxMip = float(APP->GetEnvMipLevels() - 1);
 	m_EnvBound = true;
+	m_EnvGen = APP->GetEnvGeneration();
 }
 
 void Material::BindShadowMapIfNeeded()

@@ -137,14 +137,19 @@ float4 DeferredPS(VSOut input) : SV_TARGET
     float maxMip = envParam.x;
     if (maxMip > 0.0f)
     {
-        // 拡散：法線方向の最も粗いミップ＝環境の平均照度
-        float3 irradiance = g_Env.SampleLevel(g_Sampler, DirToEquirect(N), maxMip).rgb;
-        float3 diffuseIBL = irradiance * baseColor * envParam.y;
+        float3 F0 = lerp(0.04f, baseColor, metallic);
+        float ndotv = saturate(dot(N, V));
 
-        // 鏡面：反射方向をラフネスでミップ選択（メタルほど強く）
+        // 拡散：最粗ミップ＝コサイン畳み込み済みの放射照度
+        float3 irradiance = g_Env.SampleLevel(g_Sampler, DirToEquirect(N), maxMip).rgb;
+        float3 kD = (1.0f - F0) * (1.0f - metallic);
+        float3 diffuseIBL = irradiance * baseColor * kD * envParam.y;
+
+        // 鏡面：最も粗い2ミップは拡散用なので使わない。第2項は解析近似
         float3 R = reflect(-V, N);
-        float3 prefiltered = g_Env.SampleLevel(g_Sampler, DirToEquirect(R), roughness * maxMip).rgb;
-        float3 specularIBL = prefiltered * metallic;
+        float3 prefiltered = g_Env.SampleLevel(g_Sampler, DirToEquirect(R), roughness * max(maxMip - 2.0f, 0.0f)).rgb;
+        float2 dfg = EnvBRDFApprox(roughness, ndotv);
+        float3 specularIBL = prefiltered * (F0 * dfg.x + dfg.y);
 
         // AO は間接光にだけ掛ける（直接光まで落とすと不自然に潰れる）
         color += (diffuseIBL + specularIBL) * ao;

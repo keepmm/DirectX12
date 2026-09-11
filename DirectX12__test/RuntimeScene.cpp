@@ -484,6 +484,15 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 				PROFILE_SCOPE("Draw/GBuffer");
 				GPU_PROFILE_SCOPE(commandList, "Draw/GBuffer");
 				m_RenderSystem.Draw(m_World, context, APP->GetGBufferPso(), DrawFilter::OPAQUE_NOTOON);
+
+				// グリッドは深度が正しい解像度で有効なここで描く。
+				// ポスト合成後のデバッグパスは 1280x720 固定で深度と食い違う
+				if (context.isSceneView)
+				{
+					m_DebugLineRenderer.Begin();
+					DrawGrid();
+					m_DebugLineRenderer.Draw(context, APP->GetLineHdrDepthPso().Get());
+				}
 			}
 
 			// ---- ライティング -> HDR(R16F) ----
@@ -603,6 +612,15 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 				PROFILE_SCOPE("Draw/Forward(All)");
 				GPU_PROFILE_SCOPE(commandList, "Draw/Forward(All)");
 				m_RenderSystem.Draw(m_World, context);   // 従来通り全部
+
+				// グリッドは深度が正しい解像度で有効なここで描く。
+				// ポスト合成後のデバッグパスは 1280x720 固定で深度と食い違う
+				if (context.isSceneView)
+				{
+					m_DebugLineRenderer.Begin();
+					DrawGrid();
+					m_DebugLineRenderer.Draw(context, APP->GetLineHdrDepthPso().Get());
+				}
 			}
 
 			// 以降のデバッグ線/UI は素の LDR パスへ戻す
@@ -621,18 +639,6 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 			if (renderContext.scissorRect) commandList->RSSetScissorRects(1, renderContext.scissorRect);
 			commandList->SetGraphicsRootSignature(APP->GetRootSignature().Get());
 		}
-
-		//{
-		//	DirectX::XMVECTOR det;
-		//	const auto iv = DirectX::XMMatrixInverse(&det, DirectX::XMLoadFloat4x4(&context.view));
-		//	float3 camRight, camUp;
-		//	DirectX::XMStoreFloat3(&camRight, iv.r[0]);
-		//	DirectX::XMStoreFloat3(&camUp, iv.r[1]);
-
-		//	m_FireworkBeamRenderer.Begin();
-		//	m_FireworkSystem.Emit(m_FireworkBeamRenderer, camRight, camUp);
-		//	m_FireworkBeamRenderer.Draw(context);   // Init時のBeamPso(深度なし)
-		//}
 
 		// ---- 被写界深度 ----
 		// 不透明・半透明を描き終えた時点でかける。デバッグ線やUIはボケさせない
@@ -678,7 +684,7 @@ void RuntimeScene::Draw(const RenderContext& renderContext)
 		// ===== デバッグライン / ビーム / UI（両モード共通・現在バインド中のRTへ）=====
 		GPU_PROFILE_SCOPE(commandList, "Draw/Debug+UI");
 		m_DebugLineRenderer.Begin();
-		if (context.isSceneView) { DrawGrid(); DrawLight(); DrawGizmos(context); DrawColliders(); DrawKawaiiPhysics(); }
+		if (context.isSceneView) { DrawLight(); DrawGizmos(context); DrawColliders(); DrawKawaiiPhysics(); }
 		for (const auto& line : m_DebugLines)
 			m_DebugLineRenderer.AddLine(line.start, line.end, line.color);
 		m_DebugLineRenderer.Draw(context);
@@ -800,8 +806,9 @@ void RuntimeScene::DrawGrid()
 	{
 		const float offset = -half + i * gridSize;
 
-		m_DebugLineRenderer.AddLine(float3{ offset, 0.0f, -half }, float3{ offset, 0.0f, half }, gridColor);
-		m_DebugLineRenderer.AddLine(float3{ -half, 0.0f, offset }, float3{ half, 0.0f, offset }, gridColor);
+		// 第4引数 true = 深度テストあり。モデルの後ろに回ったグリッドは隠れる
+		m_DebugLineRenderer.AddLine(float3{ offset, 0.0f, -half }, float3{ offset, 0.0f, half }, gridColor, true);
+		m_DebugLineRenderer.AddLine(float3{ -half, 0.0f, offset }, float3{ half, 0.0f, offset }, gridColor, true);
 	}
 }
 
@@ -1277,6 +1284,9 @@ void RuntimeScene::ApplySkybox()
 	const std::wstring resolved = path.empty()
 		? EngineAssetPath(L"Texture/sky.hdr").wstring()
 		: std::wstring(path.begin(), path.end());
+
+	// スカイボックスの HDR をそのまま IBL の環境マップにも使う
+	APP->LoadEnvironment(resolved);
 
 	// 初回はここで生成する(m_CameraIcon と同じ手順)
 	if (!m_SkyBox)
