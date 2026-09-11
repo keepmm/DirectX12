@@ -4596,6 +4596,10 @@
         "filePath": "Assets\\Model\\SuzukiHina_ver1.30\\HINASUZUKI.pmx",
         "scale": 1.0
       },
+      "Light Cull": {
+        "MaxLights": 8,
+        "Radius": 4.0
+      },
       "name": "Suzuki",
       "transform": {
         "parent": 0,
@@ -5219,6 +5223,10 @@
       "mesh": {
         "filePath": "Assets\\Model\\TanakaHime_ver1.30\\HIMETANAKA.pmx",
         "scale": 1.0
+      },
+      "Light Cull": {
+        "MaxLights": 8,
+        "Radius": 4.0
       },
       "name": "Tanaka",
       "transform": {
