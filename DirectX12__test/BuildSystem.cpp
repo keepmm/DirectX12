@@ -288,6 +288,11 @@ static void CollectFromJson(const nlohmann::json& j, const fs::path& srcDir,
 
 // 開始シーンを起点に、参照されているアセットを集める。
 // 参照先が .json ならその中身も辿る(タイムライン・プレハブなど)
+//
+// シーン遷移は SceneManager::LoadScene("Foo") のようにスクリプト側の
+// C++ コードで書かれるので、JSON を辿るだけでは遷移先シーンを発見できない。
+// 取りこぼすとゲーム版で「シーンが登録されていません」になって遷移が死ぬため、
+// Assets/Scenes/*.json は全部を起点として無条件に積む(シーンJSON自体は軽い)
 static bool CollectUsedAssets(const fs::path& srcDir, const std::string& startScene,
     std::set<fs::path>& files, std::set<fs::path>& dirs)
 {
@@ -303,6 +308,28 @@ static bool CollectUsedAssets(const fs::path& srcDir, const std::string& startSc
 
     std::vector<fs::path> pending{ sceneRel };
     std::set<fs::path>    visited;
+
+    // Assets/Scenes 以下のシーンを全部起点に加える
+    {
+        const fs::path scenesDir = srcDir / "Assets" / "Scenes";
+        int added = 0;
+        if (fs::exists(scenesDir, ec))
+        {
+            for (auto& e : fs::recursive_directory_iterator(scenesDir, ec))
+            {
+                if (ec) break;
+                if (!e.is_regular_file(ec)) continue;
+                if (ToLowerAscii(e.path().extension().string()) != ".json") continue;
+
+                const fs::path rel = fs::relative(e.path(), srcDir, ec);
+                if (ec) { ec.clear(); continue; }
+                if (rel == sceneRel) continue;   // 開始シーンは既に積んである
+                pending.push_back(rel);
+                ++added;
+            }
+        }
+        PushLog("[Build] シーンを " + std::to_string(added + 1) + " 個収集しました");
+    }
 
     while (!pending.empty())
     {
@@ -447,8 +474,15 @@ void BuildSystem::Build(const BuildSetting& settings)
         // ---- 3. exe はルート、DLL は Bin/ へ ----
         fs::path binDir = stageDir;
 
-        fs::copy_file(binDir / "DirectX12__test.exe",
-            outDir / (settings.gameName + ".exe"),
+        // exe の名前は変えられない。
+        // Scripts.dll は Scripts.vcxproj が DirectX12__test.lib(exe の import library)を
+        // リンクしているため、モジュール "DirectX12__test.exe" をインポートしている。
+        // <ゲーム名>.exe にリネームするとローダーがこのインポートを解決できず、
+        // cr_plugin_open が CR_BAD_IMAGE(8) で失敗してスクリプトが丸ごと動かなくなる。
+        // 同名のコピーを並べるのも不可(プロセス本体と名前が一致しないので
+        // 2つ目のエンジンが読み込まれ、シングルトンが二重になる)
+        const fs::path exeOut = outDir / "DirectX12__test.exe";
+        fs::copy_file(binDir / "DirectX12__test.exe", exeOut,
             fs::copy_options::overwrite_existing, ec);
         if (ec)
         {
@@ -609,6 +643,16 @@ void BuildSystem::Build(const BuildSetting& settings)
         }
 
 		SetStage(1.0f, IMGUI::ToUTF8("完了"));
+        // exe 名は固定なので、ゲーム名で起動できる小さなランチャーを置く
+        {
+            std::ofstream bat(outDir / (settings.gameName + ".bat"));
+            bat << R"(@echo off)" << std::endl
+                << R"(start "" "%~dp0DirectX12__test.exe")" << std::endl;
+        }
+        PushLog("[Build] 実行ファイルは DirectX12__test.exe で固定です"
+            " (Scripts.dll が exe 名をインポートしているため)。起動用に "
+            + settings.gameName + ".bat を置きました");
+
         PushLog("[Build] 完了: " + fs::absolute(outDir).string());
         s_Building = false;
         }).detach();

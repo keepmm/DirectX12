@@ -45,6 +45,10 @@ public:
 
 	bool RegisterScene(_In_ const std::string& name);
 
+	/// @brief 未登録なら Assets/Scenes/<name>.json から登録する(遅延登録)
+	/// @note  m_SceneMutex を内部で取るので、ロックを持ったまま呼ばないこと
+	void EnsureRegistered(_In_ const std::string& name);
+
 	/// @brief シーンの登録
 	void RegisterScene(_In_ const std::string& name, _In_ std::unique_ptr<Scene> scene);
 
