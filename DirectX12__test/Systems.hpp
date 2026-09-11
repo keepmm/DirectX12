@@ -708,15 +708,34 @@ public:
 				camPos.z + camFwd.z * (ortho * 0.4f)
 			};
 
-			// テクセル単位にスナップ（カメラ移動時の影のシマー防止）
-			const float texelWorld = ortho / mapSize;
-			focus.x = floorf(focus.x / texelWorld) * texelWorld;
-			focus.z = floorf(focus.z / texelWorld) * texelWorld;
-
-			DirectX::XMVECTOR center = DirectX::XMLoadFloat3(&focus);
-			DirectX::XMVECTOR lightPos = DirectX::XMVectorSubtract(center, DirectX::XMVectorScale(d, dist));
 			DirectX::XMVECTOR up = (fabsf(shadowDir.y) > 0.99f)
 				? DirectX::XMVectorSet(1, 0, 0, 0) : DirectX::XMVectorSet(0, 1, 0, 0);
+
+			DirectX::XMVECTOR center = DirectX::XMLoadFloat3(&focus);
+
+			// テクセル単位にスナップ（カメラ移動時の影のシマー防止）。
+			// シャドウマップのテクセル格子はライトの視線軸に沿って並ぶので、
+			// world の X/Z で丸めても格子には乗らない。丸めが効かないぶん、
+			// カメラを動かすたびに影が連続的に滑って「影がカメラに追従する」ように見える。
+			// ライト空間へ移してから丸め、world へ戻すこと
+			{
+				const float texelWorld = ortho / mapSize;
+				const DirectX::XMMATRIX lightRot =
+					DirectX::XMMatrixLookAtLH(DirectX::XMVectorZero(), d, up);
+
+				DirectX::XMVECTOR c = DirectX::XMVector3TransformCoord(center, lightRot);
+				c = DirectX::XMVectorSet(
+					floorf(DirectX::XMVectorGetX(c) / texelWorld) * texelWorld,
+					floorf(DirectX::XMVectorGetY(c) / texelWorld) * texelWorld,
+					DirectX::XMVectorGetZ(c),
+					0.0f);
+
+				DirectX::XMVECTOR det;
+				const DirectX::XMMATRIX inv = DirectX::XMMatrixInverse(&det, lightRot);
+				center = DirectX::XMVector3TransformCoord(c, inv);
+			}
+
+			DirectX::XMVECTOR lightPos = DirectX::XMVectorSubtract(center, DirectX::XMVectorScale(d, dist));
 
 			// ライト視点のビュー×プロジェクション。
 			// 他の行列と同じく転置して渡す(シェーダーは mul(頂点, 行列) の順)
