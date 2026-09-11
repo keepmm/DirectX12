@@ -1,4 +1,24 @@
 ﻿#define CR_HOST CR_DISABLE
+
+// cr.h の失敗理由(LoadLibrary の GetLastError など)をエンジンのログへ流す。
+// 既定は CR_DEBUG のときだけ stderr へ出るので、ウィンドウアプリでは捨てられて見えない
+#include "Debug.hpp"
+#include <cstdio>
+#include <cstdarg>
+static void CrLogPrintf(const char* fmt, ...)
+{
+	char buf[1024];
+	va_list ap;
+	va_start(ap, fmt);
+	vsnprintf(buf, sizeof(buf), fmt, ap);
+	va_end(ap);
+	OutputDebugStringA(buf);
+	LOG->LogError(std::string("[cr] ") + buf);
+}
+#define CR_DEBUG
+#define CR_ERROR(...) CrLogPrintf(__VA_ARGS__)
+#define CR_LOG(...)   ((void)0)
+#define CR_TRACE
 #include "cr.h"
 #include "ScriptContext.hpp"
 #include "ScriptHost.hpp"
@@ -156,6 +176,28 @@ static void LaunchBuild()
         }).detach();
 }
 
+/// @brief Assets 配下のスクリプト(.cpp/.hpp)の最終更新時刻を返す
+/// @note  起動時の陳腐化判定で使う。ファイルが1つも無ければ既定値(0)を返す
+static std::filesystem::file_time_type NewestScriptTime()
+{
+    std::error_code ec;
+    std::filesystem::file_time_type maxT{};
+
+    // スクリプトは Assets のどこに置いてもよいので再帰で見る
+    for (auto& e : std::filesystem::recursive_directory_iterator(s_ScriptsSrcDir, ec))
+    {
+        if (ec) break;
+        if (!e.is_regular_file(ec)) continue;
+
+        const auto ext = e.path().extension();
+        if (ext != ".cpp" && ext != ".hpp") continue;
+
+        const auto t = std::filesystem::last_write_time(e, ec);
+        if (!ec && t > maxT) maxT = t;
+    }
+    return maxT;
+}
+
 static void CheckAndBuild()
 {
     // 配布した exe に MSBuild は無い。プロジェクトが開いている=エディタのときだけ回す
@@ -283,18 +325,32 @@ void ScriptHost::Open(World* world)
         const bool dllMissing = !std::filesystem::exists(dll, ec);
         bool dllStale = false;
 
+        bool srcNewer = false;
+
         if (!dllMissing)
         {
             const auto dllTime = std::filesystem::last_write_time(dll, ec);
             const auto exeTime = std::filesystem::last_write_time(s_ExePath, ec);
             if (!ec) dllStale = exeTime > dllTime;
+
+            // エディタを閉じている間に追加・編集されたスクリプトを拾う。
+            // CheckAndBuild は「初回は基準値を取るだけ」で起動直後にビルドしないので、
+            // ここで見ないと次に誰かがファイルを保存するまで永久に取り込まれない
+            const auto srcTime = NewestScriptTime();
+            if (srcTime.time_since_epoch().count() != 0 && srcTime > dllTime)
+            {
+                srcNewer = true;
+                dllStale = true;
+            }
         }
 
         if (dllStale)
         {
             // 消してから作り直す。残したままだと下の cr_plugin_open や
             // Update の後追いオープンが、古いABIのDLLを掴んでクラッシュする
-            LOG->LogInfo("[Scripts] エンジンの方が新しいので Scripts.dll を作り直します");
+            LOG->LogInfo(srcNewer
+                ? "[Scripts] スクリプトの方が新しいので Scripts.dll を作り直します"
+                : "[Scripts] エンジンの方が新しいので Scripts.dll を作り直します");
             std::filesystem::remove(dll, ec);
         }
 
@@ -365,6 +421,46 @@ void ScriptHost::Update(float dt, World* world)
         LOG->LogError("[Scripts] cr failure = "
             + std::to_string(static_cast<int>(s_plugin.failure))
             + " (開き直します)");
+
+        // CR_BAD_IMAGE(=LoadLibrary 失敗)の原因モジュールを特定する。
+        // ERROR_MOD_NOT_FOUND(126) は「依存のどれかが見つからない」としか言わないので、
+        // 直接依存を1つずつ当たって、落ちている名前をログに残す。
+        // 1回だけ出せば十分(毎フレーム失敗するとログが埋まる)
+        static bool s_probed = false;
+        if (!s_probed && s_plugin.failure == CR_BAD_IMAGE)
+        {
+            s_probed = true;
+
+            wchar_t self[MAX_PATH]{};
+            GetModuleFileNameW(nullptr, self, MAX_PATH);
+            LOG->LogError("[Scripts] probe: 実行中のexe = " + WideToUtf8(self));
+
+            wchar_t cwd[MAX_PATH]{};
+            GetCurrentDirectoryW(MAX_PATH, cwd);
+            LOG->LogError("[Scripts] probe: カレント = " + WideToUtf8(cwd));
+
+            // Scripts.dll が直接インポートしているモジュール
+            const wchar_t* deps[] = {
+                L"DirectX12__test.exe",
+                L"MSVCP140.dll",
+                L"VCRUNTIME140.dll",
+                L"VCRUNTIME140_1.dll",
+                L"KERNEL32.dll",
+            };
+            for (const wchar_t* d : deps)
+            {
+                const bool loaded = (GetModuleHandleW(d) != nullptr);
+                std::string line = "[Scripts] probe: " + WideToUtf8(d)
+                    + (loaded ? " = ロード済み" : " = 未ロード");
+                if (!loaded)
+                {
+                    HMODULE h = LoadLibraryW(d);
+                    if (h) { line += " / 単体ロードは成功"; FreeLibrary(h); }
+                    else   { line += " / 単体ロードも失敗 err=" + std::to_string(GetLastError()); }
+                }
+                LOG->LogError(line);
+            }
+        }
 
         cr_plugin_close(s_plugin);
         s_isOpen = false;
