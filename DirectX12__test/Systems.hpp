@@ -1447,12 +1447,14 @@ public:
 					buf.LoopCount = src.loop ? XAUDIO2_LOOP_INFINITE : 0;
 					src.voice->SubmitSourceBuffer(&buf);
 					src.voice->Start();
+					src.isPlaying = true;
 				}
 				if (src.stopRequested)
 				{
 					src.stopRequested = false;
 					src.voice->Stop();
 					src.voice->FlushSourceBuffers();
+					src.isPlaying = false;
 				}
 
 				// ---- シーク(PlayBeginでバッファを投げ直す) ---- //
@@ -1478,12 +1480,15 @@ public:
 					buf.LoopCount = src.loop ? XAUDIO2_LOOP_INFINITE : 0;
 					buf.PlayBegin = sampleOffset;   // ここから再生
 					src.voice->SubmitSourceBuffer(&buf);
-					src.voice->Start();
+
+					// 止まっていたならバッファを積むだけ。
+					// ここで無条件に Start すると、スライダーを動かしただけで鳴り出す
+					if (src.isPlaying) src.voice->Start();
 				}
 
 				// ---- 一時停止 / 再開(位置は保持される) ---- //
-				if (src.pauseRequested) { src.pauseRequested = false; src.voice->Stop(); }
-				if (src.resumeRequested) { src.resumeRequested = false; src.voice->Start(); }
+				if (src.pauseRequested) { src.pauseRequested = false; src.voice->Stop(); src.isPlaying = false; }
+				if (src.resumeRequested) { src.resumeRequested = false; src.voice->Start(); src.isPlaying = true; }
 
 				// ---- 3D定位 ---- //
 				if (src.is3D && hasListener)

@@ -85,7 +85,8 @@ int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCm
 		else if (!PROJECT->GetRecents().empty())
 		{
 			// 直接起動されたときは最後のプロジェクトを復元する(VSからのデバッグ実行用)
-			if (!PROJECT->Open(PROJECT->GetRecents().front(), err))
+			// recents は UTF-8。narrow のまま path にすると日本語が化ける
+			if (!PROJECT->Open(Utf8ToPath(PROJECT->GetRecents().front()), err))
 			{
 				OutputDebugStringA(("Project open failed: " + err + "\n").c_str());
 			}

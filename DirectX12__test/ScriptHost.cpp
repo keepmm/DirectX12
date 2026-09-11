@@ -198,6 +198,24 @@ static std::filesystem::file_time_type NewestScriptTime()
     return maxT;
 }
 
+std::filesystem::path ScriptDllPath()
+{
+    std::error_code ec;
+    return  std::filesystem::absolute(
+		PROJECT->GetLibraryDir() / "Scripts.dll", ec
+    );
+}
+
+/// @brief cr に渡すパス。
+/// @note  cr は受け取った文字列を UTF-8 として MultiByteToWideChar する
+///        (cr.h の cr_utf8_to_wstring)。path::string() は MSVC では ANSI(CP932)
+///        なので、フォルダ名に日本語が入ると変換が壊れ、cr_exists が false になって
+///        cr_plugin_open が何もログを出さずに失敗する
+std::string ScriptDllPathForCr()
+{
+    return PathToUtf8(ScriptDllPath());
+}
+
 static void CheckAndBuild()
 {
     // 配布した exe に MSBuild は無い。プロジェクトが開いている=エディタのときだけ回す
@@ -312,7 +330,7 @@ void ScriptHost::Open(World* world)
     s_ExePath = exeDir / std::filesystem::path(exePath).filename();
     s_AutoBuild = PROJECT->IsOpen();
 
-    const std::filesystem::path dll = PROJECT->GetLibraryDir() / "Scripts.dll";
+    const std::filesystem::path dll = ScriptDllPath();
 
     // ---- ABI の食い違いを防ぐ ---- //
     // Scripts.dll はエンジンのヘッダをそのまま取り込んでいるので、
@@ -360,11 +378,12 @@ void ScriptHost::Open(World* world)
         }
     }
 
-    LOG->LogInfo("[Scripts] watch  = " + s_ScriptsSrcDir.string());
-    LOG->LogInfo("[Scripts] proj   = " + s_ProjPath.string());
-    LOG->LogInfo("[Scripts] dll    = " + dll.string());
+    // ログは UTF-8 で書く。path::string() は ANSI(CP932) なので混ざると化ける
+    LOG->LogInfo("[Scripts] watch  = " + PathToUtf8(s_ScriptsSrcDir));
+    LOG->LogInfo("[Scripts] proj   = " + PathToUtf8(s_ProjPath));
+    LOG->LogInfo("[Scripts] dll    = " + PathToUtf8(dll));
 
-    if (!cr_plugin_open(s_plugin, dll.string().c_str()))
+    if (!cr_plugin_open(s_plugin, ScriptDllPathForCr().c_str()))
     {
         // 初回はまだビルドされていないので普通に起きる。Update 側で開き直す
         LOG->LogInfo("[Scripts] DLL 未生成。ビルド後に開き直します");
@@ -382,12 +401,12 @@ void ScriptHost::Update(float dt, World* world)
         // ビルド中は開かない。
         // リンカがファイルを作った瞬間に exists が true になるため、
         // 書き込み途中の DLL を掴んで CR_BAD_IMAGE になる
-        const std::filesystem::path dll = PROJECT->GetLibraryDir() / "Scripts.dll";
+        const std::filesystem::path dll = ScriptDllPath();
         if (!s_building && std::filesystem::exists(dll) &&
-            cr_plugin_open(s_plugin, dll.string().c_str()))
+            cr_plugin_open(s_plugin, ScriptDllPathForCr().c_str()))
         {
             s_isOpen = true;
-            LOG->LogInfo("[Scripts] cr_plugin_open 後追い成功: " + dll.string());
+            LOG->LogInfo("[Scripts] cr_plugin_open 後追い成功: " + PathToUtf8(dll));
         }
     }
 

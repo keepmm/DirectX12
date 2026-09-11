@@ -331,6 +331,17 @@ static bool CollectUsedAssets(const fs::path& srcDir, const std::string& startSc
         PushLog("[Build] シーンを " + std::to_string(added + 1) + " 個収集しました");
     }
 
+    // Scriptも積む
+    {
+        const fs::path ScriptsRel = fs::path("Assets") / "Scripts";
+        if (fs::exists(srcDir / ScriptsRel, ec) && fs::is_directory(srcDir / ScriptsRel, ec))
+        {
+			dirs.insert(ScriptsRel);
+			PushLog("[Build] Scripts フォルダを収集しました");
+        }
+        ec.clear();
+    }
+
     while (!pending.empty())
     {
         const fs::path rel = pending.back();
@@ -405,6 +416,16 @@ void BuildSystem::Build(const BuildSetting& settings)
         ProjectPaths paths = ResolvePaths();
         std::error_code ec;
 
+        // exe 名 = ゲーム名。MSBuild の TargetName に渡すので、
+        // 空白や記号が混ざると素直に通らない。安全な文字だけ残す
+        std::string exeName;
+        for (unsigned char c : settings.gameName)
+        {
+            if (std::isalnum(c) || c == '_' || c == '-') exeName += (char)c;
+        }
+        if (exeName.empty()) exeName = "Game";
+        PushLog("[Build] 実行ファイル名: " + exeName + ".exe");
+
         if (paths.slnDir.empty())
         {
             SetStage(0.0f, "");
@@ -415,12 +436,15 @@ void BuildSystem::Build(const BuildSetting& settings)
 
         // ---- 1. エンジンexe を MSBuild ----
         // スクリプトはプロジェクト単位になり、ソリューションからは外れている。
-        // ここではエンジンだけを建て、Scripts.dll は後段で個別に建てる
+        // ここではエンジンだけを建て、Scripts.dll は後段で個別に建てる。
+        // .sln ではなく .vcxproj を指すのは、TargetName が Launcher にも効いて
+        // 同じ OutDir に同名の exe が2つ出てしまうため
         fs::path stageDir = paths.slnDir / "x64" / "GameBuild";
         std::string cmd =
-            "\"" + s_msbuild + "\" \"" + paths.slnDir.string() + "\\DirectX12__test.sln\""
+            "\"" + s_msbuild + "\" \"" + (paths.srcDir / "DirectX12__test.vcxproj").string() + "\""
             " /p:Configuration=" + settings.configuration + " /p:Platform=x64"
             " /p:OutDir=" + stageDir.string() + "\\"
+            " /p:TargetName=" + exeName +
             " /m /nologo /clp:NoSummary /v:minimal";
 
         constexpr float kMsBuildFrom = 0.02f;
@@ -474,15 +498,11 @@ void BuildSystem::Build(const BuildSetting& settings)
         // ---- 3. exe はルート、DLL は Bin/ へ ----
         fs::path binDir = stageDir;
 
-        // exe の名前は変えられない。
-        // Scripts.dll は Scripts.vcxproj が DirectX12__test.lib(exe の import library)を
-        // リンクしているため、モジュール "DirectX12__test.exe" をインポートしている。
-        // <ゲーム名>.exe にリネームするとローダーがこのインポートを解決できず、
-        // cr_plugin_open が CR_BAD_IMAGE(8) で失敗してスクリプトが丸ごと動かなくなる。
-        // 同名のコピーを並べるのも不可(プロセス本体と名前が一致しないので
-        // 2つ目のエンジンが読み込まれ、シングルトンが二重になる)
-        const fs::path exeOut = outDir / "DirectX12__test.exe";
-        fs::copy_file(binDir / "DirectX12__test.exe", exeOut,
+        // exe は TargetName を差し替えて <ゲーム名>.exe として建ててある。
+        // Scripts.dll は同じ名前の import library をリンクするので、
+        // インポート名も <ゲーム名>.exe になり、ローダーが解決できる
+        const fs::path exeOut = outDir / (exeName + ".exe");
+        fs::copy_file(binDir / (exeName + ".exe"), exeOut,
             fs::copy_options::overwrite_existing, ec);
         if (ec)
         {
@@ -507,6 +527,13 @@ void BuildSystem::Build(const BuildSetting& settings)
             }
 
             const fs::path scriptProj = PROJECT->GetScriptProjectPath();
+
+            // エディタ用の <Project>/Library/Scripts.dll を上書きしないよう、
+            // ゲームビルド用は別フォルダに出す。
+            // エディタ用は DirectX12__test.exe を、こちらは <exeName>.exe を
+            // インポートするので、混ざると双方が CR_BAD_IMAGE になる
+            const fs::path scriptStage = stageDir / "ScriptsGame";
+
             if (!fs::exists(scriptProj))
             {
                 PushLog("[Build] 警告: Scripts.vcxproj がありません。スクリプト無しで続行します");
@@ -518,6 +545,9 @@ void BuildSystem::Build(const BuildSetting& settings)
                     " /p:Configuration=" + settings.configuration + " /p:Platform=x64"
                     " /p:EngineDir=\"" + paths.srcDir.string() + "\\\\\""
                     " /p:EngineOutDir=\"" + stageDir.string() + "\\\\\""
+                    " /p:EngineLibName=" + exeName + ".lib"
+                    " /p:OutDir=\"" + scriptStage.string() + "\\\\\""
+                    " /p:IntDir=\"" + (scriptStage / "obj").string() + "\\\\\""
                     " /nologo /clp:NoSummary /v:minimal";
 
                 std::string scriptOut;
@@ -542,7 +572,7 @@ void BuildSystem::Build(const BuildSetting& settings)
                 }
                 else
                 {
-                    const fs::path scriptsDll = PROJECT->GetLibraryDir() / "Scripts.dll";
+                    const fs::path scriptsDll = scriptStage / "Scripts.dll";
                     const fs::path scriptsOutDir = dataDir / "Library";
                     fs::create_directories(scriptsOutDir, ec);
                     ec.clear();
@@ -643,15 +673,7 @@ void BuildSystem::Build(const BuildSetting& settings)
         }
 
 		SetStage(1.0f, IMGUI::ToUTF8("完了"));
-        // exe 名は固定なので、ゲーム名で起動できる小さなランチャーを置く
-        {
-            std::ofstream bat(outDir / (settings.gameName + ".bat"));
-            bat << R"(@echo off)" << std::endl
-                << R"(start "" "%~dp0DirectX12__test.exe")" << std::endl;
-        }
-        PushLog("[Build] 実行ファイルは DirectX12__test.exe で固定です"
-            " (Scripts.dll が exe 名をインポートしているため)。起動用に "
-            + settings.gameName + ".bat を置きました");
+        PushLog("[Build] 実行ファイル: " + (outDir / (exeName + ".exe")).string());
 
         PushLog("[Build] 完了: " + fs::absolute(outDir).string());
         s_Building = false;

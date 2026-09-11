@@ -93,7 +93,8 @@ bool Project::Create(const std::filesystem::path& parentDir, const std::string& 
         return false;
     }
 
-    const fs::path root = parentDir / name;
+    // name は UI 由来の UTF-8。narrow のまま連結すると日本語のフォルダ名が化ける
+    const fs::path root = parentDir / Utf8ToPath(name);
 
 	// 既存のフォルダが空でない場合はエラー
     std::error_code ec;
@@ -321,7 +322,9 @@ bool Project::Activate(std::string& outError)
 
 void Project::PushRecents(const std::filesystem::path& root)
 {
-    const std::string s = root.string();
+    // JSON は UTF-8 前提(CP932 のバイト列を積むと dump が例外を投げる)。
+    // Launcher 側も UTF-8 として読むので、ここで揃えておく
+    const std::string s = PathToUtf8(root);
     m_Recents.erase(std::remove(m_Recents.begin(), m_Recents.end(), s), m_Recents.end());
     m_Recents.insert(m_Recents.begin(), s);
     if (m_Recents.size() > 10) m_Recents.resize(10);
@@ -392,7 +395,14 @@ bool Project::RefreshScriptProjectSources(std::string& outError)
 
     std::string items;
     for (const auto& c : cpps)
-        items += "    <ClCompile Include=\"" + c + "\" />\r\n";
+    {
+        // obj はソースのフォルダ構成に合わせて掘る。
+        // 平坦なままだと別フォルダの同名 .cpp が同じ obj を取り合って
+        // MSB8027 になり、フォルダ分けした途端にビルドが壊れる
+        items += "    <ClCompile Include=\"" + c + "\">\r\n"
+            "      <ObjectFileName>$(IntDir)%(RelativeDir)</ObjectFileName>\r\n"
+            "    </ClCompile>\r\n";
+    }
     for (const auto& h : hpps)
         items += "    <ClInclude Include=\"" + h + "\" />\r\n";
 
@@ -475,6 +485,9 @@ R"XML(<?xml version="1.0" encoding="utf-8"?>
          Condition 付きなので /p: が来ればそちらが勝つ -->
     <EngineDir Condition="'$(EngineDir)'==''">@ENGINE_DIR@</EngineDir>
     <EngineOutDir Condition="'$(EngineOutDir)'==''">@ENGINE_OUT_DIR@</EngineOutDir>
+    <!-- リンクするエンジンの import library。ゲームビルドでは exe 名が
+         <ゲーム名>.exe になるので /p:EngineLibName で差し替えられるようにする -->
+    <EngineLibName Condition="'$(EngineLibName)'==''">DirectX12__test.lib</EngineLibName>
     <EngineScriptsDir>$(EngineDir)..\Scripts\</EngineScriptsDir>
     <OutDir>$(ProjectDir)Library\</OutDir>
     <IntDir>$(ProjectDir)Library\obj\$(Configuration)\</IntDir>
@@ -494,7 +507,7 @@ R"XML(<?xml version="1.0" encoding="utf-8"?>
       <GenerateDebugInformation>true</GenerateDebugInformation>
       <EnableUAC>false</EnableUAC>
       <AdditionalLibraryDirectories>$(EngineOutDir);%(AdditionalLibraryDirectories)</AdditionalLibraryDirectories>
-      <AdditionalDependencies>DirectX12__test.lib;%(AdditionalDependencies)</AdditionalDependencies>
+      <AdditionalDependencies>$(EngineLibName);%(AdditionalDependencies)</AdditionalDependencies>
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
