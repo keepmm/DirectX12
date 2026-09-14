@@ -77,12 +77,6 @@ float2 DirToEquirect(float3 d)
                   acos(clamp(d.y, -1, 1)) / PI);
 }
 
-float3 ToonRamp(float nDotL)
-{
-    float t = smoothstep(0.35f, 0.55f, nDotL);
-    return lerp(0.45f.xxx, 1.0f.xxx, t);
-}
-
 float4 DeferredPS(VSOut input) : SV_TARGET
 {
     float depth = g_Depth.Sample(g_Sampler, input.uv).r;
@@ -101,11 +95,12 @@ float4 DeferredPS(VSOut input) : SV_TARGET
     float ao = orm.z;
 
     float3 V = normalize(cameraPos.xyz - worldPos);
-    float shininess = lerp(64.0f, 8.0f, saturate(roughness));
 
-    // ---- Toon 直接光 ----
-    float3 diffuse = 0;
-    float specMask = 0;
+    // ---- 直接光 ----
+    // デファードに回るのはトゥーン以外(PBR)のマテリアルだけなので、
+    // フォワードの PBRShader と同じ Cook-Torrance で照らす。
+    // 以前はトゥーンのランプ(影側でも 0.45 残る)を使っていて、ライトの向きが効きにくかった
+    float3 color = 0;
     float shadow = ShadowFactor1(worldPos);
     const int count = (int) lightCount.x;
     for (int i = 0; i < count; ++i)
@@ -113,25 +108,12 @@ float4 DeferredPS(VSOut input) : SV_TARGET
         float3 L;
         float atten;
         ComputeLight(lights[i], worldPos, L, atten);
-        // 影響圏外のライトはここで捨てる。届かない灯まで評価すると
-        // ランプ参照ぶんの負荷がそのまま灯数倍になり、暗部も灯数ぶん持ち上がる
+        // 影響圏外のライトはここで捨てる(届かない灯まで評価すると負荷が灯数倍になる)
         if (atten <= 1e-3f) continue;
-        float nDotL = saturate(dot(N, L)) * atten;
 
         float s = (i == 0) ? shadow : 1.0f;
-
-        const int t = (int) lights[i].param.x;
-        float rampScale = (t == 0) ? 1.0f : atten;
-
-        diffuse += lights[i].color.rgb * baseColor * ToonRamp(nDotL) * rampScale * s;
-
-        float3 H = normalize(L + V);
-        float spec = pow(saturate(dot(N, H)), shininess);
-        specMask = max(specMask, step(0.5f, spec) * atten * s);
+        color += CookTorrance(baseColor, metallic, roughness, N, V, L, lights[i].color.rgb) * atten * s;
     }
-
-    float3 color = diffuse;
-    color += specMask * metallic;
 
     // ---- IBL -----
     float maxMip = envParam.x;
@@ -143,7 +125,7 @@ float4 DeferredPS(VSOut input) : SV_TARGET
         // 拡散：最粗ミップ＝コサイン畳み込み済みの放射照度
         float3 irradiance = g_Env.SampleLevel(g_Sampler, DirToEquirect(N), maxMip).rgb;
         float3 kD = (1.0f - F0) * (1.0f - metallic);
-        float3 diffuseIBL = irradiance * baseColor * kD * envParam.y;
+        float3 diffuseIBL = irradiance * baseColor * kD;
 
         // 鏡面：最も粗い2ミップは拡散用なので使わない。第2項は解析近似
         float3 R = reflect(-V, N);
@@ -151,8 +133,9 @@ float4 DeferredPS(VSOut input) : SV_TARGET
         float2 dfg = EnvBRDFApprox(roughness, ndotv);
         float3 specularIBL = prefiltered * (F0 * dfg.x + dfg.y);
 
-        // AO は間接光にだけ掛ける（直接光まで落とすと不自然に潰れる）
-        color += (diffuseIBL + specularIBL) * ao;
+        // AO は間接光にだけ掛ける（直接光まで落とすと不自然に潰れる）。
+        // 強さはフォワードと同じ lightCount.y(RenderSettings::envIntensity)
+        color += (diffuseIBL + specularIBL) * ao * lightCount.y;
     }
     else
     {

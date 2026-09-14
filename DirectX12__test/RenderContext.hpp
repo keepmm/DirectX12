@@ -47,6 +47,10 @@ struct RenderSettings
 	/// @brief ボリュームライト(レイマーチ)。重いので切り分け用に実行時トグルできる
 	bool volumetric = true;
 
+	/// @brief 環境光(IBL)の強さ。直接光とのバランスを取る
+	/// @note 1.0 で物理的に正しい値。ライトの強さが 1 前後なら 0.3 程度がちょうどいい
+	float envIntensity = 0.35f;
+
 	static RenderSettings& Get()
 	{
 		static RenderSettings instance;

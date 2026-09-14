@@ -793,6 +793,7 @@ public:
 		}
 
 		m_Data.lightCount.x = static_cast<float>(count);
+		m_Data.lightCount.y = RenderSettings::Get().envIntensity;   // IBL の強さ(シェーダー側で共有)
 	}
 
 	inline const LightCB& GetLightData() const
