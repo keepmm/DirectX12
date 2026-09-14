@@ -63,7 +63,7 @@ Entity PrefabLibrary::Instantiate(const std::string& name, Scene& scene,World& w
 
 Entity PrefabLibrary::InstantiateByGuid(const std::string& guid,Scene& scene, World& world) const
 {
-	const std::string name = GetPrefabGuid(guid);
+	const std::string name = GetPrefabNameByGuid(guid);
 	if (name.empty())
 	{
 		return INVALID_ENTITY;
