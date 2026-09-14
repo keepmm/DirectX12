@@ -96,9 +96,10 @@ bool SceneSerializer::Load(Scene& scene, const std::string& filePath)
 std::string SceneSerializer::SaveToString(Scene& scene)
 {
     json root;
+    root["version"] = 2;   // 1 = パスのみ / 2 = アセット参照が {guid, path}
     root["sceneName"] = scene.GetSceneName();
     root["entities"] = json::array();
-    root["skybox"] = scene.GetSkyboxPath();
+    WriteAssetRef(root, "skybox", scene.GetSkyboxPath());
 
     World& world = scene.GetWorld();
     for (Entity entity : world.GetEntities())
@@ -507,6 +508,14 @@ bool SceneSerializer::LoadFromString(Scene& scene, const std::string& data)
                             FieldValue fv;
                             if (jv.is_boolean()) { fv.type = FieldType::Bool;   fv.b = jv.get<bool>(); }
                             else if (jv.is_string()) { fv.type = FieldType::String; fv.s = jv.get<std::string>(); }
+                            // アセット参照 { guid, path }。'|' 区切りの複数はその配列。
+                            // 数値配列の分岐より前で拾わないと get<float> で例外になる
+                            else if (jv.is_object()
+                                || (jv.is_array() && !jv.empty() && jv[0].is_object()))
+                            {
+                                fv.type = FieldType::AssetPath;
+                                fv.s = AssetRefFromJson(jv);
+                            }
                             else if (jv.is_number_integer()) { fv.type = FieldType::Int;    fv.i = jv.get<int>(); }
                             else if (jv.is_number()) { fv.type = FieldType::Float;  fv.f[0] = jv.get<float>(); }
                             else if (jv.is_array())

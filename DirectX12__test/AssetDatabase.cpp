@@ -196,20 +196,41 @@ void AssetDatabase::RegisterFile(const fs::path& absPath)
 	const fs::path rel = fs::relative(absPath, PROJECT->GetRoot(), ec);
 	if (ec) return;
 
+	// コンポーネントの FilePath と同じ表現(generic_string)で持つ。
+	// ここだけ UTF-8 にすると、ロード側の path(std::string) と食い違う
 	const std::string relStr = rel.generic_string();
 	const std::string key = NormalizeKey(relStr);
 
 	const fs::path metaPath = MetaPathOf(absPath);
 	AssetGuid guid = fs::exists(metaPath, ec) ? ReadMetaGuid(metaPath) : AssetGuid{};
 
-	// GUID が無い / 壊れている / 既に別のアセットが使っている → 振り直す
-	// (エディタ外で実体だけコピーされて .meta が付いてきた場合がこれ)
-	if (guid.empty() || m_GuidToPath.count(guid) != 0)
+	// 既に同じ GUID が登録されている場合、
+	//  - 登録先と同じパス          → 登録し直しただけ。そのまま使う
+	//  - 登録先のファイルがもう無い → 移動(リネーム)なので GUID を引き継ぐ
+	//  - 登録先のファイルがまだある → 実体ごとコピーされた重複なので振り直す
+	// 以前は「登録済みなら振り直す」だけだったので、フォルダをリネームすると
+	// 中のアセットの GUID が全部変わり、シーンの参照が切れていた
+	bool needNewGuid = guid.empty();
+	if (!needNewGuid)
 	{
-		if (!guid.empty())
+		auto it = m_GuidToPath.find(guid);
+		if (it != m_GuidToPath.end() && NormalizeKey(it->second) != key)
 		{
-			LOG->LogWarning("GUID が重複したので振り直します: " + relStr);
+			if (fs::exists(PROJECT->GetRoot() / fs::path(it->second), ec))
+			{
+				LOG->LogWarning("GUID が重複したので振り直します: " + relStr);
+				needNewGuid = true;
+			}
+			else
+			{
+				// 移動前のキーを外す(新しいパスで下で登録し直す)
+				m_PathToGuid.erase(NormalizeKey(it->second));
+			}
 		}
+	}
+
+	if (needNewGuid)
+	{
 		guid = MakeRandomGuid();
 		WriteMeta(metaPath, guid);
 	}
@@ -289,20 +310,11 @@ void AssetDatabase::OnAssetMoved(const std::string& from, const std::string& to)
 	const fs::path absFrom = fs::absolute(from, ec);
 	const fs::path absTo = fs::absolute(to, ec);
 
-	// フォルダなら配下を丸ごと登録し直す(移動前のキーは張り替えで消える)
+	// フォルダなら配下を登録し直す。
+	// 中の .meta はフォルダごと移動済みなので、RegisterFile が GUID を引き継ぐ
 	if (fs::is_directory(absTo, ec))
 	{
-		const fs::path metaDirFrom = absFrom;   // フォルダに .meta は無い
-		(void)metaDirFrom;
 		OnAssetAdded(to);
-
-		// 移動前のキーを掃除する
-		const std::string oldPrefix = NormalizeKey(from) + "/";
-		for (auto it = m_PathToGuid.begin(); it != m_PathToGuid.end(); )
-		{
-			if (it->first.rfind(oldPrefix, 0) == 0) it = m_PathToGuid.erase(it);
-			else ++it;
-		}
 		return;
 	}
 
