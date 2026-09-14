@@ -1,13 +1,14 @@
-﻿/*****************************************************************//**
- * \file   InspectorWindow.cpp
- * \brief  肥大化したEditorWindow.cppを分割するためのファイル
- * 
+﻿/*!*************************************************************
+ * \file   InspectorPanel.cpp
+ * \brief  インスペクタ(選択エンティティのコンポーネント編集)
+ *
  * 作成者 keeep
  * 作成日 2026/6/20
- * 更新履歴 6.20 分割
+ * 更新履歴	6.20 EditorWindow.cpp から分割
  *			6.26 InspectorのAddComponentボタンの挙動を修正
+ *			9.12 EditorPanel 派生のクラスへ
  * *********************************************************************/
-#include "EditorWindow.hpp"
+#include "InspectorPanel.hpp"
 #include "SceneSerializer.hpp"
 #include "Components.hpp"
 #include "PrefabLibrary.hpp"
@@ -31,18 +32,21 @@
 #include "json.hpp"
 #include "ComponentRegistry.hpp"
 #include "Util.hpp"
+#include "MaterialPreview.hpp"
+
+// IsToonShader は Systems.hpp のものを使う（name に "Toon" を含むか）
 
 #pragma comment(lib, "Comdlg32.lib")
 #pragma comment(lib, "psapi.lib")
 
-void EditorWindow::DrawInspector(World& world, Scene* scene)
+void InspectorPanel::DrawInspector(EditorContext& ctx, World& world, Scene* scene)
 {
-	if (!world.IsEntityAlive(m_SelectedEntity))
+	if (!world.IsEntityAlive(ctx.selectedEntity))
 	{
-		m_SelectedEntity = INVALID_ENTITY;
+		ctx.selectedEntity = INVALID_ENTITY;
 	}
 
-	if (m_SelectedEntity == INVALID_ENTITY)
+	if (ctx.selectedEntity == INVALID_ENTITY)
 	{
 		ImGui::Text(u8("エンティティを選択してください"));
 		return;
@@ -50,17 +54,17 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 
 	ImGui::Text(u8("詳細情報"));
 	ImGui::Separator();
-	ImGui::Text("Entity ID: %u", m_SelectedEntity);
+	ImGui::Text("Entity ID: %u", ctx.selectedEntity);
 	ImGui::Separator();
 
 	// ---- Name Component ---- //
 	if (ImGui::CollapsingHeader(u8("Name Component"), ImGuiTreeNodeFlags_DefaultOpen))
 	{
-		if (world.HasComponent<NameComponent>(m_SelectedEntity))
+		if (world.HasComponent<NameComponent>(ctx.selectedEntity))
 		{
 			char nameBuffer[256];
-			memcpy(nameBuffer, world.GetComponent<NameComponent>(m_SelectedEntity).name.c_str(), sizeof(nameBuffer));
-			auto& nameComp = world.GetComponent<NameComponent>(m_SelectedEntity);
+			memcpy(nameBuffer, world.GetComponent<NameComponent>(ctx.selectedEntity).name.c_str(), sizeof(nameBuffer));
+			auto& nameComp = world.GetComponent<NameComponent>(ctx.selectedEntity);
 			if (ImGui::InputText(u8("##NameInput"), nameBuffer, sizeof(nameBuffer)))
 			{
 				// 入力された名前が空でないことを確認
@@ -70,20 +74,20 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 				}
 				else
 				{
-					nameComp.name = "Entity " + std::to_string(m_SelectedEntity);
+					nameComp.name = "Entity " + std::to_string(ctx.selectedEntity);
 				}
 			}
 			ImGui::Separator();
 			if (ImGui::SmallButton(u8("Remove##NameComponent")))
 			{
-				world.DeleteComponent<NameComponent>(m_SelectedEntity);
+				world.DeleteComponent<NameComponent>(ctx.selectedEntity);
 			}
 		}
 		else
 		{
 			if (ImGui::Button(u8("Add Component##NameComponent")))
 			{
-				world.AddComponent<NameComponent>(m_SelectedEntity, NameComponent{ "Entity " });
+				world.AddComponent<NameComponent>(ctx.selectedEntity, NameComponent{ "Entity " });
 			}
 		}
 	}
@@ -91,9 +95,9 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 	// ---- Transform Component ---- //
 	if (ImGui::CollapsingHeader(u8("Transform Component"), ImGuiTreeNodeFlags_DefaultOpen))
 	{
-		if (world.HasComponent<TransformComponent>(m_SelectedEntity))
+		if (world.HasComponent<TransformComponent>(ctx.selectedEntity))
 		{
-			auto& transform = world.GetComponent<TransformComponent>(m_SelectedEntity);
+			auto& transform = world.GetComponent<TransformComponent>(ctx.selectedEntity);
 
 			bool dirty = false;
 			dirty |= ImGui::DragFloat3(u8("位置##Pos"), &transform.position.x, 0.1f);
@@ -110,9 +114,9 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 				transform.RebuildWorld();
 
 				// コライダーの当たり判定も更新
-				if (world.HasComponent<ColliderComponent>(m_SelectedEntity))
+				if (world.HasComponent<ColliderComponent>(ctx.selectedEntity))
 				{
-					auto& collider = world.GetComponent<ColliderComponent>(m_SelectedEntity);
+					auto& collider = world.GetComponent<ColliderComponent>(ctx.selectedEntity);
 
 					if (collider.shapeType == ColliderComponent::ShapeType::Box)
 					{
@@ -124,14 +128,14 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 					}
 
 					// PhysicsWorldに反映
-					if (scene && world.HasComponent<RigidBodyComponent>(m_SelectedEntity))
+					if (scene && world.HasComponent<RigidBodyComponent>(ctx.selectedEntity))
 					{
 						auto* physicsWorld = scene->GetPhysicsWorld();
 						if (physicsWorld)
 						{
-							const auto& rb = world.GetComponent<RigidBodyComponent>(m_SelectedEntity);
-							physicsWorld->RemoveRigidbody(m_SelectedEntity);
-							physicsWorld->AddRigidbody(m_SelectedEntity, rb, collider);
+							const auto& rb = world.GetComponent<RigidBodyComponent>(ctx.selectedEntity);
+							physicsWorld->RemoveRigidbody(ctx.selectedEntity);
+							physicsWorld->AddRigidbody(ctx.selectedEntity, rb, collider);
 						}
 					}
 				}
@@ -143,7 +147,7 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 			{
 				TransformComponent tr{};
 				tr.RebuildWorld();
-				world.AddComponent<TransformComponent>(m_SelectedEntity, tr);
+				world.AddComponent<TransformComponent>(ctx.selectedEntity, tr);
 			}
 		}
 	}
@@ -151,9 +155,9 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 	// ---- Mesh Component ---- //
 	if (ImGui::CollapsingHeader(u8("Mesh Component")))
 	{
-		if (world.HasComponent<MeshComponent>(m_SelectedEntity))
+		if (world.HasComponent<MeshComponent>(ctx.selectedEntity))
 		{
-			auto& meshComp = world.GetComponent<MeshComponent>(m_SelectedEntity);
+			auto& meshComp = world.GetComponent<MeshComponent>(ctx.selectedEntity);
 			ImGui::Text(u8("メッシュコンポーネント"));
 
 			ImGui::Separator();
@@ -231,9 +235,9 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 				int  clip = 0;
 				bool playing = false;
 				std::vector<std::string> extras;
-				if (world.HasComponent<AnimatorComponent>(m_SelectedEntity))
+				if (world.HasComponent<AnimatorComponent>(ctx.selectedEntity))
 				{
-					const auto& an = world.GetComponent<AnimatorComponent>(m_SelectedEntity);
+					const auto& an = world.GetComponent<AnimatorComponent>(ctx.selectedEntity);
 					clip = an.currentClip;
 					playing = an.playing;
 					extras = an.extraClipNames;
@@ -247,7 +251,7 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 				const bool applyScale = s_MeshSwapAutoScale && extChanged;
 
 				meshComp.FilePath = pendingSwap;
-				ModelLoader::PopulateModelEntity(world, m_SelectedEntity, pendingSwap,
+				ModelLoader::PopulateModelEntity(world, ctx.selectedEntity, pendingSwap,
 					scene, clip, playing, extras, applyScale);
 
 				LOG->LogInfo("モデルを差し替えました: " + pendingSwap);
@@ -256,7 +260,7 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 			ImGui::Separator();
 			if (ImGui::SmallButton(u8("Remove##MeshComponent")))
 			{
-				world.DeleteComponent<MeshComponent>(m_SelectedEntity);
+				world.DeleteComponent<MeshComponent>(ctx.selectedEntity);
 			}
 		}
 		else
@@ -264,22 +268,22 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 			if (ImGui::Button(u8("Add Component##MeshComponent")))
 			{
 				MeshComponent mesh{};
-				world.AddComponent<MeshComponent>(m_SelectedEntity, mesh);
+				world.AddComponent<MeshComponent>(ctx.selectedEntity, mesh);
 
 				// TransformとMaterialもないならついでに作る
-				if (!world.HasComponent<TransformComponent>(m_SelectedEntity))
+				if (!world.HasComponent<TransformComponent>(ctx.selectedEntity))
 				{
 					TransformComponent tr{};
 					tr.RebuildWorld();
-					world.AddComponent<TransformComponent>(m_SelectedEntity, tr);
+					world.AddComponent<TransformComponent>(ctx.selectedEntity, tr);
 				}
 
-				if (!world.HasComponent<MaterialComponent>(m_SelectedEntity))
+				if (!world.HasComponent<MaterialComponent>(ctx.selectedEntity))
 				{
 					MaterialComponent material{};
 					material.material = std::make_shared<Material>();
 					material.material->Init();
-					world.AddComponent<MaterialComponent>(m_SelectedEntity, material);
+					world.AddComponent<MaterialComponent>(ctx.selectedEntity, material);
 					LOG->LogInfo(("マテリアルを生成しました"));
 				}
 			}
@@ -289,9 +293,9 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 	// ---- Material Component ---- //
 	if (ImGui::CollapsingHeader(u8("Material Component")))
 	{
-		if (world.HasComponent<MaterialComponent>(m_SelectedEntity))
+		if (world.HasComponent<MaterialComponent>(ctx.selectedEntity))
 		{
-			auto& materialComp = world.GetComponent<MaterialComponent>(m_SelectedEntity);
+			auto& materialComp = world.GetComponent<MaterialComponent>(ctx.selectedEntity);
 
 			// ファイルパスの設定
 			char filepathBuffer[256];
@@ -349,6 +353,7 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 
 			// マルチマテリアルのスロット一覧（読み取り表示）
 			Material* target = materialComp.material.get();
+
 			if (!materialComp.materials.empty())
 			{
 				static int selectedSub = 0;   // 編集中のサブマテリアル
@@ -380,6 +385,19 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 				if (materialComp.materials[selectedSub])
 					// 選択中のサブマテリアルをtargetに設定
 					target = materialComp.materials[selectedSub].get();
+
+				// マテリアルプレビュー
+				{
+					const auto& previewMat = materialComp.materials.empty()
+						? materialComp.material : materialComp.materials[selectedSub];
+
+					const auto srv = MaterialPreview::Get().Request(previewMat);
+					if (srv.ptr != 0)
+					{
+						ImGui::Image(static_cast<ImTextureID>(srv.ptr), ImVec2(128, 128));
+						ImGui::Separator();
+					}
+				}
 			}
 
 			// 選択中サブマテリアルシェーダ(個別)
@@ -404,6 +422,8 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 				}
 			}
 
+
+
 			// --- マテリアル質感パラメータ ---
 			if (target)
 			{
@@ -419,23 +439,36 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 
 				if (effShader == "PBR" || effShader == "SkinnedPBR")
 				{
+					// ---- 汎用 PBR ----
 					ImGui::SliderFloat(u8("Roughness##Mat"), &target->roughness, 0.0f, 1.0f);
 					ImGui::SliderFloat(u8("Metallic##Mat"), &target->metallic, 0.0f, 1.0f);
 					ImGui::ColorEdit4(u8("RimColor##Mat"), &target->rimColor.x);
-					ImGui::SeparatorText(u8("肌 / 布"));
-					ImGui::SliderFloat(u8("SSS強度##Mat"), &target->sssStrength, 0.0f, 1.0f);
-					ImGui::SliderFloat(u8("SSSラップ##Mat"), &target->sssWrap, 0.0f, 1.0f);
-					ImGui::SliderFloat(u8("逆光透過##Mat"), &target->sssTrans, 0.0f, 2.0f);
+
+					ImGui::SeparatorText(u8("発光"));
+					ImGui::ColorEdit3(u8("発光色##Mat"), &target->emissiveColor.x);
+					ImGui::SliderFloat(u8("発光強度##Mat"), &target->emissiveStrength, 0.0f, 10.0f);
 
 					// 床など、平面反射を映すサブマテリアルだけ強度を上げる
+					ImGui::SeparatorText(u8("平面反射"));
 					ImGui::SliderFloat(u8("反射強度##Mat"), &target->reflectStrength, 0.0f, 1.5f);
 					if (target->reflectStrength > 0.0f)
 					{
 						ImGui::SliderFloat(u8("反射フェード距離##Mat"), &target->reflectFade, 1.0f, 40.0f);
 						ImGui::SliderFloat(u8("反射ぼかし##Mat"), &target->reflectBlur, 0.0f, 8.0f);
 					}
-					ImGui::ColorEdit3(u8("散乱色##Mat"), &target->sssColor.x);
-					ImGui::SliderFloat(u8("布シーン##Mat"), &target->sheen, 0.0f, 2.0f);
+
+					// ---- 肌・布（PMX キャラ向け。既定は閉じる）----
+					// 使っているマテリアルだけ自動で開く
+					const bool usingSss = (target->sssStrength > 0.0f) || (target->sheen > 0.0f);
+					ImGui::SetNextItemOpen(usingSss, ImGuiCond_Once);
+					if (ImGui::CollapsingHeader(u8("肌 / 布（サブサーフェス）##MatSss")))
+					{
+						ImGui::SliderFloat(u8("SSS強度##Mat"), &target->sssStrength, 0.0f, 1.0f);
+						ImGui::SliderFloat(u8("SSSラップ##Mat"), &target->sssWrap, 0.0f, 1.0f);
+						ImGui::SliderFloat(u8("逆光透過##Mat"), &target->sssTrans, 0.0f, 2.0f);
+						ImGui::ColorEdit3(u8("散乱色##Mat"), &target->sssColor.x);
+						ImGui::SliderFloat(u8("布シーン##Mat"), &target->sheen, 0.0f, 2.0f);
+					}
 				}
 				if (effShader == "Rim" || effShader == "SkinnedRim")
 				{
@@ -461,6 +494,13 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 					ImGui::SliderFloat(u8("Metallic##Mat"), &target->metallic, 0.0f, 1.0f);
 				}
 
+				if (effShader == "Glass" || effShader == "SkinnedGlass")
+				{
+					ImGui::SliderFloat(u8("映り込みのボケ##Mat"), &target->roughness, 0.0f, 1.0f);
+					ImGui::ColorEdit3(u8("ガラス色##Mat"), &target->baseColor.x);
+					ImGui::SliderFloat(u8("正面の不透明度##Mat"), &target->baseColor.w, 0.0f, 1.0f);
+				}
+
 				if (effShader == "Genshin_Toon")
 				{
 					ImGui::SliderFloat(u8("ハイライトの広さ##Mat"), &target->roughness, 0.0f, 1.0f);
@@ -473,7 +513,7 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 			ImGui::Separator();
 			if (ImGui::SmallButton(u8("Remove##MaterialComponent")))
 			{
-				world.DeleteComponent<MaterialComponent>(m_SelectedEntity);
+				world.DeleteComponent<MaterialComponent>(ctx.selectedEntity);
 			}
 
 			// マテリアルの状態表示
@@ -486,33 +526,38 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 			{
 				ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.0f, 1.0f), u8("マテリアル未初期化"));
 			}
-
-			// トゥーンランプテクスチャ
-			char toonRampBuffer[256];
-			snprintf(toonRampBuffer, sizeof(toonRampBuffer), "%s", materialComp.RampFilePath.c_str());
-			if (ImGui::InputText(u8("トゥーンランプテクスチャ##ToonRampFilePath"), toonRampBuffer, sizeof(toonRampBuffer)))
+			// トゥーンランプはトゥーン系シェーダーでしか使わない
+			if (IsToonShader(materialComp.shaderName) ||
+				(target != nullptr && IsToonShader(target->shaderName)))
 			{
-				materialComp.RampFilePath = toonRampBuffer;
-			}
-
-			if (ImGui::BeginDragDropTarget())
-			{
-				const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ASSET_TEXTURE");
-				if (payload != nullptr)
+				// トゥーンランプテクスチャ
+				char toonRampBuffer[256];
+				snprintf(toonRampBuffer, sizeof(toonRampBuffer), "%s", materialComp.RampFilePath.c_str());
+				if (ImGui::InputText(u8("トゥーンランプテクスチャ##ToonRampFilePath"), toonRampBuffer, sizeof(toonRampBuffer)))
 				{
-					materialComp.RampFilePath = static_cast<const char*>(payload->Data);
+					materialComp.RampFilePath = toonRampBuffer;
 				}
-				ImGui::EndDragDropTarget();
-			}
 
-			if (ImGui::Button(u8("ランプ適用##MaterialRampApply")))
-			{
-				if (materialComp.material)
+
+				if (ImGui::BeginDragDropTarget())
 				{
-					std::wstring wpath = std::filesystem::path(materialComp.RampFilePath).wstring();
-					if (!materialComp.material->SetToonRampTexture(wpath))
+					const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ASSET_TEXTURE");
+					if (payload != nullptr)
 					{
-						LOG->LogError(u8("ランプテクスチャの読み込みに失敗しました"));
+						materialComp.RampFilePath = static_cast<const char*>(payload->Data);
+					}
+					ImGui::EndDragDropTarget();
+				}
+
+				if (ImGui::Button(u8("ランプ適用##MaterialRampApply")))
+				{
+					if (materialComp.material)
+					{
+						std::wstring wpath = std::filesystem::path(materialComp.RampFilePath).wstring();
+						if (!materialComp.material->SetToonRampTexture(wpath))
+						{
+							LOG->LogError(u8("ランプテクスチャの読み込みに失敗しました"));
+						}
 					}
 				}
 			}
@@ -522,22 +567,22 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 			if (ImGui::Button(u8("Add Component##MaterialComponent")))
 			{
 				MaterialComponent material{};
-				world.AddComponent<MaterialComponent>(m_SelectedEntity, material);
+				world.AddComponent<MaterialComponent>(ctx.selectedEntity, material);
 			}
 		}
 	}
 
 	for(const auto& compMeta : ComponentRegistry::All())
 	{
-		compMeta.draw(world, m_SelectedEntity);
+		compMeta.draw(world, ctx.selectedEntity);
 	}
 
 	// ---- Script Component ---- //
-	if (world.HasComponent<ScriptComponent>(m_SelectedEntity))
+	if (world.HasComponent<ScriptComponent>(ctx.selectedEntity))
 	{
 		if (ImGui::CollapsingHeader(u8("Script Component")))
 		{
-			auto& sc = world.GetComponent<ScriptComponent>(m_SelectedEntity);
+			auto& sc = world.GetComponent<ScriptComponent>(ctx.selectedEntity);
 
 			// 追加済みスクリプト一覧
 			int removeIdx = -1;
@@ -692,19 +737,19 @@ void EditorWindow::DrawInspector(World& world, Scene* scene)
 
 			ImGui::Separator();
 			if (ImGui::SmallButton(u8("Remove##ScriptComponent")))
-				world.DeleteComponent<ScriptComponent>(m_SelectedEntity);
+				world.DeleteComponent<ScriptComponent>(ctx.selectedEntity);
 		}
 	}
 	else
 	{
 		if (ImGui::Button(u8("Add Component##ScriptComponent")))
-			world.AddComponent<ScriptComponent>(m_SelectedEntity, ScriptComponent{});
+			world.AddComponent<ScriptComponent>(ctx.selectedEntity, ScriptComponent{});
 	}
 
-	DrawAddComponentPopup(world, m_SelectedEntity);
+	DrawAddComponentPopup(world, ctx.selectedEntity);
 }
 
-void EditorWindow::DrawAddComponentPopup(World& world, Entity entity)
+void InspectorPanel::DrawAddComponentPopup(World& world, Entity entity)
 {
 	ImGui::Separator();
 	if (ImGui::Button(u8("Add Component"), ImVec2(-1, 0)))
@@ -762,4 +807,14 @@ void EditorWindow::DrawAddComponentPopup(World& world, Entity entity)
 		if (added) ImGui::EndDisabled();
 	}
 	ImGui::EndPopup();
+}
+
+void InspectorPanel::Draw(EditorContext& ctx)
+{
+	if (ctx.activeScene == nullptr)
+	{
+		ImGui::Text(u8("アクティブなシーンがありません"));
+		return;
+	}
+	DrawInspector(ctx, ctx.activeScene->GetWorld(), ctx.activeScene);
 }

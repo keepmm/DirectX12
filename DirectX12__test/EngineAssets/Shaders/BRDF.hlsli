@@ -104,4 +104,14 @@ float3 N,float3 V,float3 L,float3 lightColor)
 
 }
 
+// Lazarov の環境 BRDF 近似。split-sum の第2項を LUT テクスチャ無しで求める
+float2 EnvBRDFApprox(float roughness, float NoV)
+{
+    const float4 c0 = float4(-1.0f, -0.0275f, -0.572f, 0.022f);
+    const float4 c1 = float4(1.0f, 0.0425f, 1.04f, -0.04f);
+    float4 r = roughness * c0 + c1;
+    float a004 = min(r.x * r.x, exp2(-9.28f * NoV)) * r.x + r.y;
+    return float2(-1.04f, 1.04f) * a004 + r.zw;
+}
+
 #endif

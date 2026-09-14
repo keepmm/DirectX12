@@ -46,7 +46,7 @@ std::string PickProjectFolder()
             PWSTR wpath = nullptr;
             if (SUCCEEDED(item->GetDisplayName(SIGDN_FILESYSPATH, &wpath)))
             {
-                result = fs::path(wpath).string();
+                result = PathToUtf8(fs::path(wpath));   // Launcher は UTF-8 として受け取る
                 CoTaskMemFree(wpath);
             }
             item->Release();
@@ -100,7 +100,7 @@ bool Project::Create(const std::filesystem::path& parentDir, const std::string& 
     std::error_code ec;
     if (fs::exists(root, ec) && !fs::is_empty(root, ec))
     {
-        outError = "フォルダが既に存在し、空ではありません: " + root.string();
+        outError = "フォルダが既に存在し、空ではありません: " + PathToUtf8(root);
         return false;
     }
 
@@ -140,7 +140,7 @@ bool Project::Create(const std::filesystem::path& parentDir, const std::string& 
 
 	// 最近開いたプロジェクトに追加する
 	PushRecents(m_Root);
-	//LOG->LogInfo("プロジェクト作成: " + m_Root.string());
+	//LOG->LogInfo("プロジェクト作成: " + PathToUtf8(m_Root));
     return true;
 }
 
@@ -161,14 +161,14 @@ bool Project::Open(const std::filesystem::path& path, std::string& outError)
 
     if (projFile.empty() || !fs::exists(projFile, ec))
     {
-        outError = ".dxproj が見つかりません: " + path.string();
+        outError = ".dxproj が見つかりません: " + PathToUtf8(path);
         return false;
     }
 
     std::ifstream ifs(projFile);
     if (!ifs)
     {
-		outError = ".dxprojを開けません: " + projFile.string();
+		outError = ".dxprojを開けません: " + PathToUtf8(projFile);
         return false;
     }
 
@@ -185,10 +185,10 @@ bool Project::Open(const std::filesystem::path& path, std::string& outError)
 	}
 
 	m_Root = fs::absolute(projFile.parent_path());
-    m_Name = j.value("name", m_Root.filename().string());
+    m_Name = j.value("name", PathToUtf8(m_Root.filename()));
     // 旧形式では "Assets/Scenes/Foo.json" のようにパスで入っていることがある。
     // SceneManager::ScenePathFromName が二重に組み立ててしまうので名前へ落とす
-    m_StartScene = fs::path(j.value("startScene", std::string("SampleScene"))).stem().string();
+    m_StartScene = PathToUtf8(Utf8ToPath(j.value("startScene", std::string("SampleScene"))).stem());
     if (m_StartScene.empty())
     {
         m_StartScene = "SampleScene";
@@ -196,7 +196,7 @@ bool Project::Open(const std::filesystem::path& path, std::string& outError)
 
     if (!fs::exists(m_Root / "Assets", ec))
     {
-        outError = "Assets フォルダが存在しません: " + (m_Root / "Assets").string();
+        outError = "Assets フォルダが存在しません: " + PathToUtf8(m_Root / "Assets");
         m_Root.clear();
 		return false;
     }
@@ -219,7 +219,7 @@ bool Project::Open(const std::filesystem::path& path, std::string& outError)
     }
 
 	PushRecents(m_Root);
-	//LOG->LogInfo("プロジェクトを開きました: " + m_Root.string());
+	//LOG->LogInfo("プロジェクトを開きました: " + PathToUtf8(m_Root));
     return true;
 }
 
@@ -241,11 +241,11 @@ bool Project::Save(std::string& outError) const
 	j["startScene"] = m_StartScene;
 	j["Version"] = 1;
 
-	const fs::path out = m_Root / (m_Name + ".dxproj");
+	const fs::path out = m_Root / Utf8ToPath(m_Name + ".dxproj");   // m_Name は UTF-8
     std::ofstream ofs(out);
     if (!ofs)
     {
-        outError = ".dxproj を書き出せません: " + out.string();
+        outError = ".dxproj を書き出せません: " + PathToUtf8(out);
 		return false;
     }
 
@@ -281,7 +281,7 @@ bool Project::CreateSkeleton(const fs::path& root, std::string& outError)
     fs::create_directories(root / "Assets" / "Scenes", ec);
     if (ec)
     {
-        outError = "フォルダ作成に失敗: " + (root / "Assets" / "Scenes").string()
+        outError = "フォルダ作成に失敗: " + PathToUtf8(root / "Assets" / "Scenes")
             + " (" + ec.message() + ")";
         return false;
     }
@@ -297,7 +297,7 @@ bool Project::WriteEmptyScene(const std::filesystem::path& scenePath) const
     // キー名は SceneSerializer::SaveToString に合わせる。
     // "name" だと LoadFromString の sceneName 判定に引っかからない
     json j;
-	j["sceneName"] = scenePath.stem().string();
+	j["sceneName"] = PathToUtf8(scenePath.stem());
 	j["entities"] = json::array();
 
     std::ofstream ofs(scenePath);
@@ -313,7 +313,7 @@ bool Project::Activate(std::string& outError)
 {
     if (!SetCurrentDirectoryW(m_Root.c_str()))
     {
-        outError = "カレントディレクトリの変更に失敗: " + m_Root.string();
+        outError = "カレントディレクトリの変更に失敗: " + PathToUtf8(m_Root);
 		return false;
     }
 
@@ -374,7 +374,7 @@ bool Project::RefreshScriptProjectSources(std::string& outError)
     const fs::path proj = GetScriptProjectPath();
     if (!fs::exists(proj))
     {
-        outError = "Scripts.vcxproj がありません: " + proj.string();
+        outError = "Scripts.vcxproj がありません: " + PathToUtf8(proj);
         return false;
     }
 
@@ -387,7 +387,7 @@ bool Project::RefreshScriptProjectSources(std::string& outError)
 
         const auto ext = e.path().extension();
         const std::string rel =
-            fs::relative(e.path(), m_Root, ec).make_preferred().string();
+            PathToUtf8(fs::relative(e.path(), m_Root, ec).make_preferred());
 
         if (ext == ".cpp")      cpps.push_back(rel);
         else if (ext == ".hpp") hpps.push_back(rel);
@@ -430,7 +430,7 @@ bool Project::RefreshScriptProjectSources(std::string& outError)
     std::ofstream out(proj, std::ios::binary);
     if (!out)
     {
-        outError = "Scripts.vcxproj の更新に失敗: " + proj.string();
+        outError = "Scripts.vcxproj の更新に失敗: " + PathToUtf8(proj);
         return false;
     }
     out << updated;
@@ -571,7 +571,7 @@ bool Project::EnsureScriptProject(std::string& outError)
     std::ofstream ofs(out, std::ios::binary);
     if (!ofs)
     {
-        outError = "Scripts.vcxproj の書き出しに失敗: " + out.string();
+        outError = "Scripts.vcxproj の書き出しに失敗: " + PathToUtf8(out);
         return false;
     }
 
@@ -584,8 +584,8 @@ bool Project::EnsureScriptProject(std::string& outError)
 
         // 末尾の区切りは付ける($(EngineDir)..\Scripts\ の連結が前提)
         fs::path engineDirPath = slnDir / "DirectX12__test";
-        const std::string engineDir = engineDirPath.make_preferred().string() + "\\";
-        const std::string engineOut = exeDir.make_preferred().string() + "\\";
+        const std::string engineDir = PathToUtf8(engineDirPath.make_preferred()) + "\\";
+        const std::string engineOut = PathToUtf8(exeDir.make_preferred()) + "\\";
 
         std::string xml = kScriptProjectTemplate;
 
@@ -610,7 +610,7 @@ bool Project::EnsureScriptProject(std::string& outError)
         std::ofstream slnOfs(sln, std::ios::binary);
         if (!slnOfs)
         {
-            outError = "Scripts.sln の書き出しに失敗: " + sln.string();
+            outError = "Scripts.sln の書き出しに失敗: " + PathToUtf8(sln);
             return false;
         }
         slnOfs << kScriptSolutionTemplate;

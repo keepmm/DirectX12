@@ -16,6 +16,7 @@
 #include <filesystem>
 #include <shellapi.h>
 #include <vector>
+#include "AssetDatabase.hpp"
 
 int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmdShow)
 {
@@ -98,6 +99,13 @@ int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCm
 			LaunchLauncher();
 			CoUninitialize();
 			return 0;
+		}
+
+		// アセットの GUID を作る / 読む
+		// ゲーム盤はシーン json に併記されたパスで解決
+		if (!gameMode)
+		{
+			ASSETDB->Refresh();
 		}
 
 		APPLICATION->SetStartScene(PROJECT->GetStartScene());

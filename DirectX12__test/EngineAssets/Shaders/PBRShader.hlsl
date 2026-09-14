@@ -8,6 +8,8 @@ Texture2D g_Metal : register(t3);
 Texture2D g_Rough : register(t4);
 Texture2D g_Env : register(t5);
 Texture2D g_Shadow : register(t6);
+Texture2D g_Emissive : register(t7);
+Texture2D g_Occlusion : register(t9);
 SamplerState g_Sampler : register(s0);
 SamplerComparisonState g_ShadowSampler : register(s2);
 
@@ -38,7 +40,9 @@ static const float PI2 = 6.283185307179586476925286766559f;
 
 float2 DirToEquirect(float3 d)
 {
-    return float2(atan2(d.z, d.x) / PI2 + 0.5f + acos(clamp(d.y, -1, 1)) / 3.1415926535897932384626433832795f, 0.5f - asin(clamp(d.y, -1, 1)) / 3.1415926535897932384626433832795f);
+    // スカイボックス(SkyBoxShader.hlsl)と同じ向きに揃えること
+    return float2(atan2(d.z, d.x) / PI2 + 0.5f,
+                  acos(clamp(d.y, -1, 1)) / 3.1415926535897932384626433832795f);
 }
 
 cbuffer Material : register(b3)
@@ -51,6 +55,10 @@ cbuffer Material : register(b3)
     float4 faceParam; // レイアウト合わせ(未使用)
     float4 sssParams; // x=SSS強度 y=ラップ z=透過 w=布シーン
     float4 sssColor;
+    float4 basecolor;
+    float4 reflectParam;
+    float4 pbrParams;     // x: hasEmissive, y: hasOcclusion, z: エミッシブ強度
+    float4 emissiveColor;
 }
 
 float4 PbrPS(PSInput input) : SV_TARGET
@@ -72,8 +80,11 @@ float4 PbrPS(PSInput input) : SV_TARGET
     }
 
     // metal / rough（あればテクスチャ優先）
-    float m = (mapFlags.y > 0.5f) ? g_Metal.Sample(g_Sampler, input.uv).r : metallic;
-    float r = (mapFlags.z > 0.5f) ? g_Rough.Sample(g_Sampler, input.uv).r : roughness;
+    // glTF 仕様どおり、テクスチャがあれば係数を乗算する（無ければ係数そのもの）
+    float m = (mapFlags.y > 0.5f) ? g_Metal.Sample(g_Sampler, input.uv).r * metallic : metallic;
+    float r = (mapFlags.z > 0.5f) ? g_Rough.Sample(g_Sampler, input.uv).r * roughness : roughness;
+
+    float ao = (pbrParams.y > 0.5f) ? g_Occlusion.Sample(g_Sampler, input.uv).r : 1.0f;
 
     float3 V = normalize(cameraPos.xyz - input.worldPos);
     float3 color = 0;
@@ -139,24 +150,32 @@ float4 PbrPS(PSInput input) : SV_TARGET
         float maxMip = mapFlags.w;
         float3 F0 = lerp(0.04, albedo, m);
         float ndotv = saturate(dot(N, V));
-        float3 kS = F0 + (max(1.0 - r, F0) - F0) * pow(1.0 - ndotv, 5.0); // Fresnel(rough)
-        float3 kD = (1.0 - kS) * (1.0 - m);
 
-        // 鏡面：反射ベクトル方向をラフネスでミップ選択
+        // 鏡面：最も粗い2ミップは拡散用に潰してあるのでそこまでは使わない
         float3 R = reflect(-V, N);
-        float3 prefiltered = g_Env.SampleLevel(g_Sampler, DirToEquirect(R), r * maxMip).rgb;
-        float3 specularIBL = prefiltered * kS;
+        float3 prefiltered = g_Env.SampleLevel(g_Sampler, DirToEquirect(R), r * max(maxMip - 2.0f, 0.0f)).rgb;
 
-        // 拡散：法線方向を最粗ミップ（放射照度）
+        // split-sum の第2項（解析近似）
+        float2 dfg = EnvBRDFApprox(r, ndotv);
+        float3 specularIBL = prefiltered * (F0 * dfg.x + dfg.y);
+
+        // 拡散：最粗ミップ＝コサイン畳み込み済みの放射照度
         float3 irradiance = g_Env.SampleLevel(g_Sampler, DirToEquirect(N), maxMip).rgb;
+        float3 kD = (1.0f - F0) * (1.0f - m);
         float3 diffuseIBL = irradiance * albedo * kD;
 
-        color += diffuseIBL + specularIBL;
+        // AO は間接光にだけ掛ける
+        color += (diffuseIBL + specularIBL) * ao;
     }
     else
     {
-        color += albedo * ambientColor.rgb; // 従来のアンビエント
+        color += albedo * ambientColor.rgb * ao; // 従来のアンビエント
     }
+
+    float3 emissive = emissiveColor.rgb * pbrParams.z;
+    if (pbrParams.x > 0.5f)
+        emissive *= g_Emissive.Sample(g_Sampler, input.uv).rgb;
+    color += emissive;
 
     return float4(color, input.col.a);
 }

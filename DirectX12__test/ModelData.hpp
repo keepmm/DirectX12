@@ -35,13 +35,21 @@ struct MaterialTextureSet
 	std::wstring normal;
 	std::wstring metal;
 	std::wstring rough;
+	std::wstring emissive;
+	std::wstring occlusion;
 
 	std::shared_ptr<DecodedImage> diffuseImage;
 	std::shared_ptr<DecodedImage> normalImage;
 	std::shared_ptr<DecodedImage> metalImage;
 	std::shared_ptr<DecodedImage> roughImage;
+	std::shared_ptr<DecodedImage> emissiveImage;
+	std::shared_ptr<DecodedImage> occlusionImage;
+
+	/// glTF: metallicRoughness を1枚で兼用している場合の元パス（G=rough / B=metal）
+	std::wstring ormPath;
 
 	COLOR diffuseColor{ 1.0f,1.0f,1.0f,1.0f };
+	COLOR emissiveColor{ 0.0f,0.0f,0.0f,1.0f };   // glTF の emissiveFactor
 };
 
 /*

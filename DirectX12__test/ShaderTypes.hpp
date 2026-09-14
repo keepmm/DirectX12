@@ -35,6 +35,9 @@ struct alignas(256) MaterialCB
 	// 平面反射。x:強度 y:フェード距離 z:ぼかし半径 w:反射RTの解像度スケール
 	// x が 0 なら床シェーダー側で一切サンプルしない
 	float4 reflectParam{ 0.0f, 8.0f, 1.0f, 0.5f };
+	// x: hasEmissive y: hasOcclusion z: エミッシブ強度
+	float4 pbrParams{ 0.0f, 0.0f, 1.0f, 0.0f };
+	float4 emissiveColor{ 0.0f, 0.0f, 0.0f, 1.0f };
 };
 
 struct LightData

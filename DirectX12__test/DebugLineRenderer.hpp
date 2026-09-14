@@ -27,10 +27,10 @@ public:
 		_In_ const float4& color,
 		_In_ bool depthTest = false);
 
-	/// @brief 描画
-	/// @param context 描画に必要な情報 
+	/// @param depthPsoOverride 深度テストあり群に使う PSO（nullptr なら既定）
 	void Draw(
-		_In_ const RenderContext& context);
+		_In_ const RenderContext& render,
+		_In_opt_ ID3D12PipelineState* depthPsoOverride = nullptr);
 private:
 	/// @brief ライン用頂点データ
 	struct LineVertex

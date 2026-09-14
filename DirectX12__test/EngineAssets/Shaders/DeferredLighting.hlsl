@@ -3,6 +3,7 @@
 #include "BRDF.hlsli"
 
 Texture2D g_Albedo : register(t0);
+Texture2D g_Emissive : register(t1);
 Texture2D g_Normal : register(t2);
 Texture2D g_ORM : register(t3);
 Texture2D g_Depth : register(t4);
@@ -72,8 +73,8 @@ static const float PI2 = 6.283185307f;
 
 float2 DirToEquirect(float3 d)
 {
-    return float2(atan2(d.z, d.x) / PI2 + 0.5f + acos(clamp(d.y, -1, 1)) / PI,
-                  0.5f - asin(clamp(d.y, -1, 1)) / PI);
+    return float2(atan2(d.z, d.x) / PI2 + 0.5f,
+                  acos(clamp(d.y, -1, 1)) / PI);
 }
 
 float3 ToonRamp(float nDotL)
@@ -94,9 +95,10 @@ float4 DeferredPS(VSOut input) : SV_TARGET
 
     float3 baseColor = g_Albedo.Sample(g_Sampler, input.uv).rgb;
     float3 N = g_Normal.Sample(g_Sampler, input.uv).rgb * 2.0f - 1.0f;
-    float2 mr = g_ORM.Sample(g_Sampler, input.uv).rg;
-    float metallic = mr.x;
-    float roughness = mr.y;
+    float3 orm = g_ORM.Sample(g_Sampler, input.uv).rgb;
+    float metallic = orm.x;
+    float roughness = orm.y;
+    float ao = orm.z;
 
     float3 V = normalize(cameraPos.xyz - worldPos);
     float shininess = lerp(64.0f, 8.0f, saturate(roughness));
@@ -135,21 +137,29 @@ float4 DeferredPS(VSOut input) : SV_TARGET
     float maxMip = envParam.x;
     if (maxMip > 0.0f)
     {
-        // 拡散：法線方向の最も粗いミップ＝環境の平均照度
+        float3 F0 = lerp(0.04f, baseColor, metallic);
+        float ndotv = saturate(dot(N, V));
+
+        // 拡散：最粗ミップ＝コサイン畳み込み済みの放射照度
         float3 irradiance = g_Env.SampleLevel(g_Sampler, DirToEquirect(N), maxMip).rgb;
-        float3 diffuseIBL = irradiance * baseColor * envParam.y;
+        float3 kD = (1.0f - F0) * (1.0f - metallic);
+        float3 diffuseIBL = irradiance * baseColor * kD * envParam.y;
 
-        // 鏡面：反射方向をラフネスでミップ選択（メタルほど強く）
+        // 鏡面：最も粗い2ミップは拡散用なので使わない。第2項は解析近似
         float3 R = reflect(-V, N);
-        float3 prefiltered = g_Env.SampleLevel(g_Sampler, DirToEquirect(R), roughness * maxMip).rgb;
-        float3 specularIBL = prefiltered * metallic;
+        float3 prefiltered = g_Env.SampleLevel(g_Sampler, DirToEquirect(R), roughness * max(maxMip - 2.0f, 0.0f)).rgb;
+        float2 dfg = EnvBRDFApprox(roughness, ndotv);
+        float3 specularIBL = prefiltered * (F0 * dfg.x + dfg.y);
 
-        color += diffuseIBL + specularIBL;
+        // AO は間接光にだけ掛ける（直接光まで落とすと不自然に潰れる）
+        color += (diffuseIBL + specularIBL) * ao;
     }
     else
     {
-        color += baseColor * ambientColor.rgb;
+        color += baseColor * ambientColor.rgb * ao;
     }
+
+    color += g_Emissive.Sample(g_Sampler, input.uv).rgb;
 
     return float4(color, 1.0f);
 }

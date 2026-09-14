@@ -152,6 +152,8 @@ struct SubMaterialRestore
 	float reflectStrength = 0.0f;	// 平面反射。床のサブマテリアルだけ上げる
 	float reflectFade = 8.0f;
 	float reflectBlur = 1.0f;
+	COLOR emissiveColor = { 0.0f,0.0f,0.0f,1.0f };
+	float emissiveStrength = 1.0f;
 };
 
 struct MaterialComponent
@@ -489,7 +491,7 @@ struct LiveDirectorComponent
 
 	void Reflect(FieldList& f)
 	{
-		f.Add("TimelinePath", timelinePath);
+		f.AddAssetPath("TimelinePath", timelinePath);
 		f.Add("Enabled", enabled);
 		f.AddRange("TimeScale", timeScale, 0.0f, 2.0f);
 	}
