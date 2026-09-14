@@ -236,19 +236,40 @@ void EditorWindow::BuildWorkspaceLayout(unsigned int dockspaceID, const ImVec2& 
 	}
 	else
 	{
-		// ゲームエンジン: 従来のレイアウト
-		ImGuiID dockLeftID = ImGui::DockBuilderSplitNode(dockMainID, ImGuiDir_Left, 0.12f, nullptr, &dockMainID);
-		ImGuiID dockRightID = ImGui::DockBuilderSplitNode(dockMainID, ImGuiDir_Right, 0.15f, nullptr, &dockMainID);
-		ImGuiID dockBottomID = ImGui::DockBuilderSplitNode(dockMainID, ImGuiDir_Down, 0.20f, nullptr, &dockMainID);
+		//// ゲームエンジン: 従来のレイアウト
+		//ImGuiID dockLeftID = ImGui::DockBuilderSplitNode(dockMainID, ImGuiDir_Left, 0.12f, nullptr, &dockMainID);
+		//ImGuiID dockRightID = ImGui::DockBuilderSplitNode(dockMainID, ImGuiDir_Right, 0.15f, nullptr, &dockMainID);
+		//ImGuiID dockBottomID = ImGui::DockBuilderSplitNode(dockMainID, ImGuiDir_Down, 0.20f, nullptr, &dockMainID);
+
+		//ImGui::DockBuilderDockWindow(u8("アウトライナー"), dockLeftID);
+		//ImGui::DockBuilderDockWindow(u8("ゲーム画面"), dockMainID);
+		//ImGui::DockBuilderDockWindow(u8("エディタ画面"), dockMainID);
+		//ImGui::DockBuilderDockWindow(u8("プロパティパネル"), dockRightID);
+		//ImGui::DockBuilderDockWindow(u8("詳細パネル"), dockBottomID);
+		//ImGui::DockBuilderDockWindow(u8("コンソール"), dockBottomID);
+		//ImGui::DockBuilderDockWindow(u8("ライブタイムライン"), dockBottomID);
+		//ImGui::DockBuilderDockWindow(u8("MMDコントローラー"), dockBottomID);
+
+		ImGuiID dockRightID = ImGui::DockBuilderSplitNode(
+			dockMainID, ImGuiDir_Right, 0.22f, nullptr, &dockMainID);
+
+		ImGuiID dockBottomID = ImGui::DockBuilderSplitNode(
+			dockMainID, ImGuiDir_Down, 0.36f, nullptr, &dockMainID);
+
+		ImGuiID dockLeftID = ImGui::DockBuilderSplitNode(
+			dockMainID, ImGuiDir_Left, 0.27f, nullptr, &dockMainID);
 
 		ImGui::DockBuilderDockWindow(u8("アウトライナー"), dockLeftID);
-		ImGui::DockBuilderDockWindow(u8("ゲーム画面"), dockMainID);
 		ImGui::DockBuilderDockWindow(u8("エディタ画面"), dockMainID);
+		ImGui::DockBuilderDockWindow(u8("ゲーム画面"), dockMainID);
 		ImGui::DockBuilderDockWindow(u8("プロパティパネル"), dockRightID);
+
+		// 下段は Unity の Project / Console のタブ並びに合わせて、アセットを先頭に
 		ImGui::DockBuilderDockWindow(u8("詳細パネル"), dockBottomID);
 		ImGui::DockBuilderDockWindow(u8("コンソール"), dockBottomID);
 		ImGui::DockBuilderDockWindow(u8("ライブタイムライン"), dockBottomID);
 		ImGui::DockBuilderDockWindow(u8("MMDコントローラー"), dockBottomID);
+		ImGui::DockBuilderDockWindow(u8("プロファイラ"), dockBottomID);
 	}
 
 	ImGui::DockBuilderFinish(dockspaceID);
