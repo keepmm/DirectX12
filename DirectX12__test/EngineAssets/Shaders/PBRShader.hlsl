@@ -164,8 +164,8 @@ float4 PbrPS(PSInput input) : SV_TARGET
         float3 kD = (1.0f - F0) * (1.0f - m);
         float3 diffuseIBL = irradiance * albedo * kD;
 
-        // AO は間接光にだけ掛ける
-        color += (diffuseIBL + specularIBL) * ao;
+        // AO は間接光にだけ掛ける。lightCount.y = IBL の強さ(RenderSettings::envIntensity)
+        color += (diffuseIBL + specularIBL) * ao * lightCount.y;
     }
     else
     {

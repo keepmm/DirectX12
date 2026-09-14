@@ -14,7 +14,7 @@ struct LightData
 cbuffer Light : register(b2)
 {
     float4 ambientColor;
-    float4 lightCount;
+    float4 lightCount;      // x: 有効ライト数 / y: IBL の強さ
     float4x4 lightviewproj;
     float4 shadowParams;
     LightData lights[MAX_LIGHTS];

@@ -80,6 +80,7 @@ void HierarchyPanel::DrawSceneInfo(Scene& scene)
 	ImGui::Separator();
 	ImGui::Checkbox("Deferred Rendering", &RenderSettings::Get().deferred);
 	ImGui::Checkbox("Volumetric Light", &RenderSettings::Get().volumetric);
+	ImGui::SliderFloat("IBL Intensity", &RenderSettings::Get().envIntensity, 0.0f, 2.0f);
 	ImGui::Text("Lights: %u (volumetric %u)",
 		APP->GetLastLightCount(), APP->GetLastVolumetricCount());
 	ImGui::Separator();
