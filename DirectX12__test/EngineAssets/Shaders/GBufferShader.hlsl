@@ -48,8 +48,9 @@ GbufferOutput GBufferPS(PSInput input)
         N = normalize(mul(nTex, float3x3(T, B, N)));
     }
     
-    float m = (mapFlags.y > 0.5f) ? g_Metal.Sample(g_Sampler, input.uv).r : metallic;
-    float r = (mapFlags.z > 0.5f) ? g_Rough.Sample(g_Sampler, input.uv).r : roughness;
+    // glTF 仕様どおり、テクスチャがあれば係数を乗算する（無ければ係数そのもの）
+    float m = (mapFlags.y > 0.5f) ? g_Metal.Sample(g_Sampler, input.uv).r * metallic : metallic;
+    float r = (mapFlags.z > 0.5f) ? g_Rough.Sample(g_Sampler, input.uv).r * roughness : roughness;
     
     float ao = (pbrParams.y > 0.5f) ? g_Occlusion.Sample(g_Sampler, input.uv).r : 1.0f;
 

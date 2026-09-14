@@ -1041,6 +1041,7 @@ void DirectXApp::RegisterBuiltinShaders()
 		{ "Fresnel",   { L"VertexShader.hlsl","BasicVS","vs_5_0", L"FresnelShader.hlsl",  "FresnelPS",  "ps_5_0", false } },
 		{ "Dissolve",   { L"VertexShader.hlsl","BasicVS","vs_5_0", L"DissolveShader.hlsl",  "DissolvePS",  "ps_5_0", false } },
 		{ "BlinnPhong",   { L"VertexShader.hlsl","BasicVS","vs_5_0", L"BlinnPhongShader.hlsl",  "PhongPS",  "ps_5_0", false } },
+		{ "Glass",   { L"VertexShader.hlsl","BasicVS","vs_5_0", L"GlassShader.hlsl",  "GlassPS",  "ps_5_0", true } },
 
 		{ "SkinnedPBR", { L"SkinnedShader.hlsl","SkinnedVS","vs_5_0", L"PBRShader.hlsl","PbrPS","ps_5_0", false } },
 		{ "SkinnedToon",{ L"SkinnedShader.hlsl","SkinnedVS","vs_5_0", L"ToonShader.hlsl","ToonPS","ps_5_0", false } },
@@ -1052,6 +1053,7 @@ void DirectXApp::RegisterBuiltinShaders()
 		{ "SkinnedFresnel",{ L"SkinnedShader.hlsl","SkinnedVS","vs_5_0", L"FresnelShader.hlsl","FresnelPS","ps_5_0", false } },
 		{ "SkinnedDissolve",{ L"SkinnedShader.hlsl","SkinnedVS","vs_5_0", L"DissolveShader.hlsl","DissolvePS","ps_5_0", false } },
 		{ "SkinnedBlinnPhong",{ L"SkinnedShader.hlsl","SkinnedVS","vs_5_0", L"BlinnPhongShader.hlsl","PhongPS","ps_5_0", false } },
+		{ "SkinnedGlass",{ L"SkinnedShader.hlsl","SkinnedVS","vs_5_0", L"GlassShader.hlsl","GlassPS","ps_5_0", true } },
 
 
 		{ "Genshin_Toon",{ L"SkinnedShader.hlsl","SkinnedVS","vs_5_0", L"Genshin_ToonShader.hlsl","Genshin_ToonPS","ps_5_0", false } },
@@ -2056,19 +2058,19 @@ void DirectXApp::FlushGpuExec()
 
 namespace
 {
-	/// @brief 等距円筒の (u,v) → 方向ベクトル
+	/// @brief 等距円筒の (u,v) → 方向ベクトル（SkyBoxShader.hlsl と同じ向き）
 	inline float3 EquirectToDirCpu(float u, float v)
 	{
-		const float phi   = (u * 2.0f - 1.0f) * DirectX::XM_PI;
+		const float phi = (u - 0.5f) * 2.0f * DirectX::XM_PI;
 		const float theta = v * DirectX::XM_PI;
 		const float st = sinf(theta);
-		return { st * sinf(phi), cosf(theta), -st * cosf(phi) };
+		return { st * cosf(phi), cosf(theta), st * sinf(phi) };
 	}
 
 	/// @brief 方向ベクトル → 等距円筒の (u,v)
 	inline void DirToEquirectCpu(const float3& d, float& u, float& v)
 	{
-		u = atan2f(d.x, -d.z) / (2.0f * DirectX::XM_PI) + 0.5f;
+		u = atan2f(d.z, d.x) / (2.0f * DirectX::XM_PI) + 0.5f;
 		v = acosf(std::clamp(d.y, -1.0f, 1.0f)) / DirectX::XM_PI;
 	}
 

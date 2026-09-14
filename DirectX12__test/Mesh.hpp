@@ -23,6 +23,13 @@ public:
 		_In_opt_ const std::vector<SubMesh>* subMeshes = nullptr);
 
 	void CreateCube(_In_ const ComPtr<ID3D12Device>& device);
+
+	/// @brief UV球を作る
+	void CreateSphere(
+		UINT segments = 32,
+		UINT rings = 16
+	);
+
 	void Draw(_In_ ID3D12GraphicsCommandList* commandList) const;
 
 	void DrawSubMesh(_In_ ID3D12GraphicsCommandList* commandList, UINT subMeshIndex) const;

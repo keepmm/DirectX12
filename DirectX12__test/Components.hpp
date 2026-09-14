@@ -151,6 +151,8 @@ struct SubMaterialRestore
 	float reflectStrength = 0.0f;	// 平面反射。床のサブマテリアルだけ上げる
 	float reflectFade = 8.0f;
 	float reflectBlur = 1.0f;
+	COLOR emissiveColor = { 0.0f,0.0f,0.0f,1.0f };
+	float emissiveStrength = 1.0f;
 };
 
 struct MaterialComponent

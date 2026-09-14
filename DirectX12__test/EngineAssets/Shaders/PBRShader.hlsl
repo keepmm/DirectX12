@@ -40,7 +40,9 @@ static const float PI2 = 6.283185307179586476925286766559f;
 
 float2 DirToEquirect(float3 d)
 {
-    return float2(atan2(d.z, d.x) / PI2 + 0.5f + acos(clamp(d.y, -1, 1)) / 3.1415926535897932384626433832795f, 0.5f - asin(clamp(d.y, -1, 1)) / 3.1415926535897932384626433832795f);
+    // スカイボックス(SkyBoxShader.hlsl)と同じ向きに揃えること
+    return float2(atan2(d.z, d.x) / PI2 + 0.5f,
+                  acos(clamp(d.y, -1, 1)) / 3.1415926535897932384626433832795f);
 }
 
 cbuffer Material : register(b3)
@@ -78,8 +80,9 @@ float4 PbrPS(PSInput input) : SV_TARGET
     }
 
     // metal / rough（あればテクスチャ優先）
-    float m = (mapFlags.y > 0.5f) ? g_Metal.Sample(g_Sampler, input.uv).r : metallic;
-    float r = (mapFlags.z > 0.5f) ? g_Rough.Sample(g_Sampler, input.uv).r : roughness;
+    // glTF 仕様どおり、テクスチャがあれば係数を乗算する（無ければ係数そのもの）
+    float m = (mapFlags.y > 0.5f) ? g_Metal.Sample(g_Sampler, input.uv).r * metallic : metallic;
+    float r = (mapFlags.z > 0.5f) ? g_Rough.Sample(g_Sampler, input.uv).r * roughness : roughness;
 
     float ao = (pbrParams.y > 0.5f) ? g_Occlusion.Sample(g_Sampler, input.uv).r : 1.0f;
 

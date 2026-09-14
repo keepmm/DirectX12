@@ -3,6 +3,7 @@
 #include "World.hpp"
 #include "imguiinit.hpp"
 #include "imgui.h"
+// <Windows.h> の min/max マクロに壊されないよう、呼び出しは (std::max)(...) と括る
 #include <algorithm>
 #include <vector>
 
@@ -14,7 +15,7 @@ inline void SeekMusic(World& world, float time)
     world.Each<AudioSourceComponent, MusicSyncComponent>(
         [&](Entity, AudioSourceComponent& src, MusicSyncComponent& sync)
         {
-            const float t = std::max(0.0f, time - sync.offset);
+            const float t = (std::max)(0.0f, time - sync.offset);
             src.seekSeconds = t;
             src.seekRequested = true;
             sync.seekBase = t;
@@ -67,16 +68,16 @@ inline void DrawMmdPlayerControls(World& world, AnimatorComponent& an)
     ImGui::SameLine();
     if (ImGui::Button(u8("最初から"))) seekTo(0.0f);
     ImGui::SameLine();
-    if (ImGui::Button("|<")) seekTo(std::max(0.0f, an.time - oneFrame));
+    if (ImGui::Button("|<")) seekTo((std::max)(0.0f, an.time - oneFrame));
     ImGui::SameLine();
-    if (ImGui::Button(">|")) seekTo(std::min(clip.duration, an.time + oneFrame));
+    if (ImGui::Button(">|")) seekTo((std::min)(clip.duration, an.time + oneFrame));
     ImGui::SameLine();
     ImGui::Checkbox(u8("ループ"), &an.loop);
 
     // --- シークスライダー(フレーム単位) ---
     int frame = (int)(an.time * MMD_FPS + 0.5f);
     ImGui::SetNextItemWidth(-1.0f);
-    if (ImGui::SliderInt("##mmdseek", &frame, 0, std::max(totalFrame, 1), u8("%d フレーム")))
+    if (ImGui::SliderInt("##mmdseek", &frame, 0, (std::max)(totalFrame, 1), u8("%d フレーム")))
         an.time = std::clamp(frame / MMD_FPS, 0.0f, clip.duration);   // 曲はまだ動かさない
 
     // ドラッグ中は物理も曲も止め、離した瞬間にまとめて追従させる

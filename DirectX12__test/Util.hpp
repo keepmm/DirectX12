@@ -6,6 +6,9 @@
 #include "Material.hpp"
 #include "ModelData.hpp"
 #include "Debug.hpp"
+#include "Mesh.hpp"
+#include "World.hpp"
+#include "Components.hpp"
 
 // ---- UTF-8 <-> wide 変換 ---- //
 inline std::wstring Utf8ToWide(const std::string& s)
@@ -141,8 +144,16 @@ inline std::vector<std::shared_ptr<Material>> BuildMaterials(
         }
 
         if (set.normalImage && set.normalImage->ok) m->CreateNormalFromRGBA(set.normalImage->width, set.normalImage->height, set.normalImage->pixels.data());
-        if (set.metalImage && set.metalImage->ok)   m->CreateMetalFromRGBA(set.metalImage->width, set.metalImage->height, set.metalImage->pixels.data());
-        if (set.roughImage && set.roughImage->ok)   m->CreateRoughFromRGBA(set.roughImage->width, set.roughImage->height, set.roughImage->pixels.data());
+        if (set.metalImage && set.metalImage->ok)
+        {
+            m->CreateMetalFromRGBA(set.metalImage->width, set.metalImage->height, set.metalImage->pixels.data());
+            m->metallic = 1.0f;    // マップがあるときは係数。既定は等倍
+        }
+        if (set.roughImage && set.roughImage->ok)
+        {
+            m->CreateRoughFromRGBA(set.roughImage->width, set.roughImage->height, set.roughImage->pixels.data());
+            m->roughness = 1.0f;
+        }
         if (set.emissiveImage && set.emissiveImage->ok &&
             m->CreateEmissiveFromRGBA(set.emissiveImage->width, set.emissiveImage->height, set.emissiveImage->pixels.data()))
         {
@@ -155,7 +166,6 @@ inline std::vector<std::shared_ptr<Material>> BuildMaterials(
             m->emissiveColor = set.emissiveColor;   // 既定は黒＝発光なし
         }
         if (set.occlusionImage && set.occlusionImage->ok) m->CreateOcclusionFromRGBA(set.occlusionImage->width, set.occlusionImage->height, set.occlusionImage->pixels.data());
-        if (set.occlusionImage && set.occlusionImage->ok) m->CreateOcclusionFromRGBA(set.occlusionImage->width, set.occlusionImage->height, set.occlusionImage->pixels.data());
 
         out.push_back(m);
         LOG->LogInfo("SubMat: " + set.name
@@ -163,6 +173,41 @@ inline std::vector<std::shared_ptr<Material>> BuildMaterials(
             + " imgOk=" + std::to_string(set.diffuseImage && set.diffuseImage->ok));
     }
     return out;
+}
+
+inline constexpr const char* kPrimitiveSphere = "@Sphere";
+inline constexpr const char* kPrimitiveCube = "@Cube";
+
+inline bool IsPrimitivePath(const std::string& path)
+{
+    return !path.empty() && path[0] == '@';
+
+}
+
+/// @brief プリミティブのメッシュとマテリアルをエンティティに載せる
+inline void BuildPrimitiveEntity(World& world, Entity e, const std::string& tag)
+{
+    auto mesh = std::make_shared<Mesh>();
+    if (tag == kPrimitiveCube) mesh->CreateCube(APP->GetDevice());
+    else                       mesh->CreateSphere();
+
+    MeshComponent mc{};
+    mc.mesh = mesh;
+    mc.FilePath = tag;
+    if (world.HasComponent<MeshComponent>(e)) world.GetComponent<MeshComponent>(e) = mc;
+    else                                      world.AddComponent<MeshComponent>(e, mc);
+
+    if (!world.HasComponent<MaterialComponent>(e))
+    {
+        MaterialComponent mat{};
+        mat.shaderName = "PBR";
+        mat.material = std::make_shared<Material>();
+        mat.material->Init();
+        mat.material->SetSolidColor({ 1.0f, 1.0f, 1.0f, 1.0f });   // テクスチャ無しの白
+        mat.materials.push_back(mat.material);
+        mat.materialnames.push_back("Primitive");
+        world.AddComponent<MaterialComponent>(e, mat);
+    }
 }
 
 inline std::string ShiftJisUtf8(const std::string& sjis)

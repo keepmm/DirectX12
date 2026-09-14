@@ -161,6 +161,14 @@ void Engine::Run()
 		}
 		else
 		{
+			// 最小化中は描画しない(クライアント領域が 0x0 になる)。
+			// メッセージが来るまで寝て CPU/GPU を空ける
+			if (IsIconic(m_hWnd))
+			{
+				WaitMessage();
+				continue;
+			}
+
 			TIME->Update();
 			INPUT->Update();
 
@@ -226,6 +234,8 @@ void Engine::Run()
 
 			// 固定タイムステップ更新
 			accumulatedTime += deltaTime;
+			// 最小化から戻った直後などに大きな dt が来ても FixedUpdate を何百回も回さない
+			if (accumulatedTime > 0.25f) accumulatedTime = 0.25f;
 			while (accumulatedTime >= FIXED_TIMESTEP)
 			{
 				m_SceneManager.FixedUpdate(FIXED_TIMESTEP);

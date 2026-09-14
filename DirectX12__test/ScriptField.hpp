@@ -23,7 +23,15 @@ enum class FieldType : uint8_t
 	Texture,
 	Font,
 	Audio,
+	AssetPath,
 };
+
+/// @brief アセットへのファイル参照を表す型か(GUID 追従の対象)
+inline bool IsAssetField(FieldType t)
+{
+	return t == FieldType::Texture || t == FieldType::Font
+		|| t == FieldType::Audio || t == FieldType::AssetPath;
+}
 
 /// @brief exe側に保持する値
 struct FieldValue
@@ -94,6 +102,13 @@ struct FieldList
 		fields.push_back({ n, FieldType::Font, &path });
 	}
 
+	// 汎用のファイル参照（モデル / VMD / シーンなど）
+// path が '|' 区切りで複数を持つ場合もそのまま渡してよい
+	void AddAssetPath(const std::string& n, std::string& path)
+	{
+		fields.push_back({ n, FieldType::AssetPath, &path });
+	}
+
 	// オーディオ
 	template <typename TRes>
 	void AddAudio(const std::string& n, std::string& path, std::shared_ptr<TRes>& res)
@@ -116,3 +131,4 @@ struct FieldList
 		fields.push_back({ n, FieldType::Enum, &v, 0.0f, 0.0f, nullptr, enumValues });
 	}
 };
+

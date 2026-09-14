@@ -129,6 +129,15 @@
     <ClCompile Include="Material.cpp">
       <Filter>Mesh_Model</Filter>
     </ClCompile>
+    <ClCompile Include="MaterialParams.cpp">
+      <Filter>Mesh_Model</Filter>
+    </ClCompile>
+    <ClCompile Include="MaterialTextures.cpp">
+      <Filter>Mesh_Model</Filter>
+    </ClCompile>
+    <ClCompile Include="TextureLoader.cpp">
+      <Filter>Mesh_Model</Filter>
+    </ClCompile>
     <ClCompile Include="ModelLoader.cpp">
       <Filter>Mesh_Model</Filter>
     </ClCompile>
@@ -165,10 +174,43 @@
     <ClCompile Include="EditorWindow.cpp">
       <Filter>Editor</Filter>
     </ClCompile>
-    <ClCompile Include="InspectorWindow.cpp">
+    <ClCompile Include="HierarchyPanel.cpp">
       <Filter>Editor</Filter>
     </ClCompile>
-    <ClCompile Include="AssetWindow.cpp">
+    <ClCompile Include="InspectorPanel.cpp">
+      <Filter>Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="AssetBrowserPanel.cpp">
+      <Filter>Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="ScenePanel.cpp">
+      <Filter>Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="ConsolePanel.cpp">
+      <Filter>Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="MemoryPanel.cpp">
+      <Filter>Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="ProfilerPanel.cpp">
+      <Filter>Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="StyleSettingPanel.cpp">
+      <Filter>Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="MmdPlayerPanel.cpp">
+      <Filter>Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="ViewportPanel.cpp">
+      <Filter>Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="EditorMenuBar.cpp">
+      <Filter>Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="AssetFileOps.cpp">
+      <Filter>Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="EntityFactory.cpp">
       <Filter>Editor</Filter>
     </ClCompile>
     <ClCompile Include="Input.cpp">
@@ -239,6 +281,11 @@
     </ClCompile>
     <ClCompile Include="GameState.cpp" />
     <ClCompile Include="Project.cpp" />
+    <ClCompile Include="MaterialPreview.cpp">
+      <Filter>Mesh_Model</Filter>
+    </ClCompile>
+    <ClCompile Include="AssetDatabase.cpp" />
+    <ClCompile Include="AssetRemap.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.hpp">
@@ -322,6 +369,15 @@
     <ClInclude Include="Material.hpp">
       <Filter>Mesh_Model</Filter>
     </ClInclude>
+    <ClInclude Include="MaterialParams.hpp">
+      <Filter>Mesh_Model</Filter>
+    </ClInclude>
+    <ClInclude Include="MaterialTextures.hpp">
+      <Filter>Mesh_Model</Filter>
+    </ClInclude>
+    <ClInclude Include="TextureLoader.hpp">
+      <Filter>Mesh_Model</Filter>
+    </ClInclude>
     <ClInclude Include="ModelData.hpp">
       <Filter>Mesh_Model</Filter>
     </ClInclude>
@@ -376,7 +432,52 @@
     <ClInclude Include="RegisterScript.hpp">
       <Filter>Scripting</Filter>
     </ClInclude>
+    <ClInclude Include="AssetFileOps.hpp">
+      <Filter>Editor</Filter>
+    </ClInclude>
+    <ClInclude Include="EntityFactory.hpp">
+      <Filter>Editor</Filter>
+    </ClInclude>
     <ClInclude Include="EditorWindow.hpp">
+      <Filter>Editor</Filter>
+    </ClInclude>
+    <ClInclude Include="HierarchyPanel.hpp">
+      <Filter>Editor</Filter>
+    </ClInclude>
+    <ClInclude Include="InspectorPanel.hpp">
+      <Filter>Editor</Filter>
+    </ClInclude>
+    <ClInclude Include="AssetBrowserPanel.hpp">
+      <Filter>Editor</Filter>
+    </ClInclude>
+    <ClInclude Include="ScenePanel.hpp">
+      <Filter>Editor</Filter>
+    </ClInclude>
+    <ClInclude Include="ConsolePanel.hpp">
+      <Filter>Editor</Filter>
+    </ClInclude>
+    <ClInclude Include="MemoryPanel.hpp">
+      <Filter>Editor</Filter>
+    </ClInclude>
+    <ClInclude Include="ProfilerPanel.hpp">
+      <Filter>Editor</Filter>
+    </ClInclude>
+    <ClInclude Include="StyleSettingPanel.hpp">
+      <Filter>Editor</Filter>
+    </ClInclude>
+    <ClInclude Include="MmdPlayerPanel.hpp">
+      <Filter>Editor</Filter>
+    </ClInclude>
+    <ClInclude Include="ViewportPanel.hpp">
+      <Filter>Editor</Filter>
+    </ClInclude>
+    <ClInclude Include="EditorMenuBar.hpp">
+      <Filter>Editor</Filter>
+    </ClInclude>
+    <ClInclude Include="EditorContext.hpp">
+      <Filter>Editor</Filter>
+    </ClInclude>
+    <ClInclude Include="EditorPanel.hpp">
       <Filter>Editor</Filter>
     </ClInclude>
     <ClInclude Include="Input.hpp">
@@ -480,6 +581,11 @@
     <ClInclude Include="DragFiles.hpp">
       <Filter>Editor</Filter>
     </ClInclude>
+    <ClInclude Include="MaterialPreview.hpp">
+      <Filter>Mesh_Model</Filter>
+    </ClInclude>
+    <ClInclude Include="AssetDatabase.hpp" />
+    <ClInclude Include="AssetRemap.hpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="EngineAssets\Shaders\BRDF.hlsli">
@@ -577,7 +683,8 @@
     <None Include="EngineAssets\Icons\LightIcon.png" />
     <None Include="EngineAssets\Icons\Material.png" />
     <None Include="EngineAssets\Icons\Model.png" />
-  </ItemGroup>
-  <ItemGroup>
+    <None Include="GlassShader.hlsl">
+      <Filter>Shader\HLSL\PixelShader</Filter>
+    </None>
   </ItemGroup>
 </Project>

@@ -12,6 +12,7 @@
 #include "MonoBehavior.hpp"
 #include "Logger.hpp"
 #include "Util.hpp"
+#include "AssetDatabase.hpp"
 
 using json = nlohmann::json;
 
@@ -154,7 +155,7 @@ std::string SceneSerializer::SaveToString(Scene& scene)
         if (world.HasComponent<MeshComponent>(entity))
         {
             const auto& meshComp = world.GetComponent<MeshComponent>(entity);
-            entry["mesh"]["filePath"] = meshComp.FilePath;
+            WriteAssetRef(entry["mesh"], "filePath", meshComp.FilePath);
             entry["mesh"]["scale"] = meshComp.scale;
         }
 
@@ -171,9 +172,8 @@ std::string SceneSerializer::SaveToString(Scene& scene)
         {
             const auto& matComp = world.GetComponent<MaterialComponent>(entity);
             entry["material"]["shaderName"] = matComp.shaderName;
-            entry["material"]["filePath"] = matComp.FilePath;
-            entry["material"]["rampPath"] = matComp.RampFilePath;
-
+            WriteAssetRef(entry["material"], "filePath", matComp.FilePath);
+            WriteAssetRef(entry["material"], "rampPath", matComp.RampFilePath);
             auto& subs = entry["material"]["subMaterials"] = nlohmann::json::array();
             for (auto& sm : matComp.materials)
             {
@@ -191,6 +191,8 @@ std::string SceneSerializer::SaveToString(Scene& scene)
                     sj["reflectBlur"] = sm->reflectBlur;
                     sj["sheen"] = sm->sheen;
                     sj["sssColor"] = { sm->sssColor.x, sm->sssColor.y, sm->sssColor.z };
+                    sj["emissiveColor"] = { sm->emissiveColor.x, sm->emissiveColor.y, sm->emissiveColor.z };
+                    sj["emissiveStrength"] = sm->emissiveStrength;
 					sj["baseAlpha"] = sm->baseAlpha;
                 }
                 subs.push_back(sj);
@@ -232,6 +234,12 @@ std::string SceneSerializer::SaveToString(Scene& scene)
                         case FieldType::Bool:   vals[fieldName] = v.b; break;
                         case FieldType::String: vals[fieldName] = v.s; break;
                         case FieldType::Entity: vals[fieldName] = v.i; break;  // EntityRefのid
+                        case FieldType::Texture:
+                        case FieldType::Font:
+                        case FieldType::Audio:
+                        case FieldType::AssetPath:
+                            vals[fieldName] = AssetRefToJson(v.s);
+                            break;
                         default: break;
                         }
                     }
@@ -265,8 +273,8 @@ bool SceneSerializer::LoadFromString(Scene& scene, const std::string& data)
 
     if (root.contains("sceneName") && root["sceneName"].is_string())
         scene.SetSceneName(root["sceneName"].get<std::string>());
-    if (root.contains("skybox") && root["skybox"].is_string())
-        scene.SetSkyboxPath(root["skybox"].get<std::string>());
+    if (root.contains("skybox"))
+        scene.SetSkyboxPath(ReadAssetRef(root, "skybox"));
 
     for (const auto& entry : root["entities"])
     {
@@ -390,8 +398,8 @@ bool SceneSerializer::LoadFromString(Scene& scene, const std::string& data)
             {
                 const auto& mj = entry["material"];
                 MaterialComponent mat{};
-                mat.FilePath = mj.value("filePath", "");
-                mat.RampFilePath = mj.value("rampPath", "");
+                mat.FilePath = ReadAssetRef(mj, "filePath");
+                mat.RampFilePath = ReadAssetRef(mj, "rampPath");
 
                 if (mj.contains("shaderName"))
                     mat.shaderName = mj.value("shaderName", std::string("Basic"));
@@ -413,6 +421,12 @@ bool SceneSerializer::LoadFromString(Scene& scene, const std::string& data)
                             r.shaderName = sj.value("shaderName", std::string(""));
                             r.roughness = sj.value("roughness", 0.5f);
                             r.metallic = sj.value("metallic", 0.0f);
+                            if (sj.contains("emissiveColor"))
+                            {
+                                const auto& e = sj["emissiveColor"];
+                                r.emissiveColor = { e[0], e[1], e[2], 1.0f };
+                            }
+                            r.emissiveStrength = sj.value("emissiveStrength", 1.0f);
 							r.sssStrength = sj.value("sssStrength", 0.0f);
 							r.sssWrap = sj.value("sssWrap", 0.4f);
 							r.sssTrans = sj.value("sssTrans", 0.0f);
@@ -442,11 +456,16 @@ bool SceneSerializer::LoadFromString(Scene& scene, const std::string& data)
             {
                 const auto& meshJson = entry["mesh"];
                 MeshComponent meshComp{};
-                meshComp.FilePath = meshJson.value("filePath", "");
+                meshComp.FilePath = ReadAssetRef(meshJson, "filePath");
                 meshComp.scale = meshJson.value("scale", 1.0f);
                 world.AddComponent<MeshComponent>(entity, meshComp);   // FilePathだけ先に確保
 
-                if (!meshComp.FilePath.empty())
+                if (IsPrimitivePath(meshComp.FilePath))
+                {
+                    // プリミティブはファイルを読まずに作り直す
+					BuildPrimitiveEntity(world, entity, meshComp.FilePath);
+                }
+                else if (!meshComp.FilePath.empty())
                 {
                     int  clip = 0; bool playing = false;
                     std::vector<std::string> extras;

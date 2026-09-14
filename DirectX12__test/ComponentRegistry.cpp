@@ -1,4 +1,5 @@
 ﻿#include "ComponentRegistry.hpp"
+#include "AssetDatabase.hpp"
 #include "Components.hpp"
 #include "imguiinit.hpp"
 #include "DirectX.hpp"
@@ -214,7 +215,20 @@ static void DrawPathField(const ReflectedField& f,
             if (res && *res) { APP->WaitForGPUIdle(); res->reset(); }
         };
 
-    ImGui::Text("%s: %s", f.name.c_str(), path->empty() ? "(none)" : path->c_str());
+    // 参照先が消えている場合は赤字で知らせる('|' 区切りは先頭だけ見る)
+    std::error_code fex;
+    const bool missing = !path->empty()
+        && !std::filesystem::exists(ResolveAssetPath(path->substr(0, path->find('|'))), fex);
+
+    if (missing)
+    {
+        ImGui::TextColored(ImVec4(1.0f, 0.35f, 0.35f, 1.0f),
+            "%s: Missing (%s)", f.name.c_str(), path->c_str());
+    }
+    else
+    {
+        ImGui::Text("%s: %s", f.name.c_str(), path->empty() ? "(none)" : path->c_str());
+    }
 
     // Assetsからのドラッグ&ドロップ受け取り
     if (ImGui::BeginDragDropTarget())
@@ -294,11 +308,13 @@ void DrawFieldList(const FieldList& fl)
             DrawPathField(f, "ASSET_AUDIO",
                 L"Audio\0*.wav;*.mp3;*.ogg\0All\0*.*\0");
             break;
+        case FieldType::AssetPath:
+            DrawPathField(f, "ASSET_MODEL",
+                L"Asset\0*.pmx;*.pmd;*.fbx;*.obj;*.gltf;*.glb;*.vmd;*.json\0All\0*.*\0");
+            break;
         default: break; // Texture/Entity は専用UIなのでここでは扱わない
         }
     }
-
-
 }
 
 // ---- FieldValue(ReflectedField) <-> json ---- //
@@ -318,6 +334,7 @@ static void FieldToJson(json& j, const ReflectedField& f)
     case FieldType::Texture:
     case FieldType::Font:
     case FieldType::Audio:
+    case FieldType::AssetPath:
     case FieldType::String: j = *(std::string*)f.ptr; break;
     case FieldType::Enum: j = *(int*)f.ptr; break;
     default: break; // Texture/Entity はここでは保存しない（専用処理が必要なら別途）
@@ -529,7 +546,14 @@ static ComponentMeta MakeMeta(const std::string& name)
             FieldList fl;
             w.GetComponent<T>(e).Reflect(fl);
             json fields;
-            for (auto& f : fl.fields) FieldToJson(fields[f.name], f);
+            for (auto& f : fl.fields)
+            {
+                // アセット参照は { guid, path } で書いてリネームに耐えさせる
+                if (IsAssetField(f.type))
+                    WriteAssetRef(fields, f.name.c_str(), *(std::string*)f.ptr);
+                else
+                    FieldToJson(fields[f.name], f);
+            }
             out[name] = fields;
         },
 
@@ -542,7 +566,20 @@ static ComponentMeta MakeMeta(const std::string& name)
             w.GetComponent<T>(e).Reflect(fl);
             const auto& fields = in[name];
             for (auto& f : fl.fields)
-                if (fields.contains(f.name)) JsonToField(fields[f.name], f);
+            {
+                if (!fields.contains(f.name)) continue;
+
+                if (IsAssetField(f.type))
+                    *(std::string*)f.ptr = ReadAssetRef(fields, f.name.c_str());
+                else
+                    JsonToField(fields[f.name], f);
+            }
+        },
+
+        [](World& w, Entity e, FieldList& out)
+        {
+            if(!w.HasComponent<T>(e)) return;
+			w.GetComponent<T>(e).Reflect(out);
         }
     };
 }

@@ -478,6 +478,19 @@ ModelCpuData ModelLoader::ParseFile(const std::string& filepath, float scale)
                 return L"";
             };
 
+        auto HasMeaningfulChannel = [](const std::shared_ptr<DecodedImage>& img, int ch)->bool
+            {
+                if (img == nullptr || !img->ok) return false;
+                double sum = 0.0f;
+                size_t n = 0;
+                for (size_t i = 0; i + 3 < img->pixels.size(); i += 4 * 64)
+                {
+                    sum += img->pixels[i + ch];
+                    ++n;
+                }
+                return n > 0 && (sum / n) > 8.0;
+            };
+
         // 法線マップを持つ（＝本体）マテリアルを優先して確定
         out.materials.resize(scene->mNumMaterials);
         for (unsigned int i = 0; i < scene->mNumMaterials; ++i)
@@ -485,7 +498,7 @@ ModelCpuData ModelLoader::ParseFile(const std::string& filepath, float scale)
             const aiMaterial* material = scene->mMaterials[i];
             auto& dst = out.materials[i];
 
-            std::shared_ptr<DecodedImage> embDiff, embNor, embORM, embEmi;
+            std::shared_ptr<DecodedImage> embDiff, embNor, embORM, embEmi, embAO;
 
             std::wstring diff = resolveByType(material, aiTextureType_DIFFUSE, &embDiff);
             std::wstring nor = resolveByType(material, aiTextureType_NORMALS, &embNor);
@@ -502,6 +515,10 @@ ModelCpuData ModelLoader::ParseFile(const std::string& filepath, float scale)
                 std::wstring orm = resolveByType(material, aiTextureType_UNKNOWN, &embORM);
                 if (!orm.empty()) dst.ormPath = orm;
             }
+
+
+            const std::wstring ao = resolveByType(material, aiTextureType_LIGHTMAP, &embAO);
+            dst.occlusion = ao;
 
             // --- エミッシブ（発光）---
             const std::wstring emi = resolveByType(material, aiTextureType_EMISSIVE, &embEmi);
@@ -523,8 +540,14 @@ ModelCpuData ModelLoader::ParseFile(const std::string& filepath, float scale)
             {
                 dst.metalImage     = extractChannel(embORM, 2);   // B = metallic
                 dst.roughImage     = extractChannel(embORM, 1);   // G = roughness
-                dst.occlusionImage = extractChannel(embORM, 0);   // R = occlusion
+                
+
+                // Rが実質真っ黒なら AO は入っていない
+                // ここで 0 をつかむと間接光が全部消える
+                if(ao.empty() && embAO == nullptr && HasMeaningfulChannel(embORM,0))
+					dst.occlusionImage = extractChannel(embORM, 0);   // R = occlusion
             }
+			if (embAO != nullptr)dst.occlusionImage = embAO;
             dst.emissiveImage = embEmi;
         }
 
@@ -645,14 +668,14 @@ ModelCpuData ModelLoader::ParseFile(const std::string& filepath, float scale)
         if (set.diffuseImage == nullptr) set.diffuseImage = decodeCached(set.diffuse);
         if (set.normalImage  == nullptr) set.normalImage  = decodeCached(set.normal);
         if (set.emissiveImage == nullptr) set.emissiveImage = decodeCached(set.emissive);
+		if (set.occlusionImage == nullptr) set.occlusionImage = decodeCached(set.occlusion);
 
         if (!set.ormPath.empty())
         {
             // glTF: 1枚の metallicRoughness を metal / rough に分解
             auto orm = decodeCached(set.ormPath);
             if (set.metalImage     == nullptr) set.metalImage     = splitChannel(orm, 2);   // B
-            if (set.roughImage     == nullptr) set.roughImage     = splitChannel(orm, 1);   // G
-            if (set.occlusionImage == nullptr) set.occlusionImage = splitChannel(orm, 0);   // R
+            if (set.roughImage     == nullptr) set.roughImage     = splitChannel(orm, 1);   // G  // R
         }
         else
         {
@@ -1036,6 +1059,8 @@ void ModelLoader::PopulateModelEntity(
 				sm->reflectStrength = pending[i].reflectStrength;
 				sm->reflectFade = pending[i].reflectFade;
 				sm->reflectBlur = pending[i].reflectBlur;
+				sm->emissiveColor = pending[i].emissiveColor;
+				sm->emissiveStrength = pending[i].emissiveStrength;
             }
 
             world.AddComponent<MaterialComponent>(entity, mc);

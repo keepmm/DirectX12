@@ -9,6 +9,7 @@
 #include "ScriptHost.hpp"
 #include "AudioEngine.hpp"
 #include "FontAtlas.hpp"
+#include "MaterialPreview.hpp"
 
 Application::Application()
 {
@@ -31,6 +32,8 @@ HRESULT Application::OnInit()
 	{
 		m_EditorWindow = std::make_unique<EditorWindow>(*m_DirectX,m_SceneManager);
 	}
+
+	MaterialPreview::Get().Init(256);
 
 	// シーンの生成方法を登録(名前→ Assets/Scenes/<名前>.json)
 	m_SceneManager.SetSceneFactory([this](const std::string& jsonPath)
@@ -86,6 +89,7 @@ void Application::OnShutDown()
 	{
 		m_EditorWindow->ReleaseRenderTextures();
 	}
+	MaterialPreview::Get().Release();
 }
 
 void Application::OnInitPrefabs()
@@ -195,6 +199,12 @@ void Application::ConfigureContext(RenderContext& renderContext)
 		renderContext.scissorRect = nullptr;
 		return;
 	}
+
+	MaterialPreview::Get().RenderRequested(
+		m_DirectX->GetCommandList().Get(),renderContext.frameIndex
+	);
+
+	auto* editortex = m_EditorWindow->GetEditorRenderTexture();
 
 	// ===== パス1: Scene View（先に描画）=====
 	auto* editorTex = m_EditorWindow->GetEditorRenderTexture();

@@ -3,6 +3,7 @@
 #include <array>
 #include <cstdint>
 #include <cstring>
+#include "DirectX.hpp"
 
 namespace
 {
@@ -130,6 +131,58 @@ void Mesh::CreateCube(const ComPtr<ID3D12Device>& device)
 	std::vector<Vertex> vb(vertices.begin(), vertices.end());
 	std::vector<std::uint32_t> ib(indices.begin(), indices.end());
 	Init(device, vb, ib, nullptr);
+}
+
+void Mesh::CreateSphere(UINT segments, UINT rings)
+{
+	segments = (std::max)(3u, segments);
+	rings = (std::max)(2u, rings);
+
+	std::vector<Vertex> vertices;
+	std::vector<std::uint32_t> indices;
+	vertices.reserve(static_cast<size_t>(segments + 1) * (rings + 1));
+
+	for (UINT y = 0; y <= rings; ++y)
+	{
+		const float v = static_cast<float>(y) / rings;
+		const float theta = v * DirectX::XM_PI;
+		const float st = sinf(theta);
+		const float ct = cosf(theta);
+
+		for (UINT x = 0; x <= segments; ++x)
+		{
+			const float u = static_cast<float>(x) / segments;
+			const float phi = u * DirectX::XM_2PI;
+			const float sp = sinf(phi);
+			const float cp = cosf(phi);
+
+			Vertex vert{};
+			const float3 n = { st * cp,ct,st * sp };
+			vert.position = { n.x * 0.5f,n.y * 0.5f,n.z * 0.5f };	// 直径1
+			vert.normal = n;
+			vert.col = Color;
+			vert.uv = { u,v };
+			vert.tangent = { -sp,0.0f,cp };
+			vertices.push_back(vert);
+		}
+	}
+
+	for (UINT y = 0; y < rings; ++y)
+	{
+		for (UINT x = 0; x < segments; ++x)
+		{
+			const std::uint32_t i0 = y * (segments + 1) + x;
+			const std::uint32_t i1 = i0 + 1;
+			const std::uint32_t i2 = i0 + (segments + 1);
+			const std::uint32_t i3 = i2 + 1;
+
+			// ワインディングは CreateCube と同じ並びに合わせてある
+			indices.push_back(i0); indices.push_back(i1); indices.push_back(i2);
+			indices.push_back(i1); indices.push_back(i3); indices.push_back(i2);
+		}
+	}
+
+	Init(APP->GetDevice(), vertices, indices, nullptr);
 }
 
 void Mesh::Draw(ID3D12GraphicsCommandList* commandList) const

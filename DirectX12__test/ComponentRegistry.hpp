@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <string>
 #include <vector>
@@ -6,6 +6,7 @@
 #include "world.hpp"
 #include "SceneSerializer.hpp"
 #include "json.hpp"
+#include "ScriptField.hpp"
 
 struct ComponentMeta
 {
@@ -15,6 +16,7 @@ struct ComponentMeta
     std::function<void(World&, Entity)> draw;
     std::function<void(World&, Entity, nlohmann::json&)> save;
     std::function<void(World&, Entity, const nlohmann::json&)> load;
+    std::function<void(World&, Entity, FieldList&)> reflect;
 };
 
 class ComponentRegistry

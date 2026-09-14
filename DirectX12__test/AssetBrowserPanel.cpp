@@ -1,4 +1,12 @@
-﻿#include "EditorWindow.hpp"
+﻿/*!*************************************************************
+ * \file   AssetBrowserPanel.cpp
+ * \brief  アセットブラウザ(Assets フォルダの一覧と操作)
+ *
+ * 作成者 keeep
+ * 作成日 2026/9/12
+ * 更新履歴	9.12 AssetWindow.cpp から EditorPanel 派生のクラスへ
+ * *********************************************************************/
+#include "AssetBrowserPanel.hpp"
 #include "SceneSerializer.hpp"
 #include "Components.hpp"
 #include "PrefabLibrary.hpp"
@@ -6,6 +14,7 @@
 #include <filesystem>
 #include <cstdio>
 #include "RuntimeScene.hpp"
+#include "SceneManager.hpp"
 #include "imgui_internal.h"
 #include "Logger.hpp"
 #include <Psapi.h>
@@ -16,6 +25,9 @@
 #include <shellapi.h>
 #include "Project.hpp"
 #include "DragFiles.hpp"
+#include "AssetFileOps.hpp"
+#include "AssetRemap.hpp"
+#include "AssetDatabase.hpp"
 
 #pragma comment(lib, "psapi.lib")
 
@@ -40,8 +52,9 @@ namespace
 	}
 }
 
-void EditorWindow::DrawAssetPanel(SceneManager& sceneManager)
+void AssetBrowserPanel::Draw(EditorContext& ctx)
 {
+	SceneManager& sceneManager = ctx.sceneManager;
 	namespace fs = std::filesystem;
 	const fs::path assetRoot = "Assets";
 
@@ -52,9 +65,9 @@ void EditorWindow::DrawAssetPanel(SceneManager& sceneManager)
 	}
 
 	// 開いていたフォルダが消されていたらルートに戻す
-	if (!fs::exists(m_CurrentAssetDir))
+	if (!fs::exists(ctx.currentAssetDir))
 	{
-		m_CurrentAssetDir = assetRoot.string();
+		ctx.currentAssetDir = assetRoot.string();
 	}
 
 	// -------------------------//
@@ -62,17 +75,17 @@ void EditorWindow::DrawAssetPanel(SceneManager& sceneManager)
 	// -------------------------//
 
 	// 「↑」ボタン: 親フォルダへ（ルートでは無効化）
-	const bool atRoot = fs::equivalent(m_CurrentAssetDir, assetRoot);
+	const bool atRoot = fs::equivalent(ctx.currentAssetDir, assetRoot);
 	ImGui::BeginDisabled(atRoot);
 	if (ImGui::Button(u8("↑##AssetUp")))
 	{
-		m_CurrentAssetDir = fs::path(m_CurrentAssetDir).parent_path().string();
+		ctx.currentAssetDir = fs::path(ctx.currentAssetDir).parent_path().string();
 	}
 	ImGui::EndDisabled();
 
 	// 現在のパスを表示
 	ImGui::SameLine();
-	ImGui::Text("%s", m_CurrentAssetDir.c_str());
+	ImGui::Text("%s", ctx.currentAssetDir.c_str());
 
 	// セルサイズのスライダー
 	ImGui::SameLine();
@@ -99,7 +112,7 @@ void EditorWindow::DrawAssetPanel(SceneManager& sceneManager)
 			if (dx >= pos.x && dx <= pos.x + size.x &&
 				dy >= pos.y && dy <= pos.y + size.y)
 			{
-				ImportAssets(DropFiles::Get().Consume());
+				AssetFileOps::ImportAssets(ctx.currentAssetDir, DropFiles::Get().Consume());
 			}
 		}
 		const float windowRight =
@@ -111,7 +124,7 @@ void EditorWindow::DrawAssetPanel(SceneManager& sceneManager)
 		// ---------------------------------------//
 		std::vector<fs::directory_entry> folders;
 		std::vector<fs::directory_entry> files;
-		for (const auto& entry : fs::directory_iterator(m_CurrentAssetDir))
+		for (const auto& entry : fs::directory_iterator(ctx.currentAssetDir))
 		{
 			if (entry.is_directory())
 			{
@@ -123,7 +136,7 @@ void EditorWindow::DrawAssetPanel(SceneManager& sceneManager)
 			}
 		}
 
-		std::string pendingDir;	// イテレーション中にm_CurrentAssetDirを書き換えないため
+		std::string pendingDir;	// イテレーション中にctx.currentAssetDirを書き換えないため
 		std::string pendingScenepath;
 
 		// タイル1個を描く共通処理
@@ -173,7 +186,7 @@ void EditorWindow::DrawAssetPanel(SceneManager& sceneManager)
 					iconPath = EngineAssetPath(L"Icons/File.png").wstring();
 				}
 
-				const bool selected = (m_SelectedAsset == fullPath);
+				const bool selected = (ctx.selectedAsset == fullPath);
 				if (selected)
 				{
 					color.x = std::min(color.x + 0.2f, 1.0f);
@@ -200,7 +213,7 @@ void EditorWindow::DrawAssetPanel(SceneManager& sceneManager)
 
 				if (clicked)
 				{
-					m_SelectedAsset = fullPath;
+					ctx.selectedAsset = fullPath;
 				}
 
 				// フォルダはダブルクリックで中に入る
@@ -217,7 +230,7 @@ void EditorWindow::DrawAssetPanel(SceneManager& sceneManager)
 					ImGui::IsItemHovered() &&
 					ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
 				{
-					OpenInEditor(fullPath);
+					AssetFileOps::OpenInEditor(fullPath);
 				}
 
 				if (!isFolder && ext == ".json" &&
@@ -260,7 +273,7 @@ void EditorWindow::DrawAssetPanel(SceneManager& sceneManager)
 				if (ImGui::BeginPopupContextItem("ItemCtx"))
 				{
 					// 右クリックした時点で選択も移す(Unity と同じ挙動)
-					m_SelectedAsset = fullPath;
+					ctx.selectedAsset = fullPath;
 					m_ContextTarget = fullPath;
 
 					if (isFolder)
@@ -282,13 +295,13 @@ void EditorWindow::DrawAssetPanel(SceneManager& sceneManager)
 					{
 						if (ImGui::MenuItem(u8("Visual Studio で開く")))
 						{
-							OpenInEditor(fullPath);
+							AssetFileOps::OpenInEditor(fullPath);
 						}
 					}
 
 					if (ImGui::MenuItem(u8("エクスプローラーで表示")))
 					{
-						RevealInExplorer(fullPath);
+						AssetFileOps::RevealInExplorer(fullPath);
 					}
 
 					ImGui::Separator();
@@ -301,7 +314,7 @@ void EditorWindow::DrawAssetPanel(SceneManager& sceneManager)
 
 					if (ImGui::MenuItem(u8("複製"), "Ctrl+D"))
 					{
-						DuplicateAsset(fullPath);
+						AssetFileOps::DuplicateAsset(fullPath);
 					}
 
 					if (ImGui::MenuItem(u8("削除"), "Delete"))
@@ -351,14 +364,14 @@ void EditorWindow::DrawAssetPanel(SceneManager& sceneManager)
 			{
 				if (ImGui::MenuItem(u8("フォルダー")))
 				{
-					CreateFolder(m_CurrentAssetDir);
+					AssetFileOps::CreateFolder(ctx.currentAssetDir);
 				}
 
 				ImGui::Separator();
 
 				if (ImGui::MenuItem(u8("シーン")))
 				{
-					CreateSceneFile(m_CurrentAssetDir);
+					AssetFileOps::CreateSceneFile(ctx.currentAssetDir);
 				}
 
 				if (ImGui::MenuItem(u8("C++ スクリプト")))
@@ -373,12 +386,12 @@ void EditorWindow::DrawAssetPanel(SceneManager& sceneManager)
 
 			if (ImGui::MenuItem(u8("エクスプローラーで開く")))
 			{
-				RevealInExplorer(m_CurrentAssetDir);
+				AssetFileOps::RevealInExplorer(ctx.currentAssetDir);
 			}
 
 			if (ImGui::MenuItem(u8("プロジェクトのルートを開く")))
 			{
-				RevealInExplorer(PROJECT->GetRoot().string());
+				AssetFileOps::RevealInExplorer(PROJECT->GetRoot().string());
 			}
 
 			ImGui::EndPopup();
@@ -387,13 +400,13 @@ void EditorWindow::DrawAssetPanel(SceneManager& sceneManager)
 		// ループ後にフォルダ移動を反映
 		if (!pendingDir.empty())
 		{
-			m_CurrentAssetDir = pendingDir;
+			ctx.currentAssetDir = pendingDir;
 		}
 
 		if (!pendingScenepath.empty() && sceneManager.GetFadeAlpha() == 0.0f)
 		{
 			sceneManager.RequestSceneChangeWithString(pendingScenepath);
-			m_SelectedEntity = INVALID_ENTITY;	// シーン切り替えで選択エンティティはリセット
+			ctx.selectedEntity = INVALID_ENTITY;	// シーン切り替えで選択エンティティはリセット
 		}
 
 		if (m_ShowCreateScriptPopup) { ImGui::OpenPopup("CreateScript"); m_ShowCreateScriptPopup = false; }
@@ -402,7 +415,7 @@ void EditorWindow::DrawAssetPanel(SceneManager& sceneManager)
 			ImGui::InputText(u8("クラス名"), m_NewScriptName, sizeof(m_NewScriptName));
 			if (ImGui::Button(u8("作成")) && m_NewScriptName[0] != '\0')
 			{
-				CreateScriptFile(m_CurrentAssetDir, m_NewScriptName);
+				AssetFileOps::CreateScriptFile(ctx.currentAssetDir, m_NewScriptName);
 				ImGui::CloseCurrentPopup();
 			}
 			ImGui::SameLine();
@@ -419,11 +432,23 @@ void EditorWindow::DrawAssetPanel(SceneManager& sceneManager)
 			const bool ok = m_RenameBuffer[0] != '\0' && !m_ContextTarget.empty();
 
 			ImGui::BeginDisabled(!ok);
-			if (ImGui::Button(u8("変更")))
+			if (ImGui::Button(u8("変更")) && m_RenameBuffer[0] != '\0')
 			{
-				RenameAsset(m_ContextTarget, m_RenameBuffer);
-				m_SelectedAsset.clear();
-				ImGui::CloseCurrentPopup();
+				// 新しいパスを先に組み立てておく(RenameAsset の中と同じ規則)
+				namespace fs = std::filesystem;
+				const fs::path src = m_ContextTarget;
+				fs::path dst = src.parent_path() / m_RenameBuffer;
+				if (!fs::is_directory(src) && dst.extension().empty())
+					dst += src.extension();
+
+				AssetFileOps::RenameAsset(m_ContextTarget, m_RenameBuffer);
+
+				// 開いているシーンのメモリ上の参照も揃える
+				if (fs::exists(dst) && ctx.activeScene)
+				{
+					AssetRemap::Remap(ctx.activeScene->GetWorld(), *ctx.activeScene,
+						src.generic_string(), dst.generic_string());
+				}
 			}
 			ImGui::EndDisabled();
 
@@ -444,8 +469,8 @@ void EditorWindow::DrawAssetPanel(SceneManager& sceneManager)
 
 			if (ImGui::Button(u8("削除")))
 			{
-				DeleteAsset(m_ContextTarget);
-				m_SelectedAsset.clear();
+				AssetFileOps::DeleteAsset(m_ContextTarget);
+				ctx.selectedAsset.clear();
 				m_ContextTarget.clear();
 				ImGui::CloseCurrentPopup();
 			}

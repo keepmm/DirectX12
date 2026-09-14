@@ -73,8 +73,8 @@ static const float PI2 = 6.283185307f;
 
 float2 DirToEquirect(float3 d)
 {
-    return float2(atan2(d.z, d.x) / PI2 + 0.5f + acos(clamp(d.y, -1, 1)) / PI,
-                  0.5f - asin(clamp(d.y, -1, 1)) / PI);
+    return float2(atan2(d.z, d.x) / PI2 + 0.5f,
+                  acos(clamp(d.y, -1, 1)) / PI);
 }
 
 float3 ToonRamp(float nDotL)

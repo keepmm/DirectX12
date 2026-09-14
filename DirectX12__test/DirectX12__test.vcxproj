@@ -145,7 +145,10 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Application.cpp" />
-    <ClCompile Include="AssetWindow.cpp" />
+    <ClCompile Include="AssetDatabase.cpp" />
+    <ClCompile Include="AssetRemap.cpp" />
+    <ClCompile Include="AssetFileOps.cpp" />
+    <ClCompile Include="EntityFactory.cpp" />
     <ClCompile Include="AsyncLoader.cpp" />
     <ClCompile Include="AudioEngine.cpp" />
     <ClCompile Include="BeamRenderer.cpp" />
@@ -155,6 +158,18 @@
     <ClCompile Include="DebugLineRenderer.cpp" />
     <ClCompile Include="DirectX.cpp" />
     <ClCompile Include="EditorWindow.cpp" />
+    <ClCompile Include="HierarchyPanel.cpp" />
+    <ClCompile Include="InspectorPanel.cpp" />
+    <ClCompile Include="AssetBrowserPanel.cpp" />
+    <ClCompile Include="MaterialPreview.cpp" />
+    <ClCompile Include="ScenePanel.cpp" />
+    <ClCompile Include="ConsolePanel.cpp" />
+    <ClCompile Include="MemoryPanel.cpp" />
+    <ClCompile Include="ProfilerPanel.cpp" />
+    <ClCompile Include="StyleSettingPanel.cpp" />
+    <ClCompile Include="MmdPlayerPanel.cpp" />
+    <ClCompile Include="ViewportPanel.cpp" />
+    <ClCompile Include="EditorMenuBar.cpp" />
     <ClCompile Include="Engine/Engine.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
       <ForcedIncludeFiles Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
@@ -175,10 +190,12 @@
     <ClCompile Include="imgui_tables.cpp" />
     <ClCompile Include="imgui_widgets.cpp" />
     <ClCompile Include="Input.cpp" />
-    <ClCompile Include="InspectorWindow.cpp" />
     <ClCompile Include="Logger.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="Material.cpp" />
+    <ClCompile Include="MaterialParams.cpp" />
+    <ClCompile Include="MaterialTextures.cpp" />
+    <ClCompile Include="TextureLoader.cpp" />
     <ClCompile Include="Mesh.cpp" />
     <ClCompile Include="MeshRenderer.cpp" />
     <ClCompile Include="MmdPhysics.cpp" />
@@ -213,6 +230,10 @@
     <ClCompile Include="Vertex.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="AssetDatabase.hpp" />
+    <ClInclude Include="AssetRemap.hpp" />
+    <ClInclude Include="AssetFileOps.hpp" />
+    <ClInclude Include="EntityFactory.hpp" />
     <ClInclude Include="Animator.hpp" />
     <ClInclude Include="Application.hpp" />
     <ClInclude Include="AsyncLoader.hpp" />
@@ -229,6 +250,20 @@
     <ClInclude Include="DirectX.hpp" />
     <ClInclude Include="DragFiles.hpp" />
     <ClInclude Include="EditorWindow.hpp" />
+    <ClInclude Include="HierarchyPanel.hpp" />
+    <ClInclude Include="InspectorPanel.hpp" />
+    <ClInclude Include="AssetBrowserPanel.hpp" />
+    <ClInclude Include="MaterialPreview.hpp" />
+    <ClInclude Include="ScenePanel.hpp" />
+    <ClInclude Include="ConsolePanel.hpp" />
+    <ClInclude Include="MemoryPanel.hpp" />
+    <ClInclude Include="ProfilerPanel.hpp" />
+    <ClInclude Include="StyleSettingPanel.hpp" />
+    <ClInclude Include="MmdPlayerPanel.hpp" />
+    <ClInclude Include="ViewportPanel.hpp" />
+    <ClInclude Include="EditorMenuBar.hpp" />
+    <ClInclude Include="EditorContext.hpp" />
+    <ClInclude Include="EditorPanel.hpp" />
     <ClInclude Include="Engine/Engine.hpp" />
     <ClInclude Include="EngineAPI.hpp" />
     <ClInclude Include="FireworkSystem.hpp" />
@@ -254,6 +289,9 @@
     <ClInclude Include="GpuProfiler.hpp" />
     <ClInclude Include="Logger.hpp" />
     <ClInclude Include="Material.hpp" />
+    <ClInclude Include="MaterialParams.hpp" />
+    <ClInclude Include="MaterialTextures.hpp" />
+    <ClInclude Include="TextureLoader.hpp" />
     <ClInclude Include="Mesh.hpp" />
     <ClInclude Include="MeshRenderer.hpp" />
     <ClInclude Include="MmdPhysics.hpp" />
@@ -385,6 +423,15 @@
     </None>
   </ItemGroup>
   <ItemGroup>
+    <None Include="GlassShader.hlsl">
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">Pixel</ShaderType>
+      <ShaderType Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">Pixel</ShaderType>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">5.0</ShaderModel>
+      <ShaderModel Condition="'$(Configuration)|$(Platform)'=='Release|x64'">5.0</ShaderModel>
+      <FileType>Document</FileType>
+    </None>
   </ItemGroup>
   <ItemGroup>
     <None Include="EngineAssets\Shaders\ShadowShader.hlsl">
