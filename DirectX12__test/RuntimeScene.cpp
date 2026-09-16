@@ -167,6 +167,7 @@ void RuntimeScene::Update(float deltatime)
 	{ PROFILE_SCOPE("LightSystem"); m_LightSystem.Apply(m_World); }
 	m_FreeLookSystem.Update(m_World, deltatime, CameraComponent::CameraType::Secondary);
 	m_CameraAnimationSystem.Update(m_World, deltatime,PLAY.isPlaying());
+	m_FollowCameraSystem.Update(m_World, deltatime,PLAY.isPlaying());
 	{ PROFILE_SCOPE("Transform"); m_TransformSystem.Update(m_World); }
 	m_CameraSystem.Update(m_World, 16.0f / 9.0f);
 	{ PROFILE_SCOPE("Animator+Physics"); m_AnimatorSystem.Update(m_World, deltatime); }

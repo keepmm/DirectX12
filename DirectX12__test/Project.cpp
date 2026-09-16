@@ -7,6 +7,7 @@
  * 更新履歴 9.10 作成
  * *********************************************************************/
 #include "Project.hpp"
+#include "AssetExt.hpp"
 #include "json.hpp"
 
 #include <Windows.h>
@@ -110,7 +111,7 @@ bool Project::Create(const std::filesystem::path& parentDir, const std::string& 
         return false;
     }
 
-    if(!WriteEmptyScene(root / "Assets" / "Scenes" / "SampleScene.json"))
+    if(!WriteEmptyScene(root / "Assets" / "Scenes" / (std::string("SampleScene") + AssetExt::Scene)))
     {
         outError = "初期シーンの書き出しに失敗しました";
         return false;
@@ -479,12 +480,13 @@ R"XML(<?xml version="1.0" encoding="utf-8"?>
   <ImportGroup Label="PropertySheets">
     <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
   </ImportGroup>
+  <!-- エンジンの場所はこの PC 専用のファイルから読む(エンジンがプロジェクトを開くたびに書き直す)。
+       ここに絶対パスを書くと、プロジェクトを別の PC に持っていったときに壊れる -->
+  <Import Project="$(MSBuildProjectDirectory)\Library\EnginePaths.props"
+          Condition="exists('$(MSBuildProjectDirectory)\Library\EnginePaths.props')" />
   <PropertyGroup>
     <!-- ScriptHost は /p:EngineDir /p:EngineOutDir で渡す。
-         VS で開いたとき用に既定値を焼いておく(IntelliSense と F7 のため)。
-         Condition 付きなので /p: が来ればそちらが勝つ -->
-    <EngineDir Condition="'$(EngineDir)'==''">@ENGINE_DIR@</EngineDir>
-    <EngineOutDir Condition="'$(EngineOutDir)'==''">@ENGINE_OUT_DIR@</EngineOutDir>
+         VS で開いたときは上の EnginePaths.props の値が使われる -->
     <!-- リンクするエンジンの import library。ゲームビルドでは exe 名が
          <ゲーム名>.exe になるので /p:EngineLibName で差し替えられるようにする -->
     <EngineLibName Condition="'$(EngineLibName)'==''">DirectX12__test.lib</EngineLibName>
@@ -561,10 +563,15 @@ bool Project::EnsureScriptProject(std::string& outError)
     std::error_code ec;
     fs::create_directories(GetLibraryDir(), ec);
 
+    // この PC のエンジンの場所は毎回書き直す(別の PC で開いたときに追従させる)
+    WriteEnginePathsProps();
+
     const fs::path out = GetScriptProjectPath();
     if (fs::exists(out, ec))
     {
-        // 既にある。ユーザーが手で直している可能性があるので上書きしない
+        // 既にある。ユーザーが手で直している可能性があるので基本は上書きしないが、
+        // 絶対パスを焼き込んだ古い形式だけは直す
+        MigrateScriptProject();
         return true;
     }
 
@@ -575,32 +582,8 @@ bool Project::EnsureScriptProject(std::string& outError)
         return false;
     }
 
-    // 既定値のプレースホルダを実パスに置き換えてから書き出す
-    {
-        wchar_t exePath[MAX_PATH]{};
-        GetModuleFileNameW(nullptr, exePath, MAX_PATH);
-        fs::path exeDir = fs::path(exePath).parent_path();
-        fs::path slnDir = exeDir.parent_path().parent_path();
-
-        // 末尾の区切りは付ける($(EngineDir)..\Scripts\ の連結が前提)
-        fs::path engineDirPath = slnDir / "DirectX12__test";
-        const std::string engineDir = PathToUtf8(engineDirPath.make_preferred()) + "\\";
-        const std::string engineOut = PathToUtf8(exeDir.make_preferred()) + "\\";
-
-        std::string xml = kScriptProjectTemplate;
-
-        auto replaceAll = [](std::string& s, const std::string& from, const std::string& to)
-            {
-                for (size_t p = s.find(from); p != std::string::npos; p = s.find(from, p + to.size()))
-                {
-                    s.replace(p, from.size(), to);
-                }
-            };
-        replaceAll(xml, "@ENGINE_DIR@", engineDir);
-        replaceAll(xml, "@ENGINE_OUT_DIR@", engineOut);
-
-        ofs << xml;
-    }
+    // エンジンの場所は EnginePaths.props に分けたので、テンプレートをそのまま書く
+    ofs << kScriptProjectTemplate;
     ofs.close();
 
     // VS から開くための sln も一緒に用意する
@@ -617,4 +600,80 @@ bool Project::EnsureScriptProject(std::string& outError)
     }
 
     return true;
+}
+
+void Project::WriteEnginePathsProps() const
+{
+    wchar_t exePath[MAX_PATH]{};
+    GetModuleFileNameW(nullptr, exePath, MAX_PATH);
+    const fs::path exeDir = fs::path(exePath).parent_path();
+
+    // x64/Debug/DirectX12__test.exe → <sln>/DirectX12__test/
+    // (Launcher.exe も同じ出力フォルダにいるので、Launcher から呼ばれても同じ結果になる)
+    fs::path engineDirPath = exeDir.parent_path().parent_path() / "DirectX12__test";
+    fs::path engineOutPath = exeDir;
+
+    // 末尾の区切りは付ける($(EngineDir)..\Scripts\ の連結が前提)
+    const std::string engineDir = PathToUtf8(engineDirPath.make_preferred()) + "\\";
+    const std::string engineOut = PathToUtf8(engineOutPath.make_preferred()) + "\\";
+
+    const std::string xml =
+        "<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n"
+        "<!-- この PC 専用。エンジンがプロジェクトを開くたびに書き直す。バージョン管理に入れないこと -->\r\n"
+        "<Project xmlns=\"http://schemas.microsoft.com/developer/msbuild/2003\">\r\n"
+        "  <PropertyGroup>\r\n"
+        "    <EngineDir Condition=\"'$(EngineDir)'==''\">" + engineDir + "</EngineDir>\r\n"
+        "    <EngineOutDir Condition=\"'$(EngineOutDir)'==''\">" + engineOut + "</EngineOutDir>\r\n"
+        "  </PropertyGroup>\r\n"
+        "</Project>\r\n";
+
+    const fs::path out = GetLibraryDir() / "EnginePaths.props";
+
+    // 同じ内容なら書かない(VS が「外部で変更された」と再読み込みを求めてくるのを避ける)
+    {
+        std::ifstream in(out, std::ios::binary);
+        const std::string cur((std::istreambuf_iterator<char>(in)), {});
+        if (cur == xml) return;
+    }
+
+    std::ofstream ofs(out, std::ios::binary);
+    if (ofs) ofs << xml;
+}
+
+void Project::MigrateScriptProject() const
+{
+    const fs::path proj = GetScriptProjectPath();
+
+    std::ifstream in(proj, std::ios::binary);
+    std::string xml((std::istreambuf_iterator<char>(in)), {});
+    in.close();
+
+    if (xml.find("EnginePaths.props") != std::string::npos) return;   // 移行済み
+
+    // 絶対パスを焼き込んだ EngineDir / EngineOutDir の行を消す
+    // (生成時期によって改行が LF / CRLF 混在なので、行単位で探す)
+    auto eraseLine = [&xml](const std::string& startTag)
+        {
+            const size_t b = xml.find(startTag);
+            if (b == std::string::npos) return;
+            const size_t lineBegin = xml.rfind('\n', b) + 1;
+            const size_t lineEnd = xml.find('\n', b);
+            xml.erase(lineBegin, (lineEnd == std::string::npos ? xml.size() : lineEnd + 1) - lineBegin);
+        };
+    eraseLine("<EngineDir Condition=");
+    eraseLine("<EngineOutDir Condition=");
+
+    // EngineLibName を持つ PropertyGroup の直前に Import を差し込む
+    const size_t lib = xml.find("<EngineLibName");
+    if (lib == std::string::npos) return;
+    const size_t group = xml.rfind("<PropertyGroup>", lib);
+    if (group == std::string::npos) return;
+    const size_t lineBegin = xml.rfind('\n', group) + 1;
+
+    xml.insert(lineBegin,
+        "  <Import Project=\"$(MSBuildProjectDirectory)\\Library\\EnginePaths.props\"\r\n"
+        "          Condition=\"exists('$(MSBuildProjectDirectory)\\Library\\EnginePaths.props')\" />\r\n");
+
+    std::ofstream out(proj, std::ios::binary);
+    if (out) out << xml;
 }

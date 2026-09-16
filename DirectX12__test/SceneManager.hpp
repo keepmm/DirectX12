@@ -18,6 +18,9 @@
 #include <string>
 #include <memory>
 #include <functional>
+#include <filesystem>
+
+#include "AssetExt.hpp"
 
 enum class TransitionPhase
 {
@@ -36,9 +39,19 @@ public:
 
 	using SceneFactory = std::function<std::unique_ptr<Scene>(const std::string& jsonPath)>;
 
+	/// @brief シーン名 → ファイルパス
+	/// @note .scene を優先し、無ければ旧形式の .json を返す(既存プロジェクトの互換)。
+	///       どちらも無ければ新規保存先として .scene を返す
 	static std::string ScenePathFromName(const std::string& name)
 	{
-		return "Assets/Scenes/" + name + ".json";
+		const std::string base = "Assets/Scenes/" + name;
+		const std::string scene = base + AssetExt::Scene;
+		const std::string legacy = base + AssetExt::LegacyScene;
+
+		std::error_code ec;
+		if (!std::filesystem::exists(scene, ec) && std::filesystem::exists(legacy, ec))
+			return legacy;
+		return scene;
 	}
 
 	void SetSceneFactory(SceneFactory factory) { m_SceneFactory = std::move(factory); }
@@ -124,5 +137,7 @@ private:
 	float m_FadeSpeed = 2.0f;	//1秒で 0 -> 1になる 2.0なら0.5秒
 	std::string m_PendingSceneName;
 	std::string m_PendingScenePath;
+
+	bool m_WasPlaying = false;
 };
 

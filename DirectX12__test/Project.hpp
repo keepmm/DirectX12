@@ -97,6 +97,13 @@ public:
 	/// @return 生成した or 既にある なら true
 	bool EnsureScriptProject(_Out_ std::string& outError);
 
+	/// @brief Library/EnginePaths.props を、この PC のエンジンの場所で書き直す
+	/// @note Scripts.vcxproj はこれを Import する。PC ごとに違う値なのでプロジェクト本体には書かない
+	void WriteEnginePathsProps() const;
+
+	/// @brief 古い Scripts.vcxproj(絶対パスを焼き込んだもの)を EnginePaths.props 方式に直す
+	void MigrateScriptProject() const;
+
 	/// @brief .dxproj ファイルを保存する
 	/// @param outError 失敗した場合の失敗理由
 	/// @return 成功時 true, 失敗時 false

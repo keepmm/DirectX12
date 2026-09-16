@@ -13,6 +13,7 @@
 #include "Logger.hpp"
 #include "Util.hpp"
 #include "BuildSystem.hpp"
+#include "ThumbnailCache.hpp"
 #include "Input.hpp"
 
 #include "HierarchyPanel.hpp"
@@ -24,10 +25,12 @@
 #include "ProfilerPanel.hpp"
 #include "StyleSettingPanel.hpp"
 #include "MmdPlayerPanel.hpp"
+#include "PlayState.hpp"
 
 EditorWindow::EditorWindow(DirectXApp& app, SceneManager& sceneManager)
 	: m_Context(app, sceneManager)
 {
+	m_Context.history = &m_History;
 	m_Viewport.Init();
 
 	// ---- パネルの登録 ---- //
@@ -107,6 +110,9 @@ void EditorWindow::DrawBuildOverlay()
 void EditorWindow::Draw(SceneManager& sceneManager)
 {
 	DrawBuildOverlay();
+
+	// サムネイル作成を進める(読み込み完了の受け取り / GPU からの読み戻し)
+	ThumbnailCache::Get().Update();
 	ImGuizmo::BeginFrame();
 
 	// このフレームのアクティブシーン(切り替え中は一瞬 nullptr になる)
@@ -208,6 +214,42 @@ void EditorWindow::Draw(SceneManager& sceneManager)
 
 	// ---- スタイル設定(既定で閉じている単独ウィンドウ) ---- //
 	DrawWindowed(*m_StylePanel);
+
+	// ---- Undo / Redo ---- //
+	{
+		Scene* scene = m_Context.activeScene;
+		const bool editing = (PLAY.GetCurrentMode() == EngineMode::EDITOR);
+
+		// シーン切り替え / Play / Stop で Entity の ID が作り直されるので履歴を捨てる
+		if (scene != m_HistoryScene || editing != m_HistoryEditing)
+		{
+			m_History.Clear();
+			m_HistoryScene = scene;
+			m_HistoryEditing = editing;
+		}
+
+		if (editing && scene)
+		{
+			// テキスト入力中は ImGui 自身の Undo に任せる
+			ImGuiIO& io = ImGui::GetIO();
+			if (!io.WantTextInput && io.KeyCtrl)
+			{
+				if (ImGui::IsKeyPressed(ImGuiKey_Z, false))
+				{
+					if (io.KeyShift) m_History.Redo(*scene);
+					else             m_History.Undo(*scene);
+				}
+				else if (ImGui::IsKeyPressed(ImGuiKey_Y, false))
+				{
+					m_History.Redo(*scene);
+				}
+			}
+
+			// スライダーのドラッグ中 / ギズモ操作中は、離すまで 1 回にまとめる
+			const bool busy = ImGui::IsAnyItemActive() || ImGuizmo::IsUsing();
+			m_History.TrackEntity(*scene, m_Context.selectedEntity, busy);
+		}
+	}
 }
 
 void EditorWindow::BuildWorkspaceLayout(unsigned int dockspaceID, const ImVec2& size)

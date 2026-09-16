@@ -11,6 +11,7 @@
 #include "Defines.hpp"
 #include "World.hpp"
 #include "PhysicsWorld.hpp"
+#include "json.hpp"
 
 class Scene;
 
@@ -26,6 +27,15 @@ public:
 
 	static std::string SaveToString(_In_ Scene& scene);
 	static bool LoadFromString(_In_ Scene& scene, _In_ const std::string& data);
+
+	static nlohmann::json SaveEntity(_In_ World& world, Entity entity);
+
+	static void ApplyEntityDiff(
+		_In_ Scene& scene,
+		Entity entity,
+		_In_ const nlohmann::json& from,
+		_In_ const nlohmann::json& to
+	);
 private:
 };
 

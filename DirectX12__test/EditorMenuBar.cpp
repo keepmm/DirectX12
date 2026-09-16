@@ -24,6 +24,8 @@
 #include "PlayState.hpp"
 #include "Components.hpp"
 #include "AnimatorClipCache.hpp"
+#include "UndoHistory.hpp"
+#include "AssetFileOps.hpp"
 
 static std::string WideToUTF8(const wchar_t* w)
 {
@@ -71,6 +73,31 @@ void EditorMenuBar::Draw(EditorContext& ctx)
 					}
 				}
 			}
+
+			// 変換後は開いているシーンを開き直すと、保存先も .scene に切り替わる
+			if (ImGui::MenuItem(u8("旧形式のシーン(.json)を .scene に変換")))
+			{
+				AssetFileOps::ConvertAllLegacyScenes("Assets");
+			}
+
+			ImGui::EndMenu();
+		}
+
+		if (ImGui::BeginMenu(u8("編集")))
+		{
+			UndoHistory* h = ctx.history;
+			const bool usable = h && ctx.activeScene && PLAY.GetCurrentMode() == EngineMode::EDITOR;
+
+			// 次に戻す / やり直す内容をラベルに出す(例: 元に戻す  (変更: transform))
+			const std::string undoLabel = std::string(u8("元に戻す"))
+				+ (usable && h->CanUndo() ? std::string("  (") + h->UndoName() + ")" : std::string());
+			const std::string redoLabel = std::string(u8("やり直し"))
+				+ (usable && h->CanRedo() ? std::string("  (") + h->RedoName() + ")" : std::string());
+
+			if (ImGui::MenuItem(undoLabel.c_str(), "Ctrl+Z", false, usable && h->CanUndo()))
+				h->Undo(*ctx.activeScene);
+			if (ImGui::MenuItem(redoLabel.c_str(), "Ctrl+Y", false, usable && h->CanRedo()))
+				h->Redo(*ctx.activeScene);
 
 			ImGui::EndMenu();
 		}

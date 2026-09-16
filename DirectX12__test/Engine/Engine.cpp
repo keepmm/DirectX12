@@ -128,9 +128,7 @@ HRESULT Engine::Init(HINSTANCE hInstance, int width, int height)
 #ifdef _FRAMEPIPELINE
 	for(auto& frame : m_FramePipeline)
 	{
-		// FO_DrawItem がボーンパレット(1体 32KB)とモーフを載せるので広めに取る。
-		// 足りないと FrameAllocator の assert に落ちる
-		frame.Init(32 * 1024 * 1024);
+		frame.Init(4 * 1024 * 1024);
 	}
 #endif
 

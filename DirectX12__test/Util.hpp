@@ -90,7 +90,45 @@ inline std::vector<std::shared_ptr<Material>> BuildMaterials(
 {
     std::vector<std::shared_ptr<Material>> out;
     // テクスチャの共有元Material(リソースの実体を持つ)をパスごとに記録
-    std::unordered_map<std::wstring, Material*> texOwner;
+    // 同じ画像を最初に載せたマテリアルとスロットを覚えておき、2 回目以降は GPU リソースを共有する。
+    // 以前はベースカラーだけ共有していて、法線 / メタル / ラフ / 発光 / AO は
+    // サブマテリアルの数だけ VRAM に載っていた
+    struct TexOwner { Material* material; UINT slot; };
+    std::unordered_map<std::wstring, TexOwner> texOwner;
+
+    /// @brief 共有のキー。パスがあればパス、埋め込みテクスチャはデコード済み画像の実体
+    ///        (ModelLoader は同じ画像に同じ shared_ptr を返す)。sRGB かどうかも含める
+    auto keyOf = [](const std::wstring& path, const std::shared_ptr<DecodedImage>& img, bool srgb) -> std::wstring
+        {
+            std::wstring base = !path.empty() ? path
+                : (img ? L"@" + std::to_wstring(static_cast<std::uintptr_t>(reinterpret_cast<std::uintptr_t>(img.get()))) : L"");
+            if (base.empty()) return base;
+            return base + (srgb ? L"|srgb" : L"|linear");
+        };
+
+    /// @return 共有できたら true(呼び出し側は作らなくてよい)
+    auto tryShare = [&texOwner](Material& m, UINT slot, const std::wstring& key) -> bool
+        {
+            if (key.empty()) return false;
+            auto it = texOwner.find(key);
+            if (it == texOwner.end()) return false;
+            m.Textures().ShareSlot(slot, it->second.material->Textures(), it->second.slot);
+            return true;
+        };
+    auto remember = [&texOwner](Material& m, UINT slot, const std::wstring& key)
+        {
+            if (!key.empty()) texOwner.emplace(key, TexOwner{ &m, slot });
+        };
+
+    // 元ファイルがあるテクスチャだけ記録する(glTF の埋め込み等は空のまま)。
+    // .mat に書き出すときの参照に使う
+    auto sourceOf = [](const std::wstring& w) -> std::string
+        {
+            if (w.empty()) return {};
+            std::error_code ec;
+            if (!std::filesystem::exists(w, ec)) return {};
+            return MakeAssetRelative(std::filesystem::path(w).generic_string());
+        };
 
     for (const auto& set : model.materials)
     {
@@ -123,39 +161,66 @@ inline std::vector<std::shared_ptr<Material>> BuildMaterials(
             }
         }
 
-        if (!set.diffuse.empty())
+        // ---- ベースカラー(sRGB) ----
         {
-            auto it = texOwner.find(set.diffuse);
-            if (it != texOwner.end())
-            {
-                m->ShareDiffuseTexture(*it->second);   // GPUリソースだけ共有
-            }
-            else if (set.diffuseImage && set.diffuseImage->ok)
-            {
-                m->CreateTextureFromRGBA(set.diffuseImage->width,
-                    set.diffuseImage->height, set.diffuseImage->pixels.data());
-                texOwner[set.diffuse] = m.get();
-            }
-        }
-        else if (set.diffuseImage && set.diffuseImage->ok)
-        {
-            m->CreateTextureFromRGBA(set.diffuseImage->width,
-                set.diffuseImage->height, set.diffuseImage->pixels.data());
+            const std::wstring key = keyOf(set.diffuse, set.diffuseImage, true);
+            if (!tryShare(*m, TexSlot::Albedo, key) && set.diffuseImage && set.diffuseImage->ok &&
+                m->CreateTextureFromRGBA(set.diffuseImage->width, set.diffuseImage->height, set.diffuseImage->pixels.data()))
+                remember(*m, TexSlot::Albedo, key);
         }
 
-        if (set.normalImage && set.normalImage->ok) m->CreateNormalFromRGBA(set.normalImage->width, set.normalImage->height, set.normalImage->pixels.data());
+        // ---- 法線(リニア) ----
+        if (set.normalImage && set.normalImage->ok)
+        {
+            const std::wstring key = keyOf(set.normal, set.normalImage, false);
+            if (!tryShare(*m, TexSlot::Normal, key) &&
+                m->CreateNormalFromRGBA(set.normalImage->width, set.normalImage->height, set.normalImage->pixels.data()))
+                remember(*m, TexSlot::Normal, key);
+        }
+
+        // glTF の metallicRoughness は 1 枚から B=metal / G=rough を分解しているので、
+        // 同じ ormPath でもチャンネルごとに別のキーにする
+        const std::wstring metalPath = !set.metal.empty() ? set.metal
+            : (!set.ormPath.empty() ? set.ormPath + L"#metal" : L"");
+        const std::wstring roughPath = !set.rough.empty() ? set.rough
+            : (!set.ormPath.empty() ? set.ormPath + L"#rough" : L"");
+
+        // ---- メタル(リニア) ---- 共有でも作成でも、マップがあるときは係数を 1 にする
         if (set.metalImage && set.metalImage->ok)
         {
-            m->CreateMetalFromRGBA(set.metalImage->width, set.metalImage->height, set.metalImage->pixels.data());
+            const std::wstring key = keyOf(metalPath, set.metalImage, false);
+            if (!tryShare(*m, TexSlot::Metal, key) &&
+                m->CreateMetalFromRGBA(set.metalImage->width, set.metalImage->height, set.metalImage->pixels.data()))
+                remember(*m, TexSlot::Metal, key);
             m->metallic = 1.0f;    // マップがあるときは係数。既定は等倍
         }
+
+        // ---- ラフ(リニア) ----
         if (set.roughImage && set.roughImage->ok)
         {
-            m->CreateRoughFromRGBA(set.roughImage->width, set.roughImage->height, set.roughImage->pixels.data());
+            const std::wstring key = keyOf(roughPath, set.roughImage, false);
+            if (!tryShare(*m, TexSlot::Rough, key) &&
+                m->CreateRoughFromRGBA(set.roughImage->width, set.roughImage->height, set.roughImage->pixels.data()))
+                remember(*m, TexSlot::Rough, key);
             m->roughness = 1.0f;
         }
-        if (set.emissiveImage && set.emissiveImage->ok &&
-            m->CreateEmissiveFromRGBA(set.emissiveImage->width, set.emissiveImage->height, set.emissiveImage->pixels.data()))
+
+        // ---- 発光(sRGB) ----
+        bool hasEmissiveTex = false;
+        if (set.emissiveImage && set.emissiveImage->ok)
+        {
+            const std::wstring key = keyOf(set.emissive, set.emissiveImage, true);
+            if (tryShare(*m, TexSlot::Emissive, key))
+            {
+                hasEmissiveTex = true;
+            }
+            else if (m->CreateEmissiveFromRGBA(set.emissiveImage->width, set.emissiveImage->height, set.emissiveImage->pixels.data()))
+            {
+                remember(*m, TexSlot::Emissive, key);
+                hasEmissiveTex = true;
+            }
+        }
+        if (hasEmissiveTex)
         {
             // テクスチャが貼れたときだけ、factor 未設定を白（テクスチャそのまま）とみなす
             m->emissiveColor = (set.emissiveColor.x <= 0.0f && set.emissiveColor.y <= 0.0f && set.emissiveColor.z <= 0.0f)
@@ -165,7 +230,22 @@ inline std::vector<std::shared_ptr<Material>> BuildMaterials(
         {
             m->emissiveColor = set.emissiveColor;   // 既定は黒＝発光なし
         }
-        if (set.occlusionImage && set.occlusionImage->ok) m->CreateOcclusionFromRGBA(set.occlusionImage->width, set.occlusionImage->height, set.occlusionImage->pixels.data());
+
+        // ---- AO(リニア) ----
+        if (set.occlusionImage && set.occlusionImage->ok)
+        {
+            const std::wstring key = keyOf(set.occlusion, set.occlusionImage, false);
+            if (!tryShare(*m, TexSlot::Occlusion, key) &&
+                m->CreateOcclusionFromRGBA(set.occlusionImage->width, set.occlusionImage->height, set.occlusionImage->pixels.data()))
+                remember(*m, TexSlot::Occlusion, key);
+        }
+
+        m->Textures().SetSourcePath(TexSlot::Albedo,    sourceOf(set.diffuse));
+        m->Textures().SetSourcePath(TexSlot::Normal,    sourceOf(set.normal));
+        m->Textures().SetSourcePath(TexSlot::Metal,     sourceOf(set.metal));
+        m->Textures().SetSourcePath(TexSlot::Rough,     sourceOf(set.rough));
+        m->Textures().SetSourcePath(TexSlot::Emissive,  sourceOf(set.emissive));
+        m->Textures().SetSourcePath(TexSlot::Occlusion, sourceOf(set.occlusion));
 
         out.push_back(m);
         LOG->LogInfo("SubMat: " + set.name
@@ -197,17 +277,24 @@ inline void BuildPrimitiveEntity(World& world, Entity e, const std::string& tag)
     if (world.HasComponent<MeshComponent>(e)) world.GetComponent<MeshComponent>(e) = mc;
     else                                      world.AddComponent<MeshComponent>(e, mc);
 
-    if (!world.HasComponent<MaterialComponent>(e))
+    // マテリアル 泣ければ作
+    MaterialComponent& mat = world.HasComponent<MaterialComponent>(e)
+        ? world.GetComponent<MaterialComponent>(e)
+		: world.AddComponent<MaterialComponent>(e, MaterialComponent{});
+
+    if (!mat.material)
     {
-        MaterialComponent mat{};
-        mat.shaderName = "PBR";
-        mat.material = std::make_shared<Material>();
+        mat.shaderName = "Basic";
+		mat.material = std::make_shared<Material>();
         mat.material->Init();
-        mat.material->SetSolidColor({ 1.0f, 1.0f, 1.0f, 1.0f });   // テクスチャ無しの白
-        mat.materials.push_back(mat.material);
-        mat.materialnames.push_back("Primitive");
-        world.AddComponent<MaterialComponent>(e, mat);
+		mat.material->baseColor = { 1.0f, 1.0f, 1.0f, 1.0f };
     }
+    if (mat.materials.empty())
+    {
+        mat.materials.push_back(mat.material);
+		mat.materialnames.push_back("Primitive");
+    }
+    mat.materialAssets.resize(mat.materials.size());
 }
 
 inline std::string ShiftJisUtf8(const std::string& sjis)

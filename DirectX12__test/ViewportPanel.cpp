@@ -18,6 +18,7 @@
 #include "Components.hpp"
 #include "SceneManager.hpp"
 #include "EntityFactory.hpp"
+#include "UndoHistory.hpp"
 
 void ViewportPanel::Init()
 {
@@ -124,8 +125,10 @@ void ViewportPanel::DrawGameView(EditorContext& ctx)
 					// とりあえず原点に
 					const float3 fragPosition = float3(0.0f, 0.0f, 0.0f);
 
+					const size_t before = ctx.activeScene->GetWorld().GetEntities().size();
 					ctx.selectedEntity = EntityFactory::SpawnModelFromFile(
 						ctx.activeScene->GetWorld(), modelpath, fragPosition, ctx.activeScene);
+					if (ctx.history) ctx.history->RecordCreated(*ctx.activeScene, before);
 				}
 				ImGui::EndDragDropTarget();
 			}

@@ -10,6 +10,7 @@
 #include "AudioEngine.hpp"
 #include "FontAtlas.hpp"
 #include "MaterialPreview.hpp"
+#include "ThumbnailCache.hpp"
 
 Application::Application()
 {
@@ -89,6 +90,7 @@ void Application::OnShutDown()
 	{
 		m_EditorWindow->ReleaseRenderTextures();
 	}
+	ThumbnailCache::Get().Release();
 	MaterialPreview::Get().Release();
 }
 
@@ -123,9 +125,7 @@ void Application::OnInitPrefabs()
 			world.AddComponent<RigidBodyComponent>(entity, rb);
 			world.AddComponent<ColliderComponent>(entity, collider);
 
-			auto& physicsWorld = scene.EnsurePhysicsWorld();
-			physicsWorld.AddRigidbody(entity, rb, collider);
-			physicsWorld.SetActorPose(entity, transform.position, transform.rotation);
+			// 物理のアクターは PhysicsWorld::SyncFromWorld が自動で作る
 		});
 
 	// プロジェクトが持っていない場合は読みに行かない(assimp がエラーを吐くため)
@@ -203,6 +203,9 @@ void Application::ConfigureContext(RenderContext& renderContext)
 	MaterialPreview::Get().RenderRequested(
 		m_DirectX->GetCommandList().Get(),renderContext.frameIndex
 	);
+
+	// アセットブラウザのサムネイル(描画待ちがあれば 1 枚だけ)
+	ThumbnailCache::Get().Render(m_DirectX->GetCommandList().Get(), renderContext.frameIndex);
 
 	auto* editortex = m_EditorWindow->GetEditorRenderTexture();
 

@@ -11,6 +11,7 @@
 #include <filesystem>
 #include <fstream>
 #include <system_error>
+#include <vector>
 #include <Windows.h>
 #include <shellapi.h>
 
@@ -18,6 +19,7 @@
 #include "Project.hpp"
 #include "json.hpp"
 #include "AssetDatabase.hpp"
+#include "AssetExt.hpp"
 
 using json = nlohmann::json;
 
@@ -290,10 +292,10 @@ void AssetFileOps::DeleteAsset(const std::string& path)
 void AssetFileOps::CreateSceneFile(const std::string& dir)
 {
 
-	fs::path target = fs::path(dir) / "NewScene.json";
+	fs::path target = fs::path(dir) / (std::string("NewScene") + AssetExt::Scene);
 	int n = 1;
 	while (fs::exists(target))
-		target = fs::path(dir) / ("NewScene" + std::to_string(n++) + ".json");
+		target = fs::path(dir) / ("NewScene" + std::to_string(n++) + AssetExt::Scene);
 
 	// Project::WriteEmptyScene と同じ最小構成
 	// (SceneSerializer::LoadFromString が要求するのは entities だけ)
@@ -311,4 +313,58 @@ void AssetFileOps::CreateSceneFile(const std::string& dir)
 	ofs.close();
 	ASSETDB->OnAssetAdded(target.generic_string());
 	LOG->LogInfo("シーン作成: " + target.string());
+}
+
+namespace
+{
+	/// @brief json の中身がシーンか(トップレベルに entities 配列がある)
+	/// @note Assets/Scenes にはタイムライン等の json も置かれるので、拡張子ではなく中身で判定する
+	bool IsSceneFile(const fs::path& path)
+	{
+		std::ifstream in(path);
+		if (!in) return false;
+		const json j = json::parse(in, nullptr, false);
+		return !j.is_discarded() && j.is_object()
+			&& j.contains("entities") && j["entities"].is_array();
+	}
+}
+
+bool AssetFileOps::ConvertLegacyScene(const std::string& path)
+{
+	const fs::path src = path;
+	if (!AssetExt::Is(path, AssetExt::LegacyScene) || !IsSceneFile(src)) return false;
+
+	fs::path dst = src;
+	dst.replace_extension(AssetExt::Scene);
+	if (fs::exists(dst))
+	{
+		LOG->LogWarning("同名の .scene が既にあるので変換しません: " + dst.string());
+		return false;
+	}
+
+	// RenameAsset は拡張子を省略すると元を引き継ぐので、拡張子込みの名前を渡す
+	RenameAsset(path, dst.filename().string());
+	return fs::exists(dst);
+}
+
+int AssetFileOps::ConvertAllLegacyScenes(const std::string& assetsRoot)
+{
+	// イテレート中にリネームしないよう、先に集める
+	std::vector<std::string> targets;
+	std::error_code ec;
+	for (auto it = fs::recursive_directory_iterator(assetsRoot, ec);
+		it != fs::recursive_directory_iterator(); it.increment(ec))
+	{
+		if (ec) { ec.clear(); continue; }
+		if (it->is_regular_file(ec) && AssetExt::Is(it->path().string(), AssetExt::LegacyScene))
+			targets.push_back(it->path().generic_string());
+	}
+
+	int converted = 0;
+	for (const auto& t : targets)
+	{
+		if (ConvertLegacyScene(t)) ++converted;
+	}
+	LOG->LogInfo("旧形式のシーンを変換: " + std::to_string(converted) + " 件");
+	return converted;
 }

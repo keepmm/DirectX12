@@ -9,6 +9,7 @@
 #include "MaterialTextures.hpp"
 
 #include <cstring>
+#include <DirectXTex.h>
 
 #include "d3dx12.h"
 #include "DirectX.hpp"
@@ -277,19 +278,20 @@ bool MaterialTextures::LoadFromFile(UINT slot, const std::wstring& path, bool sr
 	return UploadImage(slot, image.GetImage(0, 0, 0), metadata, srgb);
 }
 
-void MaterialTextures::ShareAlbedo(const MaterialTextures& src)
+void MaterialTextures::ShareSlot(UINT slot, const MaterialTextures& src, UINT srcSlot)
 {
-	const TextureSlot& from = src.m_Slots[TexSlot::Albedo];
+	const TextureSlot& from = src.m_Slots[srcSlot];
 	if (!from.texture || !EnsureHeap()) return;
 
-	TextureSlot& s = m_Slots[TexSlot::Albedo];
+	TextureSlot& s = m_Slots[slot];
 	s.texture = from.texture;	// リソース共有(ComPtrなので参照カウント)
 	s.upload.Reset();
 	s.pending = false;			// アップロードは共有元が実施済み
 	s.valid = true;
+	m_SourcePaths[slot] = src.m_SourcePaths[srcSlot];
 
 	// ミップ0しかアップロードしていないので1固定(desc.MipLevelsだと未初期化ミップを露出する)
-	CreateSrv(TexSlot::Albedo, s.texture->GetDesc().Format, 1, s.texture.Get());
+	CreateSrv(slot, s.texture->GetDesc().Format, 1, s.texture.Get());
 }
 
 // ------------------------------------------------------------------ //

@@ -310,7 +310,7 @@ void DrawFieldList(const FieldList& fl)
             break;
         case FieldType::AssetPath:
             DrawPathField(f, "ASSET_MODEL",
-                L"Asset\0*.pmx;*.pmd;*.fbx;*.obj;*.gltf;*.glb;*.vmd;*.json\0All\0*.*\0");
+                L"Asset\0*.pmx;*.pmd;*.fbx;*.obj;*.gltf;*.glb;*.vmd;*.scene;*.timeline;*.mat;*.json\0All\0*.*\0");
             break;
         default: break; // Texture/Entity は専用UIなのでここでは扱わない
         }
@@ -525,17 +525,22 @@ static ComponentMeta MakeMeta(const std::string& name)
             if (!w.HasComponent<T>(e)) return;
             if (ImGui::CollapsingHeader(name.c_str(), ImGuiTreeNodeFlags_DefaultOpen))
             {
-				auto& comp = w.GetComponent<T>(e);
-                
+                // 欄の名前(Layer など)が他のコンポーネントとかぶっても、別の ID になるようにする
+                ImGui::PushID(name.c_str());
+
+                auto& comp = w.GetComponent<T>(e);
+
                 FieldList fl;
-                w.GetComponent<T>(e).Reflect(fl);
+                comp.Reflect(fl);
                 DrawFieldList(fl);
 
                 DrawExtraUI<T>(w, e, comp);
 
                 ImGui::Spacing();
-                if (ImGui::SmallButton(("Remove##" + name).c_str()))
-                    w.DeleteComponent<T>(e);
+                const bool remove = ImGui::SmallButton("Remove");
+                ImGui::PopID();
+
+                if (remove) w.DeleteComponent<T>(e);
             }
         },
 
@@ -580,6 +585,12 @@ static ComponentMeta MakeMeta(const std::string& name)
         {
             if(!w.HasComponent<T>(e)) return;
 			w.GetComponent<T>(e).Reflect(out);
+        },
+
+        // remove：Undo でコンポーネントの追加を取り消すとき用
+        [](World& w, Entity e)
+        {
+            if (w.HasComponent<T>(e)) w.DeleteComponent<T>(e);
         }
     };
 }
@@ -593,6 +604,8 @@ static const std::vector<ComponentMeta> g_Components =
 	MakeMeta<AudioListenerComponent>("Audio Listener"),
 	MakeMeta<CameraComponent>("Camera"),
 	MakeMeta<CameraAnimationComponent>("Camera Animation"),
+	MakeMeta<FollowCameraComponent>("Follow Camera"),
+	MakeMeta<CharacterControllerComponent>("Character Controller"),
     MakeMeta<CanvasComponent>("Canvas"),
 	MakeMeta<ColliderComponent>("Collider"),
     MakeMeta<LightComponent>("Light"),

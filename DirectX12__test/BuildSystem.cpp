@@ -1,4 +1,5 @@
 ﻿#include "BuildSystem.hpp"
+#include "AssetExt.hpp"
 #include "Logger.hpp"
 #include "Project.hpp"
 #include "imguiinit.hpp"
@@ -296,8 +297,14 @@ static void CollectFromJson(const nlohmann::json& j, const fs::path& srcDir,
 static bool CollectUsedAssets(const fs::path& srcDir, const std::string& startScene,
     std::set<fs::path>& files, std::set<fs::path>& dirs)
 {
-    const fs::path sceneRel =
-        fs::path("Assets") / "Scenes" / (fs::path(startScene).stem().string() + ".json");
+    // SceneManager::ScenePathFromName と同じく .scene を優先し、無ければ旧形式の .json
+    const std::string startName = fs::path(startScene).stem().string();
+    fs::path sceneRel = fs::path("Assets") / "Scenes" / (startName + AssetExt::Scene);
+    {
+        std::error_code sec;
+        if (!fs::exists(srcDir / sceneRel, sec))
+            sceneRel.replace_extension(AssetExt::LegacyScene);
+    }
 
     std::error_code ec;
     if (!fs::exists(srcDir / sceneRel, ec))
@@ -319,7 +326,8 @@ static bool CollectUsedAssets(const fs::path& srcDir, const std::string& startSc
             {
                 if (ec) break;
                 if (!e.is_regular_file(ec)) continue;
-                if (ToLowerAscii(e.path().extension().string()) != ".json") continue;
+                const std::string sceneExt = ToLowerAscii(e.path().extension().string());
+                if (sceneExt != AssetExt::Scene && sceneExt != AssetExt::LegacyScene) continue;
 
                 const fs::path rel = fs::relative(e.path(), srcDir, ec);
                 if (ec) { ec.clear(); continue; }
@@ -360,7 +368,10 @@ static bool CollectUsedAssets(const fs::path& srcDir, const std::string& startSc
         for (const auto& f : found)
         {
             files.insert(f);
-            if (ToLowerAscii(f.extension().string()) == ".json") pending.push_back(f);
+            const std::string ext = ToLowerAscii(f.extension().string());
+            // .scene / .mat / .timeline も中身は json。中のアセット参照まで辿る
+            if (ext == ".json" || ext == AssetExt::Scene || ext == AssetExt::Material || ext == ".timeline")
+                pending.push_back(f);
         }
     }
     return true;
@@ -665,7 +676,7 @@ void BuildSystem::Build(const BuildSetting& settings)
         // ---- 6. game.cfg 書き出し ----
         // 存在するとゲームモード起動。1行目=開始シーン, 2行目=Dataフォルダ名
         const std::string sceneName =
-            fs::path(settings.startScene).stem().string();   // "Assets/Scenes/Foo.json" → "Foo"
+            fs::path(settings.startScene).stem().string();   // "Assets/Scenes/Foo.scene" → "Foo"
         {
             std::ofstream cfg(outDir / "game.cfg");
             cfg << sceneName << "\n";

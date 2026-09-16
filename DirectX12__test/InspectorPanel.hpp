@@ -26,6 +26,9 @@ private:
 	/// @brief インスペクターの描画
 	void DrawInspector(_In_ EditorContext& ctx, _In_ World& world, _In_ Scene* scene);
 
+	/// @brief アセットブラウザで選んだ .mat を編集する
+	void DrawMaterialAsset(_In_ const std::string& path);
+
 	/// @brief InspectorにAddComponentのポップアップを表示する
 	void DrawAddComponentPopup(_In_ World& world, _In_ Entity entity);
 

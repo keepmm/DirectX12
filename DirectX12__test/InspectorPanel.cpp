@@ -33,11 +33,97 @@
 #include "ComponentRegistry.hpp"
 #include "Util.hpp"
 #include "MaterialPreview.hpp"
+#include "MaterialLibrary.hpp"
 
 // IsToonShader は Systems.hpp のものを使う（name に "Toon" を含むか）
 
 #pragma comment(lib, "Comdlg32.lib")
 #pragma comment(lib, "psapi.lib")
+
+/// @brief マテリアルの質感パラメータ(シェーダーごとに出す項目が変わる)
+/// @note エンティティのサブマテリアルと、.mat の編集画面で共有する
+static void DrawMaterialParamsUI(Material& target, const std::string& effShader)
+{
+	ImGui::Separator();
+	ImGui::Text(u8("マテリアル質感パラメータ"));
+
+	// サブマテリアルの表示/非表示(材質モーフで隠す衣装パーツ用)
+	bool visible = target.baseAlpha > 0.5f;
+	if (ImGui::Checkbox(u8("表示##SubMatVisible"), &visible))
+		target.baseAlpha = visible ? 1.0f : 0.0f;
+
+	if (effShader == "PBR" || effShader == "SkinnedPBR")
+	{
+		// ---- 汎用 PBR ----
+		ImGui::SliderFloat(u8("Roughness##Mat"), &target.roughness, 0.0f, 1.0f);
+		ImGui::SliderFloat(u8("Metallic##Mat"), &target.metallic, 0.0f, 1.0f);
+		ImGui::ColorEdit4(u8("RimColor##Mat"), &target.rimColor.x);
+
+		ImGui::SeparatorText(u8("発光"));
+		ImGui::ColorEdit3(u8("発光色##Mat"), &target.emissiveColor.x);
+		ImGui::SliderFloat(u8("発光強度##Mat"), &target.emissiveStrength, 0.0f, 10.0f);
+
+		// 床など、平面反射を映すサブマテリアルだけ強度を上げる
+		ImGui::SeparatorText(u8("平面反射"));
+		ImGui::SliderFloat(u8("反射強度##Mat"), &target.reflectStrength, 0.0f, 1.5f);
+		if (target.reflectStrength > 0.0f)
+		{
+			ImGui::SliderFloat(u8("反射フェード距離##Mat"), &target.reflectFade, 1.0f, 40.0f);
+			ImGui::SliderFloat(u8("反射ぼかし##Mat"), &target.reflectBlur, 0.0f, 8.0f);
+		}
+
+		// ---- 肌・布（PMX キャラ向け。既定は閉じる）----
+		// 使っているマテリアルだけ自動で開く
+		const bool usingSss = (target.sssStrength > 0.0f) || (target.sheen > 0.0f);
+		ImGui::SetNextItemOpen(usingSss, ImGuiCond_Once);
+		if (ImGui::CollapsingHeader(u8("肌 / 布（サブサーフェス）##MatSss")))
+		{
+			ImGui::SliderFloat(u8("SSS強度##Mat"), &target.sssStrength, 0.0f, 1.0f);
+			ImGui::SliderFloat(u8("SSSラップ##Mat"), &target.sssWrap, 0.0f, 1.0f);
+			ImGui::SliderFloat(u8("逆光透過##Mat"), &target.sssTrans, 0.0f, 2.0f);
+			ImGui::ColorEdit3(u8("散乱色##Mat"), &target.sssColor.x);
+			ImGui::SliderFloat(u8("布シーン##Mat"), &target.sheen, 0.0f, 2.0f);
+		}
+	}
+	if (effShader == "Rim" || effShader == "SkinnedRim")
+	{
+		ImGui::ColorEdit4(u8("RimColor##Mat"), &target.rimColor.x);
+	}
+
+	if (effShader == "Fresnel" || effShader == "SkinnedFresnel")
+	{
+		ImGui::SliderFloat(u8("Roughness##Mat"), &target.roughness, 0.0f, 1.0f);
+		ImGui::ColorEdit4(u8("RimColor##Mat"), &target.rimColor.x);
+	}
+
+	if (effShader == "Dissolve" || effShader == "SkinnedDissolve")
+	{
+		ImGui::SliderFloat(u8("ノイズの細かさ##Mat"), &target.roughness, 0.0f, 1.0f);
+		ImGui::SliderFloat(u8("Dissolve具合##Mat"), &target.metallic, 0.0f, 1.0f);
+		ImGui::ColorEdit4(u8("解け際の発行色##Mat"), &target.rimColor.x);
+	}
+
+	if (effShader == "BlinnPhong" || effShader == "SkinnedBlinnPhong")
+	{
+		ImGui::SliderFloat(u8("Roughness##Mat"), &target.roughness, 0.0f, 1.0f);
+		ImGui::SliderFloat(u8("Metallic##Mat"), &target.metallic, 0.0f, 1.0f);
+	}
+
+	if (effShader == "Glass" || effShader == "SkinnedGlass")
+	{
+		ImGui::SliderFloat(u8("映り込みのボケ##Mat"), &target.roughness, 0.0f, 1.0f);
+		ImGui::ColorEdit3(u8("ガラス色##Mat"), &target.baseColor.x);
+		ImGui::SliderFloat(u8("正面の不透明度##Mat"), &target.baseColor.w, 0.0f, 1.0f);
+	}
+
+	if (effShader == "Genshin_Toon")
+	{
+		ImGui::SliderFloat(u8("ハイライトの広さ##Mat"), &target.roughness, 0.0f, 1.0f);
+		ImGui::SliderFloat(u8("ハイライトの強さ##Mat"), &target.metallic, 0.0f, 1.0f);
+		ImGui::Checkbox(u8("フェイス描画##Mat"), &target.isFace);
+		ImGui::SliderFloat(u8("アウトライン幅##Mat"), &target.outlineWidth, 0.0f, 10.0f);
+	}
+}
 
 void InspectorPanel::DrawInspector(EditorContext& ctx, World& world, Scene* scene)
 {
@@ -48,6 +134,12 @@ void InspectorPanel::DrawInspector(EditorContext& ctx, World& world, Scene* scen
 
 	if (ctx.selectedEntity == INVALID_ENTITY)
 	{
+		// エンティティを選んでおらず .mat を選んでいれば、その編集画面
+		if (MaterialLibrary::IsMaterialPath(ctx.selectedAsset))
+		{
+			DrawMaterialAsset(ctx.selectedAsset);
+			return;
+		}
 		ImGui::Text(u8("エンティティを選択してください"));
 		return;
 	}
@@ -127,17 +219,8 @@ void InspectorPanel::DrawInspector(EditorContext& ctx, World& world, Scene* scen
 						collider.radius = std::max(transform.scale.x, std::max(transform.scale.y, transform.scale.z)) * 0.5f;
 					}
 
-					// PhysicsWorldに反映
-					if (scene && world.HasComponent<RigidBodyComponent>(ctx.selectedEntity))
-					{
-						auto* physicsWorld = scene->GetPhysicsWorld();
-						if (physicsWorld)
-						{
-							const auto& rb = world.GetComponent<RigidBodyComponent>(ctx.selectedEntity);
-							physicsWorld->RemoveRigidbody(ctx.selectedEntity);
-							physicsWorld->AddRigidbody(ctx.selectedEntity, rb, collider);
-						}
-					}
+					// PhysicsWorld へは反映しなくてよい。設定が変わると、
+					// 次の固定更新で PhysicsWorld::SyncFromWorld が作り直す
 				}
 			}
 		}
@@ -398,6 +481,72 @@ void InspectorPanel::DrawInspector(EditorContext& ctx, World& world, Scene* scen
 						ImGui::Separator();
 					}
 				}
+
+				// ---- マテリアルアセット(.mat) ---- //
+				{
+					materialComp.materialAssets.resize(materialComp.materials.size());
+					std::string& assetPath = materialComp.materialAssets[selectedSub];
+
+					// このスロットのマテリアルを差し替える
+					auto assign = [&](std::shared_ptr<Material> m, const std::string& path)
+						{
+							if (!m) return;
+							APP->WaitForGPUIdle();
+							materialComp.materials[selectedSub] = m;
+							if (selectedSub == 0) materialComp.material = m;
+							assetPath = path;
+							target = m.get();
+						};
+
+					ImGui::SeparatorText(u8("マテリアルアセット"));
+					if (assetPath.empty())
+						ImGui::TextDisabled(u8("(モデル内蔵のマテリアル)  .mat をドロップで割り当て"));
+					else
+						ImGui::Text("%s", assetPath.c_str());
+
+					// アセットブラウザから .mat をドロップ
+					if (ImGui::BeginDragDropTarget())
+					{
+						if (const ImGuiPayload* p = ImGui::AcceptDragDropPayload("ASSET_MATERIAL"))
+						{
+							const std::string dropped((const char*)p->Data, p->DataSize - 1);
+							assign(MaterialLibrary::Get().Load(dropped), dropped);
+						}
+						ImGui::EndDragDropTarget();
+					}
+
+					if (assetPath.empty())
+					{
+						// 今の見た目のまま .mat にして、このスロットに割り当てる
+						if (ImGui::Button(u8(".mat として書き出す")))
+						{
+							const std::string& subName = materialComp.materialnames[selectedSub];
+							const std::string name = !subName.empty()
+								? subName : "SubMaterial" + std::to_string(selectedSub);
+
+							const std::string file = MaterialLibrary::Get().CreateFromMaterial(
+								*materialComp.materials[selectedSub], materialComp.shaderName,
+								ctx.currentAssetDir, name);
+							if (!file.empty())
+								assign(MaterialLibrary::Get().Load(file), file);
+						}
+					}
+					else
+					{
+						ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.3f, 1.0f),
+							u8("共有マテリアル: 変更はこの .mat を使うすべてに反映されます"));
+
+						if (ImGui::Button(u8("保存##MatAsset")))
+							MaterialLibrary::Get().Save(assetPath);
+
+						ImGui::SameLine();
+						if (ImGui::Button(u8("割り当てを解除")))
+						{
+							// 今の値を引き継いだ独立コピーに戻す(共有インスタンスは他が使っているので触らない)
+							assign(MaterialLibrary::Get().Clone(*materialComp.materials[selectedSub]), "");
+						}
+					}
+				}
 			}
 
 			// 選択中サブマテリアルシェーダ(個別)
@@ -427,87 +576,9 @@ void InspectorPanel::DrawInspector(EditorContext& ctx, World& world, Scene* scen
 			// --- マテリアル質感パラメータ ---
 			if (target)
 			{
-				const std::string& effShader = 
-					(target && !target->shaderName.empty()) ? target->shaderName : materialComp.shaderName;
-				ImGui::Separator();
-				ImGui::Text(u8("マテリアル質感パラメータ"));
-
-				// サブマテリアルの表示/非表示(材質モーフで隠す衣装パーツ用)
-				bool visible = target->baseAlpha > 0.5f;
-				if (ImGui::Checkbox(u8("表示##SubMatVisible"), &visible))
-					target->baseAlpha = visible ? 1.0f : 0.0f;
-
-				if (effShader == "PBR" || effShader == "SkinnedPBR")
-				{
-					// ---- 汎用 PBR ----
-					ImGui::SliderFloat(u8("Roughness##Mat"), &target->roughness, 0.0f, 1.0f);
-					ImGui::SliderFloat(u8("Metallic##Mat"), &target->metallic, 0.0f, 1.0f);
-					ImGui::ColorEdit4(u8("RimColor##Mat"), &target->rimColor.x);
-
-					ImGui::SeparatorText(u8("発光"));
-					ImGui::ColorEdit3(u8("発光色##Mat"), &target->emissiveColor.x);
-					ImGui::SliderFloat(u8("発光強度##Mat"), &target->emissiveStrength, 0.0f, 10.0f);
-
-					// 床など、平面反射を映すサブマテリアルだけ強度を上げる
-					ImGui::SeparatorText(u8("平面反射"));
-					ImGui::SliderFloat(u8("反射強度##Mat"), &target->reflectStrength, 0.0f, 1.5f);
-					if (target->reflectStrength > 0.0f)
-					{
-						ImGui::SliderFloat(u8("反射フェード距離##Mat"), &target->reflectFade, 1.0f, 40.0f);
-						ImGui::SliderFloat(u8("反射ぼかし##Mat"), &target->reflectBlur, 0.0f, 8.0f);
-					}
-
-					// ---- 肌・布（PMX キャラ向け。既定は閉じる）----
-					// 使っているマテリアルだけ自動で開く
-					const bool usingSss = (target->sssStrength > 0.0f) || (target->sheen > 0.0f);
-					ImGui::SetNextItemOpen(usingSss, ImGuiCond_Once);
-					if (ImGui::CollapsingHeader(u8("肌 / 布（サブサーフェス）##MatSss")))
-					{
-						ImGui::SliderFloat(u8("SSS強度##Mat"), &target->sssStrength, 0.0f, 1.0f);
-						ImGui::SliderFloat(u8("SSSラップ##Mat"), &target->sssWrap, 0.0f, 1.0f);
-						ImGui::SliderFloat(u8("逆光透過##Mat"), &target->sssTrans, 0.0f, 2.0f);
-						ImGui::ColorEdit3(u8("散乱色##Mat"), &target->sssColor.x);
-						ImGui::SliderFloat(u8("布シーン##Mat"), &target->sheen, 0.0f, 2.0f);
-					}
-				}
-				if (effShader == "Rim" || effShader == "SkinnedRim")
-				{
-					ImGui::ColorEdit4(u8("RimColor##Mat"), &target->rimColor.x);
-				}
-
-				if (effShader == "Fresnel" || effShader == "SkinnedFresnel")
-				{
-					ImGui::SliderFloat(u8("Roughness##Mat"), &target->roughness, 0.0f, 1.0f);
-					ImGui::ColorEdit4(u8("RimColor##Mat"), &target->rimColor.x);
-				}
-
-				if (effShader == "Dissolve" || effShader == "SkinnedDissolve")
-				{
-					ImGui::SliderFloat(u8("ノイズの細かさ##Mat"), &target->roughness, 0.0f, 1.0f);
-					ImGui::SliderFloat(u8("Dissolve具合##Mat"), &target->metallic, 0.0f, 1.0f);
-					ImGui::ColorEdit4(u8("解け際の発行色##Mat"), &target->rimColor.x);
-				}
-
-				if (effShader == "BlinnPhong" || effShader == "SkinnedBlinnPhong")
-				{
-					ImGui::SliderFloat(u8("Roughness##Mat"), &target->roughness, 0.0f, 1.0f);
-					ImGui::SliderFloat(u8("Metallic##Mat"), &target->metallic, 0.0f, 1.0f);
-				}
-
-				if (effShader == "Glass" || effShader == "SkinnedGlass")
-				{
-					ImGui::SliderFloat(u8("映り込みのボケ##Mat"), &target->roughness, 0.0f, 1.0f);
-					ImGui::ColorEdit3(u8("ガラス色##Mat"), &target->baseColor.x);
-					ImGui::SliderFloat(u8("正面の不透明度##Mat"), &target->baseColor.w, 0.0f, 1.0f);
-				}
-
-				if (effShader == "Genshin_Toon")
-				{
-					ImGui::SliderFloat(u8("ハイライトの広さ##Mat"), &target->roughness, 0.0f, 1.0f);
-					ImGui::SliderFloat(u8("ハイライトの強さ##Mat"), &target->metallic, 0.0f, 1.0f);
-					ImGui::Checkbox(u8("フェイス描画##Mat"), &target->isFace);
-					ImGui::SliderFloat(u8("アウトライン幅##Mat"), &target->outlineWidth, 0.0f, 10.0f);
-				}
+				const std::string& effShader =
+					!target->shaderName.empty() ? target->shaderName : materialComp.shaderName;
+				DrawMaterialParamsUI(*target, effShader);
 			}
 
 			ImGui::Separator();
@@ -747,6 +818,72 @@ void InspectorPanel::DrawInspector(EditorContext& ctx, World& world, Scene* scen
 	}
 
 	DrawAddComponentPopup(world, ctx.selectedEntity);
+}
+
+void InspectorPanel::DrawMaterialAsset(const std::string& path)
+{
+	auto mat = MaterialLibrary::Get().Load(path);
+	if (!mat)
+	{
+		ImGui::TextColored(ImVec4(1.0f, 0.35f, 0.35f, 1.0f), u8("読み込めません: %s"), path.c_str());
+		return;
+	}
+
+	ImGui::Text(u8("マテリアル: %s"), path.c_str());
+	ImGui::Separator();
+
+	// プレビュー(1フレーム遅れて出る)
+	const auto srv = MaterialPreview::Get().Request(mat);
+	if (srv.ptr != 0)
+	{
+		ImGui::Image(static_cast<ImTextureID>(srv.ptr), ImVec2(160, 160));
+	}
+
+	// シェーダー
+	const std::vector<std::string> names = APP->GetShaderNames();
+	if (ImGui::BeginCombo(u8("Shader##MatAsset"), mat->shaderName.c_str()))
+	{
+		for (const auto& n : names)
+		{
+			const bool selected = (mat->shaderName == n);
+			if (ImGui::Selectable(n.c_str(), selected)) mat->shaderName = n;
+			if (selected) ImGui::SetItemDefaultFocus();
+		}
+		ImGui::EndCombo();
+	}
+
+	DrawMaterialParamsUI(*mat, mat->shaderName);
+
+	// テクスチャ: アセットブラウザから画像をドロップして差し替える
+	ImGui::SeparatorText(u8("テクスチャ"));
+	static const std::pair<UINT, const char*> kTexUi[] =
+	{
+		{ TexSlot::Albedo, "Albedo" }, { TexSlot::Normal, "Normal" },
+		{ TexSlot::Metal, "Metal" },   { TexSlot::Rough, "Rough" },
+		{ TexSlot::Emissive, "Emissive" }, { TexSlot::Occlusion, "Occlusion" },
+		{ TexSlot::Ramp, "Toon Ramp" },
+	};
+	for (const auto& [slot, label] : kTexUi)
+	{
+		const std::string& src = mat->Textures().SourcePath(slot);
+		ImGui::Text("%s: %s", label, src.empty() ? "(none)" : src.c_str());
+
+		if (ImGui::BeginDragDropTarget())
+		{
+			if (const ImGuiPayload* p = ImGui::AcceptDragDropPayload("ASSET_TEXTURE"))
+			{
+				const std::string dropped((const char*)p->Data, p->DataSize - 1);
+				MaterialLibrary::Get().SetTexture(path, slot, dropped);
+			}
+			ImGui::EndDragDropTarget();
+		}
+	}
+
+	ImGui::Separator();
+	if (ImGui::Button(u8("保存"), ImVec2(-1, 0)))
+	{
+		MaterialLibrary::Get().Save(path);
+	}
 }
 
 void InspectorPanel::DrawAddComponentPopup(World& world, Entity entity)

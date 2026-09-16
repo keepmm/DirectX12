@@ -54,6 +54,7 @@ D3D12_GPU_VIRTUAL_ADDRESS ConstantBufferAllocator::Allocate(UINT frameSlot, cons
 	}
 
 	m_Offset[frameSlot] += alignedSize;
+	if (m_Offset[frameSlot] > m_PeakBytes) m_PeakBytes = m_Offset[frameSlot];
 
 	return m_Buffer[frameSlot]->GetGPUVirtualAddress() + offset;
 }

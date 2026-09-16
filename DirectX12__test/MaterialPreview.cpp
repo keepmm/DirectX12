@@ -75,7 +75,20 @@ D3D12_GPU_DESCRIPTOR_HANDLE MaterialPreview::Request(const std::shared_ptr<Mater
 MaterialPreview::Slot* MaterialPreview::FindOrCreate(const std::shared_ptr<Material>& mat)
 {
     auto it = m_Slots.find(mat.get());
-    if (it != m_Slots.end()) return it->second.get();
+    if (it != m_Slots.end())
+    {
+        Slot& slot = *it->second;
+
+        // 破棄されたマテリアルと同じアドレスに、別のマテリアルが作られた。
+        // 枠(RT)はそのまま使い回し、中身を描き直す
+        if (slot.material.expired())
+        {
+            slot.material = mat;
+            slot.dirty = true;
+            slot.deadFrames = 0;
+        }
+        return &slot;
+    }
 
     auto slot = std::make_unique<Slot>();
     if (FAILED(slot->rt.Init(m_Size, m_Size))) return nullptr;
@@ -89,27 +102,48 @@ MaterialPreview::Slot* MaterialPreview::FindOrCreate(const std::shared_ptr<Mater
 void MaterialPreview::RenderRequested(ID3D12GraphicsCommandList* cmd, UINT frameIndex)
 {
     if (cmd == nullptr || !m_Initialized) return;
-    
+
+    // マテリアルが破棄されてから RT を消すまで待つフレーム数。
+    // 破棄された同じフレームで ImGui::Image が既にこの SRV を積んでいるので、
+    // すぐ Release すると ImGui の描画が解放済みのテクスチャを踏んで落ちる
+    constexpr int kReleaseDelay = RTV_NUM + 1;
+
     for (auto it = m_Slots.begin(); it != m_Slots.end();)
     {
         Slot& slot = *it->second;
         auto mat = slot.material.lock();
 
-        // マテリアルが死んだ / しばらく誰も見てない場合はたたむ
-        if (!mat || ++slot.idleFrames > 60)
+        const bool dead = !mat && (++slot.deadFrames > kReleaseDelay);
+        const bool idle = mat && (++slot.idleFrames > 60);   // しばらく誰も見ていない
+
+        if (dead || idle)
         {
             slot.rt.Release();
             it = m_Slots.erase(it);
             continue;
         }
 
-        if (slot.dirty)
+        if (mat && slot.dirty)
         {
             RenderOne(cmd, slot, *mat, frameIndex);
             slot.dirty = false;
         }
         ++it;
     }
+}
+
+void MaterialPreview::BindPreviewLight(ID3D12GraphicsCommandList* cmd, UINT frameIndex)
+{
+    LightCB light{};
+    light.ambientColor = { 0.18f, 0.19f, 0.22f, 1.0f };
+    light.lightCount = { 1.0f, 0.35f, 0.0f, 0.0f };   // y: IBL の強さ(RenderSettings と同じ既定値)
+    light.lights[0].dir = { -0.4f, -0.7f, 0.6f, 0.0f };
+    light.lights[0].color = { 1.0f, 0.98f, 0.94f, 1.0f };
+    light.lights[0].param = { 0.0f, 0.0f, 0.0f, 0.0f };   // x=0: Directional
+
+    auto& cb = APP->GetConstantBufferAllocator();
+    const auto b2 = cb.Allocate(frameIndex % RTV_NUM, &light, sizeof(LightCB));
+    if (b2 != 0) cmd->SetGraphicsRootConstantBufferView(2, b2);
 }
 
 void MaterialPreview::RenderOne(ID3D12GraphicsCommandList* cmd, Slot& slot,
@@ -149,19 +183,8 @@ void MaterialPreview::RenderOne(ID3D12GraphicsCommandList* cmd, Slot& slot,
 	XMStoreFloat4x4(&view, XMMatrixLookAtLH(eye, XMVectorZero(), XMVectorSet(0, 1, 0, 0)));
 	XMStoreFloat4x4(&proj, XMMatrixPerspectiveFovLH(XMConvertToRadians(35.0f), 1.0f, 0.1f, 100.0f));
 
-    // ---- b2: プレビュー用の固定ライト ---- //
-// シーンのライトに影響されないほうがマテリアルを比べやすい
-    LightCB light{};
-    light.ambientColor = { 0.18f, 0.19f, 0.22f, 1.0f };
-    light.lightCount = { 1.0f, 0.0f, 0.0f, 0.0f };
-    light.lights[0].dir = { -0.4f, -0.7f, 0.6f, 0.0f };
-    light.lights[0].color = { 1.0f, 0.98f, 0.94f, 1.0f };
-    light.lights[0].param = { 0.0f, 0.0f, 0.0f, 0.0f };   // x=0: Directional
-
+    BindPreviewLight(cmd, frameIndex);
     auto& cb = APP->GetConstantBufferAllocator();
-    const UINT frameSlot = frameIndex % RTV_NUM;
-    const auto b2 = cb.Allocate(frameSlot, &light, sizeof(LightCB));
-    if (b2 != 0) cmd->SetGraphicsRootConstantBufferView(2, b2);
 
     // ---- 球を描く ---- //
     float4x4 world{};

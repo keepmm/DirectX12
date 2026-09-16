@@ -1976,4 +1976,56 @@ public:
 	}
 };
 
+class FollowCameraSystem
+{
+public:
+	void Update(World& world, float deltatime, bool isPlaying)
+	{
+		using namespace DirectX;
+		if (deltatime <= 0.0f) return;
 
+		world.Each<TransformComponent, FollowCameraComponent>(
+			[&](Entity e, TransformComponent& tr, FollowCameraComponent& fc)
+			{
+				if (!fc.enabled) return;
+
+				// 対象をタグで探す
+				Entity target = INVALID_ENTITY;
+				world.Each<TagComponent>([&](Entity t, TagComponent& tag)
+					{
+						if (target == INVALID_ENTITY && tag.tag == fc.targetTag) target = t;
+					});
+				if (target == INVALID_ENTITY || !world.HasComponent<TransformComponent>(target)) return;
+
+				// 再生中だけマウスで回す(エディタでの操作と被る)
+				if (isPlaying && !INPUT->IsMouseCaptured())
+				{
+					fc.yaw += (float)INPUT->MouseInput.DeltaX() * fc.rotateSpeed;
+					fc.pitch += (float)INPUT->MouseInput.DeltaY() * fc.rotateSpeed;
+					fc.pitch = std::clamp(fc.pitch,
+						XMConvertToRadians(fc.minPitch), XMConvertToRadians(fc.maxPitch));
+				}
+
+				// 注視点 : 対象の少し上
+				const auto& targetTr = world.GetComponent<TransformComponent>(target);
+				const XMVECTOR focus = XMVectorAdd(
+					XMLoadFloat3(&targetTr.position),XMVectorSet(0.0f,fc.height,0.0f,0.0f));
+
+				// 注視点から、後ろ向きに distance だけ離れた位置
+				const XMVECTOR rot = XMQuaternionRotationRollPitchYaw(fc.pitch, fc.yaw, 0.0f);
+				const XMVECTOR back = XMVector3Rotate(XMVectorSet(0.0f, 0.0f, -1.0f, 0.0f), rot);
+				const XMVECTOR want = XMVectorAdd(focus, XMVectorScale(back, fc.distance));
+
+				// 少し遅れて追いつく
+				XMVECTOR pos = XMLoadFloat3(&tr.position);
+				const float t = (fc.positionLag <= 0.0f)
+					? 1.0f : 1.0f - std::exp(-fc.positionLag * deltatime);
+				pos = XMVectorLerp(pos, want, t);
+
+				XMStoreFloat3(&tr.position, pos);
+				XMStoreFloat4(&tr.rotation, XMQuaternionNormalize(rot));
+				tr.SyncEulerFromQuaternion();
+				tr.RebuildWorld();
+			});
+	}
+};

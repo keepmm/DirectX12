@@ -13,6 +13,7 @@
 #include "Logger.hpp"
 #include "Util.hpp"
 #include "AssetDatabase.hpp"
+#include "MaterialLibrary.hpp"
 
 using json = nlohmann::json;
 
@@ -69,6 +70,98 @@ namespace
         if (!parent.contains(key) || !parent[key].is_string()) return def;
         return parent[key].get<std::string>();
 	}
+
+    /// @brief subMaterials の 1 要素を読む(LoadFromString と Undo で共有)
+    SubMaterialRestore ReadSubMaterial(const json& sj)
+    {
+        SubMaterialRestore r;
+        if (sj.is_null()) return r;
+
+        r.materialAsset = ReadAssetRef(sj, "materialAsset");
+        r.shaderName = sj.value("shaderName", std::string(""));
+        r.roughness = sj.value("roughness", 0.5f);
+        r.metallic = sj.value("metallic", 0.0f);
+        if (sj.contains("emissiveColor"))
+        {
+            const auto& e = sj["emissiveColor"];
+            r.emissiveColor = { e[0], e[1], e[2], 1.0f };
+        }
+        r.emissiveStrength = sj.value("emissiveStrength", 1.0f);
+        r.sssStrength = sj.value("sssStrength", 0.0f);
+        r.sssWrap = sj.value("sssWrap", 0.4f);
+        r.sssTrans = sj.value("sssTrans", 0.0f);
+        r.reflectStrength = sj.value("reflectStrength", 0.0f);
+        r.reflectFade = sj.value("reflectFade", 8.0f);
+        r.reflectBlur = sj.value("reflectBlur", 1.0f);
+        r.sheen = sj.value("sheen", 0.0f);
+        // sssColor は RGB の 3 要素で保存している(以前は ToFloat4 で読んでいて常に既定値になっていた)
+        {
+            const float3 c = ToFloat3(sj.value("sssColor", json::array()), float3(0.9f, 0.35f, 0.25f));
+            r.sssColor = { c.x, c.y, c.z, 1.0f };
+        }
+        r.baseAlpha = sj.value("baseAlpha", 1.0f);
+
+        // 以前のシーンには無い項目。キーがあるときだけ入れる
+        if (sj.contains("baseColor"))    r.baseColor = ToFloat4(sj["baseColor"], float4(1, 1, 1, 1));
+        if (sj.contains("rimColor"))     r.rimColor = ToFloat4(sj["rimColor"], float4(1, 1, 1, 1));
+        if (sj.contains("outlineWidth")) r.outlineWidth = sj.value("outlineWidth", 1.0f);
+        if (sj.contains("isFace"))       r.isFace = sj.value("isFace", false);
+        return r;
+    }
+
+    /// @brief スクリプト 1 つ分の values を読む(LoadFromString と Undo で共有)
+    std::unordered_map<std::string, FieldValue> ReadScriptValues(const json& values)
+    {
+        std::unordered_map<std::string, FieldValue> out;
+        for (auto& [fieldName, jv] : values.items())
+        {
+            FieldValue fv;
+            if (jv.is_boolean()) { fv.type = FieldType::Bool;   fv.b = jv.get<bool>(); }
+            else if (jv.is_string()) { fv.type = FieldType::String; fv.s = jv.get<std::string>(); }
+            // アセット参照 { guid, path }。'|' 区切りの複数はその配列。
+            // 数値配列の分岐より前で拾わないと get<float> で例外になる
+            else if (jv.is_object()
+                || (jv.is_array() && !jv.empty() && jv[0].is_object()))
+            {
+                fv.type = FieldType::AssetPath;
+                fv.s = AssetRefFromJson(jv);
+            }
+            else if (jv.is_number_integer()) { fv.type = FieldType::Int;    fv.i = jv.get<int>(); }
+            else if (jv.is_number()) { fv.type = FieldType::Float;  fv.f[0] = jv.get<float>(); }
+            else if (jv.is_array())
+            {
+                int n = (int)jv.size();
+                fv.type = (n == 2) ? FieldType::Float2
+                    : (n == 3) ? FieldType::Float3 : FieldType::Float4;
+                for (int k = 0; k < n && k < 4; ++k) fv.f[k] = jv[k].get<float>();
+            }
+            out[fieldName] = fv;
+        }
+        return out;
+    }
+
+    /// @brief サブマテリアルの値を Material に当てる(ModelLoader の復元と同じ項目)
+    void ApplySubMaterial(Material& m, const SubMaterialRestore& r)
+    {
+        m.shaderName = r.shaderName;
+        m.roughness = r.roughness;
+        m.metallic = r.metallic;
+        m.sssStrength = r.sssStrength;
+        m.sssWrap = r.sssWrap;
+        m.sssTrans = r.sssTrans;
+        m.sheen = r.sheen;
+        m.sssColor = r.sssColor;
+        m.baseAlpha = r.baseAlpha;
+        m.reflectStrength = r.reflectStrength;
+        m.reflectFade = r.reflectFade;
+        m.reflectBlur = r.reflectBlur;
+        m.emissiveColor = r.emissiveColor;
+        m.emissiveStrength = r.emissiveStrength;
+        if (r.baseColor)    m.baseColor = *r.baseColor;
+        if (r.rimColor)     m.rimColor = *r.rimColor;
+        if (r.outlineWidth) m.outlineWidth = *r.outlineWidth;
+        if (r.isFace)       m.isFace = *r.isFace;
+    }
 }
 
 bool SceneSerializer::Save(Scene& scene, const std::string& filePath)
@@ -104,155 +197,9 @@ std::string SceneSerializer::SaveToString(Scene& scene)
     World& world = scene.GetWorld();
     for (Entity entity : world.GetEntities())
     {
-        json entry;
-		entry["id"] = entity;
-
-        // ---- Prefab ---- //
-        if (world.HasComponent<PrefabComponent>(entity))
-        {
-            const auto& prefabComp = world.GetComponent<PrefabComponent>(entity);
-            entry["prefab"] = prefabComp.name;
-            if (!prefabComp.guid.empty())
-                entry["prefabGuid"] = prefabComp.guid;
-        }
-
-        // ---- Name ---- //
-        if (world.HasComponent<NameComponent>(entity))
-        {
-            entry["name"] = world.GetComponent<NameComponent>(entity).name;
-        }
-
-        // ---- Transform ---- //
-        if (world.HasComponent<TransformComponent>(entity))
-        {
-            const auto& t = world.GetComponent<TransformComponent>(entity);
-            entry["transform"]["position"] = { t.position.x, t.position.y, t.position.z };
-            entry["transform"]["rotation"] = { t.rotation.x, t.rotation.y, t.rotation.z, t.rotation.w };
-            entry["transform"]["scale"] = { t.scale.x, t.scale.y, t.scale.z };
-			entry["transform"]["parent"] = t.parent;
-        }
-
-        // ---- RigidBody / Collider） ---- //
-        if (world.HasComponent<RigidBodyComponent>(entity))
-        {
-            const auto& rb = world.GetComponent<RigidBodyComponent>(entity);
-            entry["rigidbody"]["mass"] = rb.mass;
-            entry["rigidbody"]["isKinematic"] = rb.isKinematic;
-            entry["rigidbody"]["isStatic"] = rb.isStatic;
-        }
-
-        if (world.HasComponent<ColliderComponent>(entity))
-        {
-            const auto& col = world.GetComponent<ColliderComponent>(entity);
-            entry["collider"]["shape"] = ShapeTypeToString(col.shapeType);
-            entry["collider"]["size"] = { col.size.x, col.size.y, col.size.z };
-            entry["collider"]["radius"] = col.radius;
-            entry["collider"]["friction"] = col.friction;
-            entry["collider"]["restitution"] = col.restitution;
-            entry["collider"]["density"] = col.density;
-        }
-
-        // ---- Mesh ---- //
-        if (world.HasComponent<MeshComponent>(entity))
-        {
-            const auto& meshComp = world.GetComponent<MeshComponent>(entity);
-            WriteAssetRef(entry["mesh"], "filePath", meshComp.FilePath);
-            entry["mesh"]["scale"] = meshComp.scale;
-        }
-
-        if (world.HasComponent<AnimatorComponent>(entity))
-        {
-            const auto& an = world.GetComponent<AnimatorComponent>(entity);
-            entry["animator"]["currentClip"] = an.currentClip;
-            entry["animator"]["playing"] = an.playing;
-            entry["animator"]["extraClips"] = an.extraClipNames;
-        }
-
-        // ---- Material ---- //
-        if (world.HasComponent<MaterialComponent>(entity))
-        {
-            const auto& matComp = world.GetComponent<MaterialComponent>(entity);
-            entry["material"]["shaderName"] = matComp.shaderName;
-            WriteAssetRef(entry["material"], "filePath", matComp.FilePath);
-            WriteAssetRef(entry["material"], "rampPath", matComp.RampFilePath);
-            auto& subs = entry["material"]["subMaterials"] = nlohmann::json::array();
-            for (auto& sm : matComp.materials)
-            {
-                nlohmann::json sj;
-                if (sm)
-                {
-                    sj["shaderName"] = sm->shaderName;
-                    sj["roughness"] = sm->roughness;
-                    sj["metallic"] = sm->metallic;
-                    sj["sssStrength"] = sm->sssStrength;
-                    sj["sssWrap"] = sm->sssWrap;
-                    sj["sssTrans"] = sm->sssTrans;
-                    sj["reflectStrength"] = sm->reflectStrength;
-                    sj["reflectFade"] = sm->reflectFade;
-                    sj["reflectBlur"] = sm->reflectBlur;
-                    sj["sheen"] = sm->sheen;
-                    sj["sssColor"] = { sm->sssColor.x, sm->sssColor.y, sm->sssColor.z };
-                    sj["emissiveColor"] = { sm->emissiveColor.x, sm->emissiveColor.y, sm->emissiveColor.z };
-                    sj["emissiveStrength"] = sm->emissiveStrength;
-					sj["baseAlpha"] = sm->baseAlpha;
-                }
-                subs.push_back(sj);
-            }
-        }
-
-        // ---- それ以外の汎用コンポーネント ---- //
-        for (auto& c : ComponentRegistry::All())
-        {
-            if (c.save) c.save(world, entity, entry);
-        }
-
-        // ---- Script ---- //
-        if (world.HasComponent<ScriptComponent>(entity))
-        {
-            const auto& sc = world.GetComponent<ScriptComponent>(entity);
-            json scriptsJson = json::array();
-            for (const auto& name : sc.scriptNames)
-            {
-                json one;
-                one["name"] = name;
-
-                // フィールド値(values)も保存
-                json vals;
-                auto it = sc.values.find(name);
-                if (it != sc.values.end())
-                {
-                    for (const auto& [fieldName, v] : it->second)
-                    {
-                        // FieldValue を型に応じてjson化
-                        switch (v.type)
-                        {
-                        case FieldType::Int:    vals[fieldName] = v.i; break;
-                        case FieldType::Float:  vals[fieldName] = v.f[0]; break;
-                        case FieldType::Float2: vals[fieldName] = { v.f[0], v.f[1] }; break;
-                        case FieldType::Float3: vals[fieldName] = { v.f[0], v.f[1], v.f[2] }; break;
-                        case FieldType::Color:
-                        case FieldType::Float4: vals[fieldName] = { v.f[0], v.f[1], v.f[2], v.f[3] }; break;
-                        case FieldType::Bool:   vals[fieldName] = v.b; break;
-                        case FieldType::String: vals[fieldName] = v.s; break;
-                        case FieldType::Entity: vals[fieldName] = v.i; break;  // EntityRefのid
-                        case FieldType::Texture:
-                        case FieldType::Font:
-                        case FieldType::Audio:
-                        case FieldType::AssetPath:
-                            vals[fieldName] = AssetRefToJson(v.s);
-                            break;
-                        default: break;
-                        }
-                    }
-                }
-                one["values"] = vals;
-                scriptsJson.push_back(std::move(one));
-            }
-            entry["scripts"] = std::move(scriptsJson);
-        }
-
-        root["entities"].push_back(std::move(entry));
+        root["entities"].push_back(SaveEntity(world, entity));
     }
+
     return root.dump(2);
 }
 
@@ -267,7 +214,6 @@ bool SceneSerializer::LoadFromString(Scene& scene, const std::string& data)
     scene.ResetWorld();
 
     World& world = scene.GetWorld();
-    PhysicsWorld* physicsWorld = nullptr;
 
     std::unordered_map<Entity, Entity> idMap; // 保存id -> 実Entity
     std::vector<std::pair<const json*, Entity>> loaded;
@@ -374,26 +320,6 @@ bool SceneSerializer::LoadFromString(Scene& scene, const std::string& data)
                     world.AddComponent<ColliderComponent>(entity, col);
             }
 
-            if (hasRb && hasCol)
-            {
-                if (physicsWorld == nullptr)
-                {
-                    physicsWorld = &scene.EnsurePhysicsWorld();
-                    physicsWorld->Init();
-                }
-
-                auto& rb = world.GetComponent<RigidBodyComponent>(entity);
-                auto& col = world.GetComponent<ColliderComponent>(entity);
-
-                physicsWorld->AddRigidbody(entity, rb, col);
-
-                if (world.HasComponent<TransformComponent>(entity))
-                {
-                    const auto& t = world.GetComponent<TransformComponent>(entity);
-                    physicsWorld->SetActorPose(entity, t.position, t.rotation);
-                }
-            }
-
             // ---- Material ---- //
             if (entry.contains("material"))
             {
@@ -416,29 +342,7 @@ bool SceneSerializer::LoadFromString(Scene& scene, const std::string& data)
                 {
                     for (const auto& sj : mj["subMaterials"])
                     {
-                        SubMaterialRestore r;
-                        if (!sj.is_null())
-                        {
-                            r.shaderName = sj.value("shaderName", std::string(""));
-                            r.roughness = sj.value("roughness", 0.5f);
-                            r.metallic = sj.value("metallic", 0.0f);
-                            if (sj.contains("emissiveColor"))
-                            {
-                                const auto& e = sj["emissiveColor"];
-                                r.emissiveColor = { e[0], e[1], e[2], 1.0f };
-                            }
-                            r.emissiveStrength = sj.value("emissiveStrength", 1.0f);
-							r.sssStrength = sj.value("sssStrength", 0.0f);
-							r.sssWrap = sj.value("sssWrap", 0.4f);
-							r.sssTrans = sj.value("sssTrans", 0.0f);
-							r.reflectStrength = sj.value("reflectStrength", 0.0f);
-							r.reflectFade = sj.value("reflectFade", 8.0f);
-							r.reflectBlur = sj.value("reflectBlur", 1.0f);
-							r.sheen = sj.value("sheen", 0.0f);
-							r.sssColor = ToFloat4(sj.value("sssColor", json::array({ 0.9f,0.35f,0.25f,1.0f })), float4(0.9f, 0.35f, 0.25f, 1.0f));
-							r.baseAlpha = sj.value("baseAlpha", 1.0f);
-                        }
-                        mat.pendingSubs.push_back(r);
+                        mat.pendingSubs.push_back(ReadSubMaterial(sj));
                     }
                 }
                 if (!mat.FilePath.empty())
@@ -465,6 +369,7 @@ bool SceneSerializer::LoadFromString(Scene& scene, const std::string& data)
                 {
                     // プリミティブはファイルを読まずに作り直す
 					BuildPrimitiveEntity(world, entity, meshComp.FilePath);
+                    ModelLoader::ApplyPendingSubMaterials(world.GetComponent<MaterialComponent>(entity));
                 }
                 else if (!meshComp.FilePath.empty())
                 {
@@ -502,31 +407,7 @@ bool SceneSerializer::LoadFromString(Scene& scene, const std::string& data)
                     // フィールド値の復元
                     if (one.contains("values"))
                     {
-                        auto& vmap = sc.values[name];
-                        for (auto& [fieldName, jv] : one["values"].items())
-                        {
-                            FieldValue fv;
-                            if (jv.is_boolean()) { fv.type = FieldType::Bool;   fv.b = jv.get<bool>(); }
-                            else if (jv.is_string()) { fv.type = FieldType::String; fv.s = jv.get<std::string>(); }
-                            // アセット参照 { guid, path }。'|' 区切りの複数はその配列。
-                            // 数値配列の分岐より前で拾わないと get<float> で例外になる
-                            else if (jv.is_object()
-                                || (jv.is_array() && !jv.empty() && jv[0].is_object()))
-                            {
-                                fv.type = FieldType::AssetPath;
-                                fv.s = AssetRefFromJson(jv);
-                            }
-                            else if (jv.is_number_integer()) { fv.type = FieldType::Int;    fv.i = jv.get<int>(); }
-                            else if (jv.is_number()) { fv.type = FieldType::Float;  fv.f[0] = jv.get<float>(); }
-                            else if (jv.is_array())
-                            {
-                                int n = (int)jv.size();
-                                fv.type = (n == 2) ? FieldType::Float2
-                                    : (n == 3) ? FieldType::Float3 : FieldType::Float4;
-                                for (int k = 0; k < n && k < 4; ++k) fv.f[k] = jv[k].get<float>();
-                            }
-                            vmap[fieldName] = fv;
-                        }
+                        sc.values[name] = ReadScriptValues(one["values"]);
                     }
                 }
                 if (!sc.scriptNames.empty())
@@ -565,4 +446,348 @@ bool SceneSerializer::LoadFromString(Scene& scene, const std::string& data)
     }
 
     return true;
+}
+
+nlohmann::json SceneSerializer::SaveEntity(World& world, Entity entity)
+{
+    json entry;
+    entry["id"] = entity;
+
+    // ---- Prefab ---- //
+    if (world.HasComponent<PrefabComponent>(entity))
+    {
+        const auto& prefabComp = world.GetComponent<PrefabComponent>(entity);
+        entry["prefab"] = prefabComp.name;
+        if (!prefabComp.guid.empty())
+            entry["prefabGuid"] = prefabComp.guid;
+    }
+
+    // ---- Name ---- //
+    if (world.HasComponent<NameComponent>(entity))
+    {
+        entry["name"] = world.GetComponent<NameComponent>(entity).name;
+    }
+
+    // ---- Transform ---- //
+    if (world.HasComponent<TransformComponent>(entity))
+    {
+        const auto& t = world.GetComponent<TransformComponent>(entity);
+        entry["transform"]["position"] = { t.position.x, t.position.y, t.position.z };
+        entry["transform"]["rotation"] = { t.rotation.x, t.rotation.y, t.rotation.z, t.rotation.w };
+        entry["transform"]["scale"] = { t.scale.x, t.scale.y, t.scale.z };
+        entry["transform"]["parent"] = t.parent;
+    }
+
+    // ---- RigidBody / Collider） ---- //
+    if (world.HasComponent<RigidBodyComponent>(entity))
+    {
+        const auto& rb = world.GetComponent<RigidBodyComponent>(entity);
+        entry["rigidbody"]["mass"] = rb.mass;
+        entry["rigidbody"]["isKinematic"] = rb.isKinematic;
+        entry["rigidbody"]["isStatic"] = rb.isStatic;
+    }
+
+    if (world.HasComponent<ColliderComponent>(entity))
+    {
+        const auto& col = world.GetComponent<ColliderComponent>(entity);
+        entry["collider"]["shape"] = ShapeTypeToString(col.shapeType);
+        entry["collider"]["size"] = { col.size.x, col.size.y, col.size.z };
+        entry["collider"]["radius"] = col.radius;
+        entry["collider"]["friction"] = col.friction;
+        entry["collider"]["restitution"] = col.restitution;
+        entry["collider"]["density"] = col.density;
+    }
+
+    // ---- Mesh ---- //
+    if (world.HasComponent<MeshComponent>(entity))
+    {
+        const auto& meshComp = world.GetComponent<MeshComponent>(entity);
+        WriteAssetRef(entry["mesh"], "filePath", meshComp.FilePath);
+        entry["mesh"]["scale"] = meshComp.scale;
+    }
+
+    if (world.HasComponent<AnimatorComponent>(entity))
+    {
+        const auto& an = world.GetComponent<AnimatorComponent>(entity);
+        entry["animator"]["currentClip"] = an.currentClip;
+        entry["animator"]["playing"] = an.playing;
+        entry["animator"]["extraClips"] = an.extraClipNames;
+    }
+
+    // ---- Material ---- //
+    if (world.HasComponent<MaterialComponent>(entity))
+    {
+        const auto& matComp = world.GetComponent<MaterialComponent>(entity);
+        entry["material"]["shaderName"] = matComp.shaderName;
+        WriteAssetRef(entry["material"], "filePath", matComp.FilePath);
+        WriteAssetRef(entry["material"], "rampPath", matComp.RampFilePath);
+        auto& subs = entry["material"]["subMaterials"] = nlohmann::json::array();
+        for (size_t i = 0; i < matComp.materials.size(); ++i)
+        {
+            const auto& sm = matComp.materials[i];
+            const std::string asset =
+                (i < matComp.materialAssets.size()) ? matComp.materialAssets[i] : std::string{};
+
+            nlohmann::json sj;
+            if (!asset.empty())
+            {
+                // 共有マテリアル: 値は .mat 側にあるので参照だけ書く
+                WriteAssetRef(sj, "materialAsset", asset);
+            }
+            else if (sm)
+            {
+                sj["shaderName"] = sm->shaderName;
+                sj["roughness"] = sm->roughness;
+                sj["metallic"] = sm->metallic;
+                sj["sssStrength"] = sm->sssStrength;
+                sj["sssWrap"] = sm->sssWrap;
+                sj["sssTrans"] = sm->sssTrans;
+                sj["reflectStrength"] = sm->reflectStrength;
+                sj["reflectFade"] = sm->reflectFade;
+                sj["reflectBlur"] = sm->reflectBlur;
+                sj["sheen"] = sm->sheen;
+                sj["sssColor"] = { sm->sssColor.x, sm->sssColor.y, sm->sssColor.z };
+                sj["emissiveColor"] = { sm->emissiveColor.x, sm->emissiveColor.y, sm->emissiveColor.z };
+                sj["emissiveStrength"] = sm->emissiveStrength;
+                sj["baseAlpha"] = sm->baseAlpha;
+                sj["baseColor"] = { sm->baseColor.x, sm->baseColor.y, sm->baseColor.z, sm->baseColor.w };
+                sj["rimColor"] = { sm->rimColor.x, sm->rimColor.y, sm->rimColor.z, sm->rimColor.w };
+                sj["outlineWidth"] = sm->outlineWidth;
+                sj["isFace"] = sm->isFace;
+            }
+            subs.push_back(sj);
+        }
+    }
+
+    // ---- それ以外の汎用コンポーネント ---- //
+    for (auto& c : ComponentRegistry::All())
+    {
+        if (c.save) c.save(world, entity, entry);
+    }
+
+    // ---- Script ---- //
+    if (world.HasComponent<ScriptComponent>(entity))
+    {
+        const auto& sc = world.GetComponent<ScriptComponent>(entity);
+        json scriptsJson = json::array();
+        for (const auto& name : sc.scriptNames)
+        {
+            json one;
+            one["name"] = name;
+
+            // フィールド値(values)も保存
+            json vals;
+            auto it = sc.values.find(name);
+            if (it != sc.values.end())
+            {
+                for (const auto& [fieldName, v] : it->second)
+                {
+                    // FieldValue を型に応じてjson化
+                    switch (v.type)
+                    {
+                    case FieldType::Int:    vals[fieldName] = v.i; break;
+                    case FieldType::Float:  vals[fieldName] = v.f[0]; break;
+                    case FieldType::Float2: vals[fieldName] = { v.f[0], v.f[1] }; break;
+                    case FieldType::Float3: vals[fieldName] = { v.f[0], v.f[1], v.f[2] }; break;
+                    case FieldType::Color:
+                    case FieldType::Float4: vals[fieldName] = { v.f[0], v.f[1], v.f[2], v.f[3] }; break;
+                    case FieldType::Bool:   vals[fieldName] = v.b; break;
+                    case FieldType::String: vals[fieldName] = v.s; break;
+                    case FieldType::Entity: vals[fieldName] = v.i; break;  // EntityRefのid
+                    case FieldType::Texture:
+                    case FieldType::Font:
+                    case FieldType::Audio:
+                    case FieldType::AssetPath:
+                        vals[fieldName] = AssetRefToJson(v.s);
+                        break;
+                    default: break;
+                    }
+                }
+            }
+            one["values"] = vals;
+            scriptsJson.push_back(std::move(one));
+        }
+        entry["scripts"] = std::move(scriptsJson);
+    }
+
+    return entry;
+}
+
+namespace
+{
+    /// @brief マテリアルの json を、既存の MaterialComponent に当てる(作り直さない)
+    void ApplyMaterialJson(World& world, Entity e, const json& mj)
+    {
+        auto& mc = world.GetComponent<MaterialComponent>(e);
+        mc.shaderName = mj.value("shaderName", mc.shaderName);
+
+        const std::string tex = ReadAssetRef(mj, "filePath");
+        if (tex != mc.FilePath)
+        {
+            mc.FilePath = tex;
+            if (mc.material && !tex.empty())
+                mc.material->SetTextureFromFile(std::filesystem::path(tex).wstring());
+        }
+        const std::string ramp = ReadAssetRef(mj, "rampPath");
+        if (ramp != mc.RampFilePath)
+        {
+            mc.RampFilePath = ramp;
+            if (mc.material && !ramp.empty())
+                mc.material->SetToonRampTexture(std::filesystem::path(ramp).wstring());
+        }
+
+        if (!mj.contains("subMaterials")) return;
+        const json& subs = mj["subMaterials"];
+        mc.materialAssets.resize(mc.materials.size());
+
+        for (size_t i = 0; i < subs.size() && i < mc.materials.size(); ++i)
+        {
+            const SubMaterialRestore r = ReadSubMaterial(subs[i]);
+
+            // .mat の割り当てが変わった(割り当て / 解除の Undo)
+            if (r.materialAsset != mc.materialAssets[i])
+            {
+                auto m = r.materialAsset.empty()
+                    ? (mc.materials[i] ? MaterialLibrary::Get().Clone(*mc.materials[i]) : nullptr)
+                    : MaterialLibrary::Get().Load(r.materialAsset);
+                if (m)
+                {
+                    APP->WaitForGPUIdle();
+                    mc.materials[i] = m;
+                    if (i == 0) mc.material = m;
+                    mc.materialAssets[i] = r.materialAsset;
+                }
+            }
+
+            // 共有マテリアルの値は .mat 側にあるので、Entity 側からは当てない
+            if (!r.materialAsset.empty() || !mc.materials[i]) continue;
+            ApplySubMaterial(*mc.materials[i], r);
+        }
+    }
+}
+
+void SceneSerializer::ApplyEntityDiff(Scene& scene, Entity e, const json& from, const json& to)
+{
+    World& world = scene.GetWorld();
+    if (!world.IsEntityAlive(e)) return;
+
+    // from と to でそのキーが違うか(片方にしか無い場合も含む)
+    auto changed = [&](const std::string& key)
+        {
+            const bool a = from.contains(key), b = to.contains(key);
+            if (a != b) return true;
+            return a && from[key] != to[key];
+        };
+
+    // ---- Name ---- //
+    if (changed("name"))
+    {
+        if (to.contains("name") && to["name"].is_string())
+        {
+            const std::string name = to["name"].get<std::string>();
+            if (world.HasComponent<NameComponent>(e)) world.GetComponent<NameComponent>(e).name = name;
+            else world.AddComponent<NameComponent>(e, NameComponent{ name });
+        }
+        else if (world.HasComponent<NameComponent>(e))
+        {
+            world.DeleteComponent<NameComponent>(e);
+        }
+    }
+
+    // ---- Transform ---- //
+    if (changed("transform"))
+    {
+        if (to.contains("transform"))
+        {
+            const json& tj = to["transform"];
+            // 保存しない実行時の値を消さないよう、今の値を土台にする
+            TransformComponent t = world.HasComponent<TransformComponent>(e)
+                ? world.GetComponent<TransformComponent>(e) : TransformComponent{};
+            t.position = ToFloat3(tj.value("position", json::array()));
+            t.rotation = ToFloat4(tj.value("rotation", json::array()), float4(0, 0, 0, 1));
+            t.scale = ToFloat3(tj.value("scale", json::array()), float3(1, 1, 1));
+            t.parent = (Entity)tj.value("parent", 0u);
+            t.SyncEulerFromQuaternion();
+            t.RebuildWorld();
+
+            if (world.HasComponent<TransformComponent>(e)) world.GetComponent<TransformComponent>(e) = t;
+            else world.AddComponent<TransformComponent>(e, t);
+        }
+        else if (world.HasComponent<TransformComponent>(e))
+        {
+            world.DeleteComponent<TransformComponent>(e);
+        }
+    }
+
+    // ---- Material ---- //
+    if (changed("material") && to.contains("material") && world.HasComponent<MaterialComponent>(e))
+    {
+        ApplyMaterialJson(world, e, to["material"]);
+    }
+
+    // ---- Mesh(パスが変わったときだけ読み直す) ---- //
+    if (changed("mesh") && to.contains("mesh") && world.HasComponent<MeshComponent>(e))
+    {
+        const json& mj = to["mesh"];
+        auto& mc = world.GetComponent<MeshComponent>(e);
+        mc.scale = mj.value("scale", mc.scale);
+
+        const std::string path = ReadAssetRef(mj, "filePath");
+        if (path != mc.FilePath)
+        {
+            if (IsPrimitivePath(path)) BuildPrimitiveEntity(world, e, path);
+            else if (!path.empty())
+				ModelLoader::PopulateModelEntity(world, e, path, &scene, 0, false, {}, false);
+            ModelLoader::ApplyPendingSubMaterials(world.GetComponent<MaterialComponent>(e));
+        }
+    }
+
+    // ---- Animator ---- //
+    if (changed("animator") && to.contains("animator") && world.HasComponent<AnimatorComponent>(e))
+    {
+        auto& an = world.GetComponent<AnimatorComponent>(e);
+        an.currentClip = to["animator"].value("currentClip", an.currentClip);
+        an.playing = to["animator"].value("playing", an.playing);
+    }
+
+    // ---- RigidBody / Collider ---- //
+    if (changed("rigidbody") && to.contains("rigidbody") && world.HasComponent<RigidBodyComponent>(e))
+    {
+        auto& rb = world.GetComponent<RigidBodyComponent>(e);
+        const json& j = to["rigidbody"];
+        rb.mass = j.value("mass", rb.mass);
+        rb.isKinematic = j.value("isKinematic", rb.isKinematic);
+        rb.isStatic = j.value("isStatic", rb.isStatic);
+    }
+    if (changed("collider") && to.contains("collider") && world.HasComponent<ColliderComponent>(e))
+    {
+        auto& col = world.GetComponent<ColliderComponent>(e);
+        const json& j = to["collider"];
+        col.shapeType = ShapeTypeFromString(j.value("shape", std::string("Box")));
+        col.size = ToFloat3(j.value("size", json::array()), col.size);
+        col.radius = j.value("radius", col.radius);
+        col.friction = j.value("friction", col.friction);
+        col.restitution = j.value("restitution", col.restitution);
+        col.density = j.value("density", col.density);
+    }
+
+    // ---- 登録済みの汎用コンポーネント(追加 / 削除 / 値の変更) ---- //
+    for (const auto& c : ComponentRegistry::All())
+    {
+        if (!changed(c.name)) continue;
+        if (to.contains(c.name)) { if (c.load) c.load(world, e, to); }
+        else if (c.remove)       { c.remove(world, e); }
+    }
+
+    // ---- スクリプトの値 ---- //
+    if (changed("scripts") && to.contains("scripts") && world.HasComponent<ScriptComponent>(e))
+    {
+        auto& sc = world.GetComponent<ScriptComponent>(e);
+        for (const auto& one : to["scripts"])
+        {
+            const std::string name = one.value("name", "");
+            if (!name.empty() && one.contains("values"))
+                sc.values[name] = ReadScriptValues(one["values"]);
+        }
+    }
 }

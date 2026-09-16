@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #include <string>
 #include <atomic>
@@ -7,7 +7,7 @@ struct BuildSetting
 {
 	std::string outputDir = "Build";
 	std::string gameName = "MyGame";
-	std::string startScene = "SampleScene.json";
+	std::string startScene = "SampleScene";   // 名前(拡張子なし)。SceneManager::ScenePathFromName で解決する
 	std::string configuration = "Debug";
 
 	// 開始シーンから参照されているアセットだけをコピーする。

@@ -46,6 +46,15 @@ namespace AssetFileOps
 	/// @brief 削除(フォルダは中身ごと)
 	void DeleteAsset(const std::string& path);
 
-	/// @brief 空のシーン json を作る
+	/// @brief 空のシーン(.scene)を作る
 	void CreateSceneFile(const std::string& dir);
+
+	/// @brief 旧形式のシーン(.json)を .scene にリネームする
+	/// @note RenameAsset を通すので .meta も動き、GUID が保たれる
+	/// @return 変換したら true
+	bool ConvertLegacyScene(const std::string& path);
+
+	/// @brief Assets 配下の旧形式シーンを全部 .scene にする
+	/// @return 変換した件数
+	int ConvertAllLegacyScenes(const std::string& assetsRoot);
 }

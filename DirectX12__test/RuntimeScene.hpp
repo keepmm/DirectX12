@@ -128,6 +128,7 @@ private:
 	CameraAnimationSystem m_CameraAnimationSystem;
 	MusicSyncSystem m_MusicSyncSystem;
 	SePlayer m_SePlayer;
+	FollowCameraSystem m_FollowCameraSystem;
 
 	BeamRenderer m_FireworkBeamRenderer;
 	FireworkSystem m_FireworkSystem;

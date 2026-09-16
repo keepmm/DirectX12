@@ -5,6 +5,7 @@
 #include <memory>
 #include <vector>
 #include <string>
+#include <optional>
 #include "ScriptField.hpp"
 #include "AudioEngine.hpp"
 #include "ModelData.hpp"
@@ -139,6 +140,7 @@ struct MeshComponent
 
 struct SubMaterialRestore
 {
+	std::string materialAsset;	// .mat が割り当てられていれば、そのパス(値は .mat 側)
 	std::string shaderName;
 	float roughness = 0.5f;
 	float metallic = 0.0f;
@@ -153,6 +155,13 @@ struct SubMaterialRestore
 	float reflectBlur = 1.0f;
 	COLOR emissiveColor = { 0.0f,0.0f,0.0f,1.0f };
 	float emissiveStrength = 1.0f;
+
+	// 以前のシーンには保存されていない項目。キーが無いときはモデル由来の値を残す
+	// (baseColor は PMX / glTF の拡散色が入っているので、既定値で上書きしてはいけない)
+	std::optional<COLOR> baseColor;
+	std::optional<COLOR> rimColor;
+	std::optional<float> outlineWidth;
+	std::optional<bool>  isFace;
 };
 
 struct MaterialComponent
@@ -160,6 +169,9 @@ struct MaterialComponent
 	std::shared_ptr<Material> material;	// 単一
 	std::vector<std::shared_ptr<Material>> materials;	// 複数
 	std::vector<std::string> materialnames;	// 複数
+	/// @brief サブマテリアルごとの .mat パス。空ならモデル内蔵のマテリアル
+	/// @note materials と同じ添字。サイズが足りないときは空とみなす
+	std::vector<std::string> materialAssets;
 	ID3D12PipelineState* overridePso = nullptr;
 
 	std::string FilePath;
@@ -817,4 +829,77 @@ struct ParticleEmitterComponent
 	};
 	std::vector<Particle> particles;   // プールとして使い回す(容量固定・再利用)
 	float spawnAccumulator = 0.0f;
+};
+
+struct CharacterControllerComponent
+{
+	// ---- 設定(インスペクタ / 保存される) ---- //
+	float height = 1.0f;
+	float radius = 0.3f;
+	float stepOffset = 0.3f;
+	float slopeLimit = 45.0f;
+	float gravityScale = 1.0f;
+	int layer = 0;
+	unsigned int collisionMask = 0xFFFFFFFFu;
+	float3 center{ 0.0f,0.0f,0.0f };// カプセルの中心(Transformの位置からのずれ)
+
+	// ---- 実行時の状態(これは保存しない) ---- //
+	float3 velocity{ 0.0f,0.0f,0.0f };
+	float3 pendingMove{ 0.0f,0.0f,0.0f };
+	bool isGrounded = false;
+	bool hitCeiling = false;
+
+	void Move(const float3& delta)
+	{
+		pendingMove.x += delta.x;
+		pendingMove.y += delta.y;
+		pendingMove.z += delta.z;
+	}
+
+	bool Jump(float speed)
+	{
+		if (!isGrounded) return false;
+		velocity.y = speed;
+		isGrounded = false;
+		return true;
+	}
+
+	void Reflect(FieldList& f)
+	{
+		f.AddRange("Height", height, 0.1f, 10.0f);
+		f.AddRange("Radius", radius, 0.1f, 5.0f);
+		f.AddRange("StepOffset", stepOffset, 0.0f, 2.0f);
+		f.AddRange("SlopeLimit", slopeLimit, 0.0f, 90.0f);
+		f.AddRange("GravityScale", gravityScale, 0.0f, 10.0f);
+		f.AddRange("Layer", layer, 0, 31);
+		f.Add("Center", center);
+	}
+};
+
+struct FollowCameraComponent
+{
+	std::string targetTag	= "Player";	// 追いかける相手のタグ
+	float distance			= 5.0f;		// 対象からの距離
+	float height			= 1.5f;		// 見る高さ (対象Entityの足元からの高さ)
+	float rotateSpeed		= 0.005f;	// マウス感度	
+	float positionLag		= 12.0f;	// 位置追従の速さ(大きいほど追いつく
+	float minPitch			= -30.0f;	// 見下ろし / 見上げの限界(度)
+	float maxPitch			= 60.0f;
+	bool enabled			= true;
+
+	// ---- 実行時 ---- //
+	float yaw = 0.0f;
+	float pitch = 0.2f;
+
+	void Reflect(FieldList& f)
+	{
+		f.Add("TargetTag", targetTag);
+		f.AddRange("Distance", distance, 0.1f, 20.0f);
+		f.AddRange("Height", height, 0.0f, 10.0f);
+		f.AddRange("RotateSpeed", rotateSpeed, 0.0001f, 0.01f);
+		f.AddRange("PositionLag", positionLag, 1.0f, 30.0f);
+		f.AddRange("MinPitch", minPitch, -89.0f, 0.0f);
+		f.AddRange("MaxPitch", maxPitch, 0.0f, 89.0f);
+		f.Add("Enabled", enabled);
+	}
 };

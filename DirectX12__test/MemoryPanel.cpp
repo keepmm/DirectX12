@@ -12,6 +12,9 @@
 #include "imgui_internal.h"
 #include "Logger.hpp"
 #include "Util.hpp"
+#include "DirectX.hpp"
+#include "ConstantBufferAllocator.hpp"
+#include <dxgi1_4.h>
 #include <vector>
 #include <Windows.h>
 #include <Psapi.h>
@@ -80,5 +83,31 @@ void MemoryPanel::Draw(EditorContext&)
 		ImGui::Text(u8("メモリ(Private Working Set): %.1f MB"), privateWorkingSetMB);
 		ImGui::Text(u8("Working Set(共有含む): %.1f MB"), workingSetMB);
 		ImGui::Text(u8("Commit Size(PrivateUsage): %.1f MB"), privateCommitMB);
+	}
+
+	// ---- 定数バッファのリング(1 フレームのピーク / 容量) ---- //
+	{
+		const auto& cb = APP->GetConstantBufferAllocator();
+		ImGui::Text(u8("定数バッファ ピーク: %.2f MB / %.0f MB"),
+			cb.PeakBytes() * BYTES_TO_MB, ConstantBufferAllocator::CapacityBytes() * BYTES_TO_MB);
+	}
+
+	// ---- VRAM(このプロセスが GPU に確保している量) ---- //
+	{
+		ComPtr<IDXGIFactory4> factory;
+		ComPtr<IDXGIAdapter3> adapter;
+		if (APP->GetDevice() &&
+			SUCCEEDED(CreateDXGIFactory1(IID_PPV_ARGS(&factory))) &&
+			SUCCEEDED(factory->EnumAdapterByLuid(APP->GetDevice()->GetAdapterLuid(), IID_PPV_ARGS(&adapter))))
+		{
+			DXGI_QUERY_VIDEO_MEMORY_INFO local{}, shared{};
+			adapter->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_LOCAL, &local);
+			adapter->QueryVideoMemoryInfo(0, DXGI_MEMORY_SEGMENT_GROUP_NON_LOCAL, &shared);
+
+			ImGui::Text(u8("VRAM(専用): %.1f MB / 予算 %.0f MB"),
+				local.CurrentUsage * BYTES_TO_MB, local.Budget * BYTES_TO_MB);
+			ImGui::Text(u8("VRAM(共有 = メインメモリ側): %.1f MB"),
+				shared.CurrentUsage * BYTES_TO_MB);
+		}
 	}
 }

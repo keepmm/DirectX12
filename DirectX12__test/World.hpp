@@ -23,6 +23,63 @@ constexpr Entity INVALID_ENTITY = 0;
 class World
 {
 public:
+	// ---- Undo / Redo 用 ---- //
+	struct IComponentBox
+	{
+		virtual ~IComponentBox() = default;
+	};
+
+	template<typename T>
+	struct ComponentBox final : IComponentBox
+	{
+		explicit ComponentBox(T&& v) : value(std::move(v)) {}
+		T value;
+	};
+
+	/// @brief Worldから取り外したEntity
+	struct DetachedEntity
+	{
+		Entity id = INVALID_ENTITY;
+		std::vector<std::pair<std::type_index, std::unique_ptr<IComponentBox>>> components;
+	};
+
+	/// @brief Entity を取り外す。 GPUリソース等は破棄しない
+	/// @param entity 
+	/// @return 
+	DetachedEntity DetachEntity(Entity entity)
+	{
+		DetachedEntity out;
+		auto it = std::find(m_Entities.begin(), m_Entities.end(), entity);
+		if (it == m_Entities.end()) return out;
+
+		m_Entities.erase(it);
+		out.id = entity;
+		for (auto& [type, storage] : m_Storages)
+		{
+			if(auto box = storage->Take(entity))
+				out.components.emplace_back(type, std::move(box));
+		}
+		return out;
+	}
+
+	bool AttachEntity(DetachedEntity&& detached)
+	{
+		if (detached.id == INVALID_ENTITY || IsEntityAlive(detached.id)) return false;
+
+		m_Entities.push_back(detached.id);
+		for (auto& [type, box] : detached.components)
+		{
+			auto it = m_Storages.find(type);
+			if (it != m_Storages.end())
+			{
+				it->second->Put(detached.id, std::move(box));
+			}
+		}
+		detached.components.clear();
+		detached.id = INVALID_ENTITY;
+		return true;
+	}
+
 	Entity CreateEntity()
 	{
 		Entity entity = m_NextEntityId++;
@@ -165,6 +222,10 @@ private:
 	{
 		virtual ~IStorage() = default;
 		virtual void Remove(Entity entity) = 0;
+		/// @brief 取り出して所有権ごと返す(持っていなければ nullptr)
+		virtual std::unique_ptr<IComponentBox> Take(Entity entity) = 0;
+		/// @brief Take したものを戻す
+		virtual void Put(Entity entity, std::unique_ptr<IComponentBox> box) = 0;
 	};
 
 	template<typename T>
@@ -175,6 +236,20 @@ private:
 		void Remove(Entity entity) override
 		{
 			Data.erase(entity);
+		}
+
+		std::unique_ptr<IComponentBox> Take(Entity entity) override
+		{
+			auto it = Data.find(entity);
+			if (it == Data.end()) return nullptr;
+			auto box = std::make_unique<ComponentBox<T>>(std::move(it->second));
+			Data.erase(it);
+			return box;
+		}
+
+		void Put(Entity entity, std::unique_ptr<IComponentBox> box) override
+		{
+			Data[entity] = std::move(static_cast<ComponentBox<T>*>(box.get())->value);
 		}
 	};
 

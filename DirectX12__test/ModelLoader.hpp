@@ -14,6 +14,7 @@
 
 class Scene;
 class Mesh;
+struct MaterialComponent;
 
 class ModelLoader
 {
@@ -37,6 +38,8 @@ public:
 	static AnimationClip LoadVMDClip(const std::string& path,const Skeleton& skeleton);
 
 	static CameraClip LoadVMDCameraClip(_In_ const std::string& path);
+
+	static void ApplyPendingSubMaterials(_Inout_ MaterialComponent& mc);
 
 	static void PopulateModelEntity(
 		World& world, std::uint32_t entity,

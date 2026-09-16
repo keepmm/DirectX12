@@ -129,6 +129,9 @@
     <ClCompile Include="Material.cpp">
       <Filter>Mesh_Model</Filter>
     </ClCompile>
+    <ClCompile Include="MaterialLibrary.cpp">
+      <Filter>Mesh_Model</Filter>
+    </ClCompile>
     <ClCompile Include="MaterialParams.cpp">
       <Filter>Mesh_Model</Filter>
     </ClCompile>
@@ -196,6 +199,9 @@
       <Filter>Editor</Filter>
     </ClCompile>
     <ClCompile Include="StyleSettingPanel.cpp">
+      <Filter>Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="ThumbnailCache.cpp">
       <Filter>Editor</Filter>
     </ClCompile>
     <ClCompile Include="MmdPlayerPanel.cpp">
@@ -286,6 +292,7 @@
     </ClCompile>
     <ClCompile Include="AssetDatabase.cpp" />
     <ClCompile Include="AssetRemap.cpp" />
+    <ClCompile Include="UndoHistory.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.hpp">
@@ -367,6 +374,9 @@
       <Filter>Mesh_Model</Filter>
     </ClInclude>
     <ClInclude Include="Material.hpp">
+      <Filter>Mesh_Model</Filter>
+    </ClInclude>
+    <ClInclude Include="MaterialLibrary.hpp">
       <Filter>Mesh_Model</Filter>
     </ClInclude>
     <ClInclude Include="MaterialParams.hpp">
@@ -463,6 +473,9 @@
       <Filter>Editor</Filter>
     </ClInclude>
     <ClInclude Include="StyleSettingPanel.hpp">
+      <Filter>Editor</Filter>
+    </ClInclude>
+    <ClInclude Include="ThumbnailCache.hpp">
       <Filter>Editor</Filter>
     </ClInclude>
     <ClInclude Include="MmdPlayerPanel.hpp">
@@ -585,7 +598,11 @@
       <Filter>Mesh_Model</Filter>
     </ClInclude>
     <ClInclude Include="AssetDatabase.hpp" />
+    <ClInclude Include="AssetExt.hpp">
+      <Filter>Core</Filter>
+    </ClInclude>
     <ClInclude Include="AssetRemap.hpp" />
+    <ClInclude Include="UndoHistory.hpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="EngineAssets\Shaders\BRDF.hlsli">

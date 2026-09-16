@@ -16,6 +16,7 @@
 #include "AsyncLoader.hpp"
 #include "Components.hpp"
 #include "MmdPhysics.hpp"
+#include "MaterialLibrary.hpp"
 
 namespace
 {
@@ -929,6 +930,51 @@ CameraClip ModelLoader::LoadVMDCameraClip(const std::string& path)
     return clip;
 }
 
+void ModelLoader::ApplyPendingSubMaterials(MaterialComponent& mc)
+{
+    const auto& pending = mc.pendingSubs;
+
+    for (size_t i = 0; i < pending.size() && i < mc.materials.size(); ++i)
+    {
+        auto& sm = mc.materials[i];
+        if (!sm) continue;
+        sm->shaderName = pending[i].shaderName;
+        sm->roughness = pending[i].roughness;
+        sm->metallic = pending[i].metallic;
+        sm->sssStrength = pending[i].sssStrength;
+        sm->sssWrap = pending[i].sssWrap;
+        sm->sssTrans = pending[i].sssTrans;
+        sm->sheen = pending[i].sheen;
+        sm->sssColor = pending[i].sssColor;
+        sm->baseAlpha = pending[i].baseAlpha;
+        sm->reflectStrength = pending[i].reflectStrength;
+        sm->reflectFade = pending[i].reflectFade;
+        sm->reflectBlur = pending[i].reflectBlur;
+        sm->emissiveColor = pending[i].emissiveColor;
+        sm->emissiveStrength = pending[i].emissiveStrength;
+        // 以前のシーンには無い項目。保存されていたときだけ上書きする
+        if (pending[i].baseColor)    sm->baseColor = *pending[i].baseColor;
+        if (pending[i].rimColor)     sm->rimColor = *pending[i].rimColor;
+        if (pending[i].outlineWidth) sm->outlineWidth = *pending[i].outlineWidth;
+        if (pending[i].isFace)       sm->isFace = *pending[i].isFace;
+    }
+
+    // --- .mat が割り当てられていたスロットは共有インスタンスに差し替える ---
+    mc.materialAssets.resize(mc.materials.size());
+    for (size_t i = 0; i < pending.size() && i < mc.materials.size(); ++i)
+    {
+        if (pending[i].materialAsset.empty()) continue;
+
+        if (auto shared = MaterialLibrary::Get().Load(pending[i].materialAsset))
+        {
+            mc.materials[i] = shared;
+            mc.materialAssets[i] = pending[i].materialAsset;
+        }
+    }
+    if (!mc.materials.empty()) mc.material = mc.materials[0];
+    mc.pendingSubs.clear();
+}
+
 void ModelLoader::PopulateModelEntity(
     World& world, std::uint32_t entity,
     const std::string& modelpath, Scene* scene,
@@ -1040,28 +1086,10 @@ void ModelLoader::PopulateModelEntity(
             mc.materials = BuildMaterials(result, "PBR");
             for (size_t i = 0; i < mc.materials.size(); ++i)
                 mc.materialnames.push_back(result.materials[i].name);
-            if (!mc.materials.empty()) mc.material = mc.materials[0];
+           // if (!mc.materials.empty()) mc.material = mc.materials[0];
 
-            // --- 保留していたサブマテリアル復元値を適用 ---
-            for (size_t i = 0; i < pending.size() && i < mc.materials.size(); ++i)
-            {
-                auto& sm = mc.materials[i];
-                if (!sm) continue;
-                sm->shaderName = pending[i].shaderName;
-                sm->roughness = pending[i].roughness;
-                sm->metallic = pending[i].metallic;
-                sm->sssStrength = pending[i].sssStrength;
-                sm->sssWrap = pending[i].sssWrap;
-                sm->sssTrans = pending[i].sssTrans;
-                sm->sheen = pending[i].sheen;
-                sm->sssColor = pending[i].sssColor;
-				sm->baseAlpha = pending[i].baseAlpha;
-				sm->reflectStrength = pending[i].reflectStrength;
-				sm->reflectFade = pending[i].reflectFade;
-				sm->reflectBlur = pending[i].reflectBlur;
-				sm->emissiveColor = pending[i].emissiveColor;
-				sm->emissiveStrength = pending[i].emissiveStrength;
-            }
+            mc.pendingSubs = pending;
+			ApplyPendingSubMaterials(mc);
 
             world.AddComponent<MaterialComponent>(entity, mc);
         });

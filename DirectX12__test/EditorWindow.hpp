@@ -29,6 +29,7 @@
 #include "EditorPanel.hpp"
 #include "EditorMenuBar.hpp"
 #include "ViewportPanel.hpp"
+#include "UndoHistory.hpp"
 
 class EditorWindow
 {
@@ -78,6 +79,9 @@ private:
 	EditorContext m_Context;
 	EditorMenuBar m_MenuBar;
 	ViewportPanel m_Viewport;
+	UndoHistory m_History;
+	Scene* m_HistoryScene = nullptr;	// m_History が追跡しているシーン
+	bool m_HistoryEditing = false;
 
 	std::vector<std::unique_ptr<EditorPanel>> m_Panels;
 

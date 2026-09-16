@@ -16,6 +16,8 @@
 #include "Components.hpp"
 #include "EntityFactory.hpp"
 #include "RenderContext.hpp"
+#include "UndoHistory.hpp"
+#include <functional>
 
 
 static Entity GetParent(World& world, Entity e)
@@ -107,51 +109,69 @@ void HierarchyPanel::DrawEntityList(EditorContext& ctx, World& world)
 			if (const ImGuiPayload* p = ImGui::AcceptDragDropPayload("ENTITY"))
 			{
 				Entity child = *(const Entity*)p->Data;
-				SetParent(world, child, INVALID_ENTITY);
+				// 選択していない Entity を書き換えることがあるので、前後を明示的に記録する
+				auto apply = [&]() { SetParent(world, child, INVALID_ENTITY); };
+				if (ctx.history && ctx.activeScene) ctx.history->RecordEdit(*ctx.activeScene, child, apply);
+				else apply();
 			}
 			ImGui::EndDragDropTarget();
 		}
 
 		if (ImGui::BeginPopupContextWindow())
 		{
+			// 作成を Undo できるよう、増えた Entity を記録する
+			// (UI Image / Text が Canvas を一緒に作る場合もまとめて 1 回で戻る)
+			auto recordCreate = [&](const std::function<Entity()>& create)
+				{
+					const size_t before = world.GetEntities().size();
+					ctx.selectedEntity = create();
+					if (ctx.history && ctx.activeScene)
+						ctx.history->RecordCreated(*ctx.activeScene, before);
+				};
+
 			if (ImGui::BeginMenu(u8("作成")))
 			{
 				if (ImGui::MenuItem(u8("空のエンティティ")))
 				{
-					static int entityCount = 1;
-					Entity e = world.CreateEntity();
-					world.AddComponent<NameComponent>(e, NameComponent{ "Entity " + std::to_string(entityCount++) });
-					world.AddComponent<TransformComponent>(e, TransformComponent{});
-					ctx.selectedEntity = e;
+					recordCreate([&]()
+						{
+							static int entityCount = 1;
+							Entity e = world.CreateEntity();
+							world.AddComponent<NameComponent>(e, NameComponent{ "Entity " + std::to_string(entityCount++) });
+							world.AddComponent<TransformComponent>(e, TransformComponent{});
+							return e;
+						});
 				}
 
 				if (ImGui::BeginMenu(u8("プリミティブ")))
 				{
 					if (ImGui::MenuItem(u8("球")))
-					{
-						ctx.selectedEntity = EntityFactory::CreatePrimitive(world, kPrimitiveSphere);
-					}
-
+						recordCreate([&]() { return EntityFactory::CreatePrimitive(world, kPrimitiveSphere); });
 					if (ImGui::MenuItem(u8("立方体")))
-					{
-						ctx.selectedEntity = EntityFactory::CreatePrimitive(world, kPrimitiveCube);
-					}
-
+						recordCreate([&]() { return EntityFactory::CreatePrimitive(world, kPrimitiveCube); });
 					ImGui::EndMenu();
 				}
 
 				if (ImGui::BeginMenu("UI"))
 				{
-					if (ImGui::MenuItem("Image")) ctx.selectedEntity = EntityFactory::CreateImage(world);
-					if (ImGui::MenuItem("Text"))  ctx.selectedEntity = EntityFactory::CreateText(world);
+					if (ImGui::MenuItem("Image")) recordCreate([&]() { return EntityFactory::CreateImage(world); });
+					if (ImGui::MenuItem("Text"))  recordCreate([&]() { return EntityFactory::CreateText(world); });
 					ImGui::EndMenu();
 				}
 				ImGui::EndMenu();
 			}
 			if (ImGui::MenuItem(u8("エンティティを削除")) && ctx.selectedEntity != INVALID_ENTITY)
 			{
-				APP->WaitForGPUIdle();
-				world.DestroyEntity(ctx.selectedEntity);
+				if (ctx.history && ctx.activeScene)
+				{
+					// 取り外して履歴に保管する(Undo で同じ ID・同じ見た目のまま戻る)
+					ctx.history->DeleteEntity(*ctx.activeScene, ctx.selectedEntity);
+				}
+				else
+				{
+					APP->WaitForGPUIdle();
+					world.DestroyEntity(ctx.selectedEntity);
+				}
 				ctx.selectedEntity = INVALID_ENTITY;
 			}
 			ImGui::EndPopup();
@@ -198,7 +218,11 @@ void HierarchyPanel::DrawEntityNode(EditorContext& ctx, World& world, Entity ent
 		{
 			Entity child = *(const Entity*)p->Data;
 			if (child != entity && !IsAncestor(world, child, entity))
-				SetParentKeepWorld(world, child, entity);
+			{
+				auto apply = [&]() { SetParentKeepWorld(world, child, entity); };
+				if (ctx.history && ctx.activeScene) ctx.history->RecordEdit(*ctx.activeScene, child, apply);
+				else apply();
+			}
 		}
 		ImGui::EndDragDropTarget();
 	}

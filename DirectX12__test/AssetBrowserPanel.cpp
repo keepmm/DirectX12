@@ -27,12 +27,30 @@
 #include "DragFiles.hpp"
 #include "AssetFileOps.hpp"
 #include "AssetRemap.hpp"
+#include "MaterialLibrary.hpp"
+#include "AssetExt.hpp"
+#include "ThumbnailCache.hpp"
+#include <fstream>
+#include <string_view>
 #include "AssetDatabase.hpp"
 
 #pragma comment(lib, "psapi.lib")
 
 namespace
 {
+	/// @brief 旧形式(.json)のファイルがシーンか。タイムライン等の json と区別する
+	/// @note 毎フレーム呼ばれるので、先頭だけ読んで "entities" / "sceneName" を探す簡易判定
+	bool IsSceneJson(const std::string& path)
+	{
+		std::ifstream in(path);
+		if (!in) return false;
+		char buf[512] = {};
+		in.read(buf, sizeof(buf) - 1);
+		const std::string_view head(buf);
+		return head.find("\"entities\"") != std::string_view::npos
+			|| head.find("\"sceneName\"") != std::string_view::npos;
+	}
+
 	/// @brief 拡張子を小文字化する（大文字の .FBX / .GLB でも同じ扱いにするため）
 	std::string ToLowerExt(const std::string& ext)
 	{
@@ -132,6 +150,8 @@ void AssetBrowserPanel::Draw(EditorContext& ctx)
 			}
 			else
 			{
+				if (entry.path().extension() == ".meta") continue;	// .meta は非表示
+
 				files.push_back(entry);
 			}
 		}
@@ -175,6 +195,12 @@ void AssetBrowserPanel::Draw(EditorContext& ctx)
 					label = "IMG";
 					color = ImVec4(0.3f, 0.7f, 0.3f, 1.0f);
 				}
+				else if (ext == AssetExt::Scene)
+				{
+					iconPath = EngineAssetPath(L"Icons/Json.png").wstring();
+					label = "SCENE";
+					color = ImVec4(0.85f, 0.55f, 0.25f, 1.0f);
+				}
 				else if (ext == ".json")
 				{
 					iconPath = EngineAssetPath(L"Icons/Json.png").wstring();
@@ -199,7 +225,16 @@ void AssetBrowserPanel::Draw(EditorContext& ctx)
 
 				// ---- タイル本体 ---- //
 				bool clicked = false;
-				ImTextureID icon = IconLibrary::Get()->GetOrLoad(iconPath);
+				// 中身のサムネイルが用意できていればアイコンの代わりに使う(まだなら通常のアイコン)
+				ImTextureID icon = 0;
+				if (!isFolder && ThumbnailCache::Supports(ext))
+				{
+					icon = ThumbnailCache::Get().Request(fullPath);
+				}
+				if (icon == 0)
+				{
+					icon = IconLibrary::Get()->GetOrLoad(iconPath);
+				}
 				if (icon != 0)
 				{
 					clicked = ImGui::ImageButton("##tile", icon, tileSize);
@@ -214,6 +249,11 @@ void AssetBrowserPanel::Draw(EditorContext& ctx)
 				if (clicked)
 				{
 					ctx.selectedAsset = fullPath;
+
+					// インスペクタはエンティティ選択を優先するので、
+					// .mat を選んだときはエンティティの選択を外して編集画面を出す
+					if (MaterialLibrary::IsMaterialPath(fullPath))
+						ctx.selectedEntity = INVALID_ENTITY;
 				}
 
 				// フォルダはダブルクリックで中に入る
@@ -233,7 +273,9 @@ void AssetBrowserPanel::Draw(EditorContext& ctx)
 					AssetFileOps::OpenInEditor(fullPath);
 				}
 
-				if (!isFolder && ext == ".json" &&
+				// シーンはダブルクリックで開く(旧形式の .json も、中身がシーンなら)
+				if (!isFolder &&
+					(ext == AssetExt::Scene || (ext == ".json" && IsSceneJson(fullPath))) &&
 					ImGui::IsItemHovered() &&
 					ImGui::IsMouseDoubleClicked(ImGuiMouseButton_Left))
 				{
@@ -254,6 +296,8 @@ void AssetBrowserPanel::Draw(EditorContext& ctx)
 						payloadType = "ASSET_FONT";
 					else if (ext == ".wav" || ext == ".mp3" || ext == ".ogg")
 						payloadType = "ASSET_AUDIO";
+					else if (ext == ".mat")
+						payloadType = "ASSET_MATERIAL";
 
 					ImGui::SetDragDropPayload(payloadType,
 						fullPath.c_str(), fullPath.size() + 1);
@@ -283,11 +327,15 @@ void AssetBrowserPanel::Draw(EditorContext& ctx)
 							pendingDir = fullPath;
 						}
 					}
-					else if (ext == ".json")
+					else if (ext == AssetExt::Scene || (ext == ".json" && IsSceneJson(fullPath)))
 					{
 						if (ImGui::MenuItem(u8("シーンを開く")))
 						{
 							pendingScenepath = fullPath;
+						}
+						if (ext == ".json" && ImGui::MenuItem(u8(".scene に変換")))
+						{
+							AssetFileOps::ConvertLegacyScene(fullPath);
 						}
 					}
 					else if (ext == ".hpp" || ext == ".h" || ext == ".cpp" ||
@@ -372,6 +420,16 @@ void AssetBrowserPanel::Draw(EditorContext& ctx)
 				if (ImGui::MenuItem(u8("シーン")))
 				{
 					AssetFileOps::CreateSceneFile(ctx.currentAssetDir);
+				}
+
+				if (ImGui::MenuItem(u8("マテリアル")))
+				{
+					const std::string file = MaterialLibrary::Get().CreateDefault(ctx.currentAssetDir);
+					if (!file.empty())
+					{
+						ctx.selectedAsset = file;          // 作ったらそのまま編集できるように
+						ctx.selectedEntity = INVALID_ENTITY;
+					}
 				}
 
 				if (ImGui::MenuItem(u8("C++ スクリプト")))

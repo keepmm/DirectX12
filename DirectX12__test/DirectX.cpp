@@ -28,18 +28,27 @@ DirectXApp::DirectXApp(HWND hWnd, int Window_Width, int Window_Height) :
 	ID3D12Debug* debug = nullptr;
 	HRESULT hr;
 #if _DEBUG
-	ComPtr<ID3D12DeviceRemovedExtendedDataSettings> dred;
-	if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&dred))))
+	// デバッグレイヤーと DRED は RAM を数百 MB 使う。
+	// メモリを測りたいときは環境変数 DX12_NO_DEBUG_LAYER=1 で切れる
+	char noDebug[8] = {};
+	const bool debugLayer =
+		GetEnvironmentVariableA("DX12_NO_DEBUG_LAYER", noDebug, sizeof(noDebug)) == 0 || noDebug[0] != '1';
+
+	if (debugLayer)
 	{
-		dred->SetAutoBreadcrumbsEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
-		dred->SetPageFaultEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+		ComPtr<ID3D12DeviceRemovedExtendedDataSettings> dred;
+		if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&dred))))
+		{
+			dred->SetAutoBreadcrumbsEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+			dred->SetPageFaultEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+		}
+		D3D12GetDebugInterface(IID_PPV_ARGS(&debug));
+		if (debug) {
+			debug->EnableDebugLayer();
+			debug->Release();
+		}
+		FlagsDXGI |= DXGI_CREATE_FACTORY_DEBUG;
 	}
-	D3D12GetDebugInterface(IID_PPV_ARGS(&debug));
-	if (debug) {
-		debug->EnableDebugLayer();
-		debug->Release();
-	}
-	FlagsDXGI |= DXGI_CREATE_FACTORY_DEBUG;
 #endif
 	hr = CreateDXGIFactory2(FlagsDXGI, IID_PPV_ARGS(m_Factory.ReleaseAndGetAddressOf()));
 	if (FAILED(hr)) {
@@ -2217,6 +2226,21 @@ bool DirectXApp::LoadEnvironment(const std::wstring& hdrpath)
 	DirectX::TexMetadata meta{}; DirectX::ScratchImage img{};
 	if (FAILED(DirectX::LoadFromHDRFile(resolved.c_str(), &meta, img)))
 		return false;
+
+	// 横幅を kMaxEnvWidth に抑える。4096x2048 のままだと
+	// R32G32B32A32 + ミップで VRAM を約 170MB 使い、CPU のプレフィルタも重い
+	constexpr size_t kMaxEnvWidth = 2048;
+	if (meta.width > kMaxEnvWidth)
+	{
+		const size_t h = (std::max)(size_t(1), meta.height * kMaxEnvWidth / meta.width);
+		DirectX::ScratchImage resized;
+		if (SUCCEEDED(DirectX::Resize(*img.GetImage(0, 0, 0), kMaxEnvWidth, h,
+			DirectX::TEX_FILTER_LINEAR, resized)))
+		{
+			img = std::move(resized);
+			meta = img.GetMetadata();
+		}
+	}
 
 	// ミップ生成（ラフネス反射のボケ用）
 	DirectX::ScratchImage mipped{};

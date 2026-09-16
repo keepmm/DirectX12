@@ -13,6 +13,15 @@
 #include "TextureLoader.hpp"
 #include "Util.hpp"
 
+namespace
+{
+	/// @brief 読んだファイルを Assets 相対で返す(.mat に書くため)
+	std::string ToSourcePath(const std::wstring& file)
+	{
+		return MakeAssetRelative(std::filesystem::path(file).generic_string());
+	}
+}
+
 void Material::Init()
 {
 	// デバイスが無い場合は初期化しない
@@ -43,6 +52,7 @@ bool Material::SetTextureFromFile(const std::wstring& filePath)
 		return false;
 	}
 
+	m_Textures.SetSourcePath(TexSlot::Albedo, ToSourcePath(filePath));
 	LOG->LogInfo("SetTextureFromFile: texture loaded");
 	return true;
 }
@@ -83,23 +93,30 @@ bool Material::SetToonRampTexture(const std::wstring& filepath)
 
 	if (!m_Textures.UploadImage(TexSlot::Ramp, image.GetImage(0, 0, 0), metadata)) return false;
 
+	m_Textures.SetSourcePath(TexSlot::Ramp, ToSourcePath(filepath));
 	m_Textures.MarkCustomRamp();
 	return true;
 }
 
 bool Material::SetNormalTexture(const std::wstring& path)
 {
-	return m_Textures.LoadFromFile(TexSlot::Normal, path);
+	if (!m_Textures.LoadFromFile(TexSlot::Normal, path)) return false;
+	m_Textures.SetSourcePath(TexSlot::Normal, ToSourcePath(path));
+	return true;
 }
 
 bool Material::SetMetalTexture(const std::wstring& path)
 {
-	return m_Textures.LoadFromFile(TexSlot::Metal, path);
+	if (!m_Textures.LoadFromFile(TexSlot::Metal, path)) return false;
+	m_Textures.SetSourcePath(TexSlot::Metal, ToSourcePath(path));
+	return true;
 }
 
 bool Material::SetRoughTexture(const std::wstring& path)
 {
-	return m_Textures.LoadFromFile(TexSlot::Rough, path);
+	if (!m_Textures.LoadFromFile(TexSlot::Rough, path)) return false;
+	m_Textures.SetSourcePath(TexSlot::Rough, ToSourcePath(path));
+	return true;
 }
 
 void Material::ShareDiffuseTexture(const Material& src)
