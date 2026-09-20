@@ -52,8 +52,15 @@ public:
 
 	static bool IsMaterialPath(_In_ const std::string& path);
 
+	/// @brief 読み込み後に値が変わった .mat か(保存していない印)
+	/// @note 未保存のままだと Play / Stop でシーンを作り直したときに元へ戻る
+	bool IsDirty(_In_ const std::string& path) const;
+
+	/// @brief 値が変わったことを覚える(インスペクタで編集したら呼ぶ)
+	void MarkDirty(_In_ const std::string& path);
+
 	/// @brief キャッシュを捨てる(プロジェクト切り替え時)
-	void Clear() { m_Cache.clear(); }
+	void Clear() { m_Cache.clear(); m_Dirty.clear(); }
 
 private:
 	MaterialLibrary() = default;
@@ -62,5 +69,8 @@ private:
 	std::string KeyOf(_In_ const std::string& path) const;
 
 	std::unordered_map<std::string, std::shared_ptr<Material>> m_Cache;
+
+	// 編集されて未保存の .mat。キーは m_Cache と同じ
+	std::unordered_map<std::string, bool> m_Dirty;
 };
 

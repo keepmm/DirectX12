@@ -38,6 +38,12 @@ struct alignas(256) MaterialCB
 	// x: hasEmissive y: hasOcclusion z: エミッシブ強度
 	float4 pbrParams{ 0.0f, 0.0f, 1.0f, 0.0f };
 	float4 emissiveColor{ 0.0f, 0.0f, 0.0f, 1.0f };
+	// 水面 x : 法線の起伏 y: 波長 z: 流れる速さ w: 鏡面の鋭さ
+	float4 waveParams{ 0.35f,2.0f,0.6f,1.0f };
+	// 水 x: 最小不透明度 y: 濁りの強さ z : 白波のしきい値 w: コースティクス強度
+	float4 waterParams{ 0.55f, 1.0f,0.0f,0.0f };
+	// 頂点で作る波。x:振幅(m) y:尖り(0~1) z,w:予備
+	float4 waveParams2{ 0.15f, 0.5f, 0.0f, 0.0f };
 };
 
 struct LightData

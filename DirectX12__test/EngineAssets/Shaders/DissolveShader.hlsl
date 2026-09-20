@@ -5,13 +5,7 @@
 Texture2D g_Texture : register(t0);
 SamplerState g_Sampler : register(s0);
 
-cbuffer Material : register(b3)
-{
-    float roughness;    // ノイズの細かさ
-    float metallic;     // ディソルブ量 0 = 完全, 1 = 消滅
-    float2 _pad;
-    float4 rimColor;    // rgb : 解け際の発行色 / a 発光の幅
-}
+#include "MaterialCB.hlsli"
 
 float hash13(float3 p)
 {
@@ -38,7 +32,7 @@ float4 DissolvePS(PSInput pin) : SV_Target
     
     // 通常のLambertライティング
     float4 tex = g_Texture.Sample(g_Sampler, pin.uv);
-    float3 baseColor = pin.col.rgb * tex.rgb;
+    float3 baseColor = pin.col.rgb * tex.rgb * basecolor.rgb;
     float3 N = normalize(pin.normal);
     
     float3 diffuse = 0;
@@ -55,5 +49,5 @@ float4 DissolvePS(PSInput pin) : SV_Target
     }
     float3 lit = diffuse + baseColor * ambientColor.rgb;
     
-    return float4(lit + edgeGlow, pin.col.a * tex.a);
+    return float4(lit + edgeGlow, pin.col.a * tex.a * basecolor.a);
 }

@@ -47,6 +47,19 @@ static void DrawMaterialParamsUI(Material& target, const std::string& effShader)
 	ImGui::Separator();
 	ImGui::Text(u8("マテリアル質感パラメータ"));
 
+	// ---- 基本色 ---- //
+	ImGui::ColorEdit4(u8("ベースカラー##Mat"), &target.baseColor.x,
+		ImGuiColorEditFlags_AlphaBar | ImGuiColorEditFlags_AlphaPreviewHalf);
+
+	ImGui::SliderFloat(u8("不透明度##Mat"), &target.baseAlpha, 0.0f, 1.0f);
+
+	if (ImGui::SmallButton(u8("白に戻す##MatBase")))
+	{
+		target.baseColor = { 1.0f,1.0f,1.0f,1.0f };
+		target.baseAlpha = 1.0f;
+	}
+	ImGui::Separator();
+
 	// サブマテリアルの表示/非表示(材質モーフで隠す衣装パーツ用)
 	bool visible = target.baseAlpha > 0.5f;
 	if (ImGui::Checkbox(u8("表示##SubMatVisible"), &visible))
@@ -116,12 +129,40 @@ static void DrawMaterialParamsUI(Material& target, const std::string& effShader)
 		ImGui::SliderFloat(u8("正面の不透明度##Mat"), &target.baseColor.w, 0.0f, 1.0f);
 	}
 
+	if (effShader == "Water")
+	{
+		ImGui::SeparatorText(u8("水面"));
+		ImGui::ColorEdit3(u8("水の色##Mat"), &target.baseColor.x);
+		ImGui::SliderFloat(u8("正面の不透明度##Mat"), &target.waterOpacity, 0.0f, 1.0f);
+		ImGui::SliderFloat(u8("濁り##Mat"), &target.waterTurbidity, 0.0f, 1.0f);
+
+		ImGui::SeparatorText(u8("波"));
+		ImGui::SliderFloat(u8("波の高さ(m)##Mat"), &target.waveAmplitude, 0.0f, 2.0f);
+		ImGui::SliderFloat(u8("波頭の尖り##Mat"), &target.waveSteepness, 0.0f, 1.0f);
+		ImGui::SliderFloat(u8("細波の起伏##Mat"), &target.waveHeight, 0.0f, 2.0f);
+		ImGui::SliderFloat(u8("波長(m)##Mat"), &target.waveLength, 0.1f, 30.0f);
+		ImGui::SliderFloat(u8("流れる速さ##Mat"), &target.waveSpeed, 0.0f, 3.0f);
+		ImGui::SliderFloat(u8("白波##Mat"), &target.waterFoam, 0.0f, 1.0f);
+
+		ImGui::SeparatorText(u8("映り込み"));
+		ImGui::SliderFloat(u8("きらめきの鋭さ##Mat"), &target.waterGloss, 0.1f, 4.0f);
+		ImGui::SliderFloat(u8("映り込みのボケ##Mat"), &target.roughness, 0.0f, 1.0f);
+		// 0 だと平面反射の SRV が張られず、環境マップ(空)だけの映り込みになる
+		ImGui::SliderFloat(u8("反射強度##Mat"), &target.reflectStrength, 0.0f, 1.5f);
+		if (target.reflectStrength > 0.0f)
+		{
+			ImGui::SliderFloat(u8("反射フェード距離##Mat"), &target.reflectFade, 1.0f, 40.0f);
+		}
+	}
+
 	if (effShader == "Genshin_Toon")
 	{
 		ImGui::SliderFloat(u8("ハイライトの広さ##Mat"), &target.roughness, 0.0f, 1.0f);
 		ImGui::SliderFloat(u8("ハイライトの強さ##Mat"), &target.metallic, 0.0f, 1.0f);
 		ImGui::Checkbox(u8("フェイス描画##Mat"), &target.isFace);
 		ImGui::SliderFloat(u8("アウトライン幅##Mat"), &target.outlineWidth, 0.0f, 10.0f);
+		ImGui::SliderFloat(u8("輪郭線の太さ##Mat"), &target.outlineWidth, 0.0f, 5.0f);
+		ImGui::Checkbox(u8("顔(輪郭線を抑える)##Mat"), &target.isFace);
 	}
 }
 
@@ -536,6 +577,12 @@ void InspectorPanel::DrawInspector(EditorContext& ctx, World& world, Scene* scen
 						ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.3f, 1.0f),
 							u8("共有マテリアル: 変更はこの .mat を使うすべてに反映されます"));
 
+						if (MaterialLibrary::Get().IsDirty(assetPath))
+						{
+							ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.3f, 1.0f),
+								u8("未保存: 保存しないと Play / Stop で元に戻ります"));
+						}
+
 						if (ImGui::Button(u8("保存##MatAsset")))
 							MaterialLibrary::Get().Save(assetPath);
 
@@ -579,6 +626,19 @@ void InspectorPanel::DrawInspector(EditorContext& ctx, World& world, Scene* scen
 				const std::string& effShader =
 					!target->shaderName.empty() ? target->shaderName : materialComp.shaderName;
 				DrawMaterialParamsUI(*target, effShader);
+
+				// .mat を割り当てているスロットを触ったら、未保存の印を付ける
+				// (値の実体は .mat 側にあるので、保存しないとシーンには残らない)
+				if (ImGui::IsAnyItemActive())
+				{
+					for (size_t i = 0; i < materialComp.materials.size() &&
+						i < materialComp.materialAssets.size(); ++i)
+					{
+						if (materialComp.materials[i].get() != target) continue;
+						MaterialLibrary::Get().MarkDirty(materialComp.materialAssets[i]);
+						break;
+					}
+				}
 			}
 
 			ImGui::Separator();
@@ -811,11 +871,11 @@ void InspectorPanel::DrawInspector(EditorContext& ctx, World& world, Scene* scen
 				world.DeleteComponent<ScriptComponent>(ctx.selectedEntity);
 		}
 	}
-	else
-	{
-		if (ImGui::Button(u8("Add Component##ScriptComponent")))
-			world.AddComponent<ScriptComponent>(ctx.selectedEntity, ScriptComponent{});
-	}
+	//else
+	//{
+	//	if (ImGui::Button(u8("Add Component##ScriptComponent")))
+	//		world.AddComponent<ScriptComponent>(ctx.selectedEntity, ScriptComponent{});
+	//}
 
 	DrawAddComponentPopup(world, ctx.selectedEntity);
 }
@@ -853,6 +913,16 @@ void InspectorPanel::DrawMaterialAsset(const std::string& path)
 	}
 
 	DrawMaterialParamsUI(*mat, mat->shaderName);
+
+	// 触られたら未保存の印を付ける。
+	// 保存しないとファイルには残らず、Play / Stop で元に戻る
+	if (ImGui::IsAnyItemActive()) MaterialLibrary::Get().MarkDirty(path);
+
+	if (MaterialLibrary::Get().IsDirty(path))
+	{
+		ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.3f, 1.0f),
+			u8("未保存です。保存しないと Play / Stop で元に戻ります"));
+	}
 
 	// テクスチャ: アセットブラウザから画像をドロップして差し替える
 	ImGui::SeparatorText(u8("テクスチャ"));

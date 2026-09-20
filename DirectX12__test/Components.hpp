@@ -711,11 +711,53 @@ struct AnimatorComponent
 	std::vector<float> morphWeights;	// 各モーフの重み(0.0 ~ 1.0)
 	std::vector<float3> morphoffsets;	// CPUでブレンド済みの頂点オフセット
 	bool morphDirty = true;				// モーフの重みが変更されたかどうか
+	uint64_t morphVA = 0;				// このフレームで転送済みのモーフバッファ(GPU仮想アドレス)
+	uint64_t morphVAFrame = 0;			// morphVA を転送したフレーム(RenderContext::frameSerial)
 
 	// 表情を再生するクリップ。-1 = currentClip と同じものを使う。
 	// MMDでは体(FightingMyWay.vmd)と表情(face.vmd)が別ファイルのことがあるため、
 	// ボーン用とは別のクリップを指定できるようにしている。
 	int morphClip = -1;
+
+	/// @brief 名前でクリップを切り替える
+	/// @param restart 同じクリップでも最初から再生し直すか
+	/// @return 見つかって切り替えたら true(名前が無ければ false)
+	bool Play(const std::string& name, bool restart = false)
+	{
+		for (size_t i = 0; i < clips.size(); ++i)
+		{
+			if (clips[i].name != name) continue;
+
+			// 同じものが流れている途中なら触らない(毎フレーム呼ばれても先頭に戻らない)
+			if (!restart && currentClip == static_cast<int>(i) && playing) return true;
+
+			currentClip = static_cast<int>(i);
+			currentClipName = name;
+			time = 0.0f;
+			playing = true;
+			return true;
+		}
+		return false;
+	}
+
+	/// @brief 名前の一部が一致する最初のクリップを再生する
+	/// @note fbx のクリップ名は "Armature|Walk" のように前置きが付くことがある
+	bool PlayLike(const std::string& part, bool restart = false)
+	{
+		for (const auto& c : clips)
+		{
+			if (c.name.find(part) != std::string::npos) return Play(c.name, restart);
+		}
+		return false;
+	}
+
+	/// @brief いま流れているクリップの名前(無ければ空)
+	const std::string& CurrentClipName() const
+	{
+		static const std::string empty;
+		if (currentClip < 0 || currentClip >= static_cast<int>(clips.size())) return empty;
+		return clips[currentClip].name;
+	}
 
 	void Reflect(FieldList& f)
 	{
@@ -882,10 +924,13 @@ struct FollowCameraComponent
 	float distance			= 5.0f;		// 対象からの距離
 	float height			= 1.5f;		// 見る高さ (対象Entityの足元からの高さ)
 	float rotateSpeed		= 0.005f;	// マウス感度	
+	float padRotateSpeed	= 2.5f;		// パッド感度(ラジアン/秒)。マウスとは単位が違う
+	bool  padInvertY		= false;	// 右スティックの上下を入れ替える	
 	float positionLag		= 12.0f;	// 位置追従の速さ(大きいほど追いつく
 	float minPitch			= -30.0f;	// 見下ろし / 見上げの限界(度)
 	float maxPitch			= 60.0f;
 	bool enabled			= true;
+	bool captureCursor		= true;		// 再生中にカーソルを中央へ固定して隠す(ゲーム起動時のみ)
 
 	// ---- 実行時 ---- //
 	float yaw = 0.0f;
@@ -897,9 +942,44 @@ struct FollowCameraComponent
 		f.AddRange("Distance", distance, 0.1f, 20.0f);
 		f.AddRange("Height", height, 0.0f, 10.0f);
 		f.AddRange("RotateSpeed", rotateSpeed, 0.0001f, 0.01f);
+		f.AddRange("PadRotateSpeed", padRotateSpeed, 0.1f, 10.0f);
+		f.Add("PadInvertY", padInvertY);
 		f.AddRange("PositionLag", positionLag, 1.0f, 30.0f);
 		f.AddRange("MinPitch", minPitch, -89.0f, 0.0f);
 		f.AddRange("MaxPitch", maxPitch, 0.0f, 89.0f);
 		f.Add("Enabled", enabled);
+		f.Add("CaptureCursor", captureCursor);
+	}
+};
+
+struct TerrainComponent
+{
+	std::string HeightMapPath;
+
+	std::string dataPath;
+
+	float Width = 100.0f;	// X 方向の大きさ(ワールド単位)
+	float Depth = 100.0f;	// Z 方向の大きさ
+	float Height = 20.0f;	// 白(255)のときの高さ
+
+	int gridX = 128;		// 分割数・頂点数は(gridX + 1) * (gridZ + 1)
+	int gridZ = 128;
+	float uvTiling = 16.0f; // テクスチャの繰り返し回数
+
+	// ---- 実行時 ---- //
+	std::vector<float> Heights;	// 0 ~ 1の高さ
+	unsigned int heightsVersion = 0;	// 高さが変わるたびに増える(物理の作り直しの判定に使う)
+	size_t BuiltSettings = 0;	// 作った時の設定のハッシュ
+
+	void Reflect(FieldList& f)
+	{
+		f.AddAssetPath("Heighthmap", HeightMapPath);
+		f.AddAssetPath("TerrainData", dataPath);
+		f.AddRange("Width", Width, 1.0f, 10000.0f);
+		f.AddRange("Depth", Depth, 1.0f, 10000.0f);
+		f.AddRange("Height", Height, 1.0f, 1000.0f);
+		f.AddRange("GridX", gridX, 2, 512);
+		f.AddRange("GridZ", gridZ, 2, 512);
+		f.AddRange("UVTiling", uvTiling, 1.0f, 128.0f);
 	}
 };

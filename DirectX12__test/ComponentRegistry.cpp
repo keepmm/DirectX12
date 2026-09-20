@@ -134,13 +134,49 @@ void DrawExtraUI<AnimatorComponent>(World& world, Entity e, AnimatorComponent& a
             a.playing       = true;
         };
 
+    // 拡張子で読み方を変える。.vmd はスケルトンに合わせて読み、
+    // .fbx などはファイル内のアニメーションをすべて取り出す
+    auto isVmd = [](const std::string& p)
+        {
+            return p.size() > 4 && _stricmp(p.c_str() + p.size() - 4, ".vmd") == 0;
+        };
+
+    auto isAnimFile = [](const std::string& p)
+        {
+            const std::string ext = std::filesystem::path(p).extension().string();
+            for (const char* e : { ".vmd", ".fbx", ".gltf", ".glb", ".dae" })
+                if (_stricmp(ext.c_str(), e) == 0) return true;
+            return false;
+        };
+
+    // 読み込んだクリップをまとめて足す(.fbx は1ファイルに複数入っていることがある)
+    auto onLoadedMany = [&world, e](std::vector<AnimationClip> clips)
+        {
+            if (!world.IsEntityAlive(e) || !world.HasComponent<AnimatorComponent>(e)) return;
+            auto& a = world.GetComponent<AnimatorComponent>(e);
+
+            for (auto& c : clips)
+            {
+                if (c.channels.empty() && c.morphChannels.empty()) continue;
+                a.clips.push_back(std::move(c));
+            }
+            if (a.clips.empty()) return;
+
+            a.currentClip = (int)a.clips.size() - 1;
+            a.currentClipName = a.clips[a.currentClip].name;
+            a.time = 0.0f;
+            a.playing = true;
+        };
+
     // 読み込み開始時にパスを記録する(成功/失敗に関わらず記録でOK。失敗はログに出る)
-    auto loadAndRecord = [&an, &onLoaded](const std::string& rawPath)
+    auto loadAndRecord = [&an, &onLoaded, &onLoadedMany, &isVmd](const std::string& rawPath)
         {
             const std::string path = ImportToAssets(rawPath);
-            AsyncLoader::Get().LoadVMDAsync(path, an.skeleton, onLoaded);
 
-            // 同じVMDを二重に記録しない(保存のたびにパスが増え続けるため)
+            if (isVmd(path)) AsyncLoader::Get().LoadVMDAsync(path, an.skeleton, onLoaded);
+            else             AsyncLoader::Get().LoadAnimationFileAsync(path, onLoadedMany);
+
+            // 同じファイルを二重に記録しない(保存のたびにパスが増え続けるため)
             const std::string token = "|" + path + "|";
             const std::string haystack = "|" + an.clipPathsStr + "|";
             if (haystack.find(token) == std::string::npos)
@@ -151,11 +187,12 @@ void DrawExtraUI<AnimatorComponent>(World& world, Entity e, AnimatorComponent& a
             an.clipsRestored = true;   // いま手で読んだ分を復元処理が二重ロードしないように
         };
 
-    // --- VMD読み込みボタン(非同期) ---
-    if (ImGui::Button(u8("VMD読み込み...")))
+    // --- アニメーション読み込みボタン(非同期) ---
+    if (ImGui::Button(u8("アニメーション読み込み...")))
     {
         std::wstring picked;
-        if (OpenFileDialog(picked, L"VMD Motion\0*.vmd\0All\0*.*\0"))
+        if (OpenFileDialog(picked,
+            L"Animation\0*.vmd;*.fbx;*.gltf;*.glb;*.dae\0VMD Motion\0*.vmd\0All\0*.*\0"))
         {
             loadAndRecord(WideToUtf8(picked));
         }
@@ -167,11 +204,7 @@ void DrawExtraUI<AnimatorComponent>(World& world, Entity e, AnimatorComponent& a
         if (const ImGuiPayload* p = ImGui::AcceptDragDropPayload("ASSET_PATH"))
         {
             std::string path((const char*)p->Data, p->DataSize - 1);
-            if (path.size() > 4 &&
-                _stricmp(path.c_str() + path.size() - 4, ".vmd") == 0)
-            {
-                loadAndRecord(path);
-            }
+            if (isAnimFile(path)) loadAndRecord(path);
         }
         ImGui::EndDragDropTarget();
     }
@@ -599,15 +632,15 @@ static ComponentMeta MakeMeta(const std::string& name)
 //   （Inspector・AddComponent・シーンSave/Load全部に自動反映）
 static const std::vector<ComponentMeta> g_Components =
 {
-	MakeMeta<AnimatorComponent>("Animator"),
-	MakeMeta<AudioSourceComponent>("Audio Source"),
-	MakeMeta<AudioListenerComponent>("Audio Listener"),
-	MakeMeta<CameraComponent>("Camera"),
-	MakeMeta<CameraAnimationComponent>("Camera Animation"),
-	MakeMeta<FollowCameraComponent>("Follow Camera"),
-	MakeMeta<CharacterControllerComponent>("Character Controller"),
+    MakeMeta<AnimatorComponent>("Animator"),
+    MakeMeta<AudioSourceComponent>("Audio Source"),
+    MakeMeta<AudioListenerComponent>("Audio Listener"),
+    MakeMeta<CameraComponent>("Camera"),
+    MakeMeta<CameraAnimationComponent>("Camera Animation"),
+    MakeMeta<FollowCameraComponent>("Follow Camera"),
+    MakeMeta<CharacterControllerComponent>("Character Controller"),
     MakeMeta<CanvasComponent>("Canvas"),
-	MakeMeta<ColliderComponent>("Collider"),
+    MakeMeta<ColliderComponent>("Collider"),
     MakeMeta<LightComponent>("Light"),
     MakeMeta<FreeLookComponent>("Free Look"),
     MakeMeta<SpinComponent>("Spin"),
@@ -616,6 +649,7 @@ static const std::vector<ComponentMeta> g_Components =
     MakeMeta<UITextComponent>("UI Text"),
     MakeMeta<UIButtonComponent>("UI Button"),
     MakeMeta<TagComponent>("Tag"),
+    MakeMeta<TerrainComponent>("Terrain"),
 	MakeMeta<MusicSyncComponent>("Music Sync"),
 	MakeMeta<RigidBodyComponent>("Rigid Body"),
 	MakeMeta<ParticleEmitterComponent>("Particle Emitter"),

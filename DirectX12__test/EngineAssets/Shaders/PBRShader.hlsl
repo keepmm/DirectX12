@@ -45,27 +45,18 @@ float2 DirToEquirect(float3 d)
                   acos(clamp(d.y, -1, 1)) / 3.1415926535897932384626433832795f);
 }
 
-cbuffer Material : register(b3)
-{
-    float roughness;
-    float metallic;
-    float2 _pad;
-    float4 rimColor;
-    float4 mapFlags; // x=hasNormal, y=hasMetal, z=hasRough
-    float4 faceParam; // レイアウト合わせ(未使用)
-    float4 sssParams; // x=SSS強度 y=ラップ z=透過 w=布シーン
-    float4 sssColor;
-    float4 basecolor;
-    float4 reflectParam;
-    float4 pbrParams;     // x: hasEmissive, y: hasOcclusion, z: エミッシブ強度
-    float4 emissiveColor;
-}
+#include "MaterialCB.hlsli"
 
 float4 PbrPS(PSInput input) : SV_TARGET
 {
     float4 texSample = g_Texture.Sample(g_Sampler, input.uv);
-    clip(faceParam.y  - 0.05f);
-    float3 albedo = input.col.rgb * texSample.rgb;
+
+    // 不透明度は「マテリアルの表示/非表示(faceParam.y)」と「ベースカラーのα」の両方を見る
+    float alpha = faceParam.y * basecolor.a * texSample.a;
+    clip(alpha - 0.05f);
+
+    // ベースカラーは頂点色・テクスチャに掛ける(白 = 素材そのまま)
+    float3 albedo = input.col.rgb * texSample.rgb * basecolor.rgb;
 
     // 法線マップ（あれば適用）
     float3 N = normalize(input.normal);

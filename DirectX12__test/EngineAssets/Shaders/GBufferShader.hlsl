@@ -8,21 +8,7 @@ Texture2D g_Emissive  : register(t7);
 Texture2D g_Occlusion : register(t9);
 SamplerState g_Sampler : register(s0);
 
-cbuffer Material : register(b3)
-{
-    float roughness;
-    float metallic;
-    float2 _pad;
-    float4 rimColor;
-    float4 mapFlags; // x: hasNormal, y: hasMetal, z: hasRough, w: envMaxMip
-    float4 faceParam;
-    float4 sssParams;
-    float4 sssColor;
-    float4 basecolor;
-    float4 reflectParam;
-    float4 pbrParams;     // x: hasEmissive, y: hasOcclusion, z: エミッシブ強度
-    float4 emissiveColor;
-}
+#include "MaterialCB.hlsli"
 
 struct GbufferOutput
 {

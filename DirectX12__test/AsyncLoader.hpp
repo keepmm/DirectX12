@@ -72,6 +72,22 @@ public:
 		m_PendingClips.push_back(std::move(p));
 	}
 
+	/// @brief モデルファイル(.fbx など)からアニメーションだけ読む
+	/// @note VMD と違いスケルトンは要らない。ボーン名で後から突き合わせる
+	void LoadAnimationFileAsync(
+		_In_ const std::string& filePath,
+		std::function<void(std::vector<AnimationClip>)> onDone)
+	{
+		if (m_Pool == nullptr) return;
+
+		PendingClipList p;
+		p.future = m_Pool->Enqueue([filePath]() {
+			return ModelLoader::LoadAnimationsOnly(filePath);
+			});
+		p.onDone = std::move(onDone);
+		m_PendingClipLists.push_back(std::move(p));
+	}
+
 	void ProcessCompletedTasks()
 	{
 		for (auto it = m_Pending.begin(); it != m_Pending.end(); )
@@ -98,6 +114,18 @@ public:
 			if (it->onDone) it->onDone(std::move(clip));   // メインスレッドで実行
 			it = m_PendingClips.erase(it);
 		}
+
+		for (auto it = m_PendingClipLists.begin(); it != m_PendingClipLists.end(); )
+		{
+			if (it->future.wait_for(std::chrono::seconds(0)) != std::future_status::ready)
+			{
+				++it;
+				continue;
+			}
+			auto clips = it->future.get();
+			if (it->onDone) it->onDone(std::move(clips));   // メインスレッドで実行
+			it = m_PendingClipLists.erase(it);
+		}
 	}
 
 	size_t PendingCount() const { return m_Pending.size(); }
@@ -119,6 +147,13 @@ private:
 		std::function<void(AnimationClip)> onDone;
 	};
 	std::vector<PendingClip> m_PendingClips;
+
+	struct PendingClipList
+	{
+		std::future<std::vector<AnimationClip>> future;
+		std::function<void(std::vector<AnimationClip>)> onDone;
+	};
+	std::vector<PendingClipList> m_PendingClipLists;
 
 	ThreadPool* m_Pool = nullptr;                  // 参照→ポインタ（後から差せる）
 	ComPtr<ID3D12Device> m_Device;

@@ -7,7 +7,61 @@
 #include "Logger.hpp"
 #include <dxgidebug.h>
 #include "ShaderTypes.hpp"
+#include "Time.hpp"
 #include "GpuProfiler.hpp"
+#include <d3d12shader.h>
+#include <d3dcompiler.h>
+
+namespace
+{
+	/// @brief シェーダーの cbuffer Material(b3) が C++ の MaterialCB と一致するか調べる
+	/// @note 一致しないと、シェーダーは「ずれた位置」を読むので黙って壊れる。
+	///       登録時に見ておけば、宣言を書き間違えてもすぐ気づける
+	void ValidateMaterialCB(const D3D12_SHADER_BYTECODE& bytecode, const std::string& name)
+	{
+		if (bytecode.pShaderBytecode == nullptr) return;
+
+		// C++ 側の並び。ShaderTypes.hpp の MaterialCB と同じ順・同じオフセット
+		struct Field { const char* name; UINT offset; };
+		static const Field kExpected[] =
+		{
+			{ "roughness",      0 }, { "metallic",       4 },
+			{ "rimColor",      16 }, { "mapFlags",      32 },
+			{ "faceParam",     48 }, { "sssParams",     64 },
+			{ "sssColor",      80 }, { "basecolor",     96 },
+			{ "reflectParam", 112 }, { "pbrParams",    128 },
+			{ "emissiveColor",144 },
+			{ "waveParams",  160 }, { "waterParams",  176 },
+			{ "waveParams2", 192 },
+		};
+
+		ComPtr<ID3D12ShaderReflection> refl;
+		if (FAILED(D3DReflect(bytecode.pShaderBytecode, bytecode.BytecodeLength,
+			IID_PPV_ARGS(&refl))))
+		{
+			return;   // DXC 製など、反射できない形式は黙って通す
+		}
+
+		ID3D12ShaderReflectionConstantBuffer* cb = refl->GetConstantBufferByName("Material");
+		D3D12_SHADER_BUFFER_DESC bufDesc{};
+		if (cb == nullptr || FAILED(cb->GetDesc(&bufDesc))) return;   // 使っていないシェーダー
+
+		for (const auto& f : kExpected)
+		{
+			ID3D12ShaderReflectionVariable* v = cb->GetVariableByName(f.name);
+			D3D12_SHADER_VARIABLE_DESC vd{};
+			if (v == nullptr || FAILED(v->GetDesc(&vd))) continue;   // 宣言が短いだけなら許す
+
+			if (vd.StartOffset != f.offset)
+			{
+				LOG->LogError("シェーダー '" + name + "' の Material 定数バッファがずれています: "
+					+ f.name + " が " + std::to_string(vd.StartOffset)
+					+ " バイト目(正しくは " + std::to_string(f.offset)
+					+ ")。MaterialCB.hlsli を include していますか?");
+			}
+		}
+	}
+}
 
 using ushort = unsigned short;
 
@@ -385,7 +439,8 @@ void DirectXApp::DeferredLightingPass(const RenderContext& ctx,
 		XMStoreFloat4x4(&fdata.viewProj, XMMatrixTranspose(v * p));
 		const auto invV = XMMatrixInverse(nullptr, v);
 		float4x4 iv; XMStoreFloat4x4(&iv, invV);
-		fdata.cameraPos = { iv._41, iv._42, iv._43, 1.0f };
+		// w には経過秒を入れる(水面の波などが時間を使う)
+		fdata.cameraPos = { iv._41, iv._42, iv._43, TIME->GetTotalTime() };
 	}
 	const auto b0 = m_CBAllocator.Allocate(slot, &fdata, sizeof(fdata));
 
@@ -544,6 +599,9 @@ ID3D12PipelineState* DirectXApp::RegisterShaderPass(const std::string& name, con
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = MakeBasePsoDesc();
 	desc.VS = vs->GetByteCode();
 	desc.PS = ps->GetByteCode();
+
+	// 宣言の食い違いは黙って壊れるので、登録時に見ておく
+	ValidateMaterialCB(desc.PS, name);
 	desc.RasterizerState.CullMode = def.cullMode;
 	desc.RTVFormats[0] = def.rtvFormat;
 	if (def.alphaBlend)
@@ -570,7 +628,7 @@ bool DirectXApp::HasShaderPass(const std::string& name) const
 	return m_ShaderRegistry.find(name) != m_ShaderRegistry.end();
 }
 
-ID3D12PipelineState* DirectXApp::GetPipelineStateByName(std::string& name) const
+ID3D12PipelineState* DirectXApp::GetPipelineStateByName(const std::string& name) const
 {
 	auto it = m_ShaderRegistry.find(name);
 	if (it != m_ShaderRegistry.end())
@@ -1051,6 +1109,7 @@ void DirectXApp::RegisterBuiltinShaders()
 		{ "Dissolve",   { L"VertexShader.hlsl","BasicVS","vs_5_0", L"DissolveShader.hlsl",  "DissolvePS",  "ps_5_0", false } },
 		{ "BlinnPhong",   { L"VertexShader.hlsl","BasicVS","vs_5_0", L"BlinnPhongShader.hlsl",  "PhongPS",  "ps_5_0", false } },
 		{ "Glass",   { L"VertexShader.hlsl","BasicVS","vs_5_0", L"GlassShader.hlsl",  "GlassPS",  "ps_5_0", true } },
+		{ "Water",   { L"WaterShader.hlsl","WaterVS","vs_5_0", L"WaterShader.hlsl",  "WaterPS",  "ps_5_0", true } },
 
 		{ "SkinnedPBR", { L"SkinnedShader.hlsl","SkinnedVS","vs_5_0", L"PBRShader.hlsl","PbrPS","ps_5_0", false } },
 		{ "SkinnedToon",{ L"SkinnedShader.hlsl","SkinnedVS","vs_5_0", L"ToonShader.hlsl","ToonPS","ps_5_0", false } },
@@ -1834,7 +1893,8 @@ void DirectXApp::DeferredLightingPass(const RenderContext& ctx)
 		XMStoreFloat4x4(&fdata.viewProj, XMMatrixTranspose(v * p));
 		const auto invV = XMMatrixInverse(nullptr, v);
 		float4x4 iv; XMStoreFloat4x4(&iv, invV);
-		fdata.cameraPos = { iv._41, iv._42, iv._43, 1.0f };
+		// w には経過秒を入れる(水面の波などが時間を使う)
+		fdata.cameraPos = { iv._41, iv._42, iv._43, TIME->GetTotalTime() };
 	}
 	const auto b0 = m_CBAllocator.Allocate(slot, &fdata, sizeof(fdata));
 

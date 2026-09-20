@@ -17,8 +17,8 @@
 #include "EntityFactory.hpp"
 #include "RenderContext.hpp"
 #include "UndoHistory.hpp"
+#include "ComponentRegistry.hpp"
 #include <functional>
-
 
 static Entity GetParent(World& world, Entity e)
 {
@@ -91,15 +91,72 @@ void HierarchyPanel::DrawSceneInfo(Scene& scene)
 void HierarchyPanel::DrawEntityList(EditorContext& ctx, World& world)
 {
 	ImGui::Text(u8("エンティティ一覧"));
-	ImGui::InputText(u8("##FilterEntity"), m_EntityFilter.data(), m_EntityFilter.size());
+
+	ImGui::SetNextItemWidth(-60.0f);
+	ImGui::InputTextWithHint("##FilterEntity", u8("名前で検索"),
+		m_EntityFilter.data(), m_EntityFilter.size());
+
+	ImGui::SameLine();
+	if (ImGui::SmallButton(u8("クリア")))
+	{
+		m_EntityFilter[0] = '\0';
+		m_ComponentFilter = -1;
+	}
+
+	// コンポーネントでの絞り込み
+	{
+		const auto& metas = ComponentRegistry::All();
+
+		static const std::string kAll = IMGUI::ToUTF8("全てのコンポーネント");
+
+		const char* current = (m_ComponentFilter >= 0 &&
+			m_ComponentFilter < (int)metas.size())
+			? metas[m_ComponentFilter].name.c_str() : kAll.c_str();
+
+		ImGui::SetNextItemWidth(-1.0f);
+		if (ImGui::BeginCombo("##ComponentFilter", current))
+		{
+			if (ImGui::Selectable(u8("全てのコンポーネント")),
+				m_ComponentFilter < 0) m_ComponentFilter = -1;
+
+			for (int i = 0; i < (int)metas.size(); ++i)
+			{
+				if(ImGui::Selectable(metas[i].name.c_str(),
+					m_ComponentFilter == i))
+					m_ComponentFilter = i;
+			}
+			ImGui::EndCombo();
+		}
+	}
 
 	if (ImGui::BeginChild("EntityList", ImVec2(0.0f, 0.0f), true))
 	{
-		//   TransformもRectTransformも無いエンティティも拾う
-		for (Entity e : world.GetEntities())
+		if (IsFiltering())
 		{
-			if (GetParent(world, e) == INVALID_ENTITY)   // ルートだけ
-				DrawEntityNode(ctx, world, e);
+			// 絞り込み中は親子を畳んで平らに出す。
+			// 親が条件から外れると子が見えなくなるのを避けるため
+			for (Entity e : world.GetEntities())
+			{
+				if (!MatchesFilter(world, e)) continue;
+
+				const std::string label = world.HasComponent<NameComponent>(e)
+					? world.GetComponent<NameComponent>(e).name
+					: ("Entity " + std::to_string(e));
+
+				ImGui::PushID(static_cast<int>(e));
+				if (ImGui::Selectable(label.c_str(), ctx.selectedEntity == e))
+					ctx.selectedEntity = e;
+				ImGui::PopID();
+			}
+		}
+		else
+		{
+			//   TransformもRectTransformも無いエンティティも拾う
+			for (Entity e : world.GetEntities())
+			{
+				if (GetParent(world, e) == INVALID_ENTITY)   // ルートだけ
+					DrawEntityNode(ctx, world, e);
+			}
 		}
 
 		// 余白へのドロップ＝ルートに戻す
@@ -145,10 +202,18 @@ void HierarchyPanel::DrawEntityList(EditorContext& ctx, World& world)
 
 				if (ImGui::BeginMenu(u8("プリミティブ")))
 				{
-					if (ImGui::MenuItem(u8("球")))
-						recordCreate([&]() { return EntityFactory::CreatePrimitive(world, kPrimitiveSphere); });
 					if (ImGui::MenuItem(u8("立方体")))
 						recordCreate([&]() { return EntityFactory::CreatePrimitive(world, kPrimitiveCube); });
+					if (ImGui::MenuItem(u8("球")))
+						recordCreate([&]() { return EntityFactory::CreatePrimitive(world, kPrimitiveSphere); });
+					if (ImGui::MenuItem(u8("カプセル")))
+						recordCreate([&]() { return EntityFactory::CreatePrimitive(world, kPrimitiveCapsule); });
+					if (ImGui::MenuItem(u8("円柱")))
+						recordCreate([&]() { return EntityFactory::CreatePrimitive(world, kPrimitiveCylinder); });
+					if (ImGui::MenuItem(u8("円錐")))
+						recordCreate([&]() { return EntityFactory::CreatePrimitive(world, kPrimitiveCone); });
+					if (ImGui::MenuItem(u8("平面")))
+						recordCreate([&]() { return EntityFactory::CreatePrimitive(world, kPrimitivePlane); });
 					ImGui::EndMenu();
 				}
 
@@ -158,6 +223,21 @@ void HierarchyPanel::DrawEntityList(EditorContext& ctx, World& world)
 					if (ImGui::MenuItem("Text"))  recordCreate([&]() { return EntityFactory::CreateText(world); });
 					ImGui::EndMenu();
 				}
+
+				// Terrain
+				if (ImGui::BeginMenu("Terrain"))
+				{
+					if (ImGui::MenuItem(u8("Terrainを作る")))
+					{
+						static int TerrainCount = 1;
+						Entity e = world.CreateEntity();
+						world.AddComponent<NameComponent>(e, NameComponent{ "Terrain_" + std::to_string(++TerrainCount) });
+						world.AddComponent<TransformComponent>(e, TransformComponent{});
+						world.AddComponent<TerrainComponent>(e, TerrainComponent{});
+					}
+					ImGui::EndMenu();
+				}
+
 				ImGui::EndMenu();
 			}
 			if (ImGui::MenuItem(u8("エンティティを削除")) && ctx.selectedEntity != INVALID_ENTITY)
@@ -176,8 +256,8 @@ void HierarchyPanel::DrawEntityList(EditorContext& ctx, World& world)
 			}
 			ImGui::EndPopup();
 		}
-	}
 	ImGui::EndChild(); 
+	}
 }
 
 void HierarchyPanel::DrawEntityNode(EditorContext& ctx, World& world, Entity entity)
@@ -237,6 +317,40 @@ void HierarchyPanel::DrawEntityNode(EditorContext& ctx, World& world, Entity ent
 		ImGui::TreePop();
 	}
 	ImGui::PopID();
+}
+
+bool HierarchyPanel::MatchesFilter(World& world, Entity entity) const
+{
+	// コンポーネントで絞込
+	if (m_ComponentFilter >= 0)
+	{
+		const auto& metas = ComponentRegistry::All();
+		if (m_ComponentFilter >= (int)metas.size()) return false;
+		if (!metas[m_ComponentFilter].has(world, entity)) return false;
+	}
+
+	// 名前での検索(大文字小文字を区別しない部分一致)
+	if (m_EntityFilter[0] != '\0')
+	{
+		if (!world.HasComponent<NameComponent>(entity)) return false;
+		
+		auto lower = [](std::string s)
+			{
+				for (char& c : s)c = static_cast<int>(std::tolower(static_cast<unsigned char>(c)));
+				return s;
+			};
+
+		const std::string name = lower(world.GetComponent<NameComponent>(entity).name);
+		const std::string key =
+			lower(std::string(m_EntityFilter.data()));
+		if (name.find(key) == std::string::npos) return false;
+	}
+	return true;
+}
+
+bool HierarchyPanel::IsFiltering() const
+{
+	return m_EntityFilter[0] != '\0' || m_ComponentFilter >= 0;
 }
 
 void HierarchyPanel::Draw(EditorContext& ctx)

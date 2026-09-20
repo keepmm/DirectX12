@@ -6,6 +6,7 @@
 #include "Logger.hpp"
 #include "ShaderTypes.hpp"
 #include "ConstantBufferAllocator.hpp"
+#include <cstring>
 
 MaterialPreview& MaterialPreview::Get()
 {
@@ -190,8 +191,23 @@ void MaterialPreview::RenderOne(ID3D12GraphicsCommandList* cmd, Slot& slot,
     float4x4 world{};
     XMStoreFloat4x4(&world, XMMatrixIdentity());
 
+    // Skinned 系の頂点シェーダーはボーン行列(root 5)とモーフ(root 6)を読む。
+    // プレビューはそれらを積まないので、そのまま使うとデバイスが落ちる。
+    // 見た目が近い非スキン版に置き換えて描く
+    std::string shader = mat.shaderName;
+    if (shader.rfind("Skinned", 0) == 0)
+    {
+        const std::string plain = shader.substr(std::strlen("Skinned"));   // SkinnedPBR -> PBR
+        shader = APP->HasShaderPass(plain) ? plain : std::string("PBR");
+    }
+    else if (shader == "Genshin_Toon")
+    {
+        shader = "Toon";	// アウトライン付きトゥーンもスキン用の VS を使っている
+    }
+    if (shader.empty() || !APP->HasShaderPass(shader)) shader = "PBR";
+
     mat.Apply(cmd, world, view, proj, /*wireframe*/ false,
-        frameIndex, &cb, mat.shaderName);
+        frameIndex, &cb, shader);
     m_Sphere.Draw(cmd);
 
     // ---- 読み取り用へ戻す ---- //

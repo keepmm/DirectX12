@@ -195,7 +195,7 @@ public:
 		_In_ const ShaderPassDef& def
 	);
 	ID3D12PipelineState* GetPipelineStateByName(
-		_In_ std::string& name
+		_In_ const std::string& name
 	)const;
 	std::vector<std::string> GetShaderNames() const;
 	/// @brief その名前のシェーダーパスが登録済みか(HDR双子の有無判定に使う)

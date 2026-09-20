@@ -167,6 +167,7 @@
     <ClCompile Include="MemoryPanel.cpp" />
     <ClCompile Include="ProfilerPanel.cpp" />
     <ClCompile Include="StyleSettingPanel.cpp" />
+    <ClCompile Include="Terrain.cpp" />
     <ClCompile Include="ThumbnailCache.cpp" />
     <ClCompile Include="MmdPlayerPanel.cpp" />
     <ClCompile Include="UndoHistory.cpp" />
@@ -263,6 +264,7 @@
     <ClInclude Include="MemoryPanel.hpp" />
     <ClInclude Include="ProfilerPanel.hpp" />
     <ClInclude Include="StyleSettingPanel.hpp" />
+    <ClInclude Include="Terrain.hpp" />
     <ClInclude Include="ThumbnailCache.hpp" />
     <ClInclude Include="MmdPlayerPanel.hpp" />
     <ClInclude Include="UndoHistory.hpp" />
@@ -354,6 +356,10 @@
     <None Include="EngineAssets\Shaders\BRDF.hlsli" />
     <None Include="EngineAssets\Shaders\Common.hlsli" />
     <None Include="EngineAssets\Shaders\Lighting.hlsli" />
+    <None Include="MaterialCB.hlsli" />
+    <None Include="EngineAssets\Shaders\Water.hlsli">
+      <FileType>Document</FileType>
+    </None>
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
@@ -510,6 +516,11 @@
       <FileType>Document</FileType>
     </None>
     <None Include="EngineAssets\Shaders\DepthOfField.hlsl">
+      <FileType>Document</FileType>
+    </None>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="EngineAssets\Shaders\WaterShader.hlsl">
       <FileType>Document</FileType>
     </None>
   </ItemGroup>

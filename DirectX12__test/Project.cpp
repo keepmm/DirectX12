@@ -572,6 +572,33 @@ bool Project::EnsureScriptProject(std::string& outError)
         // 既にある。ユーザーが手で直している可能性があるので基本は上書きしないが、
         // 絶対パスを焼き込んだ古い形式だけは直す
         MigrateScriptProject();
+
+        // EngineLibName が無い世代は、ゲームビルドで渡す /p:EngineLibName が効かず、
+        // 書き出したゲームの Scripts.dll がエディタの exe を要求して
+        // 起動時に LoadLibrary エラー 126 になる。作り直す
+        std::ifstream check(out, std::ios::binary);
+        const std::string xml((std::istreambuf_iterator<char>(check)), {});
+        check.close();
+
+        if (xml.find("$(EngineLibName)") == std::string::npos)
+        {
+            const fs::path backup = out.parent_path() / (out.filename().string() + ".bak");
+            fs::copy_file(out, backup, fs::copy_options::overwrite_existing, ec);
+            ec.clear();
+
+            std::ofstream rewrite(out, std::ios::binary);
+            if (!rewrite)
+            {
+                outError = "Scripts.vcxproj の作り直しに失敗: " + PathToUtf8(out);
+                return false;
+            }
+            rewrite << kScriptProjectTemplate;
+            rewrite.close();
+
+            // このファイルは Launcher と共有コンパイルしているので LOG は使えない
+            OutputDebugStringA(("[Project] Scripts.vcxproj が古い形式だったので作り直しました(控え: "
+                + PathToUtf8(backup) + ")\n").c_str());
+        }
         return true;
     }
 

@@ -16,6 +16,7 @@
 #include "Components.hpp"
 #include "Logger.hpp"
 #include "MonoBehavior.hpp"
+#include "Terrain.hpp"
 
 #include <PxPhysicsAPI.h>
 
@@ -35,6 +36,7 @@ namespace
 		PxDefaultErrorCallback errorCallback;
 		PxFoundation* foundation = nullptr;
 		PxPhysics* physics = nullptr;
+		PxCooking* cooking = nullptr;	// HeightField(地形)を作るのに要る
 		int refCount = 0;
 	};
 
@@ -53,6 +55,12 @@ namespace
 			if (!s.foundation) return nullptr;
 			s.physics = PxCreatePhysics(PX_PHYSICS_VERSION, *s.foundation, PxTolerancesScale(), true, nullptr);
 			if (!s.physics) { PX_RELEASE(s.foundation); return nullptr; }
+
+			// 地形の当たり判定に使う。無くても他の機能は動く
+			s.cooking = PxCreateCooking(PX_PHYSICS_VERSION, *s.foundation,
+				PxCookingParams(PxTolerancesScale()));
+			if (!s.cooking)
+				LOG->LogWarning("PhysicsWorld: PxCreateCooking に失敗(地形の当たり判定が作れません)");
 		}
 		++s.refCount;
 		return s.physics;
@@ -64,6 +72,7 @@ namespace
 		if (s.refCount <= 0) return;
 		if (--s.refCount == 0)
 		{
+			PX_RELEASE(s.cooking);
 			PX_RELEASE(s.physics);
 			PX_RELEASE(s.foundation);
 		}
@@ -200,6 +209,37 @@ namespace
 		static ControllerQueryFilter filter;
 		return filter;
 	}
+
+	/// @brief レイ / 重なり判定でトリガーを無視する
+	/// @note レイヤーの判定は PxQueryFilterData の word0 で PhysX 側が行う
+	class QueryIgnoreTrigger : public PxQueryFilterCallback
+	{
+	public:
+		PxQueryHitType::Enum preFilter(const PxFilterData&, const PxShape* shape,
+			const PxRigidActor*, PxHitFlags&) override
+		{
+			if (shape->getFlags() & PxShapeFlag::eTRIGGER_SHAPE) return PxQueryHitType::eNONE;
+			return PxQueryHitType::eBLOCK;
+		}
+
+		PxQueryHitType::Enum postFilter(const PxFilterData&, const PxQueryHit&) override
+		{
+			return PxQueryHitType::eBLOCK;
+		}
+	};
+
+	QueryIgnoreTrigger& QueryFilter()
+	{
+		static QueryIgnoreTrigger filter;
+		return filter;
+	}
+
+	/// @brief アクターから Entity を引く(userData に入れてある)
+	Entity EntityOfActor(const PxRigidActor* actor)
+	{
+		if (!actor) return INVALID_ENTITY;
+		return static_cast<Entity>(reinterpret_cast<uintptr_t>(actor->userData));
+	}
 }
 
 // ------------------------------------------------------------------ //
@@ -294,6 +334,10 @@ void PhysicsWorld::Init()
 	sceneDesc.kineKineFilteringMode = PxPairFilteringMode::eKEEP;
 	sceneDesc.staticKineFilteringMode = PxPairFilteringMode::eKEEP;
 
+	// 跳ね返りの足切り。既定(重力の0.2倍 ≒ 1.96m/s)だと、
+	// よほど速く落ちない限り跳ね返りが丸ごと捨てられる
+	sceneDesc.bounceThresholdVelocity = 0.5f;
+
 	m_Dispatcher = PxDefaultCpuDispatcherCreate(4);
 	sceneDesc.cpuDispatcher = m_Dispatcher;
 
@@ -313,6 +357,11 @@ PxMaterial* PhysicsWorld::MaterialFor(float friction, float restitution)
 	if (it != m_Materials.end()) return it->second;
 
 	PxMaterial* m = GetPhysics()->createMaterial(friction, friction, restitution);
+
+	// 跳ね返りは「よく跳ねるほう」を採用する。
+	// 平均だと、地面の restitution が 0 のときにボールが跳ねなくなる
+	if (m) m->setRestitutionCombineMode(PxCombineMode::eMAX);
+
 	m_Materials[key] = m;
 	return m;
 }
@@ -351,6 +400,11 @@ PxRigidActor* PhysicsWorld::CreateActor(
 	}
 	if (!shape) return nullptr;
 
+	// 接触を拾い始める距離 / めり込みを許す距離。
+	// 小さすぎると細かい段差で弾かれ、大きすぎると浮いて見える
+	shape->setContactOffset(0.02f);
+	shape->setRestOffset(0.0f);
+
 	shape->setSimulationFilterData(MakeFilter(c));
 	shape->setQueryFilterData(MakeFilter(c));
 
@@ -385,6 +439,14 @@ PxRigidActor* PhysicsWorld::CreateActor(
 			else
 			{
 				PxRigidBodyExt::setMassAndUpdateInertia(*dynamic, (std::max)(0.001f, rb->mass));
+
+				// 斜面を転がる箱は接触点が次々入れ替わる。
+				// 既定(位置4回・速度1回)だと解ききれず、滑ったり引っかかったりする
+				dynamic->setSolverIterationCounts(8, 2);
+
+				// 止まった判定が早すぎると、転がっている途中で固まる
+				dynamic->setSleepThreshold(0.01f);
+				dynamic->setAngularDamping(0.05f);
 				if (!rb->useGravity) dynamic->setActorFlag(PxActorFlag::eDISABLE_GRAVITY, true);
 				outKind = BodyKind::Dynamic;
 			}
@@ -423,6 +485,9 @@ void PhysicsWorld::ReleaseController(ControllerRecord& record)
 
 void PhysicsWorld::RemoveAll()
 {
+	for (auto& [e, record] : m_Terrains) ReleaseTerrain(record);
+	m_Terrains.clear();
+
 	for (auto& [e, record] : m_Controllers) ReleaseController(record);
 	m_Controllers.clear();
 
@@ -443,7 +508,8 @@ void PhysicsWorld::SyncFromWorld(World& world)
 	for (auto it = m_Actors.begin(); it != m_Actors.end(); )
 	{
 		if (!world.IsEntityAlive(it->first) || !world.HasComponent<ColliderComponent>(it->first)
-			|| world.HasComponent<CharacterControllerComponent>(it->first))
+			|| world.HasComponent<CharacterControllerComponent>(it->first)
+			|| world.HasComponent<TerrainComponent>(it->first))
 		{
 			ReleaseActor(it->second);
 			it = m_Actors.erase(it);
@@ -454,8 +520,9 @@ void PhysicsWorld::SyncFromWorld(World& world)
 	// ---- 2) Collider を持つ Entity: 作る / 作り直す / Transform に追従させる ---- //
 	world.Each<ColliderComponent>([&](Entity e, ColliderComponent& col)
 		{
-			// キャラクターは SyncControllers の管轄
+			// キャラクターは SyncControllers、地形は SyncTerrains の管轄
 			if (world.HasComponent<CharacterControllerComponent>(e)) return;
+			if (world.HasComponent<TerrainComponent>(e)) return;
 
 			const RigidBodyComponent* rb = world.HasComponent<RigidBodyComponent>(e)
 				? &world.GetComponent<RigidBodyComponent>(e) : nullptr;
@@ -503,6 +570,7 @@ void PhysicsWorld::SyncFromWorld(World& world)
 		});
 
 	SyncControllers(world);
+	SyncTerrains(world);
 }
 
 void PhysicsWorld::SyncControllers(World& world)
@@ -584,6 +652,166 @@ void PhysicsWorld::SyncControllers(World& world)
 				rec.controller->setFootPosition(PxExtendedVec3(foot.x, foot.y, foot.z));
 				rec.lastFoot = { foot.x, foot.y, foot.z };
 			}
+		});
+}
+
+void PhysicsWorld::ReleaseTerrain(TerrainRecord& record)
+{
+	if (record.actor)
+	{
+		if (m_Scene) m_Scene->removeActor(*record.actor);
+		record.actor->release();
+		record.actor = nullptr;
+	}
+	PX_RELEASE(record.heightField);
+}
+
+void PhysicsWorld::SyncTerrains(World& world)
+{
+	if (!m_Scene) return;
+
+	PxCooking* cooking = Sdk().cooking;
+	if (!cooking) return;
+
+	// 消えた地形を外す
+	for (auto it = m_Terrains.begin(); it != m_Terrains.end(); )
+	{
+		if (!world.IsEntityAlive(it->first) || !world.HasComponent<TerrainComponent>(it->first))
+		{
+			ReleaseTerrain(it->second);
+			it = m_Terrains.erase(it);
+		}
+		else ++it;
+	}
+
+	world.Each<TerrainComponent>([&](Entity e, TerrainComponent& t)
+		{
+			const int cols = t.gridX + 1;	// X 方向の点の数
+			const int rows = t.gridZ + 1;	// Z 方向の点の数
+			if (t.Heights.size() != static_cast<size_t>(cols) * rows) return;
+
+			const size_t settings = Terrain::HashSettings(t);
+
+			// Transform のスケールは PxTransform に入らないので、
+			// HeightField の間隔と高さの倍率に掛け込む
+			float3 scale{ 1.0f, 1.0f, 1.0f };
+			if (world.HasComponent<TransformComponent>(e))
+			{
+				using namespace DirectX;
+				XMVECTOR s, r, tr;
+				if (XMMatrixDecompose(&s, &r, &tr,
+					XMLoadFloat4x4(&world.GetComponent<TransformComponent>(e).world)))
+				{
+					XMStoreFloat3(&scale, s);
+				}
+			}
+
+			auto it = m_Terrains.find(e);
+			if (it != m_Terrains.end() &&
+				(it->second.settings != settings ||
+					it->second.heightsVersion != t.heightsVersion ||
+					std::fabs(it->second.scale.x - scale.x) > 1e-4f ||
+					std::fabs(it->second.scale.y - scale.y) > 1e-4f ||
+					std::fabs(it->second.scale.z - scale.z) > 1e-4f))
+			{
+				// 形が変わった。作り直す
+				ReleaseTerrain(it->second);
+				m_Terrains.erase(it);
+				it = m_Terrains.end();
+			}
+
+			const PxTransform pose = WorldPoseOf(world, e);
+
+			if (it != m_Terrains.end())
+			{
+				// 位置だけ追従させる
+				if (!(it->second.actor->getGlobalPose().p - pose.p).isZero())
+					it->second.actor->setGlobalPose(pose);
+				return;
+			}
+
+			// ---- 高さを PhysX の形式に詰める ---- //
+			// HeightField は「行 = X、列 = Z」。高さは 16bit 整数で持ち、
+			// heightScale を掛けてワールドの高さになる
+			std::vector<PxHeightFieldSample> samples(static_cast<size_t>(cols) * rows);
+			for (int z = 0; z < rows; ++z)
+			{
+				for (int x = 0; x < cols; ++x)
+				{
+					const float h = t.Heights[static_cast<size_t>(z) * cols + x];
+					auto& smp = samples[static_cast<size_t>(x) * rows + z];	// 行=X, 列=Z
+					smp.height = static_cast<PxI16>(std::clamp(h, 0.0f, 1.0f) * 32767.0f);
+					smp.materialIndex0 = 0;
+					smp.materialIndex1 = 0;
+					smp.clearTessFlag();
+				}
+			}
+
+			PxHeightFieldDesc desc;
+			desc.nbRows = static_cast<PxU32>(cols);
+			desc.nbColumns = static_cast<PxU32>(rows);
+			desc.samples.data = samples.data();
+			desc.samples.stride = sizeof(PxHeightFieldSample);
+
+			PxHeightField* hf = cooking->createHeightField(
+				desc, GetPhysics()->getPhysicsInsertionCallback());
+			if (!hf)
+			{
+				LOG->LogWarning("PhysicsWorld: HeightField の生成に失敗しました");
+				return;
+			}
+
+			// 摩擦などは Collider があればそれに従う。無ければ既定値
+			float friction = 0.5f, restitution = 0.0f;
+			unsigned int layerBit = 1u, mask = 0xFFFFFFFFu;
+			if (world.HasComponent<ColliderComponent>(e))
+			{
+				const auto& c = world.GetComponent<ColliderComponent>(e);
+				friction = c.friction;
+				restitution = c.restitution;
+				layerBit = 1u << (c.layer & 31);
+				mask = c.collisionMask;
+			}
+
+			// 高さ 0 の地形でも 0 除算にしない
+			const float heightScale =
+				(std::max)(t.Height, 0.001f) / 32767.0f * (std::max)(scale.y, 0.0001f);
+			const PxHeightFieldGeometry geom(hf, PxMeshGeometryFlags(),
+				heightScale,
+				t.Width / t.gridX * (std::max)(scale.x, 0.0001f),	// 行(X)の間隔
+				t.Depth / t.gridZ * (std::max)(scale.z, 0.0001f));	// 列(Z)の間隔
+
+			PxShape* shape = GetPhysics()->createShape(geom, *MaterialFor(friction, restitution), true);
+			if (!shape)
+			{
+				hf->release();
+				return;
+			}
+
+			// HeightField の原点は角。メッシュは中心が原点なので半分ずらす
+			shape->setLocalPose(PxTransform(PxVec3(
+				-t.Width * 0.5f * scale.x, 0.0f, -t.Depth * 0.5f * scale.z)));
+
+			const PxFilterData filter(layerBit, mask, 0, 0);
+			shape->setSimulationFilterData(filter);
+			shape->setQueryFilterData(filter);
+
+			PxRigidStatic* actor = GetPhysics()->createRigidStatic(pose);
+			if (!actor)
+			{
+				shape->release();
+				hf->release();
+				return;
+			}
+			actor->attachShape(*shape);
+			shape->release();
+
+			actor->userData = reinterpret_cast<void*>(static_cast<uintptr_t>(e));
+			m_Scene->addActor(*actor);
+
+			m_Terrains[e] = TerrainRecord{ actor, hf, settings, t.heightsVersion, scale };
+			LOG->LogInfo("Terrain: 当たり判定を作成 "
+				+ std::to_string(cols) + "x" + std::to_string(rows));
 		});
 }
 
@@ -713,4 +941,105 @@ void PhysicsWorld::SetActorPose(Entity entity, const float3& position, const flo
 void PhysicsWorld::SetGravity(const float3& gravity)
 {
 	if (m_Scene) m_Scene->setGravity(PxVec3(gravity.x, gravity.y, gravity.z));
+}
+
+// ------------------------------------------------------------------ //
+//                     問い合わせ(スクリプト用)                        //
+// ------------------------------------------------------------------ //
+
+bool PhysicsWorld::Raycast(
+	const float3& origin, const float3& direction,
+	float maxDistance, unsigned int layerMask, RayHit& outHit) const
+{
+	outHit = RayHit{};
+	if (!m_Scene) return false;
+
+	PxVec3 dir(direction.x, direction.y, direction.z);
+	if (dir.magnitudeSquared() < 1e-12f) return false;
+	dir.normalize();
+
+	// word0 に相手のレイヤービットが入っているので、マスクとの AND で絞る
+	const PxQueryFilterData filter(
+		PxFilterData(layerMask, 0, 0, 0),
+		PxQueryFlag::eSTATIC | PxQueryFlag::eDYNAMIC | PxQueryFlag::ePREFILTER);
+
+	PxRaycastBuffer buffer;
+	const bool hit = m_Scene->raycast(
+		PxVec3(origin.x, origin.y, origin.z), dir, (std::max)(0.0001f, maxDistance),
+		buffer, PxHitFlag::eDEFAULT, filter, &QueryFilter());
+
+	if (!hit || !buffer.hasBlock) return false;
+
+	const PxRaycastHit& b = buffer.block;
+	outHit.entity = EntityOfActor(b.actor);
+	outHit.point = { b.position.x, b.position.y, b.position.z };
+	outHit.normal = { b.normal.x, b.normal.y, b.normal.z };
+	outHit.distance = b.distance;
+	return true;
+}
+
+int PhysicsWorld::OverlapSphere(
+	const float3& center, float radius, unsigned int layerMask,
+	Entity* outEntities, int maxCount) const
+{
+	if (!m_Scene || !outEntities || maxCount <= 0) return 0;
+
+	const PxQueryFilterData filter(
+		PxFilterData(layerMask, 0, 0, 0),
+		PxQueryFlag::eSTATIC | PxQueryFlag::eDYNAMIC | PxQueryFlag::ePREFILTER);
+
+	// 一度に受け取れる数。足りなければ maxCount までで打ち切る
+	constexpr PxU32 kBufferSize = 64;
+	PxOverlapHit hits[kBufferSize];
+	PxOverlapBuffer buffer(hits, kBufferSize);
+
+	const bool found = m_Scene->overlap(
+		PxSphereGeometry((std::max)(0.0001f, radius)),
+		PxTransform(PxVec3(center.x, center.y, center.z)),
+		buffer, filter, &QueryFilter());
+	if (!found) return 0;
+
+	int count = 0;
+	for (PxU32 i = 0; i < buffer.getNbAnyHits() && count < maxCount; ++i)
+	{
+		const Entity e = EntityOfActor(buffer.getAnyHit(i).actor);
+		if (e == INVALID_ENTITY) continue;
+
+		// 同じ Entity の別の形状が複数当たることがあるので、重複を省く
+		bool already = false;
+		for (int k = 0; k < count; ++k) if (outEntities[k] == e) { already = true; break; }
+		if (!already) outEntities[count++] = e;
+	}
+	return count;
+}
+
+bool PhysicsWorld::AddForce(Entity entity, const float3& force, bool impulse)
+{
+	auto it = m_Actors.find(entity);
+	if (it == m_Actors.end() || it->second.kind != BodyKind::Dynamic) return false;
+
+	auto* body = static_cast<PxRigidDynamic*>(it->second.actor);
+	body->addForce(PxVec3(force.x, force.y, force.z),
+		impulse ? PxForceMode::eIMPULSE : PxForceMode::eFORCE, true);
+	return true;
+}
+
+bool PhysicsWorld::SetVelocity(Entity entity, const float3& velocity)
+{
+	auto it = m_Actors.find(entity);
+	if (it == m_Actors.end() || it->second.kind != BodyKind::Dynamic) return false;
+
+	auto* body = static_cast<PxRigidDynamic*>(it->second.actor);
+	body->setLinearVelocity(PxVec3(velocity.x, velocity.y, velocity.z), true);
+	return true;
+}
+
+bool PhysicsWorld::GetVelocity(Entity entity, float3& outVelocity) const
+{
+	auto it = m_Actors.find(entity);
+	if (it == m_Actors.end() || it->second.kind != BodyKind::Dynamic) return false;
+
+	const PxVec3 v = static_cast<const PxRigidDynamic*>(it->second.actor)->getLinearVelocity();
+	outVelocity = { v.x, v.y, v.z };
+	return true;
 }

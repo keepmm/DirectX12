@@ -339,14 +339,23 @@ static bool CollectUsedAssets(const fs::path& srcDir, const std::string& startSc
         PushLog("[Build] シーンを " + std::to_string(added + 1) + " 個収集しました");
     }
 
-    // Scriptも積む
+    // スクリプトのソースも積む。
+    // フォルダ名は決め打ちにしない(Script / Scripts / 入れ子など、置き方は自由なので)。
+    // Scripts.dll のコンパイル対象を決める Project::RefreshScriptProjectSources と規則を揃える
     {
-        const fs::path ScriptsRel = fs::path("Assets") / "Scripts";
-        if (fs::exists(srcDir / ScriptsRel, ec) && fs::is_directory(srcDir / ScriptsRel, ec))
+        int found = 0;
+        for (const auto& e : fs::recursive_directory_iterator(srcDir / "Assets", ec))
         {
-			dirs.insert(ScriptsRel);
-			PushLog("[Build] Scripts フォルダを収集しました");
+            if (!e.is_regular_file(ec)) continue;
+
+            const auto ext = e.path().extension();
+            if (ext != ".cpp" && ext != ".hpp") continue;
+
+            dirs.insert(fs::relative(e.path().parent_path(), srcDir, ec));
+            ++found;
         }
+        if (found > 0)
+            PushLog("[Build] スクリプトを " + std::to_string(found) + " 個収集しました");
         ec.clear();
     }
 
@@ -602,6 +611,7 @@ void BuildSystem::Build(const BuildSetting& settings)
         std::vector<std::string> engineDlls = {
             "PhysX_64.dll",
             "PhysXCommon_64.dll",
+            "PhysXCooking_64.dll",
             "PhysXFoundation_64.dll",
             "libbulletc.dll",
             // assimp は構成でランタイムが違う(d付きがDebug)

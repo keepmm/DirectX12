@@ -255,6 +255,8 @@ void Engine::Run()
 			renderContext.CommandList = m_DirectX->GetCommandList().Get();
 			renderContext.frameIndex = m_DirectX->GetFrameSlot();
 			renderContext.cbAllocator = &m_DirectX->GetConstantBufferAllocator();
+			static uint64_t s_FrameSerial = 0;
+			renderContext.frameSerial = ++s_FrameSerial;
 
 			// 描画コンテキスト作成
 #ifdef _FRAMEPIPELINE

@@ -257,6 +257,10 @@ inline std::vector<std::shared_ptr<Material>> BuildMaterials(
 
 inline constexpr const char* kPrimitiveSphere = "@Sphere";
 inline constexpr const char* kPrimitiveCube = "@Cube";
+inline constexpr const char* kPrimitiveCylinder = "@Cylinder";
+inline constexpr const char* kPrimitiveCone = "@Cone";
+inline constexpr const char* kPrimitiveCapsule = "@Capsule";
+inline constexpr const char* kPrimitivePlane = "@Plane";
 
 inline bool IsPrimitivePath(const std::string& path)
 {
@@ -268,8 +272,12 @@ inline bool IsPrimitivePath(const std::string& path)
 inline void BuildPrimitiveEntity(World& world, Entity e, const std::string& tag)
 {
     auto mesh = std::make_shared<Mesh>();
-    if (tag == kPrimitiveCube) mesh->CreateCube(APP->GetDevice());
-    else                       mesh->CreateSphere();
+    if (tag == kPrimitiveCube)          mesh->CreateCube(APP->GetDevice());
+    else if (tag == kPrimitiveCylinder) mesh->CreateCylinder();
+    else if (tag == kPrimitiveCone)     mesh->CreateCone();
+    else if (tag == kPrimitiveCapsule)  mesh->CreateCapsule();
+    else if (tag == kPrimitivePlane)    mesh->CreatePlane();
+    else                                mesh->CreateSphere();
 
     MeshComponent mc{};
     mc.mesh = mesh;
@@ -295,6 +303,39 @@ inline void BuildPrimitiveEntity(World& world, Entity e, const std::string& tag)
 		mat.materialnames.push_back("Primitive");
     }
     mat.materialAssets.resize(mat.materials.size());
+
+    // 形に合った当たり判定を付ける。
+    // 既にある場合は、ユーザーが調整しているかもしれないので触らない
+    if (!world.HasComponent<ColliderComponent>(e))
+    {
+        ColliderComponent col{};
+        if (tag == kPrimitiveSphere)
+        {
+            col.shapeType = ColliderComponent::ShapeType::Sphere;
+            col.radius = 0.5f;
+        }
+        else if (tag == kPrimitiveCapsule)
+        {
+            // 見た目は「円柱部分1 + 両端の半球」。Collider の size.y は円柱部分の長さ
+            col.shapeType = ColliderComponent::ShapeType::Capsule;
+            col.radius = 0.5f;
+            col.size = { 1.0f, 1.0f, 1.0f };
+        }
+        else if (tag == kPrimitivePlane)
+        {
+            // 平面は厚みが無いと当たらないので、薄い箱にする
+            col.shapeType = ColliderComponent::ShapeType::Box;
+            col.size = { 1.0f, 0.02f, 1.0f };
+        }
+        else
+        {
+            // 立方体 / 円柱 / 円錐は箱で囲む。
+            // PhysX に円柱と円錐の形は無く、凸メッシュを焼く必要があるため
+            col.shapeType = ColliderComponent::ShapeType::Box;
+            col.size = { 1.0f, 1.0f, 1.0f };
+        }
+        world.AddComponent<ColliderComponent>(e, col);
+    }
 }
 
 inline std::string ShiftJisUtf8(const std::string& sjis)

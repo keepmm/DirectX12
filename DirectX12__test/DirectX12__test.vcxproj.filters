@@ -293,6 +293,7 @@
     <ClCompile Include="AssetDatabase.cpp" />
     <ClCompile Include="AssetRemap.cpp" />
     <ClCompile Include="UndoHistory.cpp" />
+    <ClCompile Include="Terrain.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.hpp">
@@ -603,6 +604,7 @@
     </ClInclude>
     <ClInclude Include="AssetRemap.hpp" />
     <ClInclude Include="UndoHistory.hpp" />
+    <ClInclude Include="Terrain.hpp" />
   </ItemGroup>
   <ItemGroup>
     <None Include="EngineAssets\Shaders\BRDF.hlsli">
@@ -702,6 +704,15 @@
     <None Include="EngineAssets\Icons\Model.png" />
     <None Include="GlassShader.hlsl">
       <Filter>Shader\HLSL\PixelShader</Filter>
+    </None>
+    <None Include="EngineAssets\Shaders\WaterShader.hlsl">
+      <Filter>Shader\HLSL\PixelShader</Filter>
+    </None>
+    <None Include="MaterialCB.hlsli">
+      <Filter>Shader\Include</Filter>
+    </None>
+    <None Include="EngineAssets\Shaders\Water.hlsli">
+      <Filter>Shader\Include</Filter>
     </None>
   </ItemGroup>
 </Project>

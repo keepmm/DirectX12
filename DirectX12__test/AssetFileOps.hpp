@@ -21,13 +21,13 @@ namespace AssetFileOps
 	/// @param name クラス名 兼 ファイル名
 	/// @note vcxproj への登録は不要。ビルド直前に
 	///       Project::RefreshScriptProjectSources が Assets 配下を走査し直す
-	void CreateScriptFile(const std::string& dir, const std::string& name);
+	std::string CreateScriptFile(const std::string& dir, const std::string& name);
 
 	/// @brief Visual Studio でファイルを開く(プロジェクトの sln があればそれごと)
 	void OpenInEditor(const std::string& path);
 
 	/// @brief "New Folder", "New Folder 1", ... と重複を避けてフォルダを作る
-	void CreateFolder(const std::string& dir);
+	std::string CreateFolder(const std::string& dir);
 
 	/// @brief 外部から来たファイル / フォルダを取り込む
 	/// @param destDir 取り込み先(現在のアセットフォルダ)
@@ -43,11 +43,15 @@ namespace AssetFileOps
 	/// @brief リネーム(失敗時はログのみ)
 	void RenameAsset(const std::string& path, const std::string& newName);
 
+	std::string MoveAsset(
+		_In_ const std::string& path,
+		_In_ const std::string& destDir);
+
 	/// @brief 削除(フォルダは中身ごと)
 	void DeleteAsset(const std::string& path);
 
 	/// @brief 空のシーン(.scene)を作る
-	void CreateSceneFile(const std::string& dir);
+	std::string CreateSceneFile(const std::string& dir);
 
 	/// @brief 旧形式のシーン(.json)を .scene にリネームする
 	/// @note RenameAsset を通すので .meta も動き、GUID が保たれる

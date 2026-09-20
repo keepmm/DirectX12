@@ -229,11 +229,6 @@ bool SceneSerializer::LoadFromString(Scene& scene, const std::string& data)
         {
             Entity entity = INVALID_ENTITY;
 
-            if (entry.contains("id"))
-                idMap[entry["id"].get<Entity>()] = entity;
-
-            loaded.push_back({ &entry, entity });
-
             const std::string prefabGuid = entry.value("prefabGuid", "");
             if (!prefabGuid.empty())
             {
@@ -253,6 +248,13 @@ bool SceneSerializer::LoadFromString(Scene& scene, const std::string& data)
                     continue; // プレハブ指定なのに見つからない場合はスキップ
                 entity = world.CreateEntity(); // 非プレハブは素のエンティティとして復元
             }
+
+            // entity が確定してから対応表に積む。作る前に積むと
+// 「保存id → INVALID_ENTITY」になり、後段の親子の張り直しが全部潰れる
+            if (entry.contains("id"))
+                idMap[entry["id"].get<Entity>()] = entity;
+
+            loaded.push_back({ &entry, entity });
 
             // ---- Name ---- //
             if (entry.contains("name") && entry["name"].is_string())

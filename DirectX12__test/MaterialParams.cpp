@@ -31,4 +31,8 @@ void MaterialParams::FillCB(MaterialCB& out) const
 
 	out.sssParams = { sssStrength, sssWrap, sssTrans, sheen };
 	out.sssColor = sssColor;
+
+	out.waveParams = { waveHeight, waveLength, waveSpeed, waterGloss };
+	out.waterParams = { waterOpacity, waterTurbidity, waterFoam, 0.0f };
+	out.waveParams2 = { waveAmplitude, waveSteepness, 0.0f, 0.0f };
 }

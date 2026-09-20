@@ -23,6 +23,7 @@
 #include "ModelLoader.hpp"
 #include <sstream>
 #include "AsyncLoader.hpp"
+#include "Terrain.hpp"
 
 class SpinSystem
 {
@@ -286,16 +287,31 @@ public:
 
 		// マテリアルのシェーダー名に renderContext.psoSuffix を足した名前を返す。
 		// HDR用の双子が登録されていなければ素の名前へ戻す(旧パス互換)
-		auto resolvePass = [&renderContext](const std::string& base) -> std::string
+		// 結果は接尾辞ごとにキャッシュし、サブメッシュごとの文字列連結を避ける
+		auto resolvePass = [this, &renderContext](const std::string& base) -> const std::string&
 			{
 				if (renderContext.psoSuffix == nullptr || renderContext.psoSuffix[0] == 0)
 					return base;
-				std::string withSuffix = base + renderContext.psoSuffix;
-				return APP->HasShaderPass(withSuffix) ? withSuffix : base;
+				auto& cache = m_PassCache[renderContext.psoSuffix];
+				auto it = cache.find(base);
+				if (it == cache.end())
+				{
+					std::string withSuffix = base + renderContext.psoSuffix;
+					it = cache.emplace(base, APP->HasShaderPass(withSuffix) ? withSuffix : base).first;
+				}
+				return it->second;
 			};
 
+		// スキン無しエンティティで共有する単位行列パレット。パスごとに1回だけ転送する
+		D3D12_GPU_VIRTUAL_ADDRESS identityBoneVA = 0;
+		if (renderContext.cbAllocator != nullptr)
+		{
+			identityBoneVA = renderContext.cbAllocator->Allocate(
+				renderContext.frameIndex % RTV_NUM, &IdentityBoneCB(), sizeof(BoneCB));
+		}
+
 		world.Each<TransformComponent, MeshComponent, MaterialComponent>(
-			[&world, &renderContext, filter, &resolvePass](
+			[&world, &renderContext, filter, &resolvePass, identityBoneVA](
 				Entity entity,
 				TransformComponent& transform,
 				MeshComponent& mesh,
@@ -303,6 +319,48 @@ public:
 				)
 			{
 				if (mesh.mesh == nullptr || material.material == nullptr)
+				{
+					return;
+				}
+
+				// このパスで描くサブメッシュが1つも無ければ、CB を作る前に抜ける
+				auto passes = [&](const std::string& sn)
+					{
+						const bool t = APP->IsShaderAlphaBlend(sn);
+						const bool toon = IsToonShader(sn);
+						switch (filter)
+						{
+						case DrawFilter::OPAQUEONLY:      return !t;
+						case DrawFilter::TRANSPARENTONLY: return t;
+						case DrawFilter::OPAQUE_NOTOON:   return !t && !toon;
+						case DrawFilter::OPAQUE_TOON:     return !t && toon;
+						default:                          return true;
+						}
+					};
+				bool any = false;
+				if (!material.materials.empty() && mesh.mesh->GetSubMeshCount() > 0)
+				{
+					for (UINT s = 0; s < mesh.mesh->GetSubMeshCount() && !any; ++s)
+					{
+						UINT mi = mesh.mesh->GetSubMeshMaterialIndex(s);
+						if (mi >= material.materials.size()) mi = 0;
+						const auto& mat = material.materials[mi];
+						if (mat) any = passes(mat->shaderName.empty() ? material.shaderName : mat->shaderName);
+					}
+				}
+				else
+				{
+					any = passes(material.shaderName);
+				}
+				if (!any)
+				{
+					return;
+				}
+
+				// 反射パスは ReflectionCaster が付いたEntityだけを描く
+				if (filter == DrawFilter::REFLECTION &&
+					(!world.HasComponent<ReflectionCasterComponent>(entity) ||
+						!world.GetComponent<ReflectionCasterComponent>(entity).enabled))
 				{
 					return;
 				}
@@ -332,21 +390,13 @@ public:
 					if (b2 != 0) renderContext.CommandList->SetGraphicsRootConstantBufferView(2, b2);
 				}
 
-				// 反射パスは ReflectionCaster が付いたEntityだけを描く
-				if (filter == DrawFilter::REFLECTION &&
-					(!world.HasComponent<ReflectionCasterComponent>(entity) ||
-						!world.GetComponent<ReflectionCasterComponent>(entity).enabled))
-				{
-					return;
-				}
-
 				// --- b4(root 5): ボーン行列パレット + morphActiveフラグ ---
 				if (renderContext.cbAllocator)
 				{
 					const UINT slot = renderContext.frameIndex % RTV_NUM;
-					BoneCB cb{};   // 全ゼロ初期化(morph=0含む)
-
 					bool anyMorph = false;
+					D3D12_GPU_VIRTUAL_ADDRESS b4 = identityBoneVA;   // アニメ無しは共有の単位行列
+
 					if (world.HasComponent<AnimatorComponent>(entity))
 					{
 						auto& an = world.GetComponent<AnimatorComponent>(entity);
@@ -364,6 +414,7 @@ public:
 							}
 						}
 
+						BoneCB cb{};   // 全ゼロ初期化(morph=0含む)
 						const size_t n = std::min<size_t>(an.palette.size(), MAX_BONES);
 						for (size_t i = 0; i < n; ++i) cb.boneMatrices[i] = an.palette[i];
 						for (size_t i = n; i < MAX_BONES; ++i)
@@ -371,17 +422,11 @@ public:
 
 						for (float w : an.morphWeights)
 							if (fabsf(w) > 1e-6f) { anyMorph = true; break; }
-					}
-					else
-					{
-						// アニメ無し: 全ボーンidentity(スキンされても原点維持)
-						for (size_t i = 0; i < MAX_BONES; ++i)
-							DirectX::XMStoreFloat4x4(&cb.boneMatrices[i], DirectX::XMMatrixIdentity());
-					}
-					cb.morph = anyMorph ? 1.0f : 0.0f;
+						cb.morph = anyMorph ? 1.0f : 0.0f;
 
-					auto b4 = renderContext.cbAllocator->Allocate(slot, &cb, sizeof(BoneCB));
-					if (b4) renderContext.CommandList->SetGraphicsRootConstantBufferView(5, b4);
+						b4 = renderContext.cbAllocator->Allocate(slot, &cb, sizeof(BoneCB));
+					}
+					if (b4)renderContext.CommandList->SetGraphicsRootConstantBufferView(5, b4);
 
 					// --- t7(root 6): 頂点モーフ (アニメあり かつ モーフがアクティブな時だけ) ---
 					D3D12_GPU_VIRTUAL_ADDRESS morphVA = s_zeroMorphVA;   // 既定はゼロバッファ
@@ -393,9 +438,22 @@ public:
 						if (an.morphDirty) { RebuildMorphOffsets(an.morphs, an.morphWeights, vcount, an.morphoffsets); an.morphDirty = false; }
 						if (an.morphoffsets.size() == vcount)
 						{
-							auto va = renderContext.cbAllocator->Allocate(slot, an.morphoffsets.data(),
-								an.morphoffsets.size() * sizeof(DirectX::XMFLOAT3));
-							if (va) morphVA = va;   // モーフありなら実データで上書き
+							// 同じフレームの別パスで転送済みならそのアドレスを使い回す
+							if (renderContext.frameSerial != 0 && an.morphVAFrame == renderContext.frameSerial)
+							{
+								morphVA = an.morphVA;
+							}
+							else
+							{
+								auto va = renderContext.cbAllocator->Allocate(slot, an.morphoffsets.data(),
+									an.morphoffsets.size() * sizeof(DirectX::XMFLOAT3));
+								if (va)
+								{
+									morphVA = va;   // モーフありなら実データで上書き
+									an.morphVA = va;
+									an.morphVAFrame = renderContext.frameSerial;
+								}
+							}
 						}
 					}
 					renderContext.CommandList->SetGraphicsRootShaderResourceView(6, morphVA);
@@ -484,7 +542,10 @@ public:
 								// 幅0なら押し出し量が0で何も出ない。描くだけ無駄なので省く
 								if (mat->outlineWidth <= 0.0f) continue;
 
-								const bool isTransparent = APP->IsShaderAlphaBlend(material.shaderName);
+								// サブマテリアル単位で判定する(コンポーネント側の名前だと全サブメッシュ同じ結果になる)
+								const std::string& sn = mat->shaderName.empty()
+									? material.shaderName : mat->shaderName;
+								const bool isTransparent = APP->IsShaderAlphaBlend(sn);
 								if (filter == DrawFilter::OPAQUEONLY && isTransparent)		 continue; // このエンティティskip
 								if (filter == DrawFilter::TRANSPARENTONLY && !isTransparent) continue;
 
@@ -508,6 +569,10 @@ public:
 			}
 		);
 	}
+
+private:
+	/// psoSuffix → (素のシェーダー名 → 解決後のパス名)
+	std::unordered_map<std::string, std::unordered_map<std::string, std::string>> m_PassCache;
 };
 
 class LightSystem
@@ -1537,6 +1602,7 @@ public:
 	void Update(World& world)
 	{
 		// 各エンティティのworldを、親をたどって計算
+		m_Done.clear();
 		world.Each<TransformComponent>([&](Entity e, TransformComponent& tr)
 			{
 				UpdateWorld(world, e, tr);
@@ -1547,6 +1613,9 @@ private:
 	void UpdateWorld(World& world, Entity e, TransformComponent& tr)
 	{
 		using namespace DirectX;
+
+		// 子から親を何度もたどるので、このフレームで計算済みならスキップ
+		if (!m_Done.insert(e).second) return;
 
 		XMMATRIX local =
 			XMMatrixScaling(tr.scale.x, tr.scale.y, tr.scale.z) *
@@ -1564,6 +1633,8 @@ private:
 		}
 		XMStoreFloat4x4(&tr.world, worldMat);
 	}
+
+	std::unordered_set<Entity> m_Done;	///< このフレームで world を計算済みのエンティティ
 };
 
 class ShadowSystem
@@ -1590,6 +1661,10 @@ public:
 			cmd->SetGraphicsRootConstantBufferView(2, b2);
 		}
 
+		// スキン無しエンティティで共有する単位行列パレット。パスごとに1回だけ転送する
+		const D3D12_GPU_VIRTUAL_ADDRESS identityBoneVA =
+			ctx.cbAllocator->Allocate(slot, &IdentityBoneCB(), sizeof(BoneCB));
+
 		world.Each<TransformComponent, MeshComponent>(
 			[&](Entity e, TransformComponent& tr, MeshComponent& mc)
 			{
@@ -1598,19 +1673,19 @@ public:
 				// スキンメッシュ用の骨パレット。渡さないとキャラの影が
 				// バインドポーズのまま固まる
 				{
-					BoneCB bone{};
 					const size_t n = world.HasComponent<AnimatorComponent>(e)
 						? std::min<size_t>(world.GetComponent<AnimatorComponent>(e).palette.size(), MAX_BONES)
 						: 0;
+					D3D12_GPU_VIRTUAL_ADDRESS b4 = identityBoneVA;
 					if (n > 0)
 					{
+						BoneCB bone{};
 						const auto& palette = world.GetComponent<AnimatorComponent>(e).palette;
 						for (size_t i = 0; i < n; ++i) bone.boneMatrices[i] = palette[i];
+						for (size_t i = n; i < MAX_BONES; ++i)
+							DirectX::XMStoreFloat4x4(&bone.boneMatrices[i], DirectX::XMMatrixIdentity());
+						b4 = ctx.cbAllocator->Allocate(slot, &bone, sizeof(BoneCB));
 					}
-					for (size_t i = n; i < MAX_BONES; ++i)
-						DirectX::XMStoreFloat4x4(&bone.boneMatrices[i], DirectX::XMMatrixIdentity());
-
-					auto b4 = ctx.cbAllocator->Allocate(slot, &bone, sizeof(BoneCB));
 					if (b4) cmd->SetGraphicsRootConstantBufferView(5, b4);
 				}
 
@@ -1667,15 +1742,37 @@ public:
 						if (path.empty()) continue;
 						if (std::find(seen.begin(), seen.end(), path) != seen.end()) continue;
 						seen.push_back(path);
-						AsyncLoader::Get().LoadVMDAsync(path, an.skeleton,
-							[&world, e](AnimationClip vc)
-							{
-								if (vc.channels.empty() && vc.morphChannels.empty()) return;
-								if (!world.IsEntityAlive(e) ||
-									!world.HasComponent<AnimatorComponent>(e)) return;
-								auto& a = world.GetComponent<AnimatorComponent>(e);
-								a.clips.push_back(std::move(vc));
-							});
+						// .vmd はスケルトンに合わせて読み、.fbx などは中のクリップを全部足す
+						const bool isVmd = path.size() > 4 &&
+							_stricmp(path.c_str() + path.size() - 4, ".vmd") == 0;
+
+						if (isVmd)
+						{
+							AsyncLoader::Get().LoadVMDAsync(path, an.skeleton,
+								[&world, e](AnimationClip vc)
+								{
+									if (vc.channels.empty() && vc.morphChannels.empty()) return;
+									if (!world.IsEntityAlive(e) ||
+										!world.HasComponent<AnimatorComponent>(e)) return;
+									auto& a = world.GetComponent<AnimatorComponent>(e);
+									a.clips.push_back(std::move(vc));
+								});
+						}
+						else
+						{
+							AsyncLoader::Get().LoadAnimationFileAsync(path,
+								[&world, e](std::vector<AnimationClip> clips)
+								{
+									if (!world.IsEntityAlive(e) ||
+										!world.HasComponent<AnimatorComponent>(e)) return;
+									auto& a = world.GetComponent<AnimatorComponent>(e);
+									for (auto& c : clips)
+									{
+										if (c.channels.empty() && c.morphChannels.empty()) continue;
+										a.clips.push_back(std::move(c));
+									}
+								});
+						}
 					}
 				}
 
@@ -1984,6 +2081,11 @@ public:
 		using namespace DirectX;
 		if (deltatime <= 0.0f) return;
 
+		// ゲームとして起動したとき(ImGui が無い)は、カーソルを中央に固定して隠す。
+		// そうしないと、ボタンを押していなくてもマウスを動かすだけで視点が回ってしまう
+		const bool standalone = !IMGUI::IsInitialized();
+		bool wantCapture = false;
+
 		world.Each<TransformComponent, FollowCameraComponent>(
 			[&](Entity e, TransformComponent& tr, FollowCameraComponent& fc)
 			{
@@ -1997,14 +2099,32 @@ public:
 					});
 				if (target == INVALID_ENTITY || !world.HasComponent<TransformComponent>(target)) return;
 
-				// 再生中だけマウスで回す(エディタでの操作と被る)
-				if (isPlaying && !INPUT->IsMouseCaptured())
+				if (isPlaying && fc.captureCursor && standalone) wantCapture = true;
+
+				const bool canLook = isPlaying &&
+					(standalone ? m_Captured
+						: (INPUT->IsViewportHovered() && !INPUT->IsMouseCaptured()));
+
+				// マウス : カーソルを掴んでいる間だけ
+				if (canLook)
 				{
 					fc.yaw += (float)INPUT->MouseInput.DeltaX() * fc.rotateSpeed;
 					fc.pitch += (float)INPUT->MouseInput.DeltaY() * fc.rotateSpeed;
-					fc.pitch = std::clamp(fc.pitch,
-						XMConvertToRadians(fc.minPitch), XMConvertToRadians(fc.maxPitch));
 				}
+
+				if (isPlaying)
+				{
+					const float2 look = INPUT->GetVector("LookX", "LookY");
+
+					fc.yaw += look.x * fc.padRotateSpeed * deltatime;
+
+					// スティックは上が + 、pitch は下を向くと + なので既定で反転する
+					const float pitchInput = fc.padInvertY ? look.y : -look.y;
+					fc.pitch += pitchInput * fc.padRotateSpeed * deltatime;
+				}
+
+				fc.pitch = std::clamp(fc.pitch,
+					XMConvertToRadians(fc.minPitch), XMConvertToRadians(fc.maxPitch));
 
 				// 注視点 : 対象の少し上
 				const auto& targetTr = world.GetComponent<TransformComponent>(target);
@@ -2026,6 +2146,34 @@ public:
 				XMStoreFloat4(&tr.rotation, XMQuaternionNormalize(rot));
 				tr.SyncEulerFromQuaternion();
 				tr.RebuildWorld();
+			});
+
+		// Esc でカーソルを解放する(ウィンドウから出られなくなるのを避ける)
+		if (m_Captured && INPUT->Key.Escape().IsPressed()) wantCapture = false;
+
+		// 掴む / 離すは状態が変わった瞬間だけ。
+		// ::ShowCursor は呼んだ回数を数えるので、毎フレーム呼ぶと戻らなくなる
+		if (wantCapture != m_Captured)
+		{
+			m_Captured = wantCapture;
+			INPUT->SetCursorLock(m_Captured);
+			INPUT->ShowCursor(!m_Captured);
+		}
+	}
+
+private:
+	bool m_Captured = false;
+};
+
+class TerrainSystem
+{
+public:
+	void Update(World& world)
+	{
+		world.Each<TerrainComponent>([&](Entity e, TerrainComponent& t)
+			{
+				if (t.BuiltSettings == Terrain::HashSettings(t) && !t.Heights.empty()) return;
+				Terrain::Rebuild(world, e);
 			});
 	}
 };

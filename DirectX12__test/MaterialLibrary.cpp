@@ -76,6 +76,15 @@ namespace
 		p["sheen"] = m.sheen;
 		p["isFace"] = m.isFace;
 		p["outlineWidth"] = m.outlineWidth;
+		p["waveHeight"] = m.waveHeight;
+		p["waveLength"] = m.waveLength;
+		p["waveSpeed"] = m.waveSpeed;
+		p["waterGloss"] = m.waterGloss;
+		p["waterOpacity"] = m.waterOpacity;
+		p["waterTurbidity"] = m.waterTurbidity;
+		p["waterFoam"] = m.waterFoam;
+		p["waveAmplitude"] = m.waveAmplitude;
+		p["waveSteepness"] = m.waveSteepness;
 
 		json& t = j["textures"] = json::object();
 		for (const auto& s : kSlots)
@@ -118,6 +127,15 @@ namespace
 			m.sheen = p.value("sheen", m.sheen);
 			m.isFace = p.value("isFace", m.isFace);
 			m.outlineWidth = p.value("outlineWidth", m.outlineWidth);
+			m.waveHeight = p.value("waveHeight", m.waveHeight);
+			m.waveLength = p.value("waveLength", m.waveLength);
+			m.waveSpeed = p.value("waveSpeed", m.waveSpeed);
+			m.waterGloss = p.value("waterGloss", m.waterGloss);
+			m.waterOpacity = p.value("waterOpacity", m.waterOpacity);
+			m.waterTurbidity = p.value("waterTurbidity", m.waterTurbidity);
+			m.waterFoam = p.value("waterFoam", m.waterFoam);
+			m.waveAmplitude = p.value("waveAmplitude", m.waveAmplitude);
+			m.waveSteepness = p.value("waveSteepness", m.waveSteepness);
 		}
 
 		if (!j.contains("textures")) return;
@@ -238,8 +256,21 @@ bool MaterialLibrary::Save(const std::string& path)
 	const Material& m = *it->second;
 	if (!WriteJson(path, ToJson(m, m.shaderName.empty() ? "PBR" : m.shaderName))) return false;
 
+	m_Dirty[KeyOf(path)] = false;
 	LOG->LogInfo("マテリアルを保存: " + path);
 	return true;
+}
+
+bool MaterialLibrary::IsDirty(const std::string& path) const
+{
+	const auto it = m_Dirty.find(KeyOf(path));
+	return it != m_Dirty.end() && it->second;
+}
+
+void MaterialLibrary::MarkDirty(const std::string& path)
+{
+	if (path.empty()) return;
+	m_Dirty[KeyOf(path)] = true;
 }
 
 std::string MaterialLibrary::CreateFromMaterial(

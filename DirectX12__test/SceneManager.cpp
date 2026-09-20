@@ -406,7 +406,13 @@ void SceneManager::UpdateFade(float deltatime)
 				if (m_ActiveScene)
 				{
 					APP->WaitForGPUIdle();
-					SceneSerializer::Load(*m_ActiveScene, m_PendingScenePath);
+					if (!SceneSerializer::Load(*m_ActiveScene, m_PendingScenePath))
+					{
+						LOG->LogError("シーンの読み込みに失敗しました: " + m_PendingScenePath);
+					}
+					// 空のシーンでもカメラとライトは要る。
+					// この経路は OnLoad を通らないので、ここで明示的に面倒を見る
+					static_cast<RuntimeScene*>(m_ActiveScene)->EnsureEssentials();
 				}
 				m_PendingScenePath.clear();
 			}

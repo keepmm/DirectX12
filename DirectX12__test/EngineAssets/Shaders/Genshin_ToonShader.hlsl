@@ -10,15 +10,7 @@ Texture2D g_LightMap : register(t4); // 顔専用ライトマップ(rough枠を�
 SamplerState g_Sampler : register(s0);
 SamplerState g_RampSampler : register(s1);
 
-cbuffer Material : register(b3)
-{
-    float roughness;
-    float metallic;
-    float2 _pad;
-    float4 rimColor; // rgb: リムカラー / a: リム強度
-    float4 mapFlags; // x:hasNormal y:hasMetal z:hasRough w:envMaxMip
-    float4 faceParam; // x:isFace y:未使用 z:未使用 w:アウトライン幅
-}
+#include "MaterialCB.hlsli"
 
 float4 Genshin_ToonPS(PSInput input) : SV_TARGET
 {

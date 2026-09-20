@@ -32,6 +32,7 @@
 #include "ThumbnailCache.hpp"
 #include <fstream>
 #include <string_view>
+#include <algorithm>
 #include "AssetDatabase.hpp"
 
 #pragma comment(lib, "psapi.lib")
@@ -111,6 +112,24 @@ void AssetBrowserPanel::Draw(EditorContext& ctx)
 	ImGui::SliderFloat(u8("サイズ##AssetCell"), &m_AssetCellSize, 48.0f, 128.0f, "%.0f");
 
 	ImGui::Separator();
+
+	// -------------------------//
+	//	  左: フォルダツリー	 //
+	// -------------------------//
+	if (ImGui::BeginChild("AssetTree", ImVec2(m_TreeWidth, 0.0f), true))
+	{
+		DrawFolderTree(ctx, assetRoot);
+	}
+	ImGui::EndChild();
+
+	// 幅を変えるつまみ
+	ImGui::SameLine(0.0f, 0.0f);
+	ImGui::Button("##AssetTreeSplitter", ImVec2(6.0f, ImGui::GetContentRegionAvail().y));
+	if (ImGui::IsItemHovered() || ImGui::IsItemActive())
+		ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW);
+	if (ImGui::IsItemActive())
+		m_TreeWidth = std::clamp(m_TreeWidth + ImGui::GetIO().MouseDelta.x, 100.0f, 400.0f);
+	ImGui::SameLine(0.0f, 0.0f);
 
 	const float cellSize = m_AssetCellSize;
 	const ImVec2 tileSize(cellSize, cellSize);
@@ -358,6 +377,7 @@ void AssetBrowserPanel::Draw(EditorContext& ctx)
 					{
 						std::snprintf(m_RenameBuffer, sizeof(m_RenameBuffer), "%s", name.c_str());
 						m_ShowRenamePopup = true;
+						m_RenameIsNew = false;
 					}
 
 					if (ImGui::MenuItem(u8("複製"), "Ctrl+D"))
@@ -408,18 +428,32 @@ void AssetBrowserPanel::Draw(EditorContext& ctx)
 		{
 			m_ContextTarget.clear();
 
+			// リネームラムダ式
+			auto beginRename = [this](const std::string& path)
+				{
+					if (path.empty()) return;
+					namespace fs = std::filesystem;
+					const fs::path p = path;
+					const std::string init = fs::is_directory(p) ? p.filename().string()
+						: p.stem().string();
+					std::snprintf(m_RenameBuffer, sizeof(m_RenameBuffer), "%s", init.c_str());
+					m_ContextTarget = path;
+					m_ShowRenamePopup = true;
+					m_RenameIsNew = true;
+				};
+
 			if (ImGui::BeginMenu(u8("作成")))
 			{
 				if (ImGui::MenuItem(u8("フォルダー")))
 				{
-					AssetFileOps::CreateFolder(ctx.currentAssetDir);
+					beginRename(AssetFileOps::CreateFolder(ctx.currentAssetDir));
 				}
 
 				ImGui::Separator();
 
 				if (ImGui::MenuItem(u8("シーン")))
 				{
-					AssetFileOps::CreateSceneFile(ctx.currentAssetDir);
+					beginRename(AssetFileOps::CreateSceneFile(ctx.currentAssetDir));
 				}
 
 				if (ImGui::MenuItem(u8("マテリアル")))
@@ -429,6 +463,7 @@ void AssetBrowserPanel::Draw(EditorContext& ctx)
 					{
 						ctx.selectedAsset = file;          // 作ったらそのまま編集できるように
 						ctx.selectedEntity = INVALID_ENTITY;
+						beginRename(file);
 					}
 				}
 
@@ -473,7 +508,7 @@ void AssetBrowserPanel::Draw(EditorContext& ctx)
 			ImGui::InputText(u8("クラス名"), m_NewScriptName, sizeof(m_NewScriptName));
 			if (ImGui::Button(u8("作成")) && m_NewScriptName[0] != '\0')
 			{
-				AssetFileOps::CreateScriptFile(ctx.currentAssetDir, m_NewScriptName);
+				(void)AssetFileOps::CreateScriptFile(ctx.currentAssetDir, m_NewScriptName);
 				ImGui::CloseCurrentPopup();
 			}
 			ImGui::SameLine();
@@ -482,15 +517,25 @@ void AssetBrowserPanel::Draw(EditorContext& ctx)
 		}
 
 		// ---- 名前を変更 ---- //
-		if (m_ShowRenamePopup) { ImGui::OpenPopup("RenameAsset"); m_ShowRenamePopup = false; }
+		if (m_ShowRenamePopup)
+		{
+			ImGui::OpenPopup("RenameAsset");
+			m_ShowRenamePopup = false;
+			m_RenameFocus = true;
+			m_RenamePending = true;
+		}
 		if (ImGui::BeginPopupModal("RenameAsset", nullptr, ImGuiWindowFlags_AlwaysAutoResize))
 		{
-			ImGui::InputText(u8("新しい名前"), m_RenameBuffer, sizeof(m_RenameBuffer));
+			// 開いた最初のフレームだけ入力欄にフォーカス(AutoSelectAll と組で初期名が選択状態になる)
+			if (m_RenameFocus) { ImGui::SetKeyboardFocusHere(); m_RenameFocus = false; }
+
+			const bool entered = ImGui::InputText(u8("新しい名前"), m_RenameBuffer, sizeof(m_RenameBuffer),
+				ImGuiInputTextFlags_EnterReturnsTrue | ImGuiInputTextFlags_AutoSelectAll);
 
 			const bool ok = m_RenameBuffer[0] != '\0' && !m_ContextTarget.empty();
 
 			ImGui::BeginDisabled(!ok);
-			if (ImGui::Button(u8("変更")) && m_RenameBuffer[0] != '\0')
+			if ((ImGui::Button(u8("変更")) || entered) && ok)
 			{
 				// 新しいパスを先に組み立てておく(RenameAsset の中と同じ規則)
 				namespace fs = std::filesystem;
@@ -507,12 +552,35 @@ void AssetBrowserPanel::Draw(EditorContext& ctx)
 					AssetRemap::Remap(ctx.activeScene->GetWorld(), *ctx.activeScene,
 						src.generic_string(), dst.generic_string());
 				}
+
+				// 新規作成したマテリアル等を選択したままにしておく
+				if (ctx.selectedAsset == src.string()) ctx.selectedAsset = dst.string();
+
+				m_ContextTarget.clear();
+				m_RenameIsNew = false;     // 確定したので削除しない
+				m_RenamePending = false;
+				ImGui::CloseCurrentPopup();
 			}
 			ImGui::EndDisabled();
 
 			ImGui::SameLine();
-			if (ImGui::Button(u8("キャンセル"))) ImGui::CloseCurrentPopup();
+			if (ImGui::Button(u8("キャンセル"))) ImGui::CloseCurrentPopup();  // 後始末は下でまとめて
+
 			ImGui::EndPopup();
+		}
+
+		// キャンセル / Esc / 枠外クリックで閉じられた場合の後始末。
+		// 新規作成直後なら、まだ名前が決まっていない実体を消す
+		if (m_RenamePending && !ImGui::IsPopupOpen("RenameAsset"))
+		{
+			m_RenamePending = false;
+			if (m_RenameIsNew && !m_ContextTarget.empty())
+			{
+				if (ctx.selectedAsset == m_ContextTarget) ctx.selectedAsset.clear();
+				AssetFileOps::DeleteAsset(m_ContextTarget);
+			}
+			m_RenameIsNew = false;
+			m_ContextTarget.clear();
 		}
 
 		// ---- 削除 ---- //
@@ -538,4 +606,90 @@ void AssetBrowserPanel::Draw(EditorContext& ctx)
 		}
 	}
 	ImGui::EndChild();
+}
+
+void AssetBrowserPanel::DrawFolderTree(EditorContext& ctx, const std::filesystem::path& dir)
+{
+	namespace fs = std::filesystem;
+	std::error_code ec;
+
+	auto U8 = [](const fs::path& p) {
+		auto s = p.u8string();
+		return std::string(s.begin(), s.end());
+		};
+
+	// 子フォルダだけ集める(ファイルは右の一覧に出す)
+	std::vector<fs::path> subs;
+	for (const auto& entry : fs::directory_iterator(dir, ec))
+	{
+		if (entry.is_directory(ec)) subs.push_back(entry.path());
+	}
+	std::sort(subs.begin(), subs.end());
+
+	ImGuiTreeNodeFlags flags =
+		ImGuiTreeNodeFlags_OpenOnArrow |
+		ImGuiTreeNodeFlags_OpenOnDoubleClick |
+		ImGuiTreeNodeFlags_SpanAvailWidth;
+
+	if (subs.empty()) flags |= ImGuiTreeNodeFlags_Leaf;
+
+	// いま開いているフォルダを強調する
+	if (fs::exists(ctx.currentAssetDir, ec) &&
+		fs::equivalent(dir, ctx.currentAssetDir, ec))
+	{
+		flags |= ImGuiTreeNodeFlags_Selected;
+	}
+
+	// ルート("Assets")は最初から開いておく
+	const bool isRoot = !dir.has_parent_path() || dir.filename().empty()
+		|| dir == fs::path("Assets");
+	if (isRoot) flags |= ImGuiTreeNodeFlags_DefaultOpen;
+
+	const std::string label = isRoot ? "Assets" : U8(dir.filename());
+
+	ImGui::PushID(U8(dir).c_str());
+	const bool open = ImGui::TreeNodeEx(label.c_str(), flags);
+
+	// 三角の開閉ではなく、名前を押したときだけ移動する
+	if (ImGui::IsItemClicked() && !ImGui::IsItemToggledOpen())
+	{
+		ctx.currentAssetDir = dir.string();
+	}
+
+	// ---- ここへドロップして移動 ---- //
+	if (ImGui::BeginDragDropTarget())
+	{
+		// アセットブラウザが積むペイロードは拡張子ごとに違うので、全部見る
+		static const char* kTypes[] =
+		{
+			"ASSET_FILE","ASSET_MODEL","ASSET_TEXTURE",
+			"ASSET_FONT","ASSET_AUDIO","ASSET_MATERIAL"
+		};
+
+		for(const char* type : kTypes)
+		{
+			const ImGuiPayload* p = ImGui::AcceptDragDropPayload(type);
+			if (!p) continue;
+
+			const std::string from((const char*)p->Data,p->DataSize - 1);
+			const std::string to = AssetFileOps::MoveAsset(from, dir.string());
+
+			// 開いているシーンのメモリ上の参照も追従させる
+			if (!to.empty() && ctx.activeScene)
+			{
+				AssetRemap::Remap(ctx.activeScene->GetWorld(),
+					*ctx.activeScene,
+					fs::path(from).generic_string(), to);
+			}
+			break;
+		}
+		ImGui::EndDragDropTarget();
+	}
+
+	if (open)
+	{
+		for (const auto& sub : subs) DrawFolderTree(ctx, sub);
+		ImGui::TreePop();
+	}
+	ImGui::PopID();
 }

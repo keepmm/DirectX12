@@ -62,7 +62,12 @@ Entity EntityFactory::CreatePrimitive(World& world, const std::string& tag)
 	Entity e = world.CreateEntity();
 
 	static int num = 1;
-	const std::string base = (tag == kPrimitiveCube) ? "Cube_" : "Sphere_";
+	const std::string base =
+		(tag == kPrimitiveCube) ? "Cube_" :
+		(tag == kPrimitiveCylinder) ? "Cylinder_" :
+		(tag == kPrimitiveCone) ? "Cone_" :
+		(tag == kPrimitiveCapsule) ? "Capsule_" :
+		(tag == kPrimitivePlane) ? "Plane_" : "Sphere_";
 	world.AddComponent<NameComponent>(e, NameComponent{ base + std::to_string(num++) });
 	world.AddComponent<TransformComponent>(e, TransformComponent{});
 

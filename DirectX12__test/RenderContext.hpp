@@ -50,6 +50,7 @@ struct RenderSettings
 	/// @brief 環境光(IBL)の強さ。直接光とのバランスを取る
 	/// @note 1.0 で物理的に正しい値。ライトの強さが 1 前後なら 0.3 程度がちょうどいい
 	float envIntensity = 0.35f;
+	float gameAspect = 16.0f / 9.0f;
 
 	static RenderSettings& Get()
 	{
@@ -94,4 +95,8 @@ struct RenderContext
 	///        HDR_PASS_SUFFIX を入れるとフォワード描画がHDRシーンへ向く。
 	///        該当パスが未登録なら自動で素の名前にフォールバックする
 	const char* psoSuffix = "";
+
+	/// @brief フレームごとに増える通し番号。同一フレーム内のパス間で転送結果を使い回す判定に使う。
+	///        0 はキャッシュ無効(エディタのプレビュー等で個別に作ったコンテキスト)
+	uint64_t frameSerial = 0;
 };

@@ -13,14 +13,14 @@
 #include "RenderContext.hpp"
 #include "Engine/ThreadPool.hpp"
 #include "AsyncLoader.hpp"
+#include "AssetExt.hpp"
+
 #include <mutex>
 #include <unordered_map>
 #include <string>
 #include <memory>
 #include <functional>
 #include <filesystem>
-
-#include "AssetExt.hpp"
 
 enum class TransitionPhase
 {

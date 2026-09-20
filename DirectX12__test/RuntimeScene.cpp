@@ -38,57 +38,7 @@ void RuntimeScene::OnLoad()
 		}
 	}
 
-	bool hasMain = false, hasEditor = false, hasLight = false;
-	m_World.Each<CameraComponent>([&](Entity, CameraComponent& c) {
-		if (c.cameraType == CameraComponent::CameraType::Main)      hasMain = true;
-		if (c.cameraType == CameraComponent::CameraType::Secondary) hasEditor = true;
-		});
-	m_World.Each<LightComponent>([&](Entity, LightComponent&) { hasLight = true; });
-
-	if(!hasMain)
-	{
-		// -------------------------------------//
-		//	メインカメラとメインライトの作成	//
-		// -------------------------------------//
-		auto camera = m_World.CreateEntity();
-		auto& tr = m_World.AddComponent(camera, TransformComponent{});
-		m_World.AddComponent(camera, NameComponent{ "MainCamera1" });
-		auto& maincamera = m_World.AddComponent(camera, CameraComponent{});
-		tr.position = { 0.0f, 5.0f, 0.0f };
-		maincamera.cameraType = CameraComponent::CameraType::Main;
-		m_World.AddComponent(camera, FreeLookComponent{});
-		tr.RebuildWorld();
-	}
-
-	if(!hasLight)
-	{
-		// ライトの作成
-		auto light = m_World.CreateEntity();
-		m_World.AddComponent(light, TransformComponent{});
-		m_World.AddComponent(light, NameComponent{ "MainLight" });
-		auto& lightComp = m_World.AddComponent(light, LightComponent{});
-		lightComp.type = LightComponent::LightType::Directional;
-		lightComp.color = { 1.0f, 1.0f, 1.0f, 1.0f };
-		lightComp.ambientColor = { 0.2f, 0.2f, 0.2f, 1.0f };
-		lightComp.intensity = 1.0f;
-		lightComp.direction = { -0.5f, -1.0f, -0.5f };
-	}
-
-	if(!hasEditor)
-	{
-		// -------------------------- //
-		//  エディター用カメラの作成  //
-		// -------------------------- //
-		auto editcam = m_World.CreateEntity();
-		auto& t = m_World.AddComponent(editcam, TransformComponent{});
-		m_World.AddComponent(editcam, NameComponent{ "EditorCamer1a" });
-		auto& editCameraComp = m_World.AddComponent(editcam, CameraComponent{});
-		editCameraComp.cameraType = CameraComponent::CameraType::Secondary;
-		auto& freeLook = m_World.AddComponent(editcam, FreeLookComponent{});
-		t.position = { 0.0f, 5.0f, -10.0f };
-		freeLook.Enabled = true;
-		t.RebuildWorld();
-	}
+	EnsureEssentials();
 
 	// -----------------------------//
 	//  アイコン用マテリアルの作成  //
@@ -142,6 +92,63 @@ void RuntimeScene::OnUnload()
 	m_Initialized = false;
 }
 
+void RuntimeScene::EnsureEssentials()
+{
+
+	bool hasMain = false, hasEditor = false, hasLight = false;
+	m_World.Each<CameraComponent>([&](Entity, CameraComponent& c) {
+		if (c.cameraType == CameraComponent::CameraType::Main)      hasMain = true;
+		if (c.cameraType == CameraComponent::CameraType::Secondary) hasEditor = true;
+		});
+	m_World.Each<LightComponent>([&](Entity, LightComponent&) { hasLight = true; });
+
+	if (!hasMain)
+	{
+		// -------------------------------------//
+		//	メインカメラとメインライトの作成	//
+		// -------------------------------------//
+		auto camera = m_World.CreateEntity();
+		auto& tr = m_World.AddComponent(camera, TransformComponent{});
+		m_World.AddComponent(camera, NameComponent{ "MainCamera" });
+		auto& maincamera = m_World.AddComponent(camera, CameraComponent{});
+		tr.position = { 0.0f, 5.0f, 0.0f };
+		maincamera.cameraType = CameraComponent::CameraType::Main;
+		m_World.AddComponent(camera, FreeLookComponent{});
+		tr.RebuildWorld();
+	}
+
+	if (!hasLight)
+	{
+		// ライトの作成
+		auto light = m_World.CreateEntity();
+		auto& tr = m_World.AddComponent(light, TransformComponent{});
+		tr.position.y = 10.0f;
+		m_World.AddComponent(light, NameComponent{ "Directional Light" });
+		auto& lightComp = m_World.AddComponent(light, LightComponent{});
+		lightComp.type = LightComponent::LightType::Directional;
+		lightComp.color = { 1.0f, 1.0f, 1.0f, 1.0f };
+		lightComp.ambientColor = { 0.2f, 0.2f, 0.2f, 1.0f };
+		lightComp.intensity = 1.0f;
+		lightComp.direction = { -0.5f, -1.0f, -0.5f };
+	}
+
+	if (!hasEditor)
+	{
+		// -------------------------- //
+		//  エディター用カメラの作成  //
+		// -------------------------- //
+		auto editcam = m_World.CreateEntity();
+		auto& t = m_World.AddComponent(editcam, TransformComponent{});
+		m_World.AddComponent(editcam, NameComponent{ "EditorCamera" });
+		auto& editCameraComp = m_World.AddComponent(editcam, CameraComponent{});
+		editCameraComp.cameraType = CameraComponent::CameraType::Secondary;
+		auto& freeLook = m_World.AddComponent(editcam, FreeLookComponent{});
+		t.position = { 0.0f, 5.0f, -10.0f };
+		freeLook.Enabled = true;
+		t.RebuildWorld();
+	}
+}
+
 void RuntimeScene::Update(float deltatime)
 {
 	if (!m_ScriptSystemStarted)
@@ -168,8 +175,9 @@ void RuntimeScene::Update(float deltatime)
 	m_FreeLookSystem.Update(m_World, deltatime, CameraComponent::CameraType::Secondary);
 	m_CameraAnimationSystem.Update(m_World, deltatime,PLAY.isPlaying());
 	m_FollowCameraSystem.Update(m_World, deltatime,PLAY.isPlaying());
+	m_Terrain.Update(m_World);
 	{ PROFILE_SCOPE("Transform"); m_TransformSystem.Update(m_World); }
-	m_CameraSystem.Update(m_World, 16.0f / 9.0f);
+	m_CameraSystem.Update(m_World, RenderSettings::Get().gameAspect);
 	{ PROFILE_SCOPE("Animator+Physics"); m_AnimatorSystem.Update(m_World, deltatime); }
 	{ PROFILE_SCOPE("Firework"); m_FireworkSystem.Update(deltatime); }
 
@@ -1272,7 +1280,8 @@ void RuntimeScene::EditorUpdate(float dt)
 
 	{ PROFILE_SCOPE("LightSystem"); m_LightSystem.Apply(m_World); }
 	m_FreeLookSystem.Update(m_World, dt,CameraComponent::CameraType::Secondary);   // エディタカメラ操作
-	m_CameraSystem.Update(m_World, 16.0f / 9.0f);
+	m_CameraSystem.Update(m_World, RenderSettings::Get().gameAspect);
+	m_Terrain.Update(m_World);
 	{ PROFILE_SCOPE("Transform"); m_TransformSystem.Update(m_World); }
 	// m_AnimatorSystem.Update(m_World, dt);
 }

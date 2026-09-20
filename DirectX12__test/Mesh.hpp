@@ -42,6 +42,18 @@ public:
 
 	void CreateQuad(_In_ const ComPtr<ID3D12Device>& device);
 
+	/// @brief 円柱(高さ1・直径1・Y軸方向)
+	void CreateCylinder(UINT segments = 24);
+
+	/// @brief 円錐(高さ1・底面直径1・Y軸方向)
+	void CreateCone(UINT segments = 24);
+
+	/// @brief カプセル(円柱部分の長さ1・半径0.5・Y軸方向)
+	void CreateCapsule(UINT segments = 24, UINT rings = 8);
+
+	/// @brief 地面用の平面(1×1・XZ平面・上向き)
+	void CreatePlane(UINT divisions = 1);
+
 	UINT GetSubMeshMaterialIndex(UINT i)const { return m_SubMeshes[i].materialIndex; }
 	ComPtr<ID3D12Resource> m_VertexBuffer;
 	D3D12_VERTEX_BUFFER_VIEW m_VertexBufferView{};

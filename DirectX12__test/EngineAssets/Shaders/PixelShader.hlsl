@@ -1,17 +1,7 @@
 #include "Common.hlsli"
 #include "Lighting.hlsli"
 
-cbuffer Material : register(b3)
-{
-    float roughness;
-    float metallic;
-    float2 _pad;
-    float4 rimColor;
-    float4 mapFlags;
-    float4 faceParam; // y = baseAlpha
-    float4 sssParams;
-    float4 sssColor;
-}
+#include "MaterialCB.hlsli"
 Texture2D g_Texture : register(t0);
 SamplerState g_Sampler : register(s0);
 
@@ -20,7 +10,7 @@ float4 BasicPS(PSInput input) : SV_TARGET
     float4 texcolor = g_Texture.Sample(g_Sampler, input.uv);
     clip(faceParam.y * input.col.a - 0.05f);
     float3 n = normalize(input.normal);
-    float3 baseColor = input.col.rgb * texcolor.rgb;
+    float3 baseColor = input.col.rgb * texcolor.rgb * basecolor.rgb;
 
     float3 diffuse = 0;
     const int count = (int) lightCount.x;
@@ -35,7 +25,8 @@ float4 BasicPS(PSInput input) : SV_TARGET
         float ndotl = saturate(dot(n, l));
         diffuse += lights[i].color.rgb * baseColor * ndotl * atten;
     }
-    return float4(diffuse + baseColor * ambientColor.rgb, input.col.a * texcolor.a);
+    return float4(diffuse + baseColor * ambientColor.rgb,
+        input.col.a * texcolor.a * basecolor.a);
 }
 
 float4 WireFramePS(PSInput input) : SV_Target
@@ -48,5 +39,6 @@ float4 unlitPS(PSInput input) : SV_Target
 {
     float4 texcolor = g_Texture.Sample(g_Sampler, input.uv);
     clip(faceParam.y * input.col.a - 0.05f);
-    return float4(texcolor.rgb, texcolor.a * input.col.a * faceParam.y);
+    return float4(texcolor.rgb * basecolor.rgb,
+        texcolor.a * input.col.a * faceParam.y * basecolor.a);
 }
