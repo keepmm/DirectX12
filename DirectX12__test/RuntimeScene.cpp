@@ -38,57 +38,7 @@ void RuntimeScene::OnLoad()
 		}
 	}
 
-	bool hasMain = false, hasEditor = false, hasLight = false;
-	m_World.Each<CameraComponent>([&](Entity, CameraComponent& c) {
-		if (c.cameraType == CameraComponent::CameraType::Main)      hasMain = true;
-		if (c.cameraType == CameraComponent::CameraType::Secondary) hasEditor = true;
-		});
-	m_World.Each<LightComponent>([&](Entity, LightComponent&) { hasLight = true; });
-
-	if(!hasMain)
-	{
-		// -------------------------------------//
-		//	メインカメラとメインライトの作成	//
-		// -------------------------------------//
-		auto camera = m_World.CreateEntity();
-		auto& tr = m_World.AddComponent(camera, TransformComponent{});
-		m_World.AddComponent(camera, NameComponent{ "MainCamera1" });
-		auto& maincamera = m_World.AddComponent(camera, CameraComponent{});
-		tr.position = { 0.0f, 5.0f, 0.0f };
-		maincamera.cameraType = CameraComponent::CameraType::Main;
-		m_World.AddComponent(camera, FreeLookComponent{});
-		tr.RebuildWorld();
-	}
-
-	if(!hasLight)
-	{
-		// ライトの作成
-		auto light = m_World.CreateEntity();
-		m_World.AddComponent(light, TransformComponent{});
-		m_World.AddComponent(light, NameComponent{ "MainLight" });
-		auto& lightComp = m_World.AddComponent(light, LightComponent{});
-		lightComp.type = LightComponent::LightType::Directional;
-		lightComp.color = { 1.0f, 1.0f, 1.0f, 1.0f };
-		lightComp.ambientColor = { 0.2f, 0.2f, 0.2f, 1.0f };
-		lightComp.intensity = 1.0f;
-		lightComp.direction = { -0.5f, -1.0f, -0.5f };
-	}
-
-	if(!hasEditor)
-	{
-		// -------------------------- //
-		//  エディター用カメラの作成  //
-		// -------------------------- //
-		auto editcam = m_World.CreateEntity();
-		auto& t = m_World.AddComponent(editcam, TransformComponent{});
-		m_World.AddComponent(editcam, NameComponent{ "EditorCamer1a" });
-		auto& editCameraComp = m_World.AddComponent(editcam, CameraComponent{});
-		editCameraComp.cameraType = CameraComponent::CameraType::Secondary;
-		auto& freeLook = m_World.AddComponent(editcam, FreeLookComponent{});
-		t.position = { 0.0f, 5.0f, -10.0f };
-		freeLook.Enabled = true;
-		t.RebuildWorld();
-	}
+	EnsureEssentials();
 
 	// -----------------------------//
 	//  アイコン用マテリアルの作成  //
@@ -142,6 +92,62 @@ void RuntimeScene::OnUnload()
 	m_Initialized = false;
 }
 
+void RuntimeScene::EnsureEssentials()
+{
+
+	bool hasMain = false, hasEditor = false, hasLight = false;
+	m_World.Each<CameraComponent>([&](Entity, CameraComponent& c) {
+		if (c.cameraType == CameraComponent::CameraType::Main)      hasMain = true;
+		if (c.cameraType == CameraComponent::CameraType::Secondary) hasEditor = true;
+		});
+	m_World.Each<LightComponent>([&](Entity, LightComponent&) { hasLight = true; });
+
+	if (!hasMain)
+	{
+		// -------------------------------------//
+		//	メインカメラとメインライトの作成	//
+		// -------------------------------------//
+		auto camera = m_World.CreateEntity();
+		auto& tr = m_World.AddComponent(camera, TransformComponent{});
+		m_World.AddComponent(camera, NameComponent{ "MainCamera" });
+		auto& maincamera = m_World.AddComponent(camera, CameraComponent{});
+		tr.position = { 0.0f, 5.0f, 0.0f };
+		maincamera.cameraType = CameraComponent::CameraType::Main;
+		m_World.AddComponent(camera, FreeLookComponent{});
+		tr.RebuildWorld();
+	}
+
+	if (!hasLight)
+	{
+		// ライトの作成
+		auto light = m_World.CreateEntity();
+		auto& tr = m_World.AddComponent(light, TransformComponent{});
+		tr.position.y = 10.0f;
+		m_World.AddComponent(light, NameComponent{ "Directional Light" });
+		auto& lightComp = m_World.AddComponent(light, LightComponent{});
+		lightComp.type = LightComponent::LightType::Directional;
+		lightComp.color = { 1.0f, 1.0f, 1.0f, 1.0f };
+		lightComp.intensity = 1.0f;
+		lightComp.direction = { -0.5f, -1.0f, -0.5f };
+	}
+
+	if (!hasEditor)
+	{
+		// -------------------------- //
+		//  エディター用カメラの作成  //
+		// -------------------------- //
+		auto editcam = m_World.CreateEntity();
+		auto& t = m_World.AddComponent(editcam, TransformComponent{});
+		m_World.AddComponent(editcam, NameComponent{ "EditorCamera" });
+		auto& editCameraComp = m_World.AddComponent(editcam, CameraComponent{});
+		editCameraComp.cameraType = CameraComponent::CameraType::Secondary;
+		auto& freeLook = m_World.AddComponent(editcam, FreeLookComponent{});
+		t.position = { 0.0f, 5.0f, -10.0f };
+		freeLook.Enabled = true;
+		t.RebuildWorld();
+	}
+}
+
 void RuntimeScene::Update(float deltatime)
 {
 	if (!m_ScriptSystemStarted)
@@ -173,11 +179,18 @@ void RuntimeScene::Update(float deltatime)
 			float3{ c.color.x, c.color.y, c.color.z });
 	}
 
-	{ PROFILE_SCOPE("LightSystem"); m_LightSystem.Apply(m_World); }
+	{
+		PROFILE_SCOPE("LightSystem");
+		m_LightSwingSystem.Begin(m_World);	// Apply の間だけ首振りぶん回転を差し替える
+		m_LightSystem.Apply(m_World);
+		m_LightSwingSystem.End(m_World);
+	}
 	m_FreeLookSystem.Update(m_World, deltatime, CameraComponent::CameraType::Secondary);
 	m_CameraAnimationSystem.Update(m_World, deltatime,PLAY.isPlaying());
+	m_FollowCameraSystem.Update(m_World, deltatime,PLAY.isPlaying());
+	m_Terrain.Update(m_World);
 	{ PROFILE_SCOPE("Transform"); m_TransformSystem.Update(m_World); }
-	m_CameraSystem.Update(m_World, 16.0f / 9.0f);
+	m_CameraSystem.Update(m_World, RenderSettings::Get().gameAspect);
 	{ PROFILE_SCOPE("Animator+Physics"); m_AnimatorSystem.Update(m_World, deltatime); }
 	{ PROFILE_SCOPE("Firework"); m_FireworkSystem.Update(deltatime); }
 
@@ -257,9 +270,7 @@ void RuntimeScene::PublishFrameObjects()
 
 	fp->AddFrameObject<FO_Light>(FO_Light{ m_LightSystem.GetLightData() });
 
-	// NOTE: mmd-live では RenderSystem::Draw が FO_DrawItem を消費していないので
-	//       積んでも捨てるだけになる(スキン1体につき32KB)。Draw を移植するまで止めておく
-	// RenderSystem::Publish(m_World, *fp);
+	RenderSystem::Publish(m_World, *fp);
 
 	m_World.Each<CameraComponent>([&](Entity entity, CameraComponent& camera)
 		{
@@ -933,7 +944,7 @@ void RuntimeScene::DrawLight()
 	m_World.Each<TransformComponent, LightComponent>(
 		[this](Entity entity, TransformComponent& transform, LightComponent& light)
 		{
-			if (!light.isShow)
+			if (!light.showGizmo)
 			{
 				return;
 			}
@@ -1059,7 +1070,7 @@ void RuntimeScene::DrawLight()
 			case LightComponent::LightType::Laser:
 			{
 				const float len = light.range;
-				const float r = std::max(light.beamWidth, 0.01f);
+				const float r = 0.02f;	// 太さ
 				const float4 laserColor = { 1.0f, 0.15f, 0.15f, 1.0f }; // 目立つ赤系
 				const float3 tip = pos + dir * len;
 
@@ -1206,18 +1217,18 @@ void RuntimeScene::DrawLaserBeams(const RenderContext& context, ID3D12PipelineSt
 
 	constexpr int kColumns = 6; // ビーム断面の分割数（芯のグローを滑らかにするため）
 
-	m_World.Each<TransformComponent, LightComponent>(
-		[&](Entity, TransformComponent& tr, LightComponent& light)
+	m_World.Each<TransformComponent, LightComponent, LightBeamComponent>(
+		[&](Entity, TransformComponent& tr, LightComponent& light, LightBeamComponent& beam)
 		{
-			const bool isLaser = (light.type == LightComponent::LightType::Laser);
-			const bool isSpotBeam = (light.type == LightComponent::LightType::Spot && light.ShowBeam);
-			if ((!isLaser && !isSpotBeam) || !light.isActive)
+			if (!light.isActive || !beam.showBeam)
 				return;
-
+			const bool isLaser = (light.type == LightComponent::LightType::Laser);
+			const bool isSpotBeam = (light.type == LightComponent::LightType::Spot);
+			if (!isLaser && !isSpotBeam)
+				return;
 			const float3 origin = tr.position;
 			const float3 dir = light.direction; // LightSystemで正規化・首振り済み
 			const float3 tip = origin + dir * light.range;
-
 			// ビーム軸・カメラ方向に直交する「幅方向」ベクトル(既存のまま)
 			DirectX::XMVECTOR dV = DirectX::XMLoadFloat3(&dir);
 			DirectX::XMVECTOR toCamV = DirectX::XMVector3Normalize(
@@ -1233,37 +1244,31 @@ void RuntimeScene::DrawLaserBeams(const RenderContext& context, ID3D12PipelineSt
 			widthV = DirectX::XMVector3Normalize(widthV);
 			float3 widthAxis;
 			DirectX::XMStoreFloat3(&widthAxis, widthV);
-
 			// 半幅: レーザーは一定、スポットは円錐に沿って開く
-			const float hwStart = std::max(light.beamWidth, 0.001f) * 0.5f;
+			const float hwStart = std::max(beam.beamWidth, 0.001f) * 0.5f;
 			float hwEnd = hwStart;
 			float tipAlpha = 1.0f;
 			if (isSpotBeam)
 			{
 				const float half = DirectX::XMConvertToRadians(light.spotAngle * 0.5f);
 				hwEnd = tanf(half) * light.range;   // 円錐の底面半径
-				tipAlpha = light.beamColorEnd.w;    // 先端の残り具合(0で空中に消える)
+				tipAlpha = beam.beamColorEnd.w;    // 先端の残り具合(0で空中に消える)
 			}
-
-			const float g = std::max(light.glowIntensity, 1.0f);
-
+			const float g = std::max(beam.glowIntensity, 1.0f);
 			for (int c = 0; c < kColumns; ++c)
 			{
 				const float x0 = -1.0f + 2.0f * c / kColumns;
 				const float x1 = -1.0f + 2.0f * (c + 1) / kColumns;
 				const float core0 = 1.0f - fabsf(x0);
 				const float core1 = 1.0f - fabsf(x1);
-
 				const float3 o0 = origin + widthAxis * (x0 * hwStart);
 				const float3 o1 = origin + widthAxis * (x1 * hwStart);
 				const float3 t0 = tip + widthAxis * (x0 * hwEnd);
 				const float3 t1 = tip + widthAxis * (x1 * hwEnd);
-
 				const float4 cO0 = { light.color.x * g, light.color.y * g, light.color.z * g, core0 };
 				const float4 cO1 = { light.color.x * g, light.color.y * g, light.color.z * g, core1 };
-				const float4 cT0 = { light.beamColorEnd.x * g, light.beamColorEnd.y * g, light.beamColorEnd.z * g, core0 * tipAlpha };
-				const float4 cT1 = { light.beamColorEnd.x * g, light.beamColorEnd.y * g, light.beamColorEnd.z * g, core1 * tipAlpha };
-
+				const float4 cT0 = { beam.beamColorEnd.x * g, beam.beamColorEnd.y * g, beam.beamColorEnd.z * g, core0 * tipAlpha };
+				const float4 cT1 = { beam.beamColorEnd.x * g, beam.beamColorEnd.y * g, beam.beamColorEnd.z * g, core1 * tipAlpha };
 				m_BeamRenderer.AddTriangle(o0, cO0, o1, cO1, t1, cT1);
 				m_BeamRenderer.AddTriangle(o0, cO0, t1, cT1, t0, cT0);
 			}
@@ -1279,9 +1284,15 @@ void RuntimeScene::EditorUpdate(float dt)
 	m_MusicSyncSystem.Update(m_World, false);
 	m_LiveDirectorSystem.Update(m_World, false);
 
-	{ PROFILE_SCOPE("LightSystem"); m_LightSystem.Apply(m_World); }
+	{
+		PROFILE_SCOPE("LightSystem");
+		m_LightSwingSystem.Begin(m_World);	// Apply の間だけ首振りぶん回転を差し替える
+		m_LightSystem.Apply(m_World);
+		m_LightSwingSystem.End(m_World);
+	}
 	m_FreeLookSystem.Update(m_World, dt,CameraComponent::CameraType::Secondary);   // エディタカメラ操作
-	m_CameraSystem.Update(m_World, 16.0f / 9.0f);
+	m_CameraSystem.Update(m_World, RenderSettings::Get().gameAspect);
+	m_Terrain.Update(m_World);
 	{ PROFILE_SCOPE("Transform"); m_TransformSystem.Update(m_World); }
 	// m_AnimatorSystem.Update(m_World, dt);
 }

@@ -5,15 +5,7 @@ cbuffer BoneMatrices : register(b4)
     float4x4 bones[256];
 }
 
-cbuffer Material : register(b3)
-{
-    float roughness;
-    float metallic;
-    float2 _pad;
-    float4 rimColor;
-    float4 mapFlags;
-    float4 faceParam; // w: アウトラインの太さ
-}
+#include "MaterialCB.hlsli"
 
 struct OutlineOut
 {

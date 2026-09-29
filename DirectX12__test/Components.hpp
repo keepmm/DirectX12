@@ -5,6 +5,7 @@
 #include <memory>
 #include <vector>
 #include <string>
+#include <optional>
 #include "ScriptField.hpp"
 #include "AudioEngine.hpp"
 #include "ModelData.hpp"
@@ -140,6 +141,7 @@ struct MeshComponent
 
 struct SubMaterialRestore
 {
+	std::string materialAsset;	// .mat が割り当てられていれば、そのパス(値は .mat 側)
 	std::string shaderName;
 	float roughness = 0.5f;
 	float metallic = 0.0f;
@@ -154,6 +156,13 @@ struct SubMaterialRestore
 	float reflectBlur = 1.0f;
 	COLOR emissiveColor = { 0.0f,0.0f,0.0f,1.0f };
 	float emissiveStrength = 1.0f;
+
+	// 以前のシーンには保存されていない項目。キーが無いときはモデル由来の値を残す
+	// (baseColor は PMX / glTF の拡散色が入っているので、既定値で上書きしてはいけない)
+	std::optional<COLOR> baseColor;
+	std::optional<COLOR> rimColor;
+	std::optional<float> outlineWidth;
+	std::optional<bool>  isFace;
 };
 
 struct MaterialComponent
@@ -161,6 +170,9 @@ struct MaterialComponent
 	std::shared_ptr<Material> material;	// 単一
 	std::vector<std::shared_ptr<Material>> materials;	// 複数
 	std::vector<std::string> materialnames;	// 複数
+	/// @brief サブマテリアルごとの .mat パス。空ならモデル内蔵のマテリアル
+	/// @note materials と同じ添字。サイズが足りないときは空とみなす
+	std::vector<std::string> materialAssets;
 	ID3D12PipelineState* overridePso = nullptr;
 
 	std::string FilePath;
@@ -242,6 +254,32 @@ struct ColliderComponent
 	}
 };
 
+struct Ray
+{
+	float3 origin{ 0.0f,0.0f,0.0f };
+	float3 direction{ 0.0f,0.0f,1.0f };	// 正規化された方向ベクトル
+
+	/// @brief レイに沿って指定距離進んだ3D座標を取得
+	float3 GetPoint(float distance)const
+	{
+		return float3{
+			origin.x + direction.x * distance,
+			origin.y + direction.y * distance,
+			origin.z + direction.z * distance
+		};
+	}
+
+	bool IntersectPanelY(float planeY, _Out_ float3& outHit)const
+	{
+		if (fabsf(direction.y) < 1e-4f) return false;
+		const float t = (planeY - origin.y) / direction.y;
+		if (t < 0.0f) return false;	// カメラの背後
+
+		outHit = GetPoint(t);
+		return true;
+	}
+};
+
 struct CameraComponent
 {
 	/// @brief 描画タイプ
@@ -274,6 +312,34 @@ struct CameraComponent
 		f.AddRange("NearZ", nearZ, 0.01f, 100.0f);
 		f.AddRange("FarZ", farZ, 1.0f, 10000.0f);
 		f.Add("IsActive", isActive);
+	}
+
+	Ray ScreenPointToRay(float screenX,float screenY,float screenWidth,float screenHeight)const
+	{
+		using namespace DirectX;
+		if (screenWidth <= 0.0f || screenHeight <= 0.0f)return Ray{};
+
+		// UV座標
+		const float u = screenX / screenWidth;
+		const float v = screenY / screenHeight;
+
+		// ビュー x 射影行列の逆行列
+		const matrix viewM = XMLoadFloat4x4(&view);
+		const matrix projM = XMLoadFloat4x4(&proj);
+		XMVECTOR det;
+		const matrix invVP = XMMatrixInverse(&det, XMMatrixMultiply(viewM, projM));
+		if (XMVectorGetX(XMVectorEqual(det, XMVectorZero()))) return Ray{};
+
+		// NDC 座標 (-1.0 ~ -1.0)で手前と奥を逆変換
+		const float ndcX = u * 2.0f - 1.0f;
+		const float ndcY = 1.0f - v * 2.0f;
+		const XMVECTOR nearP = XMVector3TransformCoord(XMVectorSet(ndcX,ndcY,0.0f,1.0f),invVP);
+		const XMVECTOR farP = XMVector3TransformCoord(XMVectorSet(ndcX,ndcY,1.0f,1.0f),invVP);
+
+		Ray ray;
+		XMStoreFloat3(&ray.origin, nearP);
+		XMStoreFloat3(&ray.direction, XMVector3Normalize(XMVectorSubtract(farP,nearP)));
+		return ray;
 	}
 };
 
@@ -402,72 +468,44 @@ struct LightComponent
 		Spot,
 		Laser
 	} type = LightType::Directional;
-
-	// Reflect が (int&) でキャストして4バイト書き込むので、1バイト幅にはできない
-	// (uint8_t のままだと隣接メンバへ書き込む未定義動作になる)
-	enum class SwingAxis : int
-	{
-		Pan,
-		Tilt,
-		PanTilt
-	};
-	COLOR color{ 1.0f, 1.0f, 1.0f, 1.0f };
-	COLOR ambientColor{ 0.2f, 0.2f, 0.2f, 1.0f };
-
-	// 環境光の色を、そのとき点いているライトの色へどれだけ寄せるか。
-	// 0で ambientColor のまま。上げるほどキャラの影側とフォグが背景の色に沈み、
-	// 切り抜きを貼ったような浮きが減る
-	float ambientFromLights = 0.7f;
-	float intensity = 1.0f;
-	float range = 10.0f;
+	COLOR    color{ 1.0f, 1.0f, 1.0f, 1.0f };
+	float    intensity = 1.0f;
+	float    range = 10.0f;
 	POSITION direction{ 0.0f, -1.0f, 0.0f };
-	float spotAngle = 45.0f;
-	bool isActive = true;
-
-	bool ShowBeam = false;
-	float beamWidth = 0.05f;
-
-	bool swingEnable = false;
-	SwingAxis swingAxis = SwingAxis::Pan;
-	float swingSpeed = 45.0f;
-	float swingAngle = 30.0f;
-
-	COLOR beamColorEnd{ 1.0f, 1.0f, 1.0f, 1.0f };
-	float glowPower = 6.0f;
-	float glowIntensity = 3.0f;
-	float volumetricIntensity = 1.0f;
-
+	float    spotAngle = 45.0f;
+	bool     isActive = true;
+	bool     castShadows = true;
+	bool     showGizmo = false; // 旧 isShow (ギズモ・デバッグライン表示)
 	void Reflect(FieldList& f)
 	{
-		f.AddEnum("Type", (int&)type, { "Directional", "Point", "Spot","Laser"});
-
+		f.AddEnum("Type", (int&)type, { "Directional", "Point", "Spot", "Laser" });
 		f.Add("Color", color);
-		f.Add("AmbientColor", ambientColor);
-		f.AddRange("AmbientFromLights", ambientFromLights, 0.0f, 1.0f);
 		f.AddRange("Intensity", intensity, 0.0f, 10.0f);
 		f.AddRange("Range", range, 0.0f, 100.0f);
 		f.Add("Direction", direction);
 		f.AddRange("SpotAngle", spotAngle, 1.0f, 179.0f);
 		f.Add("IsActive", isActive);
-		f.Add("IsShow", isShow);
-		f.Add("ShowBeam", ShowBeam);
-		f.AddRange("BeamWidth", beamWidth, 0.01f, 2.0f);
-
-		f.Add("SwingEnabled", swingEnable);
-		f.AddEnum("SwingAxis", (int&)swingAxis, { "Pan", "Tilt", "PanTilt" });
-		f.AddRange("SwingSpeed", swingSpeed, 0.0f, 360.0f);
-		f.AddRange("SwingAngle", swingAngle, 0.0f, 90.0f);
-
-		f.Add("BeamColorEnd", beamColorEnd);
-		f.AddRange("GlowPower", glowPower, 1.0f, 32.0f);
-		f.AddRange("GlowIntensity", glowIntensity, 0.1f, 20.0f);
-		f.AddRange("VolumetricIntensity", volumetricIntensity, 0.0f, 10.0f);
-		f.Add("CastShadows", castShadows);	// 影を落とす担当を選ぶ(先着1つだけ有効)
+		f.Add("CastShadows", castShadows);
+		f.Add("ShowGizmo", showGizmo);
 	}
-	bool castShadows = true;
-	bool isShow = false;
 };
 
+struct LightBeamComponent
+{
+	bool  showBeam = true;
+	float beamWidth = 0.05f;
+	COLOR beamColorEnd{ 1.0f, 1.0f, 1.0f, 1.0f };
+	float glowIntensity = 3.0f;
+	float volumetricIntensity = 1.0f;
+	void Reflect(FieldList& f)
+	{
+		f.Add("ShowBeam", showBeam);
+		f.AddRange("BeamWidth", beamWidth, 0.01f, 2.0f);
+		f.Add("BeamColorEnd", beamColorEnd);
+		f.AddRange("GlowIntensity", glowIntensity, 0.1f, 20.0f);
+		f.AddRange("VolumetricIntensity", volumetricIntensity, 0.0f, 10.0f);
+	}
+};
 
 struct NameComponent
 {
@@ -509,6 +547,36 @@ struct LiveDirectorComponent
 	// 曲(MusicSyncComponent)が無いときの時刻。エディタのヘッドが書き込む。
 	// これが無いと曲なしでは時刻が 0 から動かず、打つキーが全部同じ時刻になる
 	float editorTime = 0.0f;
+};
+
+// ステージライトの首振り(ムービングライト)。LightComponent と同じEntityに付ける。
+// 振るのは描画に使う向きだけで、Transform の回転(保存される値)は変えない
+struct LightSwingComponent
+{
+	// Reflect が (int&) でキャストして4バイト書き込むので、1バイト幅にはできない
+	enum class Axis : int
+	{
+		Pan,
+		Tilt,
+		PanTilt
+	};
+
+	bool  enabled = false;
+	Axis  axis = Axis::Pan;
+	float speed = 45.0f;	// 角速度(度/秒)。sin の位相の進み
+	float angle = 30.0f;	// 振り幅(度)
+
+	void Reflect(FieldList& f)
+	{
+		f.Add("Enabled", enabled);
+		f.AddEnum("Axis", (int&)axis, { "Pan", "Tilt", "PanTilt" });
+		f.AddRange("Speed", speed, 0.0f, 360.0f);
+		f.AddRange("Angle", angle, 0.0f, 90.0f);
+	}
+
+	// --- ランタイム専用(シリアライズ不要) ---
+	QUATERNION savedRotation{ 0.0f, 0.0f, 0.0f, 1.0f };	// LightSwingSystem::Begin で退避した回転
+	bool       swung = false;								// Begin で回転を差し替えたか
 };
 
 
@@ -728,11 +796,53 @@ struct AnimatorComponent
 	std::vector<float> morphWeights;	// 各モーフの重み(0.0 ~ 1.0)
 	std::vector<float3> morphoffsets;	// CPUでブレンド済みの頂点オフセット
 	bool morphDirty = true;				// モーフの重みが変更されたかどうか
+	uint64_t morphVA = 0;				// このフレームで転送済みのモーフバッファ(GPU仮想アドレス)
+	uint64_t morphVAFrame = 0;			// morphVA を転送したフレーム(RenderContext::frameSerial)
 
 	// 表情を再生するクリップ。-1 = currentClip と同じものを使う。
 	// MMDでは体(FightingMyWay.vmd)と表情(face.vmd)が別ファイルのことがあるため、
 	// ボーン用とは別のクリップを指定できるようにしている。
 	int morphClip = -1;
+
+	/// @brief 名前でクリップを切り替える
+	/// @param restart 同じクリップでも最初から再生し直すか
+	/// @return 見つかって切り替えたら true(名前が無ければ false)
+	bool Play(const std::string& name, bool restart = false)
+	{
+		for (size_t i = 0; i < clips.size(); ++i)
+		{
+			if (clips[i].name != name) continue;
+
+			// 同じものが流れている途中なら触らない(毎フレーム呼ばれても先頭に戻らない)
+			if (!restart && currentClip == static_cast<int>(i) && playing) return true;
+
+			currentClip = static_cast<int>(i);
+			currentClipName = name;
+			time = 0.0f;
+			playing = true;
+			return true;
+		}
+		return false;
+	}
+
+	/// @brief 名前の一部が一致する最初のクリップを再生する
+	/// @note fbx のクリップ名は "Armature|Walk" のように前置きが付くことがある
+	bool PlayLike(const std::string& part, bool restart = false)
+	{
+		for (const auto& c : clips)
+		{
+			if (c.name.find(part) != std::string::npos) return Play(c.name, restart);
+		}
+		return false;
+	}
+
+	/// @brief いま流れているクリップの名前(無ければ空)
+	const std::string& CurrentClipName() const
+	{
+		static const std::string empty;
+		if (currentClip < 0 || currentClip >= static_cast<int>(clips.size())) return empty;
+		return clips[currentClip].name;
+	}
 
 	void Reflect(FieldList& f)
 	{
@@ -846,4 +956,115 @@ struct ParticleEmitterComponent
 	};
 	std::vector<Particle> particles;   // プールとして使い回す(容量固定・再利用)
 	float spawnAccumulator = 0.0f;
+};
+
+struct CharacterControllerComponent
+{
+	// ---- 設定(インスペクタ / 保存される) ---- //
+	float height = 1.0f;
+	float radius = 0.3f;
+	float stepOffset = 0.3f;
+	float slopeLimit = 45.0f;
+	float gravityScale = 1.0f;
+	int layer = 0;
+	unsigned int collisionMask = 0xFFFFFFFFu;
+	float3 center{ 0.0f,0.0f,0.0f };// カプセルの中心(Transformの位置からのずれ)
+
+	// ---- 実行時の状態(これは保存しない) ---- //
+	float3 velocity{ 0.0f,0.0f,0.0f };
+	float3 pendingMove{ 0.0f,0.0f,0.0f };
+	bool isGrounded = false;
+	bool hitCeiling = false;
+
+	void Move(const float3& delta)
+	{
+		pendingMove.x += delta.x;
+		pendingMove.y += delta.y;
+		pendingMove.z += delta.z;
+	}
+
+	bool Jump(float speed)
+	{
+		if (!isGrounded) return false;
+		velocity.y = speed;
+		isGrounded = false;
+		return true;
+	}
+
+	void Reflect(FieldList& f)
+	{
+		f.AddRange("Height", height, 0.1f, 10.0f);
+		f.AddRange("Radius", radius, 0.1f, 5.0f);
+		f.AddRange("StepOffset", stepOffset, 0.0f, 2.0f);
+		f.AddRange("SlopeLimit", slopeLimit, 0.0f, 90.0f);
+		f.AddRange("GravityScale", gravityScale, 0.0f, 10.0f);
+		f.AddRange("Layer", layer, 0, 31);
+		f.Add("Center", center);
+	}
+};
+
+struct FollowCameraComponent
+{
+	std::string targetTag	= "Player";	// 追いかける相手のタグ
+	float distance			= 5.0f;		// 対象からの距離
+	float height			= 1.5f;		// 見る高さ (対象Entityの足元からの高さ)
+	float rotateSpeed		= 0.005f;	// マウス感度	
+	float padRotateSpeed	= 2.5f;		// パッド感度(ラジアン/秒)。マウスとは単位が違う
+	bool  padInvertY		= false;	// 右スティックの上下を入れ替える	
+	float positionLag		= 12.0f;	// 位置追従の速さ(大きいほど追いつく
+	float minPitch			= -30.0f;	// 見下ろし / 見上げの限界(度)
+	float maxPitch			= 60.0f;
+	bool enabled			= true;
+	bool captureCursor		= true;		// 再生中にカーソルを中央へ固定して隠す(ゲーム起動時のみ)
+
+	// ---- 実行時 ---- //
+	float yaw = 0.0f;
+	float pitch = 0.2f;
+
+	void Reflect(FieldList& f)
+	{
+		f.Add("TargetTag", targetTag);
+		f.AddRange("Distance", distance, 0.1f, 20.0f);
+		f.AddRange("Height", height, 0.0f, 10.0f);
+		f.AddRange("RotateSpeed", rotateSpeed, 0.0001f, 0.01f);
+		f.AddRange("PadRotateSpeed", padRotateSpeed, 0.1f, 10.0f);
+		f.Add("PadInvertY", padInvertY);
+		f.AddRange("PositionLag", positionLag, 1.0f, 30.0f);
+		f.AddRange("MinPitch", minPitch, -89.0f, 0.0f);
+		f.AddRange("MaxPitch", maxPitch, 0.0f, 89.0f);
+		f.Add("Enabled", enabled);
+		f.Add("CaptureCursor", captureCursor);
+	}
+};
+
+struct TerrainComponent
+{
+	std::string HeightMapPath;
+
+	std::string dataPath;
+
+	float Width = 100.0f;	// X 方向の大きさ(ワールド単位)
+	float Depth = 100.0f;	// Z 方向の大きさ
+	float Height = 20.0f;	// 白(255)のときの高さ
+
+	int gridX = 128;		// 分割数・頂点数は(gridX + 1) * (gridZ + 1)
+	int gridZ = 128;
+	float uvTiling = 16.0f; // テクスチャの繰り返し回数
+
+	// ---- 実行時 ---- //
+	std::vector<float> Heights;	// 0 ~ 1の高さ
+	unsigned int heightsVersion = 0;	// 高さが変わるたびに増える(物理の作り直しの判定に使う)
+	size_t BuiltSettings = 0;	// 作った時の設定のハッシュ
+
+	void Reflect(FieldList& f)
+	{
+		f.AddAssetPath("Heighthmap", HeightMapPath);
+		f.AddAssetPath("TerrainData", dataPath);
+		f.AddRange("Width", Width, 1.0f, 10000.0f);
+		f.AddRange("Depth", Depth, 1.0f, 10000.0f);
+		f.AddRange("Height", Height, 1.0f, 1000.0f);
+		f.AddRange("GridX", gridX, 2, 512);
+		f.AddRange("GridZ", gridZ, 2, 512);
+		f.AddRange("UVTiling", uvTiling, 1.0f, 128.0f);
+	}
 };

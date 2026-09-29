@@ -25,7 +25,6 @@ public:
 
 	~Application() = default;
 
-	void SetGameMode(bool gameMode) { m_GameMode = gameMode; }
 	void SetStartScene(const std::string& path) { m_StartScene = path; }
 private:
 	// SceneManager::ScenePathFromName に渡す「名前」。拡張子もパスも付けない
@@ -48,10 +47,6 @@ private:
 		_In_ D3D12_RECT& scissorRect,
 		bool isSceneView
 		);
-
-
-	/// @brief exe出力用
-	bool m_GameMode = false;
 
 	Application();
 	Application(const Application&) = delete;

@@ -64,6 +64,9 @@
     <Filter Include="UI">
       <UniqueIdentifier>{a46b1614-8fe9-4111-89c6-23afe3f11bda}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ECS\System">
+      <UniqueIdentifier>{f31bea79-e494-486f-9598-503df6dca9b9}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Application.cpp">
@@ -127,6 +130,9 @@
       <Filter>Mesh_Model</Filter>
     </ClCompile>
     <ClCompile Include="Material.cpp">
+      <Filter>Mesh_Model</Filter>
+    </ClCompile>
+    <ClCompile Include="MaterialLibrary.cpp">
       <Filter>Mesh_Model</Filter>
     </ClCompile>
     <ClCompile Include="MaterialParams.cpp">
@@ -199,6 +205,9 @@
       <Filter>Editor</Filter>
     </ClCompile>
     <ClCompile Include="StyleSettingPanel.cpp">
+      <Filter>Editor</Filter>
+    </ClCompile>
+    <ClCompile Include="ThumbnailCache.cpp">
       <Filter>Editor</Filter>
     </ClCompile>
     <ClCompile Include="MmdPlayerPanel.cpp">
@@ -292,6 +301,14 @@
     </ClCompile>
     <ClCompile Include="AssetDatabase.cpp" />
     <ClCompile Include="AssetRemap.cpp" />
+    <ClCompile Include="UndoHistory.cpp" />
+    <ClCompile Include="Terrain.cpp" />
+    <ClCompile Include="Systems\RenderSystem.cpp">
+      <Filter>ECS\System</Filter>
+    </ClCompile>
+    <ClCompile Include="Systems\LightSystem.cpp">
+      <Filter>ECS\System</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.hpp">
@@ -375,6 +392,9 @@
     <ClInclude Include="Material.hpp">
       <Filter>Mesh_Model</Filter>
     </ClInclude>
+    <ClInclude Include="MaterialLibrary.hpp">
+      <Filter>Mesh_Model</Filter>
+    </ClInclude>
     <ClInclude Include="MaterialParams.hpp">
       <Filter>Mesh_Model</Filter>
     </ClInclude>
@@ -397,9 +417,6 @@
       <Filter>ECS</Filter>
     </ClInclude>
     <ClInclude Include="ComponentRegistry.hpp">
-      <Filter>ECS</Filter>
-    </ClInclude>
-    <ClInclude Include="Systems.hpp">
       <Filter>ECS</Filter>
     </ClInclude>
     <ClInclude Include="Scene.hpp">
@@ -472,6 +489,9 @@
       <Filter>Editor</Filter>
     </ClInclude>
     <ClInclude Include="StyleSettingPanel.hpp">
+      <Filter>Editor</Filter>
+    </ClInclude>
+    <ClInclude Include="ThumbnailCache.hpp">
       <Filter>Editor</Filter>
     </ClInclude>
     <ClInclude Include="MmdPlayerPanel.hpp">
@@ -600,7 +620,24 @@
       <Filter>Mesh_Model</Filter>
     </ClInclude>
     <ClInclude Include="AssetDatabase.hpp" />
+    <ClInclude Include="AssetExt.hpp">
+      <Filter>Core</Filter>
+    </ClInclude>
     <ClInclude Include="AssetRemap.hpp" />
+    <ClInclude Include="UndoHistory.hpp" />
+    <ClInclude Include="Terrain.hpp" />
+    <ClInclude Include="ThrowIfFailed.hpp">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Systems.hpp">
+      <Filter>ECS\System</Filter>
+    </ClInclude>
+    <ClInclude Include="Systems\RenderSystem.hpp">
+      <Filter>ECS\System</Filter>
+    </ClInclude>
+    <ClInclude Include="Systems\LightSystem.hpp">
+      <Filter>ECS\System</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="EngineAssets\Shaders\BRDF.hlsli">
@@ -700,6 +737,15 @@
     <None Include="EngineAssets\Icons\Model.png" />
     <None Include="GlassShader.hlsl">
       <Filter>Shader\HLSL\PixelShader</Filter>
+    </None>
+    <None Include="EngineAssets\Shaders\WaterShader.hlsl">
+      <Filter>Shader\HLSL\PixelShader</Filter>
+    </None>
+    <None Include="MaterialCB.hlsli">
+      <Filter>Shader\Include</Filter>
+    </None>
+    <None Include="EngineAssets\Shaders\Water.hlsli">
+      <Filter>Shader\Include</Filter>
     </None>
   </ItemGroup>
 </Project>

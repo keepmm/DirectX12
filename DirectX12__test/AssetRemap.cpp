@@ -96,6 +96,10 @@ int AssetRemap::Remap(World& world, Scene& scene,
 			auto& m = world.GetComponent<MaterialComponent>(e);
 			if (ReplaceOne(m.FilePath, oldNorm, newPath)) ++count;
 			if (ReplaceOne(m.RampFilePath, oldNorm, newPath)) ++count;
+			for (auto& asset : m.materialAssets)
+			{
+				if (ReplaceOne(asset, oldNorm, newPath)) ++count;
+			}
 		}
 
 		// ---- スクリプトのフィールド値 ---- //

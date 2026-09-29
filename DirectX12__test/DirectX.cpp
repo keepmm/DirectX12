@@ -7,7 +7,63 @@
 #include "Logger.hpp"
 #include <dxgidebug.h>
 #include "ShaderTypes.hpp"
+#include "Time.hpp"
 #include "GpuProfiler.hpp"
+#include <d3d12shader.h>
+#include <d3dcompiler.h>
+
+#include "ThrowIfFailed.hpp"
+
+namespace
+{
+	/// @brief シェーダーの cbuffer Material(b3) が C++ の MaterialCB と一致するか調べる
+	/// @note 一致しないと、シェーダーは「ずれた位置」を読むので黙って壊れる。
+	///       登録時に見ておけば、宣言を書き間違えてもすぐ気づける
+	void ValidateMaterialCB(const D3D12_SHADER_BYTECODE& bytecode, const std::string& name)
+	{
+		if (bytecode.pShaderBytecode == nullptr) return;
+
+		// C++ 側の並び。ShaderTypes.hpp の MaterialCB と同じ順・同じオフセット
+		struct Field { const char* name; UINT offset; };
+		static const Field kExpected[] =
+		{
+			{ "roughness",      0 }, { "metallic",       4 },
+			{ "rimColor",      16 }, { "mapFlags",      32 },
+			{ "faceParam",     48 }, { "sssParams",     64 },
+			{ "sssColor",      80 }, { "basecolor",     96 },
+			{ "reflectParam", 112 }, { "pbrParams",    128 },
+			{ "emissiveColor",144 },
+			{ "waveParams",  160 }, { "waterParams",  176 },
+			{ "waveParams2", 192 },
+		};
+
+		ComPtr<ID3D12ShaderReflection> refl;
+		if (FAILED(D3DReflect(bytecode.pShaderBytecode, bytecode.BytecodeLength,
+			IID_PPV_ARGS(&refl))))
+		{
+			return;   // DXC 製など、反射できない形式は黙って通す
+		}
+
+		ID3D12ShaderReflectionConstantBuffer* cb = refl->GetConstantBufferByName("Material");
+		D3D12_SHADER_BUFFER_DESC bufDesc{};
+		if (cb == nullptr || FAILED(cb->GetDesc(&bufDesc))) return;   // 使っていないシェーダー
+
+		for (const auto& f : kExpected)
+		{
+			ID3D12ShaderReflectionVariable* v = cb->GetVariableByName(f.name);
+			D3D12_SHADER_VARIABLE_DESC vd{};
+			if (v == nullptr || FAILED(v->GetDesc(&vd))) continue;   // 宣言が短いだけなら許す
+
+			if (vd.StartOffset != f.offset)
+			{
+				LOG->LogError("シェーダー '" + name + "' の Material 定数バッファがずれています: "
+					+ f.name + " が " + std::to_string(vd.StartOffset)
+					+ " バイト目(正しくは " + std::to_string(f.offset)
+					+ ")。MaterialCB.hlsli を include していますか?");
+			}
+		}
+	}
+}
 
 using ushort = unsigned short;
 
@@ -28,41 +84,85 @@ DirectXApp::DirectXApp(HWND hWnd, int Window_Width, int Window_Height) :
 	ID3D12Debug* debug = nullptr;
 	HRESULT hr;
 #if _DEBUG
-	ComPtr<ID3D12DeviceRemovedExtendedDataSettings> dred;
-	if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&dred))))
+	// デバッグレイヤーと DRED は RAM を数百 MB 使う。
+	// メモリを測りたいときは環境変数 DX12_NO_DEBUG_LAYER=1 で切れる
+	char noDebug[8] = {};
+	const bool debugLayer =
+		GetEnvironmentVariableA("DX12_NO_DEBUG_LAYER", noDebug, sizeof(noDebug)) == 0 || noDebug[0] != '1';
+
+	if (debugLayer)
 	{
-		dred->SetAutoBreadcrumbsEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
-		dred->SetPageFaultEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+		ComPtr<ID3D12DeviceRemovedExtendedDataSettings> dred;
+		if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&dred))))
+		{
+			dred->SetAutoBreadcrumbsEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+			dred->SetPageFaultEnablement(D3D12_DRED_ENABLEMENT_FORCED_ON);
+		}
+		D3D12GetDebugInterface(IID_PPV_ARGS(&debug));
+		if (debug) {
+			debug->EnableDebugLayer();
+			debug->Release();
+		}
+		FlagsDXGI |= DXGI_CREATE_FACTORY_DEBUG;
 	}
-	D3D12GetDebugInterface(IID_PPV_ARGS(&debug));
-	if (debug) {
-		debug->EnableDebugLayer();
-		debug->Release();
-	}
-	FlagsDXGI |= DXGI_CREATE_FACTORY_DEBUG;
 #endif
-	hr = CreateDXGIFactory2(FlagsDXGI, IID_PPV_ARGS(m_Factory.ReleaseAndGetAddressOf()));
-	if (FAILED(hr)) {
-		return;
-	}
+	ThrowIfFailed(CreateDXGIFactory2(FlagsDXGI, IID_PPV_ARGS(m_Factory.ReleaseAndGetAddressOf())));
 
 	// ----------------------------------------------//
 	//					デバイスの作成				 //
 	// ----------------------------------------------//
 
-	ComPtr<IDXGIAdapter> adapter;
-	hr = m_Factory->EnumAdapters(0, adapter.GetAddressOf());
-	if (FAILED(hr)) {
-		return;
+	//ComPtr<IDXGIAdapter> adapter;
+	//ThrowIfFailed(m_Factory->EnumAdapters(0, adapter.GetAddressOf()));
+
+	ComPtr<IDXGIAdapter1> adapter;
+	ComPtr<IDXGIFactory6> factory6;
+
+	// DXGI 1.6が使える場合は、GPUのVRAMが最大のアダプタを選ぶ
+	if (SUCCEEDED(m_Factory.As(&factory6)))
+	{
+		for (UINT i = 0;
+			SUCCEEDED(factory6->EnumAdapterByGpuPreference(
+				i,
+				DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE,
+				IID_PPV_ARGS(adapter.ReleaseAndGetAddressOf())
+			));
+			++i)
+		{
+			DXGI_ADAPTER_DESC1 desc;
+			adapter->GetDesc1(&desc);
+
+			// ソフトウェアアダプタ(WARP)は除外
+			if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) continue;
+
+			// D3D12 デバイスが作成可能かテスト
+			if (SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, __uuidof(ID3D12Device), nullptr)))
+			{
+				break;
+			}
+		}
 	}
 
-	hr = D3D12CreateDevice(
+	// 見つからない場合は従来の方法でアダプタを取得
+	if (!adapter)
+	{
+		for (UINT i = 0; SUCCEEDED(m_Factory->EnumAdapters1(1, adapter.ReleaseAndGetAddressOf())); ++i)
+		{
+			DXGI_ADAPTER_DESC1 desc;
+			adapter->GetDesc1(&desc);
+			if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) continue;
+			if (SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0,
+				_uuidof(ID3D12Device), nullptr)))
+			{
+				break;
+			}
+		}
+	}
+
+	ThrowIfFailed(D3D12CreateDevice(
 		adapter.Get(),
 		D3D_FEATURE_LEVEL_11_0,
-		IID_PPV_ARGS(m_Device.GetAddressOf()));
-	if (FAILED(hr)) {
-		return;
-	}
+		IID_PPV_ARGS(m_Device.GetAddressOf())));
 #if _DEBUG
 	ID3D12InfoQueue* infoQueue = nullptr;
 	if (SUCCEEDED(m_Device->QueryInterface(IID_PPV_ARGS(&infoQueue))))
@@ -96,14 +196,9 @@ DirectXApp::DirectXApp(HWND hWnd, int Window_Width, int Window_Height) :
 	// -----------------------------------------------//
 	for (int i = 0; i < RTV_NUM; ++i)
 	{
-		hr = m_Device->CreateCommandAllocator(
+		ThrowIfFailed(m_Device->CreateCommandAllocator(
 			D3D12_COMMAND_LIST_TYPE_DIRECT,
-			IID_PPV_ARGS(m_CommandAllocator[i].GetAddressOf())
-		);
-		if (FAILED(hr))
-		{
-			return;
-		}
+			IID_PPV_ARGS(m_CommandAllocator[i].GetAddressOf())));
 	}
 
 
@@ -115,26 +210,18 @@ DirectXApp::DirectXApp(HWND hWnd, int Window_Width, int Window_Height) :
 	desc_command_queue.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 	desc_command_queue.Priority = 0;
 	desc_command_queue.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-	hr = m_Device->CreateCommandQueue(
+	ThrowIfFailed(m_Device->CreateCommandQueue(
 		&desc_command_queue,
-		IID_PPV_ARGS(m_CommandQueue.GetAddressOf())
-	);
-	if (FAILED(hr)) {
-		return;
-	}
+		IID_PPV_ARGS(m_CommandQueue.GetAddressOf())));
 
 	// GPUタイムスタンプ(失敗しても描画は続ける。プロファイラにGPU行が出ないだけ)
 	GpuProfiler::Get().Initialize(m_Device.Get(), m_CommandQueue.Get());
 
 	m_Fence_Event = CreateEvent(NULL, FALSE, FALSE, NULL);
-	hr = m_Device->CreateFence(
+	ThrowIfFailed(m_Device->CreateFence(
 		0,
 		D3D12_FENCE_FLAG_NONE,
-		IID_PPV_ARGS(m_Fence.GetAddressOf())
-	);
-	if (FAILED(hr)) {
-		return;
-	}
+		IID_PPV_ARGS(m_Fence.GetAddressOf())));
 	// --------------------------------------//
 	//			スワップチェーンの作成		 //
 	// --------------------------------------//
@@ -148,13 +235,10 @@ DirectXApp::DirectXApp(HWND hWnd, int Window_Width, int Window_Height) :
 	desc_swap_chain.Windowed = TRUE;
 	desc_swap_chain.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
 	desc_swap_chain.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
-	hr = m_Factory->CreateSwapChain(
+	ThrowIfFailed(m_Factory->CreateSwapChain(
 		m_CommandQueue.Get(),
 		&desc_swap_chain,
-		(IDXGISwapChain**)m_SwapChain.GetAddressOf());
-	if (FAILED(hr)) {
-		return;
-	}
+		(IDXGISwapChain**)m_SwapChain.GetAddressOf()));
 
 	m_FrameIndex = m_SwapChain->GetCurrentBackBufferIndex();
 	for (int i = 0; i < RTV_NUM; ++i)
@@ -168,30 +252,24 @@ DirectXApp::DirectXApp(HWND hWnd, int Window_Width, int Window_Height) :
 
 	for (int i = 0; i < RTV_NUM; ++i)
 	{
-		hr = m_Device->CreateCommandList(
-			0,D3D12_COMMAND_LIST_TYPE_DIRECT,
-			m_CommandAllocator[i].Get(),nullptr,
-			IID_PPV_ARGS(m_CommandList[i].GetAddressOf())
-		);
-		if (FAILED(hr))return;
+		ThrowIfFailed(m_Device->CreateCommandList(
+			0, D3D12_COMMAND_LIST_TYPE_DIRECT,
+			m_CommandAllocator[i].Get(), nullptr,
+			IID_PPV_ARGS(m_CommandList[i].GetAddressOf())));
 
 		m_CommandList[i].As(&m_CommandList6[i]);
 
-		hr = m_CommandList[i]->Close();
-		if (FAILED(hr))return;
+		ThrowIfFailed(m_CommandList[i]->Close());
 	}
 #else
 
-	hr = m_Device->CreateCommandList(
+	ThrowIfFailed(m_Device->CreateCommandList(
 		0,
 		D3D12_COMMAND_LIST_TYPE_DIRECT,
 		m_CommandAllocator[m_FrameIndex].Get(),
 		nullptr,
 		IID_PPV_ARGS(m_CommandList.GetAddressOf())
 	);
-	if (FAILED(hr)) {
-		return;
-	}
 
 	m_CommandList.As(&m_CommandList6);
 
@@ -247,13 +325,13 @@ DirectXApp::DirectXApp(HWND hWnd, int Window_Width, int Window_Height) :
 
 	CD3DX12_HEAP_PROPERTIES depthHeapProp(D3D12_HEAP_TYPE_DEFAULT);
 
-	m_Device->CreateCommittedResource(
+	ThrowIfFailed(m_Device->CreateCommittedResource(
 		&depthHeapProp,
 		D3D12_HEAP_FLAG_NONE,
 		&depthResDesc,
 		D3D12_RESOURCE_STATE_DEPTH_WRITE,
 		&DepthClearValue,
-		IID_PPV_ARGS(m_Depthbuffer.GetAddressOf()));
+		IID_PPV_ARGS(m_Depthbuffer.GetAddressOf())));
 
 	// DSVスロットを確保して深度バッファ生成
 	UINT dsvIndex = 0;
@@ -376,7 +454,8 @@ void DirectXApp::DeferredLightingPass(const RenderContext& ctx,
 		XMStoreFloat4x4(&fdata.viewProj, XMMatrixTranspose(v * p));
 		const auto invV = XMMatrixInverse(nullptr, v);
 		float4x4 iv; XMStoreFloat4x4(&iv, invV);
-		fdata.cameraPos = { iv._41, iv._42, iv._43, 1.0f };
+		// w には経過秒を入れる(水面の波などが時間を使う)
+		fdata.cameraPos = { iv._41, iv._42, iv._43, TIME->GetTotalTime() };
 	}
 	const auto b0 = m_CBAllocator.Allocate(slot, &fdata, sizeof(fdata));
 
@@ -535,6 +614,9 @@ ID3D12PipelineState* DirectXApp::RegisterShaderPass(const std::string& name, con
 	D3D12_GRAPHICS_PIPELINE_STATE_DESC desc = MakeBasePsoDesc();
 	desc.VS = vs->GetByteCode();
 	desc.PS = ps->GetByteCode();
+
+	// 宣言の食い違いは黙って壊れるので、登録時に見ておく
+	ValidateMaterialCB(desc.PS, name);
 	desc.RasterizerState.CullMode = def.cullMode;
 	desc.RTVFormats[0] = def.rtvFormat;
 	if (def.alphaBlend)
@@ -561,7 +643,7 @@ bool DirectXApp::HasShaderPass(const std::string& name) const
 	return m_ShaderRegistry.find(name) != m_ShaderRegistry.end();
 }
 
-ID3D12PipelineState* DirectXApp::GetPipelineStateByName(std::string& name) const
+ID3D12PipelineState* DirectXApp::GetPipelineStateByName(const std::string& name) const
 {
 	auto it = m_ShaderRegistry.find(name);
 	if (it != m_ShaderRegistry.end())
@@ -1042,6 +1124,7 @@ void DirectXApp::RegisterBuiltinShaders()
 		{ "Dissolve",   { L"VertexShader.hlsl","BasicVS","vs_5_0", L"DissolveShader.hlsl",  "DissolvePS",  "ps_5_0", false } },
 		{ "BlinnPhong",   { L"VertexShader.hlsl","BasicVS","vs_5_0", L"BlinnPhongShader.hlsl",  "PhongPS",  "ps_5_0", false } },
 		{ "Glass",   { L"VertexShader.hlsl","BasicVS","vs_5_0", L"GlassShader.hlsl",  "GlassPS",  "ps_5_0", true } },
+		{ "Water",   { L"WaterShader.hlsl","WaterVS","vs_5_0", L"WaterShader.hlsl",  "WaterPS",  "ps_5_0", true } },
 
 		{ "SkinnedPBR", { L"SkinnedShader.hlsl","SkinnedVS","vs_5_0", L"PBRShader.hlsl","PbrPS","ps_5_0", false } },
 		{ "SkinnedToon",{ L"SkinnedShader.hlsl","SkinnedVS","vs_5_0", L"ToonShader.hlsl","ToonPS","ps_5_0", false } },
@@ -1825,7 +1908,8 @@ void DirectXApp::DeferredLightingPass(const RenderContext& ctx)
 		XMStoreFloat4x4(&fdata.viewProj, XMMatrixTranspose(v * p));
 		const auto invV = XMMatrixInverse(nullptr, v);
 		float4x4 iv; XMStoreFloat4x4(&iv, invV);
-		fdata.cameraPos = { iv._41, iv._42, iv._43, 1.0f };
+		// w には経過秒を入れる(水面の波などが時間を使う)
+		fdata.cameraPos = { iv._41, iv._42, iv._43, TIME->GetTotalTime() };
 	}
 	const auto b0 = m_CBAllocator.Allocate(slot, &fdata, sizeof(fdata));
 
@@ -2217,6 +2301,21 @@ bool DirectXApp::LoadEnvironment(const std::wstring& hdrpath)
 	DirectX::TexMetadata meta{}; DirectX::ScratchImage img{};
 	if (FAILED(DirectX::LoadFromHDRFile(resolved.c_str(), &meta, img)))
 		return false;
+
+	// 横幅を kMaxEnvWidth に抑える。4096x2048 のままだと
+	// R32G32B32A32 + ミップで VRAM を約 170MB 使い、CPU のプレフィルタも重い
+	constexpr size_t kMaxEnvWidth = 2048;
+	if (meta.width > kMaxEnvWidth)
+	{
+		const size_t h = (std::max)(size_t(1), meta.height * kMaxEnvWidth / meta.width);
+		DirectX::ScratchImage resized;
+		if (SUCCEEDED(DirectX::Resize(*img.GetImage(0, 0, 0), kMaxEnvWidth, h,
+			DirectX::TEX_FILTER_LINEAR, resized)))
+		{
+			img = std::move(resized);
+			meta = img.GetMetadata();
+		}
+	}
 
 	// ミップ生成（ラフネス反射のボケ用）
 	DirectX::ScratchImage mipped{};

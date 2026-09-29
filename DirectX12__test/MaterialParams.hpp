@@ -38,6 +38,18 @@ struct MaterialParams
 	COLOR baseColor = { 1.0f,1.0f,1.0f,1.0f };
 	COLOR emissiveColor = { 0.0f,0.0f,0.0f,1.0f };	// glTF の emissiveFactor
 	float emissiveStrength = 1.0f;					// 演出用の倍率
+
+	// 水面(Water シェーダー用)
+	float waveHeight = 0.35f;	// 法線の起伏。大きいほど荒れる
+	float waveLength = 2.0f;	// 一番長い波の波長(m)。池なら 1~2、海なら 10 台
+	float waveSpeed = 0.6f;		// 流れる速さ。0 で静止
+	float waterGloss = 1.0f;	// 鏡面の鋭さ。大きいほど点状のきらめき
+	float waterOpacity = 0.55f;	// 真上から見たときの不透明度
+	float waterTurbidity = 1.0f;// 濁り。大きいほど向こうが見えない
+	float waterFoam = 0.0f;		// 白波のしきい値。0 で白波なし
+	float waveAmplitude = 0.15f;// 頂点をどれだけ持ち上げるか(m)
+	float waveSteepness = 0.5f;	// 波頭の尖り。1 に近づけると崩れる寸前の形
+
 	std::string shaderName;
 
 	/// @brief パラメータ由来のフィールドを定数バッファへ書き込む

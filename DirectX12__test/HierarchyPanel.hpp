@@ -33,5 +33,11 @@ private:
 	/// @brief エンティティ 1 つとその子を再帰的に描画する
 	void DrawEntityNode(_In_ EditorContext& ctx, _In_ World& world, _In_ Entity entity);
 
+	bool MatchesFilter(_In_ World& world,_In_ Entity entity)const;
+
+	bool IsFiltering() const;
+
+	int m_ComponentFilter = -1;
+
 	std::array<char, 64> m_EntityFilter{};
 };

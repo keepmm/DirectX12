@@ -11,6 +11,7 @@
 #include <filesystem>
 #include <fstream>
 #include <system_error>
+#include <vector>
 #include <Windows.h>
 #include <shellapi.h>
 
@@ -18,12 +19,13 @@
 #include "Project.hpp"
 #include "json.hpp"
 #include "AssetDatabase.hpp"
+#include "AssetExt.hpp"
 
 using json = nlohmann::json;
 
 namespace fs = std::filesystem;
 
-void AssetFileOps::CreateScriptFile(const std::string& dir, const std::string& name)
+std::string AssetFileOps::CreateScriptFile(const std::string& dir, const std::string& name)
 {
 	fs::path hpp = fs::absolute(fs::path(dir)) / (name + ".hpp");
 	fs::path cpp = fs::absolute(fs::path(dir)) / (name + ".cpp");
@@ -72,6 +74,7 @@ void AssetFileOps::CreateScriptFile(const std::string& dir, const std::string& n
 	// ビルド直前に Project::RefreshScriptProjectSources が
 	// Assets 配下を走査して一覧を作り直す
 	LOG->LogInfo("スクリプト生成: " + hpp.string());
+	return hpp.string();
 }
 
 void AssetFileOps::OpenInEditor(const std::string& path)
@@ -110,7 +113,7 @@ void AssetFileOps::OpenInEditor(const std::string& path)
 		nullptr, SW_SHOWNORMAL);
 }
 
-void AssetFileOps::CreateFolder(const std::string& dir)
+std::string AssetFileOps::CreateFolder(const std::string& dir)
 {
 
 	// "New Folder", "New Folder 1", ... と重複回避
@@ -121,8 +124,14 @@ void AssetFileOps::CreateFolder(const std::string& dir)
 
 	std::error_code ec;
 	fs::create_directory(target, ec);
-	if (ec) LOG->LogWarning("フォルダ作成失敗: " + ec.message());
-	else    LOG->LogInfo("フォルダ作成: " + target.string());
+	if (ec)
+	{
+		LOG->LogWarning("フォルダ作成失敗: " + ec.message());
+		return {};
+	}
+
+	LOG->LogInfo("フォルダ作成: " + target.string());
+	return target.string();
 }
 
 void AssetFileOps::ImportAssets(const std::string& destDir_, const std::vector<std::string>& sources)
@@ -275,6 +284,47 @@ void AssetFileOps::RenameAsset(const std::string& path, const std::string& newNa
 	}
 }
 
+std::string AssetFileOps::MoveAsset(const std::string& path, const std::string& destDir)
+{
+	const fs::path src = path;
+	const fs::path dir = destDir;
+	const fs::path dst = dir / src.filename();
+
+	std::error_code ec;
+	if (fs::equivalent(src.parent_path(), dir, ec)) return{};
+
+	// フォルダを自分の中へ入れると、そのフォルダごと行方不明になる
+	if (fs::is_directory(src, ec))
+	{
+		const std::string s = src.generic_string() + "/";
+		if (dir.generic_string().rfind(s, 0) == 0 || fs::equivalent(src, dir, ec))
+		{
+			LOG->LogWarning("フォルダを自分の中に移動することはできません: " + src.string());
+			return {};
+		}
+	}
+
+	if (fs::exists(dst))
+	{
+		LOG->LogWarning("移動先に同名のフォルダがあります" + dst.string());
+		return {};
+	}
+
+	fs::rename(src, dst, ec);
+	if (ec)
+	{
+		LOG->LogWarning("移動に失敗: " + ec.message());
+		return {};
+	}
+
+	LOG->LogInfo("移動" + src.string() + " -> " + dst.string());
+
+	// 実際の移動
+	ASSETDB->OnAssetMoved(src.generic_string(),
+		dst.generic_string());
+	return dst.generic_string();
+}
+
 void AssetFileOps::DeleteAsset(const std::string& path)
 {
 	// 実態を消す前に DB から外す(.metaもここで消える)
@@ -287,13 +337,13 @@ void AssetFileOps::DeleteAsset(const std::string& path)
 	else    LOG->LogInfo("削除: " + path + " (" + std::to_string(removed) + " 件)");
 }
 
-void AssetFileOps::CreateSceneFile(const std::string& dir)
+std::string AssetFileOps::CreateSceneFile(const std::string& dir)
 {
 
-	fs::path target = fs::path(dir) / "NewScene.json";
+	fs::path target = fs::path(dir) / (std::string("NewScene") + AssetExt::Scene);
 	int n = 1;
 	while (fs::exists(target))
-		target = fs::path(dir) / ("NewScene" + std::to_string(n++) + ".json");
+		target = fs::path(dir) / ("NewScene" + std::to_string(n++) + AssetExt::Scene);
 
 	// Project::WriteEmptyScene と同じ最小構成
 	// (SceneSerializer::LoadFromString が要求するのは entities だけ)
@@ -305,10 +355,65 @@ void AssetFileOps::CreateSceneFile(const std::string& dir)
 	if (!ofs)
 	{
 		LOG->LogWarning("シーン作成に失敗: " + target.string());
-		return;
+		return {};
 	}
 	ofs << j.dump(4);
 	ofs.close();
 	ASSETDB->OnAssetAdded(target.generic_string());
 	LOG->LogInfo("シーン作成: " + target.string());
+	return target.string();
+}
+
+namespace
+{
+	/// @brief json の中身がシーンか(トップレベルに entities 配列がある)
+	/// @note Assets/Scenes にはタイムライン等の json も置かれるので、拡張子ではなく中身で判定する
+	bool IsSceneFile(const fs::path& path)
+	{
+		std::ifstream in(path);
+		if (!in) return false;
+		const json j = json::parse(in, nullptr, false);
+		return !j.is_discarded() && j.is_object()
+			&& j.contains("entities") && j["entities"].is_array();
+	}
+}
+
+bool AssetFileOps::ConvertLegacyScene(const std::string& path)
+{
+	const fs::path src = path;
+	if (!AssetExt::Is(path, AssetExt::LegacyScene) || !IsSceneFile(src)) return false;
+
+	fs::path dst = src;
+	dst.replace_extension(AssetExt::Scene);
+	if (fs::exists(dst))
+	{
+		LOG->LogWarning("同名の .scene が既にあるので変換しません: " + dst.string());
+		return false;
+	}
+
+	// RenameAsset は拡張子を省略すると元を引き継ぐので、拡張子込みの名前を渡す
+	RenameAsset(path, dst.filename().string());
+	return fs::exists(dst);
+}
+
+int AssetFileOps::ConvertAllLegacyScenes(const std::string& assetsRoot)
+{
+	// イテレート中にリネームしないよう、先に集める
+	std::vector<std::string> targets;
+	std::error_code ec;
+	for (auto it = fs::recursive_directory_iterator(assetsRoot, ec);
+		it != fs::recursive_directory_iterator(); it.increment(ec))
+	{
+		if (ec) { ec.clear(); continue; }
+		if (it->is_regular_file(ec) && AssetExt::Is(it->path().string(), AssetExt::LegacyScene))
+			targets.push_back(it->path().generic_string());
+	}
+
+	int converted = 0;
+	for (const auto& t : targets)
+	{
+		if (ConvertLegacyScene(t)) ++converted;
+	}
+	LOG->LogInfo("旧形式のシーンを変換: " + std::to_string(converted) + " 件");
+	return converted;
 }

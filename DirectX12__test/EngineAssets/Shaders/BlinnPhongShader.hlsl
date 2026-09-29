@@ -5,19 +5,13 @@
 Texture2D g_Texture : register(t0);
 SamplerState g_Sampler : register(s0);
 
-cbuffer Material : register(b3)
-{
-    float roughness;    // 大 = 広く鈍い / 小 = 狭く鋭い
-    float metallic;     // 鏡面の強さ
-    float2 _pad;
-    float4 rimColor;
-}
+#include "MaterialCB.hlsli"
 
 float4 PhongPS(PSInput pin) : SV_Target
 {
     // 通常のLambertライティング
     float4 tex = g_Texture.Sample(g_Sampler, pin.uv);
-    float3 baseColor = pin.col.rgb * tex.rgb;
+    float3 baseColor = pin.col.rgb * tex.rgb * basecolor.rgb;
     float3 N = normalize(pin.normal);
     float3 V = normalize(cameraPos.xyz - pin.worldPos);
     
@@ -43,5 +37,5 @@ float4 PhongPS(PSInput pin) : SV_Target
                  + baseColor * ambientColor.rgb
                  + specular * metallic; // 鏡面の強さ
 
-    return float4(color, pin.col.a * tex.a);
+    return float4(color, pin.col.a * tex.a * basecolor.a);
 }

@@ -10,6 +10,7 @@
 
 #include "Util.hpp"
 #include "ModelLoader.hpp"
+#include "MaterialLibrary.hpp"
 
 // todo 親子化
 // todo Canvasの描画順序を考慮する
@@ -61,11 +62,29 @@ Entity EntityFactory::CreatePrimitive(World& world, const std::string& tag)
 	Entity e = world.CreateEntity();
 
 	static int num = 1;
-	const std::string base = (tag == kPrimitiveCube) ? "Cube_" : "Sphere_";
+	const std::string base =
+		(tag == kPrimitiveCube) ? "Cube_" :
+		(tag == kPrimitiveCylinder) ? "Cylinder_" :
+		(tag == kPrimitiveCone) ? "Cone_" :
+		(tag == kPrimitiveCapsule) ? "Capsule_" :
+		(tag == kPrimitivePlane) ? "Plane_" : "Sphere_";
 	world.AddComponent<NameComponent>(e, NameComponent{ base + std::to_string(num++) });
 	world.AddComponent<TransformComponent>(e, TransformComponent{});
 
 	BuildPrimitiveEntity(world, e, tag);
+
+	// 既定の .mat を割り当てる。共有なので、色を変えると同じ .mat を使う他のオブジェクトにも及ぶ
+	// 個別に編集したいときはインスペクタの「割り当てを解除」を押す
+	const std::string def = MaterialLibrary::Get().EnsureDefault();
+	if (auto shared = MaterialLibrary::Get().Load(def))
+	{
+		auto& mc = world.GetComponent<MaterialComponent>(e);
+		mc.material = shared;
+		if (mc.materials.empty()) mc.materials.push_back(shared);
+		else                      mc.materials[0] = shared;
+		mc.materialAssets.resize(mc.materials.size());
+		mc.materialAssets[0] = def;
+	}
 	return e;
 }
 

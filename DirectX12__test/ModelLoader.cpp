@@ -16,6 +16,7 @@
 #include "AsyncLoader.hpp"
 #include "Components.hpp"
 #include "MmdPhysics.hpp"
+#include "MaterialLibrary.hpp"
 
 namespace
 {
@@ -212,6 +213,30 @@ ModelCpuData ModelLoader::ParseFile(const std::string& filepath, float scale)
             return out;   // success=false
         }
 
+        // FBX は Z が上のことが多く、その補正がルートノードの変換に入っている。
+        // 以前はここを読んでいなかったので、モデルが倒れて出ていた
+        // (スキンがある場合はスケルトン側に同じ行列が入るので、ここでは焼かない)
+        const bool hasBones = [scene]()
+            {
+                for (unsigned int i = 0; i < scene->mNumMeshes; ++i)
+                    if (scene->mMeshes[i]->HasBones()) return true;
+                return false;
+            }();
+
+        // 回転だけ取り出す。ルートには単位変換(cm → m の 100 倍など)も入っていて、
+        // それを焼くと Transform 側の既定スケールと二重になり、モデルが巨大化する
+        aiMatrix4x4 rootT;
+        if (!hasBones && scene->mRootNode)
+        {
+            aiVector3D rootScale, rootPos;
+            aiQuaternion rootRot;
+            scene->mRootNode->mTransformation.Decompose(rootScale, rootRot, rootPos);
+            rootT = aiMatrix4x4(rootRot.GetMatrix());
+        }
+
+        aiMatrix3x3 rootN(rootT);	// 法線 / 接線は平行移動を含めない
+        rootN.Inverse().Transpose();
+
         // メッシュの処理
         for (unsigned int meshIndex = 0; meshIndex < scene->mNumMeshes; ++meshIndex)
         {
@@ -223,12 +248,14 @@ ModelCpuData ModelLoader::ParseFile(const std::string& filepath, float scale)
             for (unsigned int i = 0; i < mesh->mNumVertices; ++i)
             {
                 Vertex v{};
-                const aiVector3D& pos = mesh->mVertices[i];
+                aiVector3D pos = mesh->mVertices[i];
+                pos *= rootT;
                 v.position = { pos.x * scale, pos.y * scale, pos.z * scale };
 
                 if (mesh->HasNormals())
                 {
-                    const aiVector3D& n = mesh->mNormals[i];
+                    aiVector3D n = mesh->mNormals[i];
+                    n = (rootN * n).Normalize();
                     v.normal = { n.x, n.y, n.z };
                 }
                 else
@@ -238,7 +265,8 @@ ModelCpuData ModelLoader::ParseFile(const std::string& filepath, float scale)
 
                 if (mesh->HasTangentsAndBitangents())
                 {
-                    const aiVector3D& t = mesh->mTangents[i];
+                    aiVector3D t = mesh->mTangents[i];
+                    t = (rootN * t).Normalize();
                     v.tangent = { t.x, t.y, t.z };
                 }
                 else
@@ -307,8 +335,19 @@ ModelCpuData ModelLoader::ParseFile(const std::string& filepath, float scale)
         }
 
         NormalizeInfluence(out.skinData.infuences);
-        if(scene->mRootNode)
-			AddSkeletonNode(scene->mRootNode, -1, out.skeleton);
+        if (scene->mRootNode)
+        {
+            AddSkeletonNode(scene->mRootNode, -1, out.skeleton);
+
+            // ルートの変換は ConvertToLeftHanded が頂点側にも入れているので、
+            // ここで持つと軸の補正が二重にかかってモデルがひっくり返る。
+            // (assimp でいう globalInverseTransform を掛けるのと同じ意味)
+            if (!out.skeleton.nodes.empty())
+            {
+                DirectX::XMStoreFloat4x4(&out.skeleton.nodes[0].localTransform,
+                    DirectX::XMMatrixIdentity());
+            }
+        }
 
         //スキン影響を頂点バッファへ転機
         const size_t vcount = out.vertices.size();
@@ -751,7 +790,12 @@ std::vector<AnimationClip> ModelLoader::LoadAnimationsOnly(const std::string& fi
     {
         const aiAnimation* anim = scene->mAnimations[a];
         AnimationClip clip;
-        clip.name = std::filesystem::path(filepath).stem().string();  // ファイル名をクリップ名に
+        // アニメーション名を使う。無い場合だけファイル名にする
+        // (1つの fbx に Idle / Walk などが複数入っているので、ファイル名だと全部同じ名前になる)
+        clip.name = (anim->mName.length > 0)
+            ? std::string(anim->mName.C_Str())
+            : std::filesystem::path(filepath).stem().string()
+                + (scene->mNumAnimations > 1 ? "_" + std::to_string(a) : "");
         clip.tickPerSecond = (anim->mTicksPerSecond != 0.0) ? (float)anim->mTicksPerSecond : 30.0f;
         clip.duration = (float)(anim->mDuration / clip.tickPerSecond);
 
@@ -929,6 +973,51 @@ CameraClip ModelLoader::LoadVMDCameraClip(const std::string& path)
     return clip;
 }
 
+void ModelLoader::ApplyPendingSubMaterials(MaterialComponent& mc)
+{
+    const auto& pending = mc.pendingSubs;
+
+    for (size_t i = 0; i < pending.size() && i < mc.materials.size(); ++i)
+    {
+        auto& sm = mc.materials[i];
+        if (!sm) continue;
+        sm->shaderName = pending[i].shaderName;
+        sm->roughness = pending[i].roughness;
+        sm->metallic = pending[i].metallic;
+        sm->sssStrength = pending[i].sssStrength;
+        sm->sssWrap = pending[i].sssWrap;
+        sm->sssTrans = pending[i].sssTrans;
+        sm->sheen = pending[i].sheen;
+        sm->sssColor = pending[i].sssColor;
+        sm->baseAlpha = pending[i].baseAlpha;
+        sm->reflectStrength = pending[i].reflectStrength;
+        sm->reflectFade = pending[i].reflectFade;
+        sm->reflectBlur = pending[i].reflectBlur;
+        sm->emissiveColor = pending[i].emissiveColor;
+        sm->emissiveStrength = pending[i].emissiveStrength;
+        // 以前のシーンには無い項目。保存されていたときだけ上書きする
+        if (pending[i].baseColor)    sm->baseColor = *pending[i].baseColor;
+        if (pending[i].rimColor)     sm->rimColor = *pending[i].rimColor;
+        if (pending[i].outlineWidth) sm->outlineWidth = *pending[i].outlineWidth;
+        if (pending[i].isFace)       sm->isFace = *pending[i].isFace;
+    }
+
+    // --- .mat が割り当てられていたスロットは共有インスタンスに差し替える ---
+    mc.materialAssets.resize(mc.materials.size());
+    for (size_t i = 0; i < pending.size() && i < mc.materials.size(); ++i)
+    {
+        if (pending[i].materialAsset.empty()) continue;
+
+        if (auto shared = MaterialLibrary::Get().Load(pending[i].materialAsset))
+        {
+            mc.materials[i] = shared;
+            mc.materialAssets[i] = pending[i].materialAsset;
+        }
+    }
+    if (!mc.materials.empty()) mc.material = mc.materials[0];
+    mc.pendingSubs.clear();
+}
+
 void ModelLoader::PopulateModelEntity(
     World& world, std::uint32_t entity,
     const std::string& modelpath, Scene* scene,
@@ -1040,27 +1129,22 @@ void ModelLoader::PopulateModelEntity(
             mc.materials = BuildMaterials(result, "PBR");
             for (size_t i = 0; i < mc.materials.size(); ++i)
                 mc.materialnames.push_back(result.materials[i].name);
-            if (!mc.materials.empty()) mc.material = mc.materials[0];
+           // if (!mc.materials.empty()) mc.material = mc.materials[0];
 
-            // --- 保留していたサブマテリアル復元値を適用 ---
-            for (size_t i = 0; i < pending.size() && i < mc.materials.size(); ++i)
+            mc.pendingSubs = pending;
+			ApplyPendingSubMaterials(mc);
+
+            // シーンに保存されていたテクスチャを貼り直す
+            // (以前はパスを引き継ぐだけで、インスペクタの「適用」を押すまで反映されなかった)
+            if (mc.material && !mc.FilePath.empty())
             {
-                auto& sm = mc.materials[i];
-                if (!sm) continue;
-                sm->shaderName = pending[i].shaderName;
-                sm->roughness = pending[i].roughness;
-                sm->metallic = pending[i].metallic;
-                sm->sssStrength = pending[i].sssStrength;
-                sm->sssWrap = pending[i].sssWrap;
-                sm->sssTrans = pending[i].sssTrans;
-                sm->sheen = pending[i].sheen;
-                sm->sssColor = pending[i].sssColor;
-				sm->baseAlpha = pending[i].baseAlpha;
-				sm->reflectStrength = pending[i].reflectStrength;
-				sm->reflectFade = pending[i].reflectFade;
-				sm->reflectBlur = pending[i].reflectBlur;
-				sm->emissiveColor = pending[i].emissiveColor;
-				sm->emissiveStrength = pending[i].emissiveStrength;
+                mc.material->SetTextureFromFile(
+                    std::filesystem::path(ResolveAssetPath(mc.FilePath)).wstring());
+            }
+            if (mc.material && !mc.RampFilePath.empty())
+            {
+                mc.material->SetToonRampTexture(
+                    std::filesystem::path(ResolveAssetPath(mc.RampFilePath)).wstring());
             }
 
             world.AddComponent<MaterialComponent>(entity, mc);

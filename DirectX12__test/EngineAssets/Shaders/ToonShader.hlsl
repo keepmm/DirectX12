@@ -32,20 +32,7 @@ static const float3 DEFAULT_RAMP_SHADE = float3(60.0f, 60.0f, 70.0f) / 255.0f;
 SamplerState g_Sampler : register(s0);
 SamplerState g_RampSampler : register(s1);
 
-cbuffer Material : register(b3)
-{
-    float roughness;
-    float metallic;
-    float2 _pad;
-    float4 rimColor;
-    float4 mapFlags;
-    float4 faceParam; // x = isFace, y = baseAlpha
-    float4 sssParams;
-    float4 sssColor;
-    float4 matBaseColor;
-    // x:強度 y:フェード距離 z:ぼかし半径 w:反射RTの解像度スケール
-    float4 reflectParam;
-}
+#include "MaterialCB.hlsli"
 
 // シャドウマップの遮蔽率。1で日向、0で影
 float ShadowFactor(float3 worldPos)
@@ -93,7 +80,7 @@ float4 ToonPS(PSInput input) : SV_TARGET
     float4 texColor = g_Texture.Sample(g_Sampler, input.uv);
     clip(faceParam.y * input.col.a - 0.05f); // 非表示マテリアルを消す
 
-    float3 baseColor = input.col.rgb * texColor.rgb * matBaseColor.rgb;
+    float3 baseColor = input.col.rgb * texColor.rgb * basecolor.rgb;
     float3 N = normalize(input.normal);
     float3 V = normalize(cameraPos.xyz - input.worldPos);
     float3 T = normalize(input.tangent);

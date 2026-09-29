@@ -58,6 +58,11 @@ CR_EXPORT int cr_main(cr_plugin* ctx, cr_op operation)
 		GameAPI::g_Instantiate = host->instantiate;
 		GameAPI::g_Destroy = host->destroyEntity;
 		GameAPI::g_LoadScene = host->loadScene;
+		GameAPI::g_Raycast = host->raycast;
+		GameAPI::g_OverlapSphere = host->overlapSphere;
+		GameAPI::g_AddForce = host->addForce;
+		GameAPI::g_SetVelocity = host->setVelocity;
+		GameAPI::g_GetVelocity = host->getVelocity;
 
 		break;
 	case CR_STEP:

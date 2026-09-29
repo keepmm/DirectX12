@@ -1,4 +1,4 @@
-#include "Scene.hpp"
+﻿#include "Scene.hpp"
 #include "Components.hpp"
 
 PhysicsWorld& Scene::EnsurePhysicsWorld()
@@ -6,6 +6,9 @@ PhysicsWorld& Scene::EnsurePhysicsWorld()
     if (!m_PhysicsWorld)
     {
         m_PhysicsWorld = std::make_unique<PhysicsWorld>();
+        // 以前は SceneSerializer で RigidBody を読んだときだけ Init していて、
+        // それ以外のシーンでは後から RigidBody を付けても動かなかった
+        m_PhysicsWorld->Init();
     }
     return *m_PhysicsWorld;
 }

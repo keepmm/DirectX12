@@ -9,6 +9,7 @@
  *			2/15 APPLICATIONクラスの作成
  *			5/02 初期化追加
  *			9/10 プロジェクト管理機能の追加
+ *			9/29 NVIDIAのGraphicsを使うように設定
  * *********************************************************************/
 #include "Application.hpp"
 #include "Project.hpp"
@@ -17,6 +18,11 @@
 #include <shellapi.h>
 #include <vector>
 #include "AssetDatabase.hpp"
+
+extern "C" {
+	_declspec(dllexport) DWORD NvOptimusEnablement = 0x00000001;
+	_declspec(dllexport) int AmdPowerXpressRequestHighPerformance = 1;
+}
 
 int APIENTRY _tWinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPTSTR lpCmdLine, int nCmdShow)
 {

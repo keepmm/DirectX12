@@ -82,7 +82,7 @@ public:
 		bool wireframe,
 		UINT frameIndex = 0,
 		_In_ ConstantBufferAllocator* cbAlloc = nullptr,
-		_In_ std::string shaderName = "",
+		_In_ const std::string& shaderName = "",
 		_In_opt_ ID3D12PipelineState* overridePso = nullptr);
 
 	/// @brief pending なテクスチャのアップロードをコマンドリストへ積む

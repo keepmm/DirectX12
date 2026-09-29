@@ -213,6 +213,275 @@ void Mesh::DrawSubMesh(ID3D12GraphicsCommandList* commandList, UINT subMeshIndex
 	commandList->DrawIndexedInstanced(sm.indexCount, 1, sm.indexStart, 0, 0);
 }
 
+void Mesh::CreateCylinder(UINT segments)
+{
+	segments = (std::max)(3u, segments);
+
+	std::vector<Vertex> vertices;
+	std::vector<std::uint32_t> indices;
+
+	const float half = 0.5f;
+	const float radius = 0.5f;
+
+	// ---- 側面(上下で別頂点。法線が横向きなので共有できない) ---- //
+	for (UINT i = 0; i <= segments; ++i)
+	{
+		const float u = static_cast<float>(i) / segments;
+		const float phi = u * DirectX::XM_2PI;
+		const float sp = sinf(phi), cp = cosf(phi);
+		const float3 n = { cp, 0.0f, sp };
+
+		Vertex top{}, bottom{};
+		top.position = { n.x * radius,  half, n.z * radius };
+		bottom.position = { n.x * radius, -half, n.z * radius };
+		top.normal = bottom.normal = n;
+		top.col = bottom.col = Color;
+		top.tangent = bottom.tangent = { -sp, 0.0f, cp };
+		top.uv = { u, 0.0f };
+		bottom.uv = { u, 1.0f };
+		vertices.push_back(top);
+		vertices.push_back(bottom);
+	}
+
+	for (UINT i = 0; i < segments; ++i)
+	{
+		const std::uint32_t i0 = i * 2;			// 上
+		const std::uint32_t i1 = i0 + 1;		// 下
+		const std::uint32_t i2 = i0 + 2;		// 次の上
+		const std::uint32_t i3 = i0 + 3;		// 次の下
+
+		indices.push_back(i0); indices.push_back(i2); indices.push_back(i1);
+		indices.push_back(i1); indices.push_back(i2); indices.push_back(i3);
+	}
+
+	// ---- 上面 / 底面(中心から扇状に張る) ---- //
+	auto addCap = [&](float y, const float3& normal, bool flip)
+		{
+			const std::uint32_t center = static_cast<std::uint32_t>(vertices.size());
+
+			Vertex c{};
+			c.position = { 0.0f, y, 0.0f };
+			c.normal = normal;
+			c.col = Color;
+			c.uv = { 0.5f, 0.5f };
+			c.tangent = { 1.0f, 0.0f, 0.0f };
+			vertices.push_back(c);
+
+			for (UINT i = 0; i <= segments; ++i)
+			{
+				const float phi = static_cast<float>(i) / segments * DirectX::XM_2PI;
+				const float sp = sinf(phi), cp = cosf(phi);
+
+				Vertex v{};
+				v.position = { cp * radius, y, sp * radius };
+				v.normal = normal;
+				v.col = Color;
+				v.uv = { cp * 0.5f + 0.5f, sp * 0.5f + 0.5f };
+				v.tangent = { 1.0f, 0.0f, 0.0f };
+				vertices.push_back(v);
+			}
+
+			for (UINT i = 0; i < segments; ++i)
+			{
+				const std::uint32_t a = center + 1 + i;
+				const std::uint32_t b = center + 2 + i;
+				if (flip) { indices.push_back(center); indices.push_back(b); indices.push_back(a); }
+				else { indices.push_back(center); indices.push_back(a); indices.push_back(b); }
+			}
+		};
+
+	addCap(half, { 0.0f, 1.0f, 0.0f }, false);
+	addCap(-half, { 0.0f, -1.0f, 0.0f }, true);
+
+	Init(APP->GetDevice(), vertices, indices, nullptr);
+}
+
+void Mesh::CreateCone(UINT segments)
+{
+	segments = (std::max)(3u, segments);
+
+	std::vector<Vertex> vertices;
+	std::vector<std::uint32_t> indices;
+
+	const float half = 0.5f;
+	const float radius = 0.5f;
+
+	// 側面の法線は母線に垂直な向き(斜面に沿う)
+	const float slope = radius / (half * 2.0f);
+	const float ny = slope / sqrtf(1.0f + slope * slope);
+	const float nr = 1.0f / sqrtf(1.0f + slope * slope);
+
+	for (UINT i = 0; i <= segments; ++i)
+	{
+		const float u = static_cast<float>(i) / segments;
+		const float phi = u * DirectX::XM_2PI;
+		const float sp = sinf(phi), cp = cosf(phi);
+
+		Vertex apex{}, bottom{};
+		apex.position = { 0.0f, half, 0.0f };
+		bottom.position = { cp * radius, -half, sp * radius };
+		apex.normal = bottom.normal = { cp * nr, ny, sp * nr };
+		apex.col = bottom.col = Color;
+		apex.tangent = bottom.tangent = { -sp, 0.0f, cp };
+		apex.uv = { u, 0.0f };
+		bottom.uv = { u, 1.0f };
+		vertices.push_back(apex);
+		vertices.push_back(bottom);
+	}
+
+	for (UINT i = 0; i < segments; ++i)
+	{
+		const std::uint32_t i0 = i * 2;
+		const std::uint32_t i1 = i0 + 1;
+		const std::uint32_t i3 = i0 + 3;
+		indices.push_back(i0); indices.push_back(i3); indices.push_back(i1);
+	}
+
+	// ---- 底面 ---- //
+	const std::uint32_t center = static_cast<std::uint32_t>(vertices.size());
+	{
+		Vertex c{};
+		c.position = { 0.0f, -half, 0.0f };
+		c.normal = { 0.0f, -1.0f, 0.0f };
+		c.col = Color;
+		c.uv = { 0.5f, 0.5f };
+		c.tangent = { 1.0f, 0.0f, 0.0f };
+		vertices.push_back(c);
+
+		for (UINT i = 0; i <= segments; ++i)
+		{
+			const float phi = static_cast<float>(i) / segments * DirectX::XM_2PI;
+			const float sp = sinf(phi), cp = cosf(phi);
+
+			Vertex v{};
+			v.position = { cp * radius, -half, sp * radius };
+			v.normal = { 0.0f, -1.0f, 0.0f };
+			v.col = Color;
+			v.uv = { cp * 0.5f + 0.5f, sp * 0.5f + 0.5f };
+			v.tangent = { 1.0f, 0.0f, 0.0f };
+			vertices.push_back(v);
+		}
+		for (UINT i = 0; i < segments; ++i)
+		{
+			indices.push_back(center);
+			indices.push_back(center + 2 + i);
+			indices.push_back(center + 1 + i);
+		}
+	}
+
+	Init(APP->GetDevice(), vertices, indices, nullptr);
+}
+
+void Mesh::CreateCapsule(UINT segments, UINT rings)
+{
+	segments = (std::max)(3u, segments);
+	rings = (std::max)(2u, rings);
+
+	std::vector<Vertex> vertices;
+	std::vector<std::uint32_t> indices;
+
+	const float radius = 0.5f;
+	const float half = 0.5f;	// 円柱部分の半分の長さ
+
+	// 上半球 → 円柱 → 下半球 を、1枚の帯としてつなげる
+	const UINT totalRings = rings * 2 + 1;
+	for (UINT y = 0; y <= totalRings; ++y)
+	{
+		float yPos = 0.0f;
+		float3 n{};
+
+		if (y <= rings)
+		{
+			// 上半球
+			const float t = static_cast<float>(y) / rings;
+			const float theta = t * DirectX::XM_PIDIV2;
+			n = { sinf(theta), cosf(theta), 0.0f };
+			yPos = half + cosf(theta) * radius;
+		}
+		else
+		{
+			// 下半球
+			const float t = static_cast<float>(y - rings - 1) / rings;
+			const float theta = DirectX::XM_PIDIV2 + t * DirectX::XM_PIDIV2;
+			n = { sinf(theta), cosf(theta), 0.0f };
+			yPos = -half + cosf(theta) * radius;
+		}
+
+		for (UINT x = 0; x <= segments; ++x)
+		{
+			const float u = static_cast<float>(x) / segments;
+			const float phi = u * DirectX::XM_2PI;
+			const float sp = sinf(phi), cp = cosf(phi);
+
+			Vertex vert{};
+			const float3 nn = { n.x * cp, n.y, n.x * sp };
+			vert.position = { nn.x * radius, yPos, nn.z * radius };
+			vert.normal = nn;
+			vert.col = Color;
+			vert.uv = { u, static_cast<float>(y) / totalRings };
+			vert.tangent = { -sp, 0.0f, cp };
+			vertices.push_back(vert);
+		}
+	}
+
+	for (UINT y = 0; y < totalRings; ++y)
+	{
+		for (UINT x = 0; x < segments; ++x)
+		{
+			const std::uint32_t i0 = y * (segments + 1) + x;
+			const std::uint32_t i1 = i0 + 1;
+			const std::uint32_t i2 = i0 + (segments + 1);
+			const std::uint32_t i3 = i2 + 1;
+
+			indices.push_back(i0); indices.push_back(i1); indices.push_back(i2);
+			indices.push_back(i1); indices.push_back(i3); indices.push_back(i2);
+		}
+	}
+
+	Init(APP->GetDevice(), vertices, indices, nullptr);
+}
+
+void Mesh::CreatePlane(UINT divisions)
+{
+	divisions = (std::max)(1u, divisions);
+
+	std::vector<Vertex> vertices;
+	std::vector<std::uint32_t> indices;
+
+	for (UINT z = 0; z <= divisions; ++z)
+	{
+		for (UINT x = 0; x <= divisions; ++x)
+		{
+			const float u = static_cast<float>(x) / divisions;
+			const float v = static_cast<float>(z) / divisions;
+
+			Vertex vert{};
+			vert.position = { u - 0.5f, 0.0f, v - 0.5f };
+			vert.normal = { 0.0f, 1.0f, 0.0f };
+			vert.col = Color;
+			vert.uv = { u, v };
+			vert.tangent = { 1.0f, 0.0f, 0.0f };
+			vertices.push_back(vert);
+		}
+	}
+
+	for (UINT z = 0; z < divisions; ++z)
+	{
+		for (UINT x = 0; x < divisions; ++x)
+		{
+			const std::uint32_t i0 = z * (divisions + 1) + x;
+			const std::uint32_t i1 = i0 + 1;
+			const std::uint32_t i2 = i0 + (divisions + 1);
+			const std::uint32_t i3 = i2 + 1;
+
+			indices.push_back(i0); indices.push_back(i2); indices.push_back(i1);
+			indices.push_back(i1); indices.push_back(i2); indices.push_back(i3);
+		}
+	}
+
+	Init(APP->GetDevice(), vertices, indices, nullptr);
+}
+
 void Mesh::CreateQuad(const ComPtr<ID3D12Device>& device)
 {
 	const std::array<Vertex,4> vertices =

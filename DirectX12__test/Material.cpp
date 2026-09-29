@@ -12,6 +12,16 @@
 #include "ConstantBufferAllocator.hpp"
 #include "TextureLoader.hpp"
 #include "Util.hpp"
+#include "Time.hpp"
+
+namespace
+{
+	/// @brief 読んだファイルを Assets 相対で返す(.mat に書くため)
+	std::string ToSourcePath(const std::wstring& file)
+	{
+		return MakeAssetRelative(std::filesystem::path(file).generic_string());
+	}
+}
 
 void Material::Init()
 {
@@ -43,6 +53,7 @@ bool Material::SetTextureFromFile(const std::wstring& filePath)
 		return false;
 	}
 
+	m_Textures.SetSourcePath(TexSlot::Albedo, ToSourcePath(filePath));
 	LOG->LogInfo("SetTextureFromFile: texture loaded");
 	return true;
 }
@@ -83,23 +94,30 @@ bool Material::SetToonRampTexture(const std::wstring& filepath)
 
 	if (!m_Textures.UploadImage(TexSlot::Ramp, image.GetImage(0, 0, 0), metadata)) return false;
 
+	m_Textures.SetSourcePath(TexSlot::Ramp, ToSourcePath(filepath));
 	m_Textures.MarkCustomRamp();
 	return true;
 }
 
 bool Material::SetNormalTexture(const std::wstring& path)
 {
-	return m_Textures.LoadFromFile(TexSlot::Normal, path);
+	if (!m_Textures.LoadFromFile(TexSlot::Normal, path)) return false;
+	m_Textures.SetSourcePath(TexSlot::Normal, ToSourcePath(path));
+	return true;
 }
 
 bool Material::SetMetalTexture(const std::wstring& path)
 {
-	return m_Textures.LoadFromFile(TexSlot::Metal, path);
+	if (!m_Textures.LoadFromFile(TexSlot::Metal, path)) return false;
+	m_Textures.SetSourcePath(TexSlot::Metal, ToSourcePath(path));
+	return true;
 }
 
 bool Material::SetRoughTexture(const std::wstring& path)
 {
-	return m_Textures.LoadFromFile(TexSlot::Rough, path);
+	if (!m_Textures.LoadFromFile(TexSlot::Rough, path)) return false;
+	m_Textures.SetSourcePath(TexSlot::Rough, ToSourcePath(path));
+	return true;
 }
 
 void Material::ShareDiffuseTexture(const Material& src)
@@ -165,7 +183,8 @@ void Material::BuildPerFrame(const float4x4& view, const float4x4& projection, F
 	// カメラのワールド座標 = view の逆行列の平行移動
 	const auto invV = DirectX::XMMatrixInverse(nullptr, v);
 	DirectX::XMFLOAT4X4 iv; DirectX::XMStoreFloat4x4(&iv, invV);
-	data.cameraPos = { iv._41, iv._42, iv._43, 1.0f };
+	// w には経過秒を入れる(水面の波などが時間を使う)
+	data.cameraPos = { iv._41, iv._42, iv._43, TIME->GetTotalTime() };
 
 	*out = data;
 }
@@ -191,7 +210,7 @@ void Material::Apply(
 	bool wireframe,
 	UINT frameIndex,
 	ConstantBufferAllocator* cbAlloc,
-	std::string shaderName,
+	const std::string& shaderName,
 	ID3D12PipelineState* overridePso)
 {
 	// コマンドリストが空の場合は適用しない
@@ -245,8 +264,8 @@ void Material::Apply(
 	ID3D12PipelineState* pso = overridePso;
 	if (!pso && wireframe) pso = m_WirePso.Get();
 	if (!pso)              pso = APP->GetPipelineStateByName(shaderName);
-	// 安全網(GetPipelineStateByName が非 const 参照を取るので一時変数が要る)
-	std::string fallback = "Basic";
+	// 安全網
+	static const std::string fallback = "Basic";
 	if (!pso)              pso = APP->GetPipelineStateByName(fallback);
 	if (!pso) return;
 	commandList->SetPipelineState(pso);

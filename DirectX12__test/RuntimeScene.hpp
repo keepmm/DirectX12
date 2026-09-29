@@ -32,6 +32,8 @@ public:
     void OnLoad() final;
     void OnUnload() final;
 
+	void EnsureEssentials();
+
 	void Update(_In_ float deltatime) final;
 	void FixedUpdate(_In_ float fixedDeltatime) final;
 	void LateUpdate(_In_ float deltatime) final;
@@ -128,7 +130,10 @@ private:
 	CameraAnimationSystem m_CameraAnimationSystem;
 	MusicSyncSystem m_MusicSyncSystem;
 	LiveDirectorSystem m_LiveDirectorSystem;
+	LightSwingSystem m_LightSwingSystem;
 	SePlayer m_SePlayer;
+	FollowCameraSystem m_FollowCameraSystem;
+	TerrainSystem m_Terrain;
 
 	BeamRenderer m_FireworkBeamRenderer;
 	FireworkSystem m_FireworkSystem;

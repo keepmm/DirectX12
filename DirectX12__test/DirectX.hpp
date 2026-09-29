@@ -5,7 +5,10 @@
 #include <d3d12shader.h>
 #include <dxgi1_4.h>
 #include <d3dcompiler.h>
-#include <DirectXTex.h>
+// DirectXTex はヘッダでは引数の型として名前を使うだけなので前方宣言で済ませる。
+// ここで include するとスクリプト(Scripts.dll)まで DirectXTex の include パスが必要になり、
+// MonoBehavior.hpp 経由でビルドが通らなくなる
+namespace DirectX { class ScratchImage; }
 
 #include <atomic>
 #include <thread>
@@ -192,7 +195,7 @@ public:
 		_In_ const ShaderPassDef& def
 	);
 	ID3D12PipelineState* GetPipelineStateByName(
-		_In_ std::string& name
+		_In_ const std::string& name
 	)const;
 	std::vector<std::string> GetShaderNames() const;
 	/// @brief その名前のシェーダーパスが登録済みか(HDR双子の有無判定に使う)

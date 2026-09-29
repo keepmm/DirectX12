@@ -146,8 +146,8 @@ bool IMGUI::Start(_In_ HWND hWnd,
 	auto pick = [&](ImFont* f) { if (f && !first) first = f; };
 
 	// うずら（ユーザーフォント）
+	// ImGui 1.92 はサイズを後から変えられるので、同じファイルは 1 回だけ読む
 	pick(addFont((userFonts + "uzura.ttf").c_str(), 16.0f, "うずら 16px"));
-	pick(addFont((userFonts + "uzura.ttf").c_str(), 20.0f, "うずら 20px"));
 	// システムフォント
 	pick(addFont("C:\\Windows\\Fonts\\meiryo.ttc", 18.0f, "メイリオ 18px"));
 	pick(addFont("C:\\Windows\\Fonts\\YuGothM.ttc", 18.0f, "游ゴシック 18px"));

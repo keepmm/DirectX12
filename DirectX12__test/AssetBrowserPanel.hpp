@@ -9,6 +9,7 @@
 #pragma once
 
 #include <string>
+#include <filesystem>
 
 #include "EditorPanel.hpp"
 #include "EditorContext.hpp"
@@ -26,6 +27,10 @@ public:
 
 private:
 	float m_AssetCellSize = 72.0f;
+	float m_TreeWidth = 180.0f;		// 左のフォルダツリーの幅
+
+	/// @brief フォルダツリーを再帰で描く
+	void DrawFolderTree(_In_ EditorContext& ctx, _In_ const std::filesystem::path& dir);
 
 	// スクリプト新規作成
 	bool m_ShowCreateScriptPopup = false;
@@ -35,5 +40,8 @@ private:
 	bool m_ShowRenamePopup = false;
 	bool m_ShowDeletePopup = false;
 	char m_RenameBuffer[128] = "";
+	bool m_RenameFocus = false;
+	bool m_RenameIsNew = false;
+	bool m_RenamePending = false;
 	std::string m_ContextTarget;   // 右クリックされたアイテムのフルパス(空なら空白部分)
 };

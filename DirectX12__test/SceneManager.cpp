@@ -8,7 +8,7 @@
 
 namespace
 {
-	/// @brief Assets/Scenes/<name>.json が実在するか
+	/// @brief Assets/Scenes/<name>.scene(または旧形式の .json)が実在するか
 	bool SceneJsonExists(const std::string& name)
 	{
 		std::error_code ec;
@@ -344,19 +344,29 @@ void SceneManager::FixedUpdate(float fixedDeltatime)
 {
 	if(!PLAY.isPlaying())
 	{
+		m_WasPlaying = false;
 		return;
 	}
+
+	// Play を始めた瞬間: エディタで動かした配置から物理を始めるため、アクターを作り直す
+	const bool justStarted = !m_WasPlaying;
+	m_WasPlaying = true;
 
 	for (auto scene : m_LoadedScenes)
 	{
 		if(scene && scene->IsActive())
 		{
-			if (auto* physicsWorld = scene->GetPhysicsWorld())
-			{
-				physicsWorld->Update(fixedDeltatime);
-				physicsWorld->SyncTransforms(scene->GetWorld());
-				physicsWorld->DispatchEvents(scene->GetWorld());
-			}
+			PhysicsWorld& physicsWorld = scene->EnsurePhysicsWorld();
+			World& world = scene->GetWorld();
+
+			if (justStarted) physicsWorld.RemoveAll();
+
+			physicsWorld.SyncFromWorld(world);     // コンポーネント → アクター
+			physicsWorld.Update(fixedDeltatime);
+			physicsWorld.MoveCharacters(world, fixedDeltatime);  // キャラクター → Transform
+			physicsWorld.SyncTransforms(world);    // アクター → Transform
+			physicsWorld.DispatchEvents(world);
+
 			scene->FixedUpdate(fixedDeltatime);
 		}
 	}
@@ -396,7 +406,13 @@ void SceneManager::UpdateFade(float deltatime)
 				if (m_ActiveScene)
 				{
 					APP->WaitForGPUIdle();
-					SceneSerializer::Load(*m_ActiveScene, m_PendingScenePath);
+					if (!SceneSerializer::Load(*m_ActiveScene, m_PendingScenePath))
+					{
+						LOG->LogError("シーンの読み込みに失敗しました: " + m_PendingScenePath);
+					}
+					// 空のシーンでもカメラとライトは要る。
+					// この経路は OnLoad を通らないので、ここで明示的に面倒を見る
+					static_cast<RuntimeScene*>(m_ActiveScene)->EnsureEssentials();
 				}
 				m_PendingScenePath.clear();
 			}

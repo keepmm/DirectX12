@@ -32,6 +32,7 @@ static void CrLogPrintf(const char* fmt, ...)
 #include "PlayState.hpp"
 #include "imguiinit.hpp"
 #include "RuntimeScene.hpp"
+#include "PhysicsWorld.hpp"
 #include "PrefabLibrary.hpp"
 #include "Project.hpp"
 #include "SceneManager.hpp"
@@ -312,6 +313,64 @@ void ScriptHost::Open(World* world)
 
             if (withFade) s_SceneManager->RequestSceneChangeWithFade(sceneName);
             else          s_SceneManager->LoadScene(sceneName);
+        };
+
+    // ---- 物理 ---- //
+    // 再生中のシーンの PhysicsWorld を使う。まだ無ければ何も当たらない
+    // (キャプチャのあるラムダは関数ポインタにできないので、各所で取り直している)
+    s_ctx.raycast = [](const float* origin, const float* dir, float maxDistance,
+        std::uint32_t layerMask, RaycastHitRaw* outHit) -> bool
+        {
+            auto* rs = RuntimeScene::Current();
+            PhysicsWorld* pw = rs ? rs->GetPhysicsWorld() : nullptr;
+            if (!pw || !origin || !dir || !outHit) return false;
+
+            PhysicsWorld::RayHit hit;
+            if (!pw->Raycast(float3{ origin[0], origin[1], origin[2] },
+                float3{ dir[0], dir[1], dir[2] }, maxDistance, layerMask, hit)) return false;
+
+            outHit->entity = hit.entity;
+            outHit->point[0] = hit.point.x; outHit->point[1] = hit.point.y; outHit->point[2] = hit.point.z;
+            outHit->normal[0] = hit.normal.x; outHit->normal[1] = hit.normal.y; outHit->normal[2] = hit.normal.z;
+            outHit->distance = hit.distance;
+            return true;
+        };
+
+    s_ctx.overlapSphere = [](const float* center, float radius, std::uint32_t layerMask,
+        std::uint32_t* outEntities, int maxCount) -> int
+        {
+            auto* rs = RuntimeScene::Current();
+            PhysicsWorld* pw = rs ? rs->GetPhysicsWorld() : nullptr;
+            if (!pw || !center || !outEntities) return 0;
+
+            return pw->OverlapSphere(float3{ center[0], center[1], center[2] },
+                radius, layerMask, reinterpret_cast<Entity*>(outEntities), maxCount);
+        };
+
+    s_ctx.addForce = [](std::uint32_t entity, float x, float y, float z, bool impulse) -> bool
+        {
+            auto* rs = RuntimeScene::Current();
+            PhysicsWorld* pw = rs ? rs->GetPhysicsWorld() : nullptr;
+            return pw ? pw->AddForce(static_cast<Entity>(entity), float3{ x, y, z }, impulse) : false;
+        };
+
+    s_ctx.setVelocity = [](std::uint32_t entity, float x, float y, float z) -> bool
+        {
+            auto* rs = RuntimeScene::Current();
+            PhysicsWorld* pw = rs ? rs->GetPhysicsWorld() : nullptr;
+            return pw ? pw->SetVelocity(static_cast<Entity>(entity), float3{ x, y, z }) : false;
+        };
+
+    s_ctx.getVelocity = [](std::uint32_t entity, float* outVelocity) -> bool
+        {
+            auto* rs = RuntimeScene::Current();
+            PhysicsWorld* pw = rs ? rs->GetPhysicsWorld() : nullptr;
+            if (!pw || !outVelocity) return false;
+
+            float3 v{};
+            if (!pw->GetVelocity(static_cast<Entity>(entity), v)) return false;
+            outVelocity[0] = v.x; outVelocity[1] = v.y; outVelocity[2] = v.z;
+            return true;
         };
 
     char exePath[MAX_PATH];

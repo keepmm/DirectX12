@@ -33,6 +33,18 @@ public:
 	void SetCameraAngle(float yaw, float pitch);
 
 	void Release();
+
+	/// @brief プレビュー用の深度バッファ(ThumbnailCache と共有。サイズは Size())
+	D3D12_CPU_DESCRIPTOR_HANDLE DepthHandle() const noexcept { return m_DsvHandle; }
+	UINT Size() const noexcept { return m_Size; }
+	bool IsReady() const noexcept { return m_Initialized; }
+
+	/// @brief マテリアルのサムネイル用の球
+	const Mesh& Sphere() const noexcept { return m_Sphere; }
+
+	/// @brief プレビュー用の固定ライトを b2 に張る
+	/// @note シーンのライトに影響されないほうが、アセット同士を比べやすい
+	static void BindPreviewLight(_In_ ID3D12GraphicsCommandList* cmd, UINT frameIndex);
 private:
 	struct Slot
 	{
@@ -40,6 +52,7 @@ private:
 		std::weak_ptr<Material> material;
 		bool dirty = true;
 		int idleFrames = 0;
+		int deadFrames = 0;
 	};
 
 	Slot* FindOrCreate(_In_ const std::shared_ptr<Material>& mat);

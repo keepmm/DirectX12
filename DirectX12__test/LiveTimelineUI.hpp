@@ -54,11 +54,13 @@ inline Entity CreateLightEntity(World& world, LightComponent::LightType type)
 	light.type = type;
 	light.intensity = 3.0f;
 	light.range = 20.0f;
+	world.AddComponent<LightComponent>(e, light);
+
 	if (type == LightComponent::LightType::Spot || type == LightComponent::LightType::Laser)
 	{
-		light.ShowBeam = true;	// ステージ演出はビームが見えたほうが分かりやすい
+		// ステージ演出はビームが見えたほうが分かりやすい
+		world.AddComponent<LightBeamComponent>(e, LightBeamComponent{});
 	}
-	world.AddComponent<LightComponent>(e, light);
 
 	return e;
 }
@@ -184,8 +186,8 @@ inline bool EnsureLiveRig(World& world)
 			l.intensity = r.intensity;
 			l.range = 60.0f;
 			l.spotAngle = 30.0f;
-			l.ShowBeam = true;
 			world.AddComponent<LightComponent>(e, l);
+			world.AddComponent<LightBeamComponent>(e, LightBeamComponent{});
 		}
 		created = true;
 	}

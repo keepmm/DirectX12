@@ -185,9 +185,11 @@ inline void ComputePalette(
 		}
 		else
 		{
-			// バインド (PMXは平行移動のみ)
+			// バインド姿勢。FBX はノードに軸の補正回転(Z 上 → Y 上)が入っているので、
+			// 回転も取り出す。PMX のローカルは平行移動だけなので結果は変わらない
 			XMMATRIX m = XMLoadFloat4x4(&node.localTransform);
-			boneRot[i] = XMQuaternionIdentity();
+			XMVECTOR s, q, t;
+			boneRot[i] = XMMatrixDecompose(&s, &q, &t, m) ? q : XMQuaternionIdentity();
 			boneTrans[i] = m.r[3];	// 平行移動成分
 		}
 	}

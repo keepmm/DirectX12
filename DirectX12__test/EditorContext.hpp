@@ -20,6 +20,7 @@ ote 「どのエンティティを選んでいるか」のようにパネルを�
 
 class DirectXApp;
 class SceneManager;
+class UndoHistory;
 
 struct EditorContext
 {
@@ -32,6 +33,8 @@ struct EditorContext
 	Scene* activeScene = nullptr;
 
 	Entity selectedEntity = INVALID_ENTITY;
+
+	UndoHistory* history = nullptr;
 	std::string selectedAsset;
 	std::string currentAssetDir = "Assets";
 

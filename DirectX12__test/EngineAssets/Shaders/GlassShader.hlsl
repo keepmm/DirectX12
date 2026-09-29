@@ -14,21 +14,7 @@ Texture2D g_Normal  : register(t2);
 Texture2D g_Env     : register(t5);
 SamplerState g_Sampler : register(s0);
 
-cbuffer Material : register(b3)
-{
-    float roughness;
-    float metallic;
-    float2 _pad;
-    float4 rimColor;
-    float4 mapFlags;      // x:hasNormal y:hasMetal z:hasRough w:envMaxMip
-    float4 faceParam;     // y:baseAlpha
-    float4 sssParams;
-    float4 sssColor;
-    float4 basecolor;     // rgb:ガラスの色 a:正面から見たときの不透明度
-    float4 reflectParam;
-    float4 pbrParams;
-    float4 emissiveColor;
-}
+#include "MaterialCB.hlsli"
 
 static const float GLASS_PI2 = 6.283185307179586f;
 static const float GLASS_PI  = 3.141592653589793f;

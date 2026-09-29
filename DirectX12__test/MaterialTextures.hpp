@@ -16,7 +16,12 @@
 #include <cstdint>
 #include <string>
 
-#include <DirectXTex.h>
+// UploadImage の引数に名前が出るだけなので前方宣言(理由は DirectX.hpp と同じ)
+namespace DirectX
+{
+	struct Image;
+	struct TexMetadata;
+}
 
 #include "Defines.hpp"
 
@@ -89,7 +94,16 @@ public:
 	bool LoadFromFile(UINT slot, _In_ const std::wstring& path, bool srgb = false);
 
 	/// @brief 他マテリアルの Albedo リソースを共有する(参照カウントのみ)
-	void ShareAlbedo(_In_ const MaterialTextures& src);
+	void ShareAlbedo(_In_ const MaterialTextures& src) { ShareSlot(TexSlot::Albedo, src, TexSlot::Albedo); }
+
+	/// @brief 他マテリアルの slot のテクスチャを共有する(GPU リソースは参照カウントのみ)
+	/// @param srcSlot 共有元のスロット
+	void ShareSlot(UINT slot, _In_ const MaterialTextures& src, UINT srcSlot);
+
+	/// @brief その slot のテクスチャの元ファイル(Assets 相対)。
+	///        埋め込みテクスチャや 2x2 の白など、元ファイルが無ければ空
+	const std::string& SourcePath(UINT slot) const noexcept { return m_SourcePaths[slot]; }
+	void SetSourcePath(UINT slot, _In_ const std::string& path) { m_SourcePaths[slot] = path; }
 
 	/// @brief pending の slot をコマンドリストへ流し込む
 	void Flush(_In_ ID3D12GraphicsCommandList* commandList);
@@ -121,6 +135,8 @@ private:
 
 	ComPtr<ID3D12DescriptorHeap> m_Heap;
 	std::array<TextureSlot, TexSlot::Count> m_Slots;
+
+	std::array<std::string, TexSlot::Count> m_SourcePaths;	// 画像ファイルから作った場合のパスを覚えておく
 
 	bool m_HasCustomRamp = false;	// 既定ランプのままなら false
 

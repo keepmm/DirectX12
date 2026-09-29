@@ -5,18 +5,12 @@
 Texture2D g_Texture : register(t0);
 SamplerState g_Sampler : register(s0);
 
-cbuffer Material : register(b3)
-{
-    float roughness;
-    float metallic;
-    float2 _pad;
-    float4 rimColor;
-}
+#include "MaterialCB.hlsli"
 
 float4 RimPS(PSInput pin) : SV_Target
 {
     float4 color = g_Texture.Sample(g_Sampler, pin.uv);
-    float3 basecolor = pin.col.rgb * color.rgb;
+    float3 albedo = pin.col.rgb * color.rgb * basecolor.rgb;
     
     // 法線を正規化
     float3 N = normalize(pin.normal);
@@ -34,10 +28,10 @@ float4 RimPS(PSInput pin) : SV_Target
         // 影響圏外のライトはここで捨てる。届かない灯まで評価すると
         // ランプ参照ぶんの負荷がそのまま灯数倍になり、暗部も灯数ぶん持ち上がる
         if (atten <= 1e-3f) continue;
-        diffuse += Lambert(basecolor, lights[i].color.rgb, N, L) * atten;
+        diffuse += Lambert(albedo, lights[i].color.rgb, N, L) * atten;
     }
 
-    float3 finalColor = diffuse + basecolor * ambientColor.rgb;
+    float3 finalColor = diffuse + albedo * ambientColor.rgb;
     
     // リムを加算
     finalColor += Rim(N, V, rimColor.rgb, 4.0) * rimColor.a;

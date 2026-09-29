@@ -21,6 +21,7 @@
 #include "Project.hpp"
 #include "Components.hpp"
 #include "RuntimeScene.hpp"
+#include "UndoHistory.hpp"
 
 
 void ScenePanel::Draw(EditorContext& ctx)
@@ -108,13 +109,6 @@ void ScenePanel::Draw(EditorContext& ctx)
 		activeScene->ResetPhysicsWorld();
 	}
 
-	ImGui::SameLine();
-	if (ImGui::Button(u8("PhysicsWorld 初期化##InitPhysicsWorld")))
-	{
-		auto& physicsWorld = activeScene->EnsurePhysicsWorld();
-		physicsWorld.Init();
-	}
-
 	ImGui::Separator();
 
 	if (ImGui::Button(u8("ライト追加##AddLight")))
@@ -175,7 +169,9 @@ void ScenePanel::DrawPrefabPanel(EditorContext& ctx, Scene& scene, World& world)
 
 	if (ImGui::Button(u8("インスタンス##Instantiate")))
 	{
+		const size_t before = world.GetEntities().size();
 		Entity created = library.Instantiate(m_SelectedPrefab, scene, world);
+		if (ctx.history) ctx.history->RecordCreated(scene, before);
 		if (created != INVALID_ENTITY)
 		{
 			if (world.HasComponent<TransformComponent>(created))
@@ -190,16 +186,6 @@ void ScenePanel::DrawPrefabPanel(EditorContext& ctx, Scene& scene, World& world)
 				tr.position = m_PrefabPosition;
 				tr.RebuildWorld();
 				world.AddComponent<TransformComponent>(created, tr);
-			}
-
-			if (auto* physicsWorld = scene.GetPhysicsWorld())
-			{
-				if (world.HasComponent<RigidBodyComponent>(created) &&
-					world.HasComponent<ColliderComponent>(created))
-				{
-					const auto& tr = world.GetComponent<TransformComponent>(created);
-					physicsWorld->SetActorPose(created, tr.position, tr.rotation);
-				}
 			}
 
 			ctx.selectedEntity = created;
