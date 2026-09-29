@@ -12,6 +12,8 @@
 #include <d3d12shader.h>
 #include <d3dcompiler.h>
 
+#include "ThrowIfFailed.hpp"
+
 namespace
 {
 	/// @brief シェーダーの cbuffer Material(b3) が C++ の MaterialCB と一致するか調べる
@@ -104,28 +106,63 @@ DirectXApp::DirectXApp(HWND hWnd, int Window_Width, int Window_Height) :
 		FlagsDXGI |= DXGI_CREATE_FACTORY_DEBUG;
 	}
 #endif
-	hr = CreateDXGIFactory2(FlagsDXGI, IID_PPV_ARGS(m_Factory.ReleaseAndGetAddressOf()));
-	if (FAILED(hr)) {
-		return;
-	}
+	ThrowIfFailed(CreateDXGIFactory2(FlagsDXGI, IID_PPV_ARGS(m_Factory.ReleaseAndGetAddressOf())));
 
 	// ----------------------------------------------//
 	//					デバイスの作成				 //
 	// ----------------------------------------------//
 
-	ComPtr<IDXGIAdapter> adapter;
-	hr = m_Factory->EnumAdapters(0, adapter.GetAddressOf());
-	if (FAILED(hr)) {
-		return;
+	//ComPtr<IDXGIAdapter> adapter;
+	//ThrowIfFailed(m_Factory->EnumAdapters(0, adapter.GetAddressOf()));
+
+	ComPtr<IDXGIAdapter1> adapter;
+	ComPtr<IDXGIFactory6> factory6;
+
+	// DXGI 1.6が使える場合は、GPUのVRAMが最大のアダプタを選ぶ
+	if (SUCCEEDED(m_Factory.As(&factory6)))
+	{
+		for (UINT i = 0;
+			SUCCEEDED(factory6->EnumAdapterByGpuPreference(
+				i,
+				DXGI_GPU_PREFERENCE_HIGH_PERFORMANCE,
+				IID_PPV_ARGS(adapter.ReleaseAndGetAddressOf())
+			));
+			++i)
+		{
+			DXGI_ADAPTER_DESC1 desc;
+			adapter->GetDesc1(&desc);
+
+			// ソフトウェアアダプタ(WARP)は除外
+			if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) continue;
+
+			// D3D12 デバイスが作成可能かテスト
+			if (SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0, __uuidof(ID3D12Device), nullptr)))
+			{
+				break;
+			}
+		}
 	}
 
-	hr = D3D12CreateDevice(
+	// 見つからない場合は従来の方法でアダプタを取得
+	if (!adapter)
+	{
+		for (UINT i = 0; SUCCEEDED(m_Factory->EnumAdapters1(1, adapter.ReleaseAndGetAddressOf())); ++i)
+		{
+			DXGI_ADAPTER_DESC1 desc;
+			adapter->GetDesc1(&desc);
+			if (desc.Flags & DXGI_ADAPTER_FLAG_SOFTWARE) continue;
+			if (SUCCEEDED(D3D12CreateDevice(adapter.Get(), D3D_FEATURE_LEVEL_11_0,
+				_uuidof(ID3D12Device), nullptr)))
+			{
+				break;
+			}
+		}
+	}
+
+	ThrowIfFailed(D3D12CreateDevice(
 		adapter.Get(),
 		D3D_FEATURE_LEVEL_11_0,
-		IID_PPV_ARGS(m_Device.GetAddressOf()));
-	if (FAILED(hr)) {
-		return;
-	}
+		IID_PPV_ARGS(m_Device.GetAddressOf())));
 #if _DEBUG
 	ID3D12InfoQueue* infoQueue = nullptr;
 	if (SUCCEEDED(m_Device->QueryInterface(IID_PPV_ARGS(&infoQueue))))
@@ -159,14 +196,9 @@ DirectXApp::DirectXApp(HWND hWnd, int Window_Width, int Window_Height) :
 	// -----------------------------------------------//
 	for (int i = 0; i < RTV_NUM; ++i)
 	{
-		hr = m_Device->CreateCommandAllocator(
+		ThrowIfFailed(m_Device->CreateCommandAllocator(
 			D3D12_COMMAND_LIST_TYPE_DIRECT,
-			IID_PPV_ARGS(m_CommandAllocator[i].GetAddressOf())
-		);
-		if (FAILED(hr))
-		{
-			return;
-		}
+			IID_PPV_ARGS(m_CommandAllocator[i].GetAddressOf())));
 	}
 
 
@@ -178,26 +210,18 @@ DirectXApp::DirectXApp(HWND hWnd, int Window_Width, int Window_Height) :
 	desc_command_queue.Type = D3D12_COMMAND_LIST_TYPE_DIRECT;
 	desc_command_queue.Priority = 0;
 	desc_command_queue.Flags = D3D12_COMMAND_QUEUE_FLAG_NONE;
-	hr = m_Device->CreateCommandQueue(
+	ThrowIfFailed(m_Device->CreateCommandQueue(
 		&desc_command_queue,
-		IID_PPV_ARGS(m_CommandQueue.GetAddressOf())
-	);
-	if (FAILED(hr)) {
-		return;
-	}
+		IID_PPV_ARGS(m_CommandQueue.GetAddressOf())));
 
 	// GPUタイムスタンプ(失敗しても描画は続ける。プロファイラにGPU行が出ないだけ)
 	GpuProfiler::Get().Initialize(m_Device.Get(), m_CommandQueue.Get());
 
 	m_Fence_Event = CreateEvent(NULL, FALSE, FALSE, NULL);
-	hr = m_Device->CreateFence(
+	ThrowIfFailed(m_Device->CreateFence(
 		0,
 		D3D12_FENCE_FLAG_NONE,
-		IID_PPV_ARGS(m_Fence.GetAddressOf())
-	);
-	if (FAILED(hr)) {
-		return;
-	}
+		IID_PPV_ARGS(m_Fence.GetAddressOf())));
 	// --------------------------------------//
 	//			スワップチェーンの作成		 //
 	// --------------------------------------//
@@ -211,13 +235,10 @@ DirectXApp::DirectXApp(HWND hWnd, int Window_Width, int Window_Height) :
 	desc_swap_chain.Windowed = TRUE;
 	desc_swap_chain.SwapEffect = DXGI_SWAP_EFFECT_FLIP_SEQUENTIAL;
 	desc_swap_chain.Flags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
-	hr = m_Factory->CreateSwapChain(
+	ThrowIfFailed(m_Factory->CreateSwapChain(
 		m_CommandQueue.Get(),
 		&desc_swap_chain,
-		(IDXGISwapChain**)m_SwapChain.GetAddressOf());
-	if (FAILED(hr)) {
-		return;
-	}
+		(IDXGISwapChain**)m_SwapChain.GetAddressOf()));
 
 	m_FrameIndex = m_SwapChain->GetCurrentBackBufferIndex();
 	for (int i = 0; i < RTV_NUM; ++i)
@@ -231,30 +252,24 @@ DirectXApp::DirectXApp(HWND hWnd, int Window_Width, int Window_Height) :
 
 	for (int i = 0; i < RTV_NUM; ++i)
 	{
-		hr = m_Device->CreateCommandList(
-			0,D3D12_COMMAND_LIST_TYPE_DIRECT,
-			m_CommandAllocator[i].Get(),nullptr,
-			IID_PPV_ARGS(m_CommandList[i].GetAddressOf())
-		);
-		if (FAILED(hr))return;
+		ThrowIfFailed(m_Device->CreateCommandList(
+			0, D3D12_COMMAND_LIST_TYPE_DIRECT,
+			m_CommandAllocator[i].Get(), nullptr,
+			IID_PPV_ARGS(m_CommandList[i].GetAddressOf())));
 
 		m_CommandList[i].As(&m_CommandList6[i]);
 
-		hr = m_CommandList[i]->Close();
-		if (FAILED(hr))return;
+		ThrowIfFailed(m_CommandList[i]->Close());
 	}
 #else
 
-	hr = m_Device->CreateCommandList(
+	ThrowIfFailed(m_Device->CreateCommandList(
 		0,
 		D3D12_COMMAND_LIST_TYPE_DIRECT,
 		m_CommandAllocator[m_FrameIndex].Get(),
 		nullptr,
 		IID_PPV_ARGS(m_CommandList.GetAddressOf())
 	);
-	if (FAILED(hr)) {
-		return;
-	}
 
 	m_CommandList.As(&m_CommandList6);
 
@@ -310,13 +325,13 @@ DirectXApp::DirectXApp(HWND hWnd, int Window_Width, int Window_Height) :
 
 	CD3DX12_HEAP_PROPERTIES depthHeapProp(D3D12_HEAP_TYPE_DEFAULT);
 
-	m_Device->CreateCommittedResource(
+	ThrowIfFailed(m_Device->CreateCommittedResource(
 		&depthHeapProp,
 		D3D12_HEAP_FLAG_NONE,
 		&depthResDesc,
 		D3D12_RESOURCE_STATE_DEPTH_WRITE,
 		&DepthClearValue,
-		IID_PPV_ARGS(m_Depthbuffer.GetAddressOf()));
+		IID_PPV_ARGS(m_Depthbuffer.GetAddressOf())));
 
 	// DSVスロットを確保して深度バッファ生成
 	UINT dsvIndex = 0;

@@ -25,7 +25,7 @@ Application* Application::GetInstance()
 HRESULT Application::OnInit()
 {
 	// ---- 各ウィンドウの初期化 ---- //
-	if (m_GameMode)
+	if (IsGameMode())
 	{
 		PLAY.SetMode(EngineMode::Play);
 	}

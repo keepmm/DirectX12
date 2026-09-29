@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <Import Project="..\packages\NVIDIA.PhysX.4.1.229882250\build\native\NVIDIA.PhysX.props" Condition="Exists('..\packages\NVIDIA.PhysX.4.1.229882250\build\native\NVIDIA.PhysX.props')" />
   <Import Project="..\packages\BulletSharp.x64.0.12.0\build\BulletSharp.x64.props" Condition="Exists('..\packages\BulletSharp.x64.0.12.0\build\BulletSharp.x64.props')" />
@@ -113,6 +113,8 @@
       <PrecompiledHeaderFile>
       </PrecompiledHeaderFile>
       <ForcedIncludeFiles>pch.h</ForcedIncludeFiles>
+      <AdditionalIncludeDirectories>$(ProjectDir);%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalOptions>/bigobj %(AdditionalOptions)</AdditionalOptions>
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
     </ClCompile>
     <Link>
@@ -157,6 +159,8 @@
     <ClCompile Include="ConstantBufferAllocator.cpp" />
     <ClCompile Include="DebugLineRenderer.cpp" />
     <ClCompile Include="DirectX.cpp" />
+    <ClCompile Include="Systems\LightSystem.cpp" />
+    <ClCompile Include="Systems\RenderSystem.cpp" />
     <ClCompile Include="EditorWindow.cpp" />
     <ClCompile Include="HierarchyPanel.cpp" />
     <ClCompile Include="InspectorPanel.cpp" />
@@ -265,6 +269,7 @@
     <ClInclude Include="ProfilerPanel.hpp" />
     <ClInclude Include="StyleSettingPanel.hpp" />
     <ClInclude Include="Terrain.hpp" />
+    <ClInclude Include="ThrowIfFailed.hpp" />
     <ClInclude Include="ThumbnailCache.hpp" />
     <ClInclude Include="MmdPlayerPanel.hpp" />
     <ClInclude Include="UndoHistory.hpp" />
@@ -335,6 +340,8 @@
     <ClInclude Include="ShaderTypes.hpp" />
     <ClInclude Include="ShadowMap.hpp" />
     <ClInclude Include="Systems.hpp" />
+    <ClInclude Include="Systems\LightSystem.hpp" />
+    <ClInclude Include="Systems\RenderSystem.hpp" />
     <ClInclude Include="Engine/ThreadPool.hpp" />
     <ClInclude Include="Theme.hpp" />
     <ClInclude Include="Time.hpp" />

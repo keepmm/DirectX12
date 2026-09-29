@@ -50,6 +50,10 @@ struct RenderSettings
 	/// @brief 環境光(IBL)の強さ。直接光とのバランスを取る
 	/// @note 1.0 で物理的に正しい値。ライトの強さが 1 前後なら 0.3 程度がちょうどいい
 	float envIntensity = 0.35f;
+
+	float4 ambientColor{ 0.2f, 0.2f, 0.2f, 1.0f };
+	float  ambientFromLights = 0.7f;
+
 	float gameAspect = 16.0f / 9.0f;
 
 	static RenderSettings& Get()

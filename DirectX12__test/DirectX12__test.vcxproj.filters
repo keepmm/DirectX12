@@ -64,6 +64,9 @@
     <Filter Include="UI">
       <UniqueIdentifier>{a46b1614-8fe9-4111-89c6-23afe3f11bda}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ECS\System">
+      <UniqueIdentifier>{f31bea79-e494-486f-9598-503df6dca9b9}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Application.cpp">
@@ -294,6 +297,12 @@
     <ClCompile Include="AssetRemap.cpp" />
     <ClCompile Include="UndoHistory.cpp" />
     <ClCompile Include="Terrain.cpp" />
+    <ClCompile Include="Systems\RenderSystem.cpp">
+      <Filter>ECS\System</Filter>
+    </ClCompile>
+    <ClCompile Include="Systems\LightSystem.cpp">
+      <Filter>ECS\System</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="Application.hpp">
@@ -402,9 +411,6 @@
       <Filter>ECS</Filter>
     </ClInclude>
     <ClInclude Include="ComponentRegistry.hpp">
-      <Filter>ECS</Filter>
-    </ClInclude>
-    <ClInclude Include="Systems.hpp">
       <Filter>ECS</Filter>
     </ClInclude>
     <ClInclude Include="Scene.hpp">
@@ -605,6 +611,18 @@
     <ClInclude Include="AssetRemap.hpp" />
     <ClInclude Include="UndoHistory.hpp" />
     <ClInclude Include="Terrain.hpp" />
+    <ClInclude Include="ThrowIfFailed.hpp">
+      <Filter>Core</Filter>
+    </ClInclude>
+    <ClInclude Include="Systems.hpp">
+      <Filter>ECS\System</Filter>
+    </ClInclude>
+    <ClInclude Include="Systems\RenderSystem.hpp">
+      <Filter>ECS\System</Filter>
+    </ClInclude>
+    <ClInclude Include="Systems\LightSystem.hpp">
+      <Filter>ECS\System</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <None Include="EngineAssets\Shaders\BRDF.hlsli">

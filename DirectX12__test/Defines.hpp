@@ -11,6 +11,7 @@
 #pragma once
 
 #define NOMINMAX
+#define _FRAMEPIPELINE
 
  // DirectX 12 
 #include <windows.h>

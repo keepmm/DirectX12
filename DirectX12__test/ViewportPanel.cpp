@@ -162,25 +162,6 @@ void ViewportPanel::DrawGameView(EditorContext& ctx)
 				const ImU32 col = ImGui::GetColorU32(ImVec4(0, 0, 0, fade));
 				ImGui::GetWindowDrawList()->AddRectFilled(p0, p1, col);
 			}
-
-			if (ImGui::BeginDragDropTarget())
-			{
-				const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ASSET_MODEL");
-				if (payload != nullptr && ctx.activeScene != nullptr)
-				{
-					// 運ばれてきたファイルパスを取り出す
-					const std::string modelpath(static_cast<const char*>(payload->Data));
-
-					// とりあえず原点に
-					const float3 fragPosition = float3(0.0f, 0.0f, 0.0f);
-
-					const size_t before = ctx.activeScene->GetWorld().GetEntities().size();
-					ctx.selectedEntity = EntityFactory::SpawnModelFromFile(
-						ctx.activeScene->GetWorld(), modelpath, fragPosition, ctx.activeScene);
-					if (ctx.history) ctx.history->RecordCreated(*ctx.activeScene, before);
-				}
-				ImGui::EndDragDropTarget();
-			}
 		}
 		else
 		{
@@ -212,6 +193,64 @@ void ViewportPanel::DrawEditorView(EditorContext& ctx)
 		{
 			ImGui::Image(static_cast<ImTextureID>(m_EditorRenderTexture->GetSRV().ptr),
 				availableSize, ImVec2(0, 0), ImVec2(1, 1));
+
+			// ---- drag drop ---- //
+			if (ImGui::BeginDragDropTarget())
+			{
+				// モデルファイルのドロップを受け付ける
+				if (const ImGuiPayload* payload = ImGui::AcceptDragDropPayload("ASSET_MODEL"))
+				{
+					if (ctx.activeScene != nullptr)
+					{
+						// ドロップされたファイルパスを受け取る
+						const std::string modelpath(static_cast<const char*>(payload->Data));
+						World& gw = ctx.activeScene->GetWorld();
+
+						// エディタ描画に使っているカメラを取得
+						const CameraComponent* cam = nullptr;
+						gw.Each<CameraComponent>([&](Entity, CameraComponent& c)
+						{
+								if (c.cameraType == CameraComponent::CameraType::Secondary) cam = &c;
+								else if (!cam) cam = &c;
+						});
+
+						float3 spawnPos{ 0.0f,0.0f,0.0f };
+
+						if (cam)
+						{
+							// ビューポット画像の左上座標とサイズ、マウスカーソルを取得
+							const ImVec2 imgPos = ImGui::GetItemRectMin();
+							const ImVec2 imgSize = ImGui::GetItemRectSize();
+							const ImVec2 mousePos = ImGui::GetIO().MousePos;
+
+							// 画像内のローカルマウス座標( 0 ~ imgSize)
+							const float localMouseX = mousePos.x - imgPos.x;
+							const float localMouseY = mousePos.y - imgPos.y;
+
+							const Ray ray = cam->ScreenPointToRay(localMouseX, localMouseY, imgSize.x, imgSize.y);
+
+							// 地面(Y = 0.0f)との交点
+							if (!ray.IntersectPanelY(0.0f, spawnPos))
+							{
+								// もし地面と交差しない
+								spawnPos = ray.GetPoint(10.0f);
+							}
+						}
+
+						// 算出した3D地面の座標にモデルを即座にスポーン
+						const size_t before = gw.GetEntities().size();
+						ctx.selectedEntity = EntityFactory::SpawnModelFromFile(
+							gw,modelpath,spawnPos,ctx.activeScene);
+
+						// アンドゥ
+						if (ctx.history)
+						{
+							ctx.history->RecordCreated(*ctx.activeScene, before);
+						}
+					}
+				}
+				ImGui::EndDragDropTarget();
+			}
 
 			// ---- Gizmoの描画 ---- //
 			if (ctx.activeScene && ctx.selectedEntity != INVALID_ENTITY)

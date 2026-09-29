@@ -12,6 +12,9 @@
 #include "../Profiler.hpp"
 #include "../GpuProfiler.hpp"
 #include "../DragFiles.hpp"
+#include "../ThrowIfFailed.hpp"
+
+#pragma region Engine 
 
 static LRESULT CALLBACK WndProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
 {
@@ -128,16 +131,16 @@ HRESULT Engine::Init(HINSTANCE hInstance, int width, int height)
 #ifdef _FRAMEPIPELINE
 	for(auto& frame : m_FramePipeline)
 	{
-		frame.Init(4 * 1024 * 1024);
+		frame.Init(1 * 1024 * 1024);
 	}
+
+	// Renderスレッドを起動
+	m_RenderExit.store(false);
+	m_RenderThread = std::thread([this] {RenderThreadMain(); });
 #endif
 
 	// サブクラスの初期化
-	HRESULT hr = OnInit();
-	if (FAILED(hr))
-	{
-		return hr;
-	}
+	ThrowIfFailed(OnInit());
 
 	return S_OK;
 }
@@ -175,10 +178,17 @@ void Engine::Run()
 
 			m_DirectX->ReloadShader();
 #ifdef _FRAMEPIPELINE
-			if(FAILED(m_DirectX->BeginFrameRecord(frameNumber)))
+			// ゲームモードかを判定
+			const bool isGameMode = m_IsGameMode;
+
+			if (isGameMode)
 			{
-				// 失敗時は次フレームへ
-				return;
+				// 待機
+				WaitForRenderSlot(frameNumber);
+			}
+			else
+			{
+				ThrowIfFailed(m_DirectX->BeginFrameRecord(frameNumber));
 			}
 #else
 			{
@@ -249,6 +259,15 @@ void Engine::Run()
 				const auto& s = RenderSettings::Get();
 				fp.AddFrameObject<FO_RenderSettings>(FO_RenderSettings{ s.vertexShader, s.pixelShader, s.wireframe, s.meshShader });
 			}
+
+			// ゲームモード時
+			if (isGameMode)
+			{
+				KickRender(frameNumber);
+				++frameNumber;
+				DropFiles::Get().Discard();
+				continue;
+			}
 #endif
 
 			RenderContext renderContext{};
@@ -318,6 +337,17 @@ void Engine::Run()
 
 void Engine::Terminate()
 {
+#ifdef _FRAMEPIPELINE
+	if (m_RenderThread.joinable())
+	{
+		{
+			std::lock_guard lk(m_RenderMutex);
+			m_RenderExit.store(true);
+		}
+		m_RenderCv.notify_all();	// 眠っているRenderスレッドを起こす
+		m_RenderThread.join();		// 完全に停止するまで待つ
+	}
+#endif
 	ScriptHost::Close();
 	APP->WaitForGPUIdle();
 	OnShutDown();
@@ -325,3 +355,137 @@ void Engine::Terminate()
 	LOG->ShutDown();
 	DestroyWindow(m_hWnd);
 }
+
+#pragma end region
+
+#pragma region FramePipeline
+#ifdef _FRAMEPIPELINE
+
+void Engine::RenderThreadMain()
+{
+	for (;;)
+	{
+		RenderJob job;
+		{
+
+			// mutexをロックしてキューを確認
+			std::unique_lock lk(m_RenderMutex);
+
+			// 終了フラグが立った or 仕事がキューにあるまで待つ
+			m_RenderCv.wait(lk, [&] { return m_RenderExit.load() || !m_RenderQueue.empty(); });
+
+			// 終了要求があり、キューが空ならスレッドを終了
+			if (m_RenderExit.load() && m_RenderQueue.empty())
+			{
+				return;
+			}
+
+			// キューから先頭の仕事取り出す
+			job = m_RenderQueue.front();
+			m_RenderQueue.pop_front();
+		}
+
+		// 1フレーム分の描画コマンドを記録してGPUへ投げる
+		ExecuteRenderJob(job);
+
+		// 完了したフレーム番号を atomic で更新 -> Gameスレッドへ通知
+		m_RenderCompletedFrame.store(job.frameNumber + 1);
+		m_RenderDoneCv.notify_all();
+	}
+}
+
+void Engine::ExecuteRenderJob(const RenderJob& job)
+{
+	const UINT64 frameNumber = job.frameNumber;
+
+	// コマンド記録の開始
+	ThrowIfFailed(m_DirectX->BeginFrameRecord(frameNumber));
+
+	FramePipeline& fp = m_FramePipeline[frameNumber % RTV_NUM];
+	FramePipelineScope fpscope(&fp);
+
+	// 描画設定を取り出す
+	const FO_RenderSettings* settingPtr = fp.GetFrameObject<FO_RenderSettings>();
+	fp.FixFrameObject<FO_RenderSettings>();
+
+	// RenderContextの構築
+	RenderContext rc;
+	rc.CommandList = m_DirectX->GetCommandList().Get();
+	rc.frameIndex = m_DirectX->GetFrameSlot();
+	rc.cbAllocator = &m_DirectX->GetConstantBufferAllocator();
+	static uint64_t s_FrameSerial = 0;
+	rc.frameSerial = ++s_FrameSerial;
+
+	if (settingPtr)
+	{
+		rc.vertexShader = settingPtr->vertexShader;
+		rc.pixelShader = settingPtr->pixelShader;
+		rc.wireframe = settingPtr->wireframe;
+		rc.meshShaderSupported = m_DirectX->IsMeshShaderSupported();
+		rc.useMeshShader = settingPtr->meshShader && rc.meshShaderSupported;
+		rc.meshShaderPso = rc.useMeshShader ? m_DirectX->GetMeshPso() : nullptr;
+		rc.CommandList6 = m_DirectX->GetCommandList6();
+	}
+
+	// シーン描画
+	ConfigureContext(rc);
+	if (rc.drawScene)
+	{
+		PROFILE_SCOPE("Scene::Draw(RenderThread)");
+		m_SceneManager.Draw(rc);
+	}
+
+	// Present 遷移バリア
+	{
+		PROFILE_SCOPE("Present(RT)");
+		m_DirectX->Present();
+	}
+
+	// コマンドリストのclose とGPU実行スレッドへの非同期投入
+	if(SUCCEEDED(m_DirectX->CloseFrameRecord()))
+	{
+		m_DirectX->KickExecuteAndPresent();
+	}
+}
+
+void Engine::KickRender(UINT64 frameNumber)
+{
+	{
+		std::lock_guard lk(m_RenderMutex);
+		m_RenderQueue.push_back({ frameNumber });
+	}
+
+	// 眠っているRenderスレッドを起こす
+	m_RenderCv.notify_one();
+}
+
+void Engine::WaitForRenderSlot(UINT64 frameNumber)
+{
+	// 最初の数フレームは待たずに先行
+	if (frameNumber < (RTV_NUM - 1))
+	{
+		return;
+	}
+
+	const UINT64 requiredCompleted = frameNumber - (RTV_NUM - 2);
+
+	// fast - path すでにRenderがおいついていれば mutex すら取らずに即return
+	if(m_RenderCompletedFrame.load(std::memory_order_acquire) >= requiredCompleted)
+	{
+		return;
+	}
+
+	// slow - path Renderがまだ追い付いていない場合は、終わるまで眠って待つ
+	std::unique_lock lk(m_RenderMutex);
+	m_RenderDoneCv.wait(lk, [&] { return m_RenderCompletedFrame.load(std::memory_order_acquire) >= requiredCompleted; });
+}
+
+void Engine::FlushRender()
+{
+	std::unique_lock lk(m_RenderMutex);
+	m_RenderDoneCv.wait(lk, [&] {
+		return m_RenderQueue.empty(); });
+}
+
+#endif
+#pragma endregion

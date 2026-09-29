@@ -642,6 +642,7 @@ static const std::vector<ComponentMeta> g_Components =
     MakeMeta<CanvasComponent>("Canvas"),
     MakeMeta<ColliderComponent>("Collider"),
     MakeMeta<LightComponent>("Light"),
+    MakeMeta<LightBeamComponent>("Light Beam"),
     MakeMeta<FreeLookComponent>("Free Look"),
     MakeMeta<SpinComponent>("Spin"),
     MakeMeta<RectTransformComponent>("Rect Transform"),

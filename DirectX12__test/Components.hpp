@@ -253,6 +253,32 @@ struct ColliderComponent
 	}
 };
 
+struct Ray
+{
+	float3 origin{ 0.0f,0.0f,0.0f };
+	float3 direction{ 0.0f,0.0f,1.0f };	// 正規化された方向ベクトル
+
+	/// @brief レイに沿って指定距離進んだ3D座標を取得
+	float3 GetPoint(float distance)const
+	{
+		return float3{
+			origin.x + direction.x * distance,
+			origin.y + direction.y * distance,
+			origin.z + direction.z * distance
+		};
+	}
+
+	bool IntersectPanelY(float planeY, _Out_ float3& outHit)const
+	{
+		if (fabsf(direction.y) < 1e-4f) return false;
+		const float t = (planeY - origin.y) / direction.y;
+		if (t < 0.0f) return false;	// カメラの背後
+
+		outHit = GetPoint(t);
+		return true;
+	}
+};
+
 struct CameraComponent
 {
 	/// @brief 描画タイプ
@@ -285,6 +311,34 @@ struct CameraComponent
 		f.AddRange("NearZ", nearZ, 0.01f, 100.0f);
 		f.AddRange("FarZ", farZ, 1.0f, 10000.0f);
 		f.Add("IsActive", isActive);
+	}
+
+	Ray ScreenPointToRay(float screenX,float screenY,float screenWidth,float screenHeight)const
+	{
+		using namespace DirectX;
+		if (screenWidth <= 0.0f || screenHeight <= 0.0f)return Ray{};
+
+		// UV座標
+		const float u = screenX / screenWidth;
+		const float v = screenY / screenHeight;
+
+		// ビュー x 射影行列の逆行列
+		const matrix viewM = XMLoadFloat4x4(&view);
+		const matrix projM = XMLoadFloat4x4(&proj);
+		XMVECTOR det;
+		const matrix invVP = XMMatrixInverse(&det, XMMatrixMultiply(viewM, projM));
+		if (XMVectorGetX(XMVectorEqual(det, XMVectorZero()))) return Ray{};
+
+		// NDC 座標 (-1.0 ~ -1.0)で手前と奥を逆変換
+		const float ndcX = u * 2.0f - 1.0f;
+		const float ndcY = 1.0f - v * 2.0f;
+		const XMVECTOR nearP = XMVector3TransformCoord(XMVectorSet(ndcX,ndcY,0.0f,1.0f),invVP);
+		const XMVECTOR farP = XMVector3TransformCoord(XMVectorSet(ndcX,ndcY,1.0f,1.0f),invVP);
+
+		Ray ray;
+		XMStoreFloat3(&ray.origin, nearP);
+		XMStoreFloat3(&ray.direction, XMVector3Normalize(XMVectorSubtract(farP,nearP)));
+		return ray;
 	}
 };
 
@@ -413,72 +467,44 @@ struct LightComponent
 		Spot,
 		Laser
 	} type = LightType::Directional;
-
-	// Reflect が (int&) でキャストして4バイト書き込むので、1バイト幅にはできない
-	// (uint8_t のままだと隣接メンバへ書き込む未定義動作になる)
-	enum class SwingAxis : int
-	{
-		Pan,
-		Tilt,
-		PanTilt
-	};
-	COLOR color{ 1.0f, 1.0f, 1.0f, 1.0f };
-	COLOR ambientColor{ 0.2f, 0.2f, 0.2f, 1.0f };
-
-	// 環境光の色を、そのとき点いているライトの色へどれだけ寄せるか。
-	// 0で ambientColor のまま。上げるほどキャラの影側とフォグが背景の色に沈み、
-	// 切り抜きを貼ったような浮きが減る
-	float ambientFromLights = 0.7f;
-	float intensity = 1.0f;
-	float range = 10.0f;
+	COLOR    color{ 1.0f, 1.0f, 1.0f, 1.0f };
+	float    intensity = 1.0f;
+	float    range = 10.0f;
 	POSITION direction{ 0.0f, -1.0f, 0.0f };
-	float spotAngle = 45.0f;
-	bool isActive = true;
-
-	bool ShowBeam = false;
-	float beamWidth = 0.05f;
-
-	bool swingEnable = false;
-	SwingAxis swingAxis = SwingAxis::Pan;
-	float swingSpeed = 45.0f;
-	float swingAngle = 30.0f;
-
-	COLOR beamColorEnd{ 1.0f, 1.0f, 1.0f, 1.0f };
-	float glowPower = 6.0f;
-	float glowIntensity = 3.0f;
-	float volumetricIntensity = 1.0f;
-
+	float    spotAngle = 45.0f;
+	bool     isActive = true;
+	bool     castShadows = true;
+	bool     showGizmo = false; // 旧 isShow (ギズモ・デバッグライン表示)
 	void Reflect(FieldList& f)
 	{
-		f.AddEnum("Type", (int&)type, { "Directional", "Point", "Spot","Laser"});
-
+		f.AddEnum("Type", (int&)type, { "Directional", "Point", "Spot", "Laser" });
 		f.Add("Color", color);
-		f.Add("AmbientColor", ambientColor);
-		f.AddRange("AmbientFromLights", ambientFromLights, 0.0f, 1.0f);
 		f.AddRange("Intensity", intensity, 0.0f, 10.0f);
 		f.AddRange("Range", range, 0.0f, 100.0f);
 		f.Add("Direction", direction);
 		f.AddRange("SpotAngle", spotAngle, 1.0f, 179.0f);
 		f.Add("IsActive", isActive);
-		f.Add("IsShow", isShow);
-		f.Add("ShowBeam", ShowBeam);
-		f.AddRange("BeamWidth", beamWidth, 0.01f, 2.0f);
-
-		f.Add("SwingEnabled", swingEnable);
-		f.AddEnum("SwingAxis", (int&)swingAxis, { "Pan", "Tilt", "PanTilt" });
-		f.AddRange("SwingSpeed", swingSpeed, 0.0f, 360.0f);
-		f.AddRange("SwingAngle", swingAngle, 0.0f, 90.0f);
-
-		f.Add("BeamColorEnd", beamColorEnd);
-		f.AddRange("GlowPower", glowPower, 1.0f, 32.0f);
-		f.AddRange("GlowIntensity", glowIntensity, 0.1f, 20.0f);
-		f.AddRange("VolumetricIntensity", volumetricIntensity, 0.0f, 10.0f);
-		f.Add("CastShadows", castShadows);	// 影を落とす担当を選ぶ(先着1つだけ有効)
+		f.Add("CastShadows", castShadows);
+		f.Add("ShowGizmo", showGizmo);
 	}
-	bool castShadows = true;
-	bool isShow = false;
 };
 
+struct LightBeamComponent
+{
+	bool  showBeam = true;
+	float beamWidth = 0.05f;
+	COLOR beamColorEnd{ 1.0f, 1.0f, 1.0f, 1.0f };
+	float glowIntensity = 3.0f;
+	float volumetricIntensity = 1.0f;
+	void Reflect(FieldList& f)
+	{
+		f.Add("ShowBeam", showBeam);
+		f.AddRange("BeamWidth", beamWidth, 0.01f, 2.0f);
+		f.Add("BeamColorEnd", beamColorEnd);
+		f.AddRange("GlowIntensity", glowIntensity, 0.1f, 20.0f);
+		f.AddRange("VolumetricIntensity", volumetricIntensity, 0.0f, 10.0f);
+	}
+};
 
 struct NameComponent
 {
@@ -491,9 +517,6 @@ struct PrefabComponent
 	std::string name;
 	std::string guid;
 };
-
-
-
 
 struct SpriteComponent
 {

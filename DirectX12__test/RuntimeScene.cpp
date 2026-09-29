@@ -127,7 +127,6 @@ void RuntimeScene::EnsureEssentials()
 		auto& lightComp = m_World.AddComponent(light, LightComponent{});
 		lightComp.type = LightComponent::LightType::Directional;
 		lightComp.color = { 1.0f, 1.0f, 1.0f, 1.0f };
-		lightComp.ambientColor = { 0.2f, 0.2f, 0.2f, 1.0f };
 		lightComp.intensity = 1.0f;
 		lightComp.direction = { -0.5f, -1.0f, -0.5f };
 	}
@@ -257,9 +256,7 @@ void RuntimeScene::PublishFrameObjects()
 
 	fp->AddFrameObject<FO_Light>(FO_Light{ m_LightSystem.GetLightData() });
 
-	// NOTE: mmd-live では RenderSystem::Draw が FO_DrawItem を消費していないので
-	//       積んでも捨てるだけになる(スキン1体につき32KB)。Draw を移植するまで止めておく
-	// RenderSystem::Publish(m_World, *fp);
+	RenderSystem::Publish(m_World, *fp);
 
 	m_World.Each<CameraComponent>([&](Entity entity, CameraComponent& camera)
 		{
@@ -933,7 +930,7 @@ void RuntimeScene::DrawLight()
 	m_World.Each<TransformComponent, LightComponent>(
 		[this](Entity entity, TransformComponent& transform, LightComponent& light)
 		{
-			if (!light.isShow)
+			if (!light.showGizmo)
 			{
 				return;
 			}
@@ -1059,7 +1056,7 @@ void RuntimeScene::DrawLight()
 			case LightComponent::LightType::Laser:
 			{
 				const float len = light.range;
-				const float r = std::max(light.beamWidth, 0.01f);
+				const float r = 0.02f;	// 太さ
 				const float4 laserColor = { 1.0f, 0.15f, 0.15f, 1.0f }; // 目立つ赤系
 				const float3 tip = pos + dir * len;
 
@@ -1206,18 +1203,18 @@ void RuntimeScene::DrawLaserBeams(const RenderContext& context, ID3D12PipelineSt
 
 	constexpr int kColumns = 6; // ビーム断面の分割数（芯のグローを滑らかにするため）
 
-	m_World.Each<TransformComponent, LightComponent>(
-		[&](Entity, TransformComponent& tr, LightComponent& light)
+	m_World.Each<TransformComponent, LightComponent, LightBeamComponent>(
+		[&](Entity, TransformComponent& tr, LightComponent& light, LightBeamComponent& beam)
 		{
-			const bool isLaser = (light.type == LightComponent::LightType::Laser);
-			const bool isSpotBeam = (light.type == LightComponent::LightType::Spot && light.ShowBeam);
-			if ((!isLaser && !isSpotBeam) || !light.isActive)
+			if (!light.isActive || !beam.showBeam)
 				return;
-
+			const bool isLaser = (light.type == LightComponent::LightType::Laser);
+			const bool isSpotBeam = (light.type == LightComponent::LightType::Spot);
+			if (!isLaser && !isSpotBeam)
+				return;
 			const float3 origin = tr.position;
 			const float3 dir = light.direction; // LightSystemで正規化・首振り済み
 			const float3 tip = origin + dir * light.range;
-
 			// ビーム軸・カメラ方向に直交する「幅方向」ベクトル(既存のまま)
 			DirectX::XMVECTOR dV = DirectX::XMLoadFloat3(&dir);
 			DirectX::XMVECTOR toCamV = DirectX::XMVector3Normalize(
@@ -1233,37 +1230,31 @@ void RuntimeScene::DrawLaserBeams(const RenderContext& context, ID3D12PipelineSt
 			widthV = DirectX::XMVector3Normalize(widthV);
 			float3 widthAxis;
 			DirectX::XMStoreFloat3(&widthAxis, widthV);
-
 			// 半幅: レーザーは一定、スポットは円錐に沿って開く
-			const float hwStart = std::max(light.beamWidth, 0.001f) * 0.5f;
+			const float hwStart = std::max(beam.beamWidth, 0.001f) * 0.5f;
 			float hwEnd = hwStart;
 			float tipAlpha = 1.0f;
 			if (isSpotBeam)
 			{
 				const float half = DirectX::XMConvertToRadians(light.spotAngle * 0.5f);
 				hwEnd = tanf(half) * light.range;   // 円錐の底面半径
-				tipAlpha = light.beamColorEnd.w;    // 先端の残り具合(0で空中に消える)
+				tipAlpha = beam.beamColorEnd.w;    // 先端の残り具合(0で空中に消える)
 			}
-
-			const float g = std::max(light.glowIntensity, 1.0f);
-
+			const float g = std::max(beam.glowIntensity, 1.0f);
 			for (int c = 0; c < kColumns; ++c)
 			{
 				const float x0 = -1.0f + 2.0f * c / kColumns;
 				const float x1 = -1.0f + 2.0f * (c + 1) / kColumns;
 				const float core0 = 1.0f - fabsf(x0);
 				const float core1 = 1.0f - fabsf(x1);
-
 				const float3 o0 = origin + widthAxis * (x0 * hwStart);
 				const float3 o1 = origin + widthAxis * (x1 * hwStart);
 				const float3 t0 = tip + widthAxis * (x0 * hwEnd);
 				const float3 t1 = tip + widthAxis * (x1 * hwEnd);
-
 				const float4 cO0 = { light.color.x * g, light.color.y * g, light.color.z * g, core0 };
 				const float4 cO1 = { light.color.x * g, light.color.y * g, light.color.z * g, core1 };
-				const float4 cT0 = { light.beamColorEnd.x * g, light.beamColorEnd.y * g, light.beamColorEnd.z * g, core0 * tipAlpha };
-				const float4 cT1 = { light.beamColorEnd.x * g, light.beamColorEnd.y * g, light.beamColorEnd.z * g, core1 * tipAlpha };
-
+				const float4 cT0 = { beam.beamColorEnd.x * g, beam.beamColorEnd.y * g, beam.beamColorEnd.z * g, core0 * tipAlpha };
+				const float4 cT1 = { beam.beamColorEnd.x * g, beam.beamColorEnd.y * g, beam.beamColorEnd.z * g, core1 * tipAlpha };
 				m_BeamRenderer.AddTriangle(o0, cO0, o1, cO1, t1, cT1);
 				m_BeamRenderer.AddTriangle(o0, cO0, t1, cT1, t0, cT0);
 			}
