@@ -67,6 +67,12 @@
     <Filter Include="ECS\System">
       <UniqueIdentifier>{f31bea79-e494-486f-9598-503df6dca9b9}</UniqueIdentifier>
     </Filter>
+    <Filter Include="RHI">
+      <UniqueIdentifier>{0034117d-38d9-45a1-a11d-f99c013627c2}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="RHI\D3D12">
+      <UniqueIdentifier>{e196fa35-4fd7-475e-a8e6-ec04c5cb8e61}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="Application.cpp">
@@ -302,6 +308,9 @@
     </ClCompile>
     <ClCompile Include="Systems\LightSystem.cpp">
       <Filter>ECS\System</Filter>
+    </ClCompile>
+    <ClCompile Include="RHI\D3D12\D3D12Resource.cpp">
+      <Filter>RHI\D3D12</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -622,6 +631,27 @@
     </ClInclude>
     <ClInclude Include="Systems\LightSystem.hpp">
       <Filter>ECS\System</Filter>
+    </ClInclude>
+    <ClInclude Include="RHI\RHITypes.hpp">
+      <Filter>RHI</Filter>
+    </ClInclude>
+    <ClInclude Include="RHI\IRHIDevice.hpp">
+      <Filter>RHI</Filter>
+    </ClInclude>
+    <ClInclude Include="RHI\IRHITexture.hpp">
+      <Filter>RHI</Filter>
+    </ClInclude>
+    <ClInclude Include="RHI\IRHIBuffer.hpp">
+      <Filter>RHI</Filter>
+    </ClInclude>
+    <ClInclude Include="RHI\D3D12\D3D12Types.hpp">
+      <Filter>RHI\D3D12</Filter>
+    </ClInclude>
+    <ClInclude Include="RHI\D3D12\D3D12DescriptorHeap.hpp">
+      <Filter>RHI\D3D12</Filter>
+    </ClInclude>
+    <ClInclude Include="RHI\D3D12\D3D12Resource.hpp">
+      <Filter>RHI\D3D12</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
